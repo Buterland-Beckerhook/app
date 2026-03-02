@@ -36,12 +36,12 @@ async function main() {
 	console.log(`Source:   ${LOCATIONS_DIR}`);
 	console.log('');
 
-	// Check for existing locations
+	// Check for existing locations — skip if already present (referenced by events via FK)
 	const existing = await readItems('locations');
 	if (existing.length > 0) {
-		console.log(`Found ${existing.length} existing locations. Deleting...`);
-		const deleted = await deleteAllItems('locations');
-		console.log(`Deleted ${deleted} locations.`);
+		console.log(`Found ${existing.length} existing locations. Skipping import (already present).`);
+		console.log('To re-import locations, delete events first, then re-run.');
+		return;
 	}
 
 	// Read all YAML files

@@ -15,8 +15,10 @@ import {
 	createItem,
 	deleteAllItems,
 	deleteAllFiles,
+	deleteAllFolders,
 	readItems,
 	uploadFile,
+	getOrCreateFolder,
 	DIRECTUS_URL
 } from './directus.js';
 
@@ -175,6 +177,12 @@ async function main() {
 		console.log(`Deleted ${deletedFiles} uploaded files.`);
 	}
 
+	// Delete folders
+	const deletedFolders = await deleteAllFolders();
+	if (deletedFolders > 0) {
+		console.log(`Deleted ${deletedFolders} folders.`);
+	}
+
 	console.log('');
 
 	// Find all throne articles
@@ -254,6 +262,8 @@ async function main() {
 			// 3. Upload images and create article_images
 			const resources = frontmatter.resources ?? [];
 			let imageSort = 0;
+			const folderName = parseInt(yearDir, 10) <= 2000 ? '1909-2000' : yearDir;
+			const folderId = resources.length > 0 ? await getOrCreateFolder(folderName) : undefined;
 
 			for (const resource of resources) {
 				const imagePath = join(articleDir, resource.src);
@@ -263,7 +273,7 @@ async function main() {
 				}
 
 				try {
-					const file = await uploadFile(imagePath, resource.title || resource.src);
+					const file = await uploadFile(imagePath, resource.title || resource.src, folderId);
 
 					const isThronePicture =
 						resource.name?.startsWith('thron-') ?? false;

@@ -12,7 +12,7 @@ import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
 import { join, basename, dirname } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import { marked } from 'marked';
-import { createItem, readItems, uploadFile, DIRECTUS_URL } from './directus.js';
+import { createItem, readItems, uploadFile, getOrCreateFolder, DIRECTUS_URL } from './directus.js';
 
 const HUGO_CONTENT_PATH = process.argv[2] ?? '../../buterland-beckerhook/content';
 const AKTUELL_DIR = join(HUGO_CONTENT_PATH, 'aktuell');
@@ -382,6 +382,8 @@ async function main() {
 				!r.src.toLowerCase().endsWith('.pdf')
 			);
 			let imageSort = 0;
+			const folderName = parseInt(yearDir, 10) <= 2000 ? '1909-2000' : yearDir;
+			const folderId = resources.length > 0 ? await getOrCreateFolder(folderName) : undefined;
 
 			for (const resource of resources) {
 				const imagePath = join(articleDir, resource.src);
@@ -391,7 +393,7 @@ async function main() {
 				}
 
 				try {
-					const file = await uploadFile(imagePath, resource.title || resource.src);
+					const file = await uploadFile(imagePath, resource.title || resource.src, folderId);
 
 					await createItem('article_images', {
 						article: articleId,
