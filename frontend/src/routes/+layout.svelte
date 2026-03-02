@@ -46,25 +46,41 @@
 		{ href: '/kontakt', label: 'Kontakt' }
 	];
 
+	/** Collect all child hrefs so we can exclude them from top-level matching. */
+	const allChildHrefs: string[] = navLinks.flatMap((l) => l.children?.map((c) => c.href) ?? []);
+
 	/**
-	 * Check if a nav link is active (current page matches).
-	 * For parent links with children, match if current path starts with href.
-	 * For leaf links, exact match or starts-with for nested routes.
+	 * Check if a top-level nav link is active (desktop only).
+	 * For dropdown parents: active if any child is active.
+	 * For leaf links: exact or prefix match, but NOT if the path belongs to a dropdown child.
 	 */
-	function isActive(href: string, hasChildren: boolean): boolean {
+	function isActive(link: NavLink): boolean {
 		const path: string = page.url.pathname;
-		if (hasChildren) {
-			return path === href || path.startsWith(href + '/');
+		if (link.children) {
+			return link.children.some((c) => isChildActive(c.href, link.href));
 		}
-		// Sections like /aktuell, /termine match their sub-routes too
-		if (['/aktuell', '/termine'].includes(href)) {
-			return path === href || path.startsWith(href + '/');
+		// Sections like /aktuell, /termine match their sub-routes too,
+		// but not if the path is claimed by a dropdown child (e.g. /aktuell/kaiserthron-2009)
+		if (['/aktuell', '/termine'].includes(link.href)) {
+			const matches = path === link.href || path.startsWith(link.href + '/');
+			if (matches && allChildHrefs.some((ch) => path === ch || path.startsWith(ch + '/'))) {
+				return false;
+			}
+			return matches;
 		}
-		return path === href;
+		return path === link.href;
 	}
 
-	function isChildActive(href: string): boolean {
+	/**
+	 * Check if a dropdown child is active.
+	 * When the child href equals the parent href (e.g. /verein → "Über uns"),
+	 * only match exactly — not prefix — to avoid highlighting on /verein/vorstand.
+	 */
+	function isChildActive(href: string, parentHref: string): boolean {
 		const path: string = page.url.pathname;
+		if (href === parentHref) {
+			return path === href;
+		}
 		return path === href || path.startsWith(href + '/');
 	}
 </script>
@@ -97,7 +113,7 @@
 						<div class="group relative" onmouseenter={() => {}} onmouseleave={() => {}}>
 							<a
 								href={link.href}
-								class="flex items-center gap-1 transition-colors {isActive(link.href, true)
+								class="flex items-center gap-1 transition-colors {isActive(link)
 									? 'font-semibold text-primary'
 									: 'text-gray-600 hover:text-primary dark:text-gray-300 dark:hover:text-primary'}"
 							>
@@ -120,7 +136,10 @@
 									{#each link.children as child (child.href)}
 										<a
 											href={child.href}
-											class="block px-4 py-2 text-sm transition-colors {isChildActive(child.href)
+											class="block px-4 py-2 text-sm transition-colors {isChildActive(
+												child.href,
+												link.href
+											)
 												? 'bg-gray-50 font-medium text-primary dark:bg-zinc-700'
 												: 'text-gray-600 hover:bg-gray-50 hover:text-primary dark:text-gray-300 dark:hover:bg-zinc-700 dark:hover:text-primary'}"
 										>
@@ -133,7 +152,7 @@
 					{:else}
 						<a
 							href={link.href}
-							class="transition-colors {isActive(link.href, false)
+							class="transition-colors {isActive(link)
 								? 'font-semibold text-primary'
 								: 'text-gray-600 hover:text-primary dark:text-gray-300 dark:hover:text-primary'}"
 							>{link.label}</a
@@ -179,19 +198,14 @@
 			<div class="border-t border-gray-200 px-4 pb-4 dark:border-zinc-700 md:hidden">
 				{#each navLinks as link (link.href)}
 					{#if link.children}
-						<a
-							href={link.href}
-							class="block py-2 font-medium {isActive(link.href, true)
-								? 'text-primary'
-								: 'text-gray-900 dark:text-gray-100'}"
-						>
+						<a href={link.href} class="block py-2 font-medium text-gray-900 dark:text-gray-100">
 							{link.label}
 						</a>
 						<div class="mb-1 ml-4 border-l-2 border-gray-200 pl-3 dark:border-zinc-700">
 							{#each link.children as child (child.href)}
 								<a
 									href={child.href}
-									class="block py-1.5 text-sm {isChildActive(child.href)
+									class="block py-1.5 text-sm {isChildActive(child.href, link.href)
 										? 'font-medium text-primary'
 										: 'text-gray-600 hover:text-primary dark:text-gray-300 dark:hover:text-primary'}"
 								>
@@ -202,9 +216,7 @@
 					{:else}
 						<a
 							href={link.href}
-							class="block py-2 font-medium {isActive(link.href, false)
-								? 'text-primary'
-								: 'text-gray-900 hover:text-primary dark:text-gray-100 dark:hover:text-primary'}"
+							class="block py-2 font-medium text-gray-900 hover:text-primary dark:text-gray-100 dark:hover:text-primary"
 							>{link.label}</a
 						>
 					{/if}
