@@ -5,9 +5,15 @@
 	"type": "module",
 	"scripts": {
 		"import:locations": "tsx src/import-locations.ts",
-		"import:people": "tsx src/import-people.ts"
+		"import:people": "tsx src/import-people.ts",
+		"import:thrones": "tsx src/import-thrones.ts",
+		"import:articles": "tsx src/import-articles.ts",
+		"import:events": "tsx src/import-events.ts",
+		"import:pages": "tsx src/import-pages.ts",
+		"import:all": "npm run import:locations && npm run import:people && npm run import:thrones && npm run import:articles && npm run import:events && npm run import:pages"
 	},
 	"dependencies": {
+		"marked": "^17.0.3",
 		"yaml": "^2.7.0"
 	},
 	"devDependencies": {
