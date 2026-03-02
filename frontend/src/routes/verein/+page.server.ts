@@ -1,14 +1,12 @@
 import type { PageServerLoad } from './$types';
-import { getPage, getPeople } from '$lib/server/mock-data';
+import { getPage, getVereinPages } from '$lib/server/mock-data';
 
 export const load: PageServerLoad = async () => {
-	const page = getPage('about');
-	const vorstand = getPeople('vorstand');
-	const offiziere = getPeople('offiziere');
+	const page = getPage('ueber-uns');
+	const subPages = getVereinPages().filter((p) => p.slug !== 'ueber-uns');
 
 	return {
 		page,
-		vorstand,
-		offiziere
+		subPages
 	};
 };

@@ -4,7 +4,7 @@
 // =============================================================================
 
 import { env } from '$env/dynamic/public';
-import type { ArticleImage } from '$lib/types';
+import type { Article, ArticleImage } from '$lib/types';
 
 /**
  * Get the display URL for an ArticleImage.
@@ -42,4 +42,15 @@ export function getImageAlt(articleImage: ArticleImage): string {
 export function getFirstImage(images: ArticleImage[]): ArticleImage | undefined {
 	if (!images || images.length === 0) return undefined;
 	return [...images].sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))[0];
+}
+
+/**
+ * Get the image flagged as throne picture from an article's images.
+ * Falls back to the first image if none is flagged.
+ */
+export function getThroneImage(article: Article): ArticleImage | undefined {
+	if (!article.images || article.images.length === 0) return undefined;
+	const flagged = article.images.find((img) => img.use_as_throne_picture);
+	if (flagged) return flagged;
+	return [...article.images].sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))[0];
 }

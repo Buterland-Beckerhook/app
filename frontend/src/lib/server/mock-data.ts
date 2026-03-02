@@ -14,7 +14,8 @@ function mockImage(
 	seed: number,
 	logicalName: string,
 	title: string,
-	sort: number
+	sort: number,
+	useAsThroneImage = false
 ): ArticleImage {
 	return {
 		id,
@@ -30,7 +31,8 @@ function mockImage(
 		logical_name: logicalName,
 		title,
 		copyright: 'Beispielfoto (picsum.photos)',
-		sort
+		sort,
+		use_as_throne_picture: useAsThroneImage
 	};
 }
 
@@ -114,9 +116,54 @@ export const mockThrones: Throne[] = [
 	},
 	{
 		id: 'throne-3',
+		article: 'art-7',
+		type: 'thron',
+		years: '2022-2023',
+		king_title: 'Hermann III.',
+		king: 'Hermann Feldmann',
+		queen: 'Inge Feldmann',
+		moh1: 'Karin Weber',
+		moh2: 'Doris Lange',
+		loh1: 'Norbert Weber',
+		loh2: 'Jürgen Lange',
+		cupbearer: 'Willi Schenker',
+		courtmarshal: 'Theo Ordner'
+	},
+	{
+		id: 'throne-4',
+		article: 'art-8',
+		type: 'thron',
+		years: '2021-2022',
+		king_title: 'Andreas I.',
+		king: 'Andreas Brinkmann',
+		queen: 'Heike Brinkmann',
+		moh1: 'Silvia Tepper',
+		moh2: 'Monika Böhm',
+		loh1: 'Bernd Tepper',
+		loh2: 'Georg Böhm',
+		cupbearer: 'Uwe Zapfer',
+		courtmarshal: 'Lothar Stab'
+	},
+	{
+		id: 'throne-5',
+		article: 'art-9',
+		type: 'thron',
+		years: '2019-2021',
+		king_title: 'Dieter IV.',
+		king: 'Dieter Ahlert',
+		queen: 'Brigitte Ahlert',
+		moh1: 'Elfriede Rosen',
+		moh2: 'Gisela Kamp',
+		loh1: 'Herbert Rosen',
+		loh2: 'Manfred Kamp',
+		cupbearer: 'Rudolf Krug',
+		courtmarshal: 'Helmut Wache'
+	},
+	{
+		id: 'throne-6',
 		article: 'art-6',
 		type: 'kaiserthron',
-		years: '2022-2025',
+		years: '2009-2012',
 		king_title: 'Gerd X.',
 		king: 'Gerd Kaiserlich',
 		queen: 'Helga Kaiserlich',
@@ -126,6 +173,51 @@ export const mockThrones: Throne[] = [
 		loh2: 'Wilhelm Kaiser',
 		cupbearer: 'Otto Schenk',
 		courtmarshal: 'Ludwig Marschall'
+	},
+	{
+		id: 'throne-7',
+		article: 'art-10',
+		type: 'kaiserthron',
+		years: '1984-1987',
+		king_title: 'Heinrich V.',
+		king: 'Heinrich Bröker',
+		queen: 'Hildegard Bröker',
+		moh1: 'Anneliese Hoff',
+		moh2: 'Gertrud Sommer',
+		loh1: 'Fritz Hoff',
+		loh2: 'Walter Sommer',
+		cupbearer: 'Karl Kanne',
+		courtmarshal: 'Ernst Ordentlich'
+	},
+	{
+		id: 'throne-8',
+		article: 'art-11',
+		type: 'stadtkaiser',
+		years: '2018-2023',
+		king_title: 'Werner II.',
+		king: 'Werner Stadtmann',
+		queen: 'Ursula Stadtmann',
+		moh1: 'Christa Urban',
+		moh2: 'Margret Kern',
+		loh1: 'Reinhold Urban',
+		loh2: 'Hubert Kern',
+		cupbearer: 'Siegfried Pokal',
+		courtmarshal: 'Günter Zeremonie'
+	},
+	{
+		id: 'throne-9',
+		article: 'art-12',
+		type: 'stadtkaiser',
+		years: '2013-2018',
+		king_title: 'Paul I.',
+		king: 'Paul Ahaus',
+		queen: 'Erika Ahaus',
+		moh1: 'Hannelore Bürger',
+		moh2: 'Waltraud Platz',
+		loh1: 'Alois Bürger',
+		loh2: 'Josef Platz',
+		cupbearer: 'Bruno Trank',
+		courtmarshal: 'Anton Marsch'
 	}
 ];
 
@@ -150,7 +242,7 @@ export const mockArticles: Article[] = [
 		no_article: false,
 		aliases: ['/aktuell/2024/markus-mustermann-regiert/'],
 		images: [
-			mockImage('img-1-1', 'art-1', 101, 'thron', 'Der neue Thron 2024', 1),
+			mockImage('img-1-1', 'art-1', 101, 'thron', 'Der neue Thron 2024', 1, true),
 			mockImage('img-1-2', 'art-1', 102, 'koenigspaar', 'Das Königspaar', 2),
 			mockImage('img-1-3', 'art-1', 103, 'hofstaat', 'Der Hofstaat', 3)
 		],
@@ -170,7 +262,7 @@ export const mockArticles: Article[] = [
 		no_article: false,
 		aliases: null,
 		images: [
-			mockImage('img-2-1', 'art-2', 201, 'thron', 'Thron 2023', 1),
+			mockImage('img-2-1', 'art-2', 201, 'thron', 'Thron 2023', 1, true),
 			mockImage('img-2-2', 'art-2', 202, 'vogelschuss', 'Der Vogelschuss', 2)
 		],
 		throne: mockThrones[1]
@@ -247,19 +339,119 @@ export const mockArticles: Article[] = [
 		status: 'published',
 		title: 'Gerd Kaiserlich ist Bezirkskönig',
 		subtitle: 'Kaiserthron für Buterland-Beckerhook',
-		slug: 'gerd-kaiserlich-bezirkskoenig',
-		date_published: '2022-09-10T15:00:00Z',
+		slug: 'kaiserthron-2009',
+		date_published: '2009-09-10T15:00:00Z',
 		author: 'Redaktion',
 		tags: ['Thron', 'Kaiserthron'],
-		body: `<p>Gerd Kaiserlich hat beim Bezirksschützenfest den Vogel geholt und regiert nun als Kaiser <strong>Gerd X.</strong> den Schützenbezirk.</p>`,
+		body: `<p>Gerd Kaiserlich hat beim Bezirksschützenfest den Vogel geholt und regiert nun als Kaiser <strong>Gerd X.</strong> den Schützenbezirk.</p>
+<p>Ein historischer Moment für den Schützenverein Buterland-Beckerhook — nach 25 Jahren stellt der Verein wieder einen Bezirkskönig.</p>`,
 		is_throne_article: true,
 		no_article: false,
 		aliases: null,
 		images: [
-			mockImage('img-6-1', 'art-6', 601, 'kaiserthron', 'Der Kaiserthron', 1),
+			mockImage('img-6-1', 'art-6', 601, 'kaiserthron', 'Der Kaiserthron', 1, true),
 			mockImage('img-6-2', 'art-6', 602, 'kaiserkoenigspaar', 'Das Kaiserpaar', 2)
 		],
+		throne: mockThrones[5]
+	},
+	{
+		id: 'art-7',
+		status: 'published',
+		title: 'Hermann Feldmann regiert als Hermann III.',
+		subtitle: null,
+		slug: 'hermann-feldmann-koenig-2022',
+		date_published: '2022-07-16T14:00:00Z',
+		author: 'Redaktion',
+		tags: ['Thron', 'Schützenfest'],
+		body: `<p>Hermann Feldmann holte den Vogel von der Stange und regiert nun als <strong>Hermann III.</strong> den Schützenverein Buterland-Beckerhook.</p>`,
+		is_throne_article: true,
+		no_article: false,
+		aliases: null,
+		images: [
+			mockImage('img-7-1', 'art-7', 701, 'thron', 'Thron 2022', 1, true),
+			mockImage('img-7-2', 'art-7', 702, 'hofstaat', 'Der Hofstaat 2022', 2)
+		],
 		throne: mockThrones[2]
+	},
+	{
+		id: 'art-8',
+		status: 'published',
+		title: 'Andreas Brinkmann ist Schützenkönig',
+		subtitle: null,
+		slug: 'andreas-brinkmann-koenig-2021',
+		date_published: '2021-07-18T14:00:00Z',
+		author: 'Redaktion',
+		tags: ['Thron', 'Schützenfest'],
+		body: `<p>Andreas Brinkmann regiert als <strong>Andreas I.</strong> den Schützenverein Buterland-Beckerhook.</p>`,
+		is_throne_article: true,
+		no_article: false,
+		aliases: null,
+		images: [mockImage('img-8-1', 'art-8', 801, 'thron', 'Thron 2021', 1, true)],
+		throne: mockThrones[3]
+	},
+	{
+		id: 'art-9',
+		status: 'published',
+		title: 'Dieter Ahlert regiert als Dieter IV.',
+		subtitle: 'Zwei Jahre König wegen Corona',
+		slug: 'dieter-ahlert-koenig-2019',
+		date_published: '2019-07-14T14:00:00Z',
+		author: 'Redaktion',
+		tags: ['Thron', 'Schützenfest'],
+		body: `<p>Dieter Ahlert holte den Vogel von der Stange und regiert als <strong>Dieter IV.</strong> — wegen der Corona-Pandemie gleich für zwei Jahre.</p>`,
+		is_throne_article: true,
+		no_article: false,
+		aliases: null,
+		images: [mockImage('img-9-1', 'art-9', 901, 'thron', 'Thron 2019', 1, true)],
+		throne: mockThrones[4]
+	},
+	{
+		id: 'art-10',
+		status: 'published',
+		title: 'Heinrich Bröker ist Bezirkskönig',
+		subtitle: 'Kaiserthron 1984',
+		slug: 'kaiserthron-1984',
+		date_published: '1984-09-15T15:00:00Z',
+		author: 'Redaktion',
+		tags: ['Thron', 'Kaiserthron'],
+		body: `<p>Heinrich Bröker hat beim Bezirksschützenfest den Vogel geholt und regiert als Kaiser <strong>Heinrich V.</strong> den Schützenbezirk.</p>`,
+		is_throne_article: true,
+		no_article: false,
+		aliases: null,
+		images: [mockImage('img-10-1', 'art-10', 1001, 'kaiserthron', 'Kaiserthron 1984', 1, true)],
+		throne: mockThrones[6]
+	},
+	{
+		id: 'art-11',
+		status: 'published',
+		title: 'Werner Stadtmann ist Stadtkönig',
+		subtitle: 'Buterland-Beckerhook stellt den Stadtkaiser',
+		slug: 'stadtkaiser-2018',
+		date_published: '2018-08-25T15:00:00Z',
+		author: 'Redaktion',
+		tags: ['Thron', 'Stadtkaiser'],
+		body: `<p>Werner Stadtmann hat beim Stadtschützenfest der 10 Ahauser Vereine den Vogel geholt und regiert als Stadtkaiser <strong>Werner II.</strong></p>`,
+		is_throne_article: true,
+		no_article: false,
+		aliases: null,
+		images: [mockImage('img-11-1', 'art-11', 1101, 'stadtkaiser', 'Stadtkaiser 2018', 1, true)],
+		throne: mockThrones[7]
+	},
+	{
+		id: 'art-12',
+		status: 'published',
+		title: 'Paul Ahaus ist Stadtkönig',
+		subtitle: 'Stadtkaiser aus Buterland-Beckerhook',
+		slug: 'stadtkaiser-2013',
+		date_published: '2013-08-24T15:00:00Z',
+		author: 'Redaktion',
+		tags: ['Thron', 'Stadtkaiser'],
+		body: `<p>Paul Ahaus hat den Vogel von der Stange geholt und regiert als Stadtkaiser <strong>Paul I.</strong></p>`,
+		is_throne_article: true,
+		no_article: false,
+		aliases: null,
+		images: [mockImage('img-12-1', 'art-12', 1201, 'stadtkaiser', 'Stadtkaiser 2013', 1, true)],
+		throne: mockThrones[8]
 	}
 ];
 
@@ -510,10 +702,12 @@ export const mockPages: Page[] = [
 		id: 'page-1',
 		status: 'published',
 		title: 'Über uns',
-		slug: 'about',
+		slug: 'ueber-uns',
 		body: `<h2>Schützenverein Buterland-Beckerhook e.V.</h2>
 <p>Der Schützenverein Buterland-Beckerhook e.V. wurde 1925 gegründet und ist einer der traditionsreichsten Vereine in der Gemeinde Ahaus.</p>
-<p>Mit rund 200 Mitgliedern pflegen wir das Brauchtum und den Zusammenhalt in unserer Nachbarschaft. Höhepunkt des Vereinsjahres ist das traditionelle Schützenfest im Juli.</p>`,
+<p>Mit rund 200 Mitgliedern pflegen wir das Brauchtum und den Zusammenhalt in unserer Nachbarschaft. Höhepunkt des Vereinsjahres ist das traditionelle Schützenfest im Juli.</p>
+<h3>Tradition und Gemeinschaft</h3>
+<p>Unser Verein steht für Tradition, Kameradschaft und Engagement in der Nachbarschaft. Das Vereinsleben umfasst neben dem Schützenfest zahlreiche weitere Veranstaltungen wie Winterwanderung, Osterfeuer und Herbstfest.</p>`,
 		parent: null,
 		sort_order: 1
 	},
@@ -534,6 +728,54 @@ export const mockPages: Page[] = [
 		body: '<p>Die Offiziere sorgen für den ordnungsgemäßen Ablauf aller Veranstaltungen und repräsentieren den Verein bei externen Anlässen.</p>',
 		parent: null,
 		sort_order: 3
+	},
+	{
+		id: 'page-6',
+		status: 'published',
+		title: 'Jungschützen',
+		slug: 'jungschuetzen',
+		body: `<h2>Jungschützenabteilung</h2>
+<p>Die Jungschützen sind die Zukunft unseres Vereins. Alle Mitglieder zwischen 16 und 30 Jahren gehören automatisch der Jungschützenabteilung an.</p>
+<h3>Aktivitäten</h3>
+<p>Neben der Teilnahme am Schützenfest organisieren die Jungschützen eigene Veranstaltungen wie das jährliche Jungschützenfest, Ausflüge und gemeinsame Aktionen.</p>
+<h3>Jungschützenvorstand</h3>
+<p>Die Jungschützen wählen einen eigenen Vorstand, der ihre Interessen im Gesamtverein vertritt.</p>`,
+		parent: null,
+		sort_order: 4
+	},
+	{
+		id: 'page-7',
+		status: 'published',
+		title: 'Kinderfest',
+		slug: 'kinderfest',
+		body: `<h2>Kinderfest</h2>
+<p>Ein besonderer Höhepunkt für die Jüngsten ist das traditionelle Kinderfest, das jedes Jahr im Rahmen des Schützenfestes stattfindet.</p>
+<h3>Programm</h3>
+<p>Beim Kinderfest gibt es Spiele, einen Umzug der Kinder durch die Nachbarschaft und natürlich die Wahl des Kinderkönigs oder der Kinderkönigin.</p>
+<p>Alle Kinder aus der Nachbarschaft sind herzlich eingeladen, an diesem besonderen Tag teilzunehmen.</p>`,
+		parent: null,
+		sort_order: 5
+	},
+	{
+		id: 'page-8',
+		status: 'published',
+		title: 'Mitglied werden',
+		slug: 'mitglied-werden',
+		body: `<h2>Werden Sie Mitglied!</h2>
+<p>Sie möchten Teil unserer Gemeinschaft werden? Wir freuen uns über jedes neue Mitglied!</p>
+<h3>Vorteile einer Mitgliedschaft</h3>
+<ul>
+<li>Teilnahme an allen Vereinsveranstaltungen</li>
+<li>Aktive Teilnahme am Schützenfest</li>
+<li>Gemeinschaft und Nachbarschaftspflege</li>
+<li>Mitspracherecht bei der Generalversammlung</li>
+</ul>
+<h3>Beitrag</h3>
+<p>Der jährliche Mitgliedsbeitrag beträgt 25,00 €. Für Jungschützen (16-24 Jahre) gilt ein ermäßigter Beitrag.</p>
+<h3>Anmeldung</h3>
+<p>Sprechen Sie einfach ein Vorstandsmitglied an oder nutzen Sie unser <a href="/kontakt">Kontaktformular</a>. Wir melden uns dann bei Ihnen!</p>`,
+		parent: null,
+		sort_order: 6
 	},
 	{
 		id: 'page-4',
@@ -607,6 +849,58 @@ export function getThroneArticles(): Article[] {
 		.sort((a, b) => new Date(b.date_published).getTime() - new Date(a.date_published).getTime());
 }
 
+/**
+ * Get paginated throne articles (regular thrones + stadtkaiser, NOT kaiserthrone).
+ * Sorted by throne years descending (newest first).
+ */
+export function getPaginatedThrones(
+	page = 1,
+	limit = 1
+): { articles: Article[]; total: number; page: number; totalPages: number } {
+	const throneArticles = mockArticles
+		.filter(
+			(a) =>
+				a.is_throne_article &&
+				a.status === 'published' &&
+				a.throne &&
+				(a.throne.type === 'thron' || a.throne.type === 'stadtkaiser')
+		)
+		.sort((a, b) => {
+			const yearA = a.throne?.years ?? '';
+			const yearB = b.throne?.years ?? '';
+			return yearB.localeCompare(yearA);
+		});
+	const total = throneArticles.length;
+	const totalPages = Math.ceil(total / limit);
+	const start = (page - 1) * limit;
+	return {
+		articles: throneArticles.slice(start, start + limit),
+		total,
+		page,
+		totalPages
+	};
+}
+
+/**
+ * Get all Kaiserthron articles (for navigation dropdown items).
+ * Returns them sorted by year descending.
+ */
+export function getEmperorThrones(): Article[] {
+	return mockArticles
+		.filter(
+			(a) =>
+				a.is_throne_article &&
+				a.status === 'published' &&
+				a.throne &&
+				a.throne.type === 'kaiserthron'
+		)
+		.sort((a, b) => {
+			const yearA = a.throne?.years ?? '';
+			const yearB = b.throne?.years ?? '';
+			return yearB.localeCompare(yearA);
+		});
+}
+
 export function getPeople(group?: 'vorstand' | 'offiziere'): Person[] {
 	return mockPeople
 		.filter((p) => !group || p.group === group)
@@ -615,6 +909,21 @@ export function getPeople(group?: 'vorstand' | 'offiziere'): Person[] {
 
 export function getPage(slug: string): Page | undefined {
 	return mockPages.find((p) => p.slug === slug && p.status === 'published');
+}
+
+/** Get all published pages for a section (e.g., all Verein sub-pages). */
+export function getVereinPages(): Page[] {
+	const vereinSlugs = [
+		'ueber-uns',
+		'vorstand',
+		'offiziere',
+		'jungschuetzen',
+		'kinderfest',
+		'mitglied-werden'
+	];
+	return mockPages
+		.filter((p) => vereinSlugs.includes(p.slug) && p.status === 'published')
+		.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
 }
 
 export function getNextEvent(): Event | undefined {

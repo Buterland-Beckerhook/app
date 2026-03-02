@@ -1,6 +1,5 @@
 <script lang="ts">
 	import Breadcrumb from '$lib/components/Breadcrumb.svelte';
-	import PeopleTable from '$lib/components/PeopleTable.svelte';
 
 	let { data } = $props();
 </script>
@@ -23,22 +22,19 @@
 	</div>
 {/if}
 
-<nav class="mb-8 flex flex-wrap gap-4">
-	<a
-		href="/verein/vorstand"
-		class="rounded-lg border border-gray-200 px-4 py-2 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
-	>
-		Vorstand
-	</a>
-	<a
-		href="/verein/offiziere"
-		class="rounded-lg border border-gray-200 px-4 py-2 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
-	>
-		Offiziere
-	</a>
-</nav>
-
-<div class="grid gap-8 md:grid-cols-2">
-	<PeopleTable people={data.vorstand} title="Vorstand" />
-	<PeopleTable people={data.offiziere} title="Offiziere" />
-</div>
+{#if data.subPages.length > 0}
+	<nav class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+		{#each data.subPages as subPage (subPage.id)}
+			<a
+				href="/verein/{subPage.slug}"
+				class="group rounded-lg border border-gray-200 p-5 transition-colors hover:border-primary/50 hover:bg-gray-50 dark:border-gray-700 dark:hover:border-primary/50 dark:hover:bg-gray-800"
+			>
+				<h2
+					class="text-lg font-semibold text-gray-900 group-hover:text-primary dark:text-gray-100 dark:group-hover:text-primary"
+				>
+					{subPage.title}
+				</h2>
+			</a>
+		{/each}
+	</nav>
+{/if}

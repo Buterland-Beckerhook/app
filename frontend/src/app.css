@@ -21,6 +21,18 @@
 	--color-primary-light: #10b345;
 	--color-primary-dark: #086b28;
 	--font-logo: 'Oranienbaum', serif;
+
+	--color-forest-green-50: #effef3;
+	--color-forest-green-100: #d9ffe4;
+	--color-forest-green-200: #b5fdcb;
+	--color-forest-green-300: #7cf9a4;
+	--color-forest-green-400: #3cec74;
+	--color-forest-green-500: #12d552;
+	--color-forest-green-600: #09b03f;
+	--color-forest-green-700: #0b8d36;
+	--color-forest-green-800: #0e6d2e;
+	--color-forest-green-900: #0e5929;
+	--color-forest-green-950: #013213;
 }
 
 /* Prose links in Vereinsgrün */

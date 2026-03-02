@@ -1,8 +1,9 @@
 import type { PageServerLoad } from './$types';
-import { getThroneArticles } from '$lib/server/mock-data';
+import { getPaginatedThrones } from '$lib/server/mock-data';
 
-export const load: PageServerLoad = async () => {
-	const articles = getThroneArticles();
+export const load: PageServerLoad = async ({ url }) => {
+	const pageParam = Number(url.searchParams.get('seite')) || 1;
+	const { articles, total, page, totalPages } = getPaginatedThrones(pageParam, 1);
 
-	return { articles };
+	return { articles, total, page, totalPages };
 };

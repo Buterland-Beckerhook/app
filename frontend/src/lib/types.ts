@@ -28,12 +28,13 @@ export interface ArticleImage {
 	title: string | null;
 	copyright: string | null;
 	sort: number | null;
+	use_as_throne_picture: boolean;
 }
 
 export interface Throne {
 	id: string;
 	article: string | Article;
-	type: 'thron' | 'kaiserthron';
+	type: 'thron' | 'kaiserthron' | 'stadtkaiser';
 	years: string;
 	king_title: string | null;
 	king: string;
