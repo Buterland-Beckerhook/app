@@ -1,0 +1,11 @@
+@import 'tailwindcss';
+
+/*
+ * Vereinsgrün als CSS Custom Property für Tailwind 4
+ * Usage: bg-primary, text-primary, border-primary, etc.
+ */
+@theme {
+	--color-primary: #0b8d36;
+	--color-primary-light: #10b345;
+	--color-primary-dark: #086b28;
+}
