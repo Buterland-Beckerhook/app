@@ -77,7 +77,7 @@
 	<!-- Full variant: icon + label, used in mobile menu -->
 	<button
 		onclick={cycle}
-		class="flex items-center gap-2 text-sm text-white/80 hover:text-white"
+		class="flex items-center gap-2 text-sm text-gray-500 hover:text-primary dark:text-gray-400 dark:hover:text-primary"
 		aria-label="Farbschema wechseln: {labels[theme]}"
 	>
 		{#if theme === 'auto'}
@@ -93,7 +93,7 @@
 	<!-- Icon-only variant: used in desktop nav bar -->
 	<button
 		onclick={cycle}
-		class="flex items-center hover:text-white/80"
+		class="flex items-center text-gray-500 hover:text-primary dark:text-gray-400 dark:hover:text-primary"
 		aria-label="Farbschema wechseln: {labels[theme]}"
 		title={labels[theme]}
 	>

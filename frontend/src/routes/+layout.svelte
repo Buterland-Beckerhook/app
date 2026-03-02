@@ -30,24 +30,28 @@
 </svelte:head>
 
 <div class="flex min-h-screen flex-col bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-100">
-	<header class="bg-primary text-white">
+	<header class="border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
 		<nav class="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
 			<a href="/" class="flex items-center gap-3">
 				<img src="/logo.svg" alt="" width="40" height="40" class="h-10 w-10" />
-				<span class="font-logo text-xl font-bold">Buterland-Beckerhook</span>
+				<span class="font-logo text-xl font-bold text-primary">Buterland-Beckerhook</span>
 			</a>
 
 			<!-- Desktop nav -->
 			<div class="hidden items-center gap-6 md:flex">
 				{#each navLinks as link (link.href)}
-					<a href={link.href} class="hover:underline">{link.label}</a>
+					<a
+						href={link.href}
+						class="text-gray-600 transition-colors hover:text-primary dark:text-gray-300 dark:hover:text-primary"
+						>{link.label}</a
+					>
 				{/each}
 				<ThemeSwitch />
 			</div>
 
 			<!-- Mobile hamburger -->
 			<button
-				class="flex items-center md:hidden"
+				class="flex items-center text-gray-600 dark:text-gray-300 md:hidden"
 				aria-label="Menü öffnen"
 				aria-expanded={menuOpen}
 				onclick={() => (menuOpen = !menuOpen)}
@@ -78,11 +82,15 @@
 
 		<!-- Mobile menu -->
 		{#if menuOpen}
-			<div class="border-t border-white/20 px-4 pb-4 md:hidden">
+			<div class="border-t border-gray-200 px-4 pb-4 dark:border-gray-700 md:hidden">
 				{#each navLinks as link (link.href)}
-					<a href={link.href} class="block py-2 hover:underline">{link.label}</a>
+					<a
+						href={link.href}
+						class="block py-2 text-gray-600 hover:text-primary dark:text-gray-300 dark:hover:text-primary"
+						>{link.label}</a
+					>
 				{/each}
-				<div class="mt-2 border-t border-white/20 pt-3">
+				<div class="mt-2 border-t border-gray-200 pt-3 dark:border-gray-700">
 					<ThemeSwitch variant="full" />
 				</div>
 			</div>
@@ -93,14 +101,24 @@
 		{@render children()}
 	</main>
 
-	<footer class="bg-gray-100 text-sm text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+	<footer
+		class="border-t border-gray-200 bg-gray-50 text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400"
+	>
 		<div
 			class="mx-auto flex max-w-6xl flex-col items-center gap-2 px-4 py-6 md:flex-row md:justify-between"
 		>
 			<p>&copy; {new Date().getFullYear()} Schützenverein Buterland-Beckerhook e.V.</p>
 			<div class="flex gap-4">
-				<a href="/impressum" class="hover:underline">Impressum</a>
-				<a href="/datenschutz" class="hover:underline">Datenschutz</a>
+				<a
+					href="/impressum"
+					class="text-gray-500 hover:text-primary dark:text-gray-400 dark:hover:text-primary"
+					>Impressum</a
+				>
+				<a
+					href="/datenschutz"
+					class="text-gray-500 hover:text-primary dark:text-gray-400 dark:hover:text-primary"
+					>Datenschutz</a
+				>
 			</div>
 		</div>
 	</footer>

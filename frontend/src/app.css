@@ -22,3 +22,15 @@
 	--color-primary-dark: #086b28;
 	--font-logo: 'Oranienbaum', serif;
 }
+
+/* Prose links in Vereinsgrün */
+.prose a {
+	color: var(--color-primary);
+	text-decoration: underline;
+	text-decoration-color: transparent;
+	transition: text-decoration-color 0.15s;
+}
+
+.prose a:hover {
+	text-decoration-color: var(--color-primary);
+}

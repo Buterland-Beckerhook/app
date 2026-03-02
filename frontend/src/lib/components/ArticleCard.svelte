@@ -37,7 +37,7 @@
 					<div class="flex flex-wrap gap-2">
 						{#each article.tags as tag (tag)}
 							<span
-								class="rounded-full bg-gray-100 px-3 py-0.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+								class="rounded-full bg-primary/10 px-3 py-0.5 text-xs text-primary dark:bg-primary/20"
 								>{tag}</span
 							>
 						{/each}
