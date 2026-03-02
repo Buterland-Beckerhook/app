@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Breadcrumb from '$lib/components/Breadcrumb.svelte';
 	import PeopleTable from '$lib/components/PeopleTable.svelte';
 
 	let { data } = $props();
@@ -8,6 +9,8 @@
 	<title>{data.page.title} &mdash; Verein &mdash; Schützenverein Buterland-Beckerhook</title>
 	<meta name="description" content={data.page.title} />
 </svelte:head>
+
+<Breadcrumb crumbs={[{ label: 'Verein', href: '/verein' }, { label: data.page.title }]} />
 
 <h1 class="mb-8 text-3xl font-bold">{data.page.title}</h1>
 

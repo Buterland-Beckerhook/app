@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Breadcrumb from '$lib/components/Breadcrumb.svelte';
 	import DateFormat from '$lib/components/DateFormat.svelte';
 	import ThroneTable from '$lib/components/ThroneTable.svelte';
 	import { getFirstImage, getImageUrl, getImageAlt } from '$lib/utils/image';
@@ -17,6 +18,8 @@
 	<title>{data.article.title} &mdash; Schützenverein Buterland-Beckerhook</title>
 	<meta name="description" content={data.article.subtitle ?? data.article.title} />
 </svelte:head>
+
+<Breadcrumb crumbs={[{ label: 'Aktuelles', href: '/aktuell' }, { label: data.article.title }]} />
 
 <article class="mx-auto max-w-3xl">
 	<header class="mb-8">

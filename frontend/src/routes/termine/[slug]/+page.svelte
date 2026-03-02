@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Breadcrumb from '$lib/components/Breadcrumb.svelte';
 	import DateFormat from '$lib/components/DateFormat.svelte';
 
 	let { data } = $props();
@@ -11,6 +12,8 @@
 	<title>{data.event.title} &mdash; Termine &mdash; Schützenverein Buterland-Beckerhook</title>
 	<meta name="description" content={data.event.title} />
 </svelte:head>
+
+<Breadcrumb crumbs={[{ label: 'Termine', href: '/termine' }, { label: data.event.title }]} />
 
 <article class="mx-auto max-w-3xl">
 	<header class="mb-8">

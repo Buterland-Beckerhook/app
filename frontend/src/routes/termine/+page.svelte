@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Breadcrumb from '$lib/components/Breadcrumb.svelte';
 	import EventCard from '$lib/components/EventCard.svelte';
 
 	let { data } = $props();
@@ -11,6 +12,8 @@
 		content="Termine und Veranstaltungen {data.year} des Schützenvereins Buterland-Beckerhook e.V."
 	/>
 </svelte:head>
+
+<Breadcrumb crumbs={[{ label: 'Termine' }]} />
 
 <div class="mb-6 flex items-center justify-between">
 	<h1 class="text-3xl font-bold">Termine {data.year}</h1>

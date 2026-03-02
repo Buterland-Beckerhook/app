@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Breadcrumb from '$lib/components/Breadcrumb.svelte';
 	import ThroneTable from '$lib/components/ThroneTable.svelte';
 
 	let { data } = $props();
@@ -11,6 +12,8 @@
 		content="Die Throne des Schützenvereins Buterland-Beckerhook e.V. - Könige, Königinnen und Hofstaat."
 	/>
 </svelte:head>
+
+<Breadcrumb crumbs={[{ label: 'Thron' }]} />
 
 <h1 class="mb-8 text-3xl font-bold">Thron</h1>
 

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Breadcrumb from '$lib/components/Breadcrumb.svelte';
 	import PeopleTable from '$lib/components/PeopleTable.svelte';
 
 	let { data } = $props();
@@ -11,6 +12,8 @@
 		content="Informationen über den Schützenverein Buterland-Beckerhook e.V. - Vorstand, Offiziere und mehr."
 	/>
 </svelte:head>
+
+<Breadcrumb crumbs={[{ label: 'Verein' }]} />
 
 <h1 class="mb-8 text-3xl font-bold">Unser Verein</h1>
 

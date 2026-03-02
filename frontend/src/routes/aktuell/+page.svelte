@@ -1,5 +1,6 @@
 <script lang="ts">
 	import ArticleCard from '$lib/components/ArticleCard.svelte';
+	import Breadcrumb from '$lib/components/Breadcrumb.svelte';
 	import Pagination from '$lib/components/Pagination.svelte';
 
 	let { data } = $props();
@@ -12,6 +13,8 @@
 		content="Aktuelle Nachrichten und Berichte vom Schützenverein Buterland-Beckerhook e.V."
 	/>
 </svelte:head>
+
+<Breadcrumb crumbs={[{ label: 'Aktuelles' }]} />
 
 <h1 class="mb-6 text-3xl font-bold">Aktuelles</h1>
 

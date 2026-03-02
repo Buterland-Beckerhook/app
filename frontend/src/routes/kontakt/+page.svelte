@@ -1,3 +1,7 @@
+<script lang="ts">
+	import Breadcrumb from '$lib/components/Breadcrumb.svelte';
+</script>
+
 <svelte:head>
 	<title>Kontakt &mdash; Schützenverein Buterland-Beckerhook</title>
 	<meta
@@ -5,6 +9,8 @@
 		content="Kontaktieren Sie den Schützenverein Buterland-Beckerhook e.V."
 	/>
 </svelte:head>
+
+<Breadcrumb crumbs={[{ label: 'Kontakt' }]} />
 
 <h1 class="mb-8 text-3xl font-bold">Kontakt</h1>
 

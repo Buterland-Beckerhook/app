@@ -31,10 +31,13 @@
 
 <div class="flex min-h-screen flex-col bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-100">
 	<header class="border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
-		<nav class="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
+		<nav class="mx-auto flex max-w-6xl items-center justify-between px-4 py-2">
 			<a href="/" class="flex items-center gap-3">
-				<img src="/logo.svg" alt="" width="40" height="40" class="h-10 w-10" />
-				<span class="font-logo text-xl font-bold text-primary">Buterland-Beckerhook</span>
+				<img src="/logo.svg" alt="" width="48" height="48" class="h-12 w-12 md:h-20 md:w-20" />
+				<div class="font-logo leading-tight">
+					<span class="block text-sm md:text-xl text-gray-600 dark:text-gray-400">Schützenverein</span>
+					<span class="block text-xl md:text-3xl text-primary">Buterland-Beckerhook e.V.</span>
+				</div>
 			</a>
 
 			<!-- Desktop nav -->

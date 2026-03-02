@@ -19,8 +19,6 @@
 	/>
 </svelte:head>
 
-<h1 class="mb-8 text-3xl font-bold">Willkommen beim Schützenverein Buterland-Beckerhook</h1>
-
 <div class="grid gap-8 lg:grid-cols-3">
 	<!-- Nächster Termin -->
 	<div class="lg:col-span-2">
