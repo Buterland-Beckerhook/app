@@ -231,7 +231,9 @@ api_post "/collections" '{
     {"field": "cancel_reason", "type": "string", "meta": {"interface": "input", "note": "Grund bei Absage"}, "schema": {"is_nullable": true}},
     {"field": "announce", "type": "boolean", "meta": {"interface": "boolean", "width": "half", "note": "Öffentlich ankündigen"}, "schema": {"is_nullable": false, "default_value": true}},
     {"field": "revision", "type": "integer", "meta": {"interface": "input", "width": "half"}, "schema": {"is_nullable": true}},
-    {"field": "enable_ical", "type": "boolean", "meta": {"interface": "boolean", "width": "half", "note": "iCal-Export aktivieren"}, "schema": {"is_nullable": false, "default_value": true}}
+    {"field": "enable_ical", "type": "boolean", "meta": {"interface": "boolean", "width": "half", "note": "iCal-Export aktivieren"}, "schema": {"is_nullable": false, "default_value": true}},
+    {"field": "calendar", "type": "string", "meta": {"interface": "select-dropdown", "width": "half", "note": "Interner Kalender (leer = öffentlich)", "options": {"choices": [{"text": "Vorstand", "value": "vorstand"}, {"text": "Offiziere", "value": "offiziere"}, {"text": "Jungschützen", "value": "jungschuetzen"}, {"text": "Kinderfest", "value": "kinderfest"}], "allowOther": false}}, "schema": {"is_nullable": true}},
+    {"field": "user_created", "type": "uuid", "meta": {"special": ["user-created"], "interface": "select-dropdown-m2o", "display": "user", "readonly": true, "hidden": true, "width": "half"}, "schema": {"is_nullable": true}}
   ]
 }'
 
@@ -333,6 +335,13 @@ api_post "/relations" '{
   "field": "parent",
   "related_collection": "events",
   "meta": {"one_field": null, "sort_field": null}
+}'
+
+# events.user_created → directus_users (M2O, auto-tracked)
+api_post "/relations" '{
+  "collection": "events",
+  "field": "user_created",
+  "related_collection": "directus_users"
 }'
 
 echo ""

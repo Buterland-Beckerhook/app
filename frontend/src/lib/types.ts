@@ -47,6 +47,8 @@ export interface Throne {
 	courtmarshal: string | null;
 }
 
+export type CalendarGroup = 'vorstand' | 'offiziere' | 'jungschuetzen' | 'kinderfest';
+
 export interface Event {
 	id: string;
 	status: 'draft' | 'published' | 'canceled';
@@ -61,6 +63,7 @@ export interface Event {
 	revision: number | null;
 	enable_ical: boolean;
 	parent: string | Event | null;
+	calendar: CalendarGroup | null;
 }
 
 export interface Location {

@@ -3,7 +3,16 @@
 // Replace with real Directus calls later
 // =============================================================================
 
-import type { Article, ArticleImage, Event, Location, Throne, Person, Page } from '$lib/types';
+import type {
+	Article,
+	ArticleImage,
+	CalendarGroup,
+	Event,
+	Location,
+	Throne,
+	Person,
+	Page
+} from '$lib/types';
 
 // --- Mock image helper ---
 // Uses picsum.photos with fixed seeds for consistent placeholder images
@@ -471,7 +480,8 @@ export const mockEvents: Event[] = [
 		announce: true,
 		revision: 1,
 		enable_ical: true,
-		parent: null
+		parent: null,
+		calendar: null
 	},
 	{
 		id: 'evt-2',
@@ -486,7 +496,8 @@ export const mockEvents: Event[] = [
 		announce: true,
 		revision: 1,
 		enable_ical: true,
-		parent: null
+		parent: null,
+		calendar: null
 	},
 	{
 		id: 'evt-3',
@@ -501,7 +512,8 @@ export const mockEvents: Event[] = [
 		announce: true,
 		revision: 1,
 		enable_ical: true,
-		parent: null
+		parent: null,
+		calendar: null
 	},
 	{
 		id: 'evt-4',
@@ -516,7 +528,8 @@ export const mockEvents: Event[] = [
 		announce: true,
 		revision: 2,
 		enable_ical: false,
-		parent: null
+		parent: null,
+		calendar: null
 	},
 	{
 		id: 'evt-5',
@@ -531,7 +544,8 @@ export const mockEvents: Event[] = [
 		announce: true,
 		revision: 1,
 		enable_ical: true,
-		parent: null
+		parent: null,
+		calendar: null
 	},
 	{
 		id: 'evt-6',
@@ -546,7 +560,8 @@ export const mockEvents: Event[] = [
 		announce: true,
 		revision: 1,
 		enable_ical: true,
-		parent: null
+		parent: null,
+		calendar: null
 	},
 	{
 		id: 'evt-7',
@@ -561,7 +576,8 @@ export const mockEvents: Event[] = [
 		announce: true,
 		revision: 1,
 		enable_ical: true,
-		parent: null
+		parent: null,
+		calendar: null
 	},
 	{
 		id: 'evt-8',
@@ -576,7 +592,8 @@ export const mockEvents: Event[] = [
 		announce: true,
 		revision: 1,
 		enable_ical: true,
-		parent: null
+		parent: null,
+		calendar: null
 	},
 	{
 		id: 'evt-9',
@@ -591,7 +608,8 @@ export const mockEvents: Event[] = [
 		announce: true,
 		revision: 1,
 		enable_ical: true,
-		parent: null
+		parent: null,
+		calendar: null
 	},
 	{
 		id: 'evt-10',
@@ -606,7 +624,8 @@ export const mockEvents: Event[] = [
 		announce: true,
 		revision: 1,
 		enable_ical: true,
-		parent: null
+		parent: null,
+		calendar: null
 	},
 
 	// --- Sub-Events: Schützenfest 2025 Festprogramm ---
@@ -623,7 +642,8 @@ export const mockEvents: Event[] = [
 		announce: false,
 		revision: 1,
 		enable_ical: true,
-		parent: 'evt-1'
+		parent: 'evt-1',
+		calendar: null
 	},
 	{
 		id: 'evt-sub-2',
@@ -638,7 +658,8 @@ export const mockEvents: Event[] = [
 		announce: false,
 		revision: 1,
 		enable_ical: true,
-		parent: 'evt-1'
+		parent: 'evt-1',
+		calendar: null
 	},
 	{
 		id: 'evt-sub-3',
@@ -653,7 +674,8 @@ export const mockEvents: Event[] = [
 		announce: false,
 		revision: 1,
 		enable_ical: true,
-		parent: 'evt-1'
+		parent: 'evt-1',
+		calendar: null
 	},
 	{
 		id: 'evt-sub-4',
@@ -668,7 +690,8 @@ export const mockEvents: Event[] = [
 		announce: false,
 		revision: 1,
 		enable_ical: true,
-		parent: 'evt-1'
+		parent: 'evt-1',
+		calendar: null
 	},
 	{
 		id: 'evt-sub-5',
@@ -683,7 +706,8 @@ export const mockEvents: Event[] = [
 		announce: false,
 		revision: 1,
 		enable_ical: true,
-		parent: 'evt-1'
+		parent: 'evt-1',
+		calendar: null
 	},
 	{
 		id: 'evt-sub-6',
@@ -698,7 +722,8 @@ export const mockEvents: Event[] = [
 		announce: false,
 		revision: 1,
 		enable_ical: true,
-		parent: 'evt-1'
+		parent: 'evt-1',
+		calendar: null
 	},
 	{
 		id: 'evt-sub-7',
@@ -713,7 +738,8 @@ export const mockEvents: Event[] = [
 		announce: false,
 		revision: 1,
 		enable_ical: true,
-		parent: 'evt-1'
+		parent: 'evt-1',
+		calendar: null
 	},
 	{
 		id: 'evt-sub-8',
@@ -728,7 +754,138 @@ export const mockEvents: Event[] = [
 		announce: false,
 		revision: 1,
 		enable_ical: true,
-		parent: 'evt-1'
+		parent: 'evt-1',
+		calendar: null
+	},
+
+	// --- Internal calendar events (not on Homepage/Terminseite) ---
+	{
+		id: 'evt-int-1',
+		status: 'published',
+		title: 'Vorstandssitzung März',
+		slug: 'vorstandssitzung-maerz-2025',
+		start: '2025-03-01T19:00:00Z',
+		end: '2025-03-01T21:00:00Z',
+		location: mockLocations[1],
+		body: '<p>Regelmäßige Vorstandssitzung im Dinkelhof.</p>',
+		cancel_reason: null,
+		announce: false,
+		revision: 1,
+		enable_ical: true,
+		parent: null,
+		calendar: 'vorstand'
+	},
+	{
+		id: 'evt-int-2',
+		status: 'published',
+		title: 'Vorstandssitzung Juni',
+		slug: 'vorstandssitzung-juni-2025',
+		start: '2025-06-07T19:00:00Z',
+		end: '2025-06-07T21:00:00Z',
+		location: mockLocations[1],
+		body: '<p>Vorstandssitzung zur Schützenfest-Vorbereitung.</p>',
+		cancel_reason: null,
+		announce: false,
+		revision: 1,
+		enable_ical: true,
+		parent: null,
+		calendar: 'vorstand'
+	},
+	{
+		id: 'evt-int-3',
+		status: 'published',
+		title: 'Offiziersversammlung',
+		slug: 'offiziersversammlung-2025',
+		start: '2025-05-10T19:30:00Z',
+		end: null,
+		location: mockLocations[1],
+		body: '<p>Besprechung des Ablaufs Schützenfest mit allen Offizieren.</p>',
+		cancel_reason: null,
+		announce: false,
+		revision: 1,
+		enable_ical: true,
+		parent: null,
+		calendar: 'offiziere'
+	},
+	{
+		id: 'evt-int-4',
+		status: 'published',
+		title: 'Offiziersübung',
+		slug: 'offiziersuebung-2025',
+		start: '2025-07-05T09:00:00Z',
+		end: '2025-07-05T12:00:00Z',
+		location: mockLocations[0],
+		body: '<p>Exerzierübung und Aufstellung für das Schützenfest.</p>',
+		cancel_reason: null,
+		announce: false,
+		revision: 1,
+		enable_ical: true,
+		parent: null,
+		calendar: 'offiziere'
+	},
+	{
+		id: 'evt-int-5',
+		status: 'published',
+		title: 'Jungschützen-Grillabend',
+		slug: 'jungschuetzen-grillen-2025',
+		start: '2025-08-16T17:00:00Z',
+		end: '2025-08-16T23:00:00Z',
+		location: mockLocations[0],
+		body: '<p>Gemütliches Grillen für alle Jungschützen.</p>',
+		cancel_reason: null,
+		announce: false,
+		revision: 1,
+		enable_ical: true,
+		parent: null,
+		calendar: 'jungschuetzen'
+	},
+	{
+		id: 'evt-int-6',
+		status: 'published',
+		title: 'Jungschützen-Versammlung',
+		slug: 'jungschuetzen-versammlung-2025',
+		start: '2025-02-15T19:00:00Z',
+		end: null,
+		location: mockLocations[1],
+		body: '<p>Jahresversammlung der Jungschützenabteilung.</p>',
+		cancel_reason: null,
+		announce: false,
+		revision: 1,
+		enable_ical: true,
+		parent: null,
+		calendar: 'jungschuetzen'
+	},
+	{
+		id: 'evt-int-7',
+		status: 'published',
+		title: 'Kinderfest-Planung',
+		slug: 'kinderfest-planung-2025',
+		start: '2025-06-14T15:00:00Z',
+		end: '2025-06-14T17:00:00Z',
+		location: mockLocations[1],
+		body: '<p>Planungstreffen für das Kinderfest beim Schützenfest.</p>',
+		cancel_reason: null,
+		announce: false,
+		revision: 1,
+		enable_ical: true,
+		parent: null,
+		calendar: 'kinderfest'
+	},
+	{
+		id: 'evt-int-8',
+		status: 'published',
+		title: 'Spielgeräte-Aufbau Kinderfest',
+		slug: 'kinderfest-aufbau-2025',
+		start: '2025-07-11T09:00:00Z',
+		end: '2025-07-11T14:00:00Z',
+		location: mockLocations[0],
+		body: '<p>Aufbau der Spielgeräte und Stände für das Kinderfest.</p>',
+		cancel_reason: null,
+		announce: false,
+		revision: 1,
+		enable_ical: true,
+		parent: null,
+		calendar: 'kinderfest'
 	}
 ];
 
@@ -1074,6 +1231,20 @@ export function getNextEvent(): Event | undefined {
 export function getSubEvents(parentId: string): Event[] {
 	return mockEvents
 		.filter((e) => e.parent === parentId && e.status !== 'draft')
+		.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+}
+
+/** Get events for a specific internal calendar group, sorted by start time. */
+export function getCalendarEvents(calendar: CalendarGroup): Event[] {
+	return mockEvents
+		.filter((e) => e.calendar === calendar && e.status !== 'draft')
+		.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+}
+
+/** Get all internal calendar events (all groups combined), sorted by start time. */
+export function getAllInternalEvents(): Event[] {
+	return mockEvents
+		.filter((e) => e.calendar != null && e.status !== 'draft')
 		.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
 }
 
