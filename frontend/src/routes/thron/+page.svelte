@@ -18,7 +18,7 @@
 	<div class="space-y-8">
 		{#each data.articles as article (article.id)}
 			{#if article.throne}
-				<div class="rounded-lg border border-gray-200 p-6">
+				<div class="rounded-lg border border-gray-200 p-6 dark:border-gray-700">
 					<ThroneTable throne={article.throne} />
 					{#if !article.no_article}
 						<a
@@ -33,5 +33,5 @@
 		{/each}
 	</div>
 {:else}
-	<p class="text-gray-500">Keine Throne vorhanden.</p>
+	<p class="text-gray-500 dark:text-gray-400">Keine Throne vorhanden.</p>
 {/if}

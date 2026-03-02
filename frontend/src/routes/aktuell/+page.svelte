@@ -22,5 +22,5 @@
 
 	<Pagination currentPage={data.page} totalPages={data.totalPages} baseUrl="/aktuell" />
 {:else}
-	<p class="text-gray-500">Keine Nachrichten vorhanden.</p>
+	<p class="text-gray-500 dark:text-gray-400">Keine Nachrichten vorhanden.</p>
 {/if}

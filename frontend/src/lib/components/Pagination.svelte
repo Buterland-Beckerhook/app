@@ -13,7 +13,7 @@
 		{#if currentPage > 1}
 			<a
 				href="{baseUrl}?seite={currentPage - 1}"
-				class="rounded border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50"
+				class="rounded border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
 				aria-label="Vorherige Seite"
 			>
 				&larr;
@@ -31,7 +31,7 @@
 			{:else}
 				<a
 					href="{baseUrl}?seite={page}"
-					class="rounded border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50"
+					class="rounded border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
 				>
 					{page}
 				</a>
@@ -41,7 +41,7 @@
 		{#if currentPage < totalPages}
 			<a
 				href="{baseUrl}?seite={currentPage + 1}"
-				class="rounded border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50"
+				class="rounded border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
 				aria-label="Nächste Seite"
 			>
 				&rarr;

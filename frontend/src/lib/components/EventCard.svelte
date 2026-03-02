@@ -11,7 +11,7 @@
 </script>
 
 <article
-	class="rounded-lg border border-gray-200 p-4 transition-shadow hover:shadow-md"
+	class="rounded-lg border border-gray-200 p-4 transition-shadow hover:shadow-md dark:border-gray-700"
 	class:opacity-60={isCanceled}
 >
 	<a href="/termine/{event.slug}" class="block">
@@ -21,7 +21,9 @@
 					<DateFormat date={event.start} />
 				</time>
 				{#if isCanceled}
-					<span class="rounded bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
+					<span
+						class="rounded bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900/30 dark:text-red-300"
+					>
 						Abgesagt
 					</span>
 				{/if}
@@ -30,10 +32,10 @@
 				{event.title}
 			</h3>
 			{#if locationName}
-				<p class="text-sm text-gray-500">{locationName}</p>
+				<p class="text-sm text-gray-500 dark:text-gray-400">{locationName}</p>
 			{/if}
 			{#if isCanceled && event.cancel_reason}
-				<p class="text-sm text-red-600">{event.cancel_reason}</p>
+				<p class="text-sm text-red-600 dark:text-red-400">{event.cancel_reason}</p>
 			{/if}
 		</div>
 	</a>

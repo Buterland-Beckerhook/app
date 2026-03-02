@@ -20,7 +20,7 @@
 
 <article class="mx-auto max-w-3xl">
 	<header class="mb-8">
-		<div class="mb-2 text-sm text-gray-500">
+		<div class="mb-2 text-sm text-gray-500 dark:text-gray-400">
 			<DateFormat date={data.article.date_published} />
 			{#if data.article.author}
 				<span>&mdash; {data.article.author}</span>
@@ -28,12 +28,15 @@
 		</div>
 		<h1 class="text-3xl font-bold">{data.article.title}</h1>
 		{#if data.article.subtitle}
-			<p class="mt-2 text-lg text-gray-600">{data.article.subtitle}</p>
+			<p class="mt-2 text-lg text-gray-600 dark:text-gray-300">{data.article.subtitle}</p>
 		{/if}
 		{#if data.article.tags && data.article.tags.length > 0}
 			<div class="mt-3 flex flex-wrap gap-2">
 				{#each data.article.tags as tag (tag)}
-					<span class="rounded-full bg-gray-100 px-3 py-0.5 text-xs text-gray-600">{tag}</span>
+					<span
+						class="rounded-full bg-gray-100 px-3 py-0.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+						>{tag}</span
+					>
 				{/each}
 			</div>
 		{/if}
@@ -49,7 +52,7 @@
 				class="w-full rounded-lg object-cover"
 			/>
 			{#if heroImage.copyright}
-				<figcaption class="mt-1 text-right text-xs text-gray-400">
+				<figcaption class="mt-1 text-right text-xs text-gray-400 dark:text-gray-500">
 					{heroImage.copyright}
 				</figcaption>
 			{/if}
@@ -57,7 +60,7 @@
 	{/if}
 
 	{#if data.article.body}
-		<div class="prose max-w-none">
+		<div class="prose dark:prose-invert max-w-none">
 			{@html data.article.body}
 		</div>
 	{/if}
@@ -77,7 +80,7 @@
 							class="w-full rounded-lg object-cover"
 						/>
 						{#if image.title}
-							<figcaption class="mt-1 text-center text-xs text-gray-500">
+							<figcaption class="mt-1 text-center text-xs text-gray-500 dark:text-gray-400">
 								{image.title}
 							</figcaption>
 						{/if}
@@ -88,12 +91,12 @@
 	{/if}
 
 	{#if data.article.throne}
-		<section class="mt-8 rounded-lg border border-gray-200 p-6">
+		<section class="mt-8 rounded-lg border border-gray-200 p-6 dark:border-gray-700">
 			<ThroneTable throne={data.article.throne} />
 		</section>
 	{/if}
 
-	<footer class="mt-8 border-t border-gray-200 pt-4">
+	<footer class="mt-8 border-t border-gray-200 pt-4 dark:border-gray-700">
 		<a href="/aktuell" class="text-primary hover:underline">&larr; Zurück zur Übersicht</a>
 	</footer>
 </article>

@@ -335,6 +335,76 @@ export const mockEvents: Event[] = [
 		announce: true,
 		revision: 1,
 		enable_ical: true
+	},
+	{
+		id: 'evt-6',
+		status: 'published',
+		title: 'Generalversammlung 2026',
+		slug: 'generalversammlung-2026',
+		start: '2026-03-14T19:00:00Z',
+		end: null,
+		location: mockLocations[1],
+		body: '<p>Ordentliche Generalversammlung des Schützenvereins. Alle Mitglieder sind herzlich eingeladen.</p>',
+		cancel_reason: null,
+		announce: true,
+		revision: 1,
+		enable_ical: true
+	},
+	{
+		id: 'evt-7',
+		status: 'published',
+		title: 'Osterfeuer 2026',
+		slug: 'osterfeuer-2026',
+		start: '2026-04-04T18:00:00Z',
+		end: null,
+		location: mockLocations[0],
+		body: '<p>Traditionelles Osterfeuer auf dem Schützenplatz. Für Getränke und Würstchen ist gesorgt.</p>',
+		cancel_reason: null,
+		announce: true,
+		revision: 1,
+		enable_ical: true
+	},
+	{
+		id: 'evt-8',
+		status: 'published',
+		title: 'Schützenfest 2026',
+		slug: 'schuetzenfest-2026',
+		start: '2026-07-10T18:00:00Z',
+		end: '2026-07-12T23:00:00Z',
+		location: mockLocations[0],
+		body: '<p>Unser traditionelles Schützenfest im Beckerhook. Drei Tage Programm mit Vogelschießen, Festumzug und Königsball.</p>',
+		cancel_reason: null,
+		announce: true,
+		revision: 1,
+		enable_ical: true
+	},
+	{
+		id: 'evt-9',
+		status: 'published',
+		title: 'Herbstfest 2026',
+		slug: 'herbstfest-2026',
+		start: '2026-10-03T15:00:00Z',
+		end: '2026-10-03T23:00:00Z',
+		location: mockLocations[1],
+		body: '<p>Gemütlicher Nachmittag mit Kaffee und Kuchen, abends Live-Musik.</p>',
+		cancel_reason: null,
+		announce: true,
+		revision: 1,
+		enable_ical: true
+	},
+	{
+		id: 'evt-10',
+		status: 'published',
+		title: 'Winterwanderung 2027',
+		slug: 'winterwanderung-2027',
+		start: '2027-01-17T10:00:00Z',
+		end: null,
+		location: mockLocations[0],
+		body: '<p>Gemeinsame Wanderung durch das Buterland mit anschließendem Grünkohlessen.</p>',
+		cancel_reason: null,
+		announce: true,
+		revision: 1,
+		enable_ical: true
 	}
 ];
 
@@ -558,4 +628,10 @@ export function getCurrentThrone(): Throne | undefined {
 	return mockThrones
 		.filter((t) => t.type === 'thron')
 		.sort((a, b) => b.years.localeCompare(a.years))[0];
+}
+
+export function getCurrentThroneArticle(): Article | undefined {
+	const throne = getCurrentThrone();
+	if (!throne) return undefined;
+	return mockArticles.find((a) => a.id === throne.article && a.status === 'published');
 }

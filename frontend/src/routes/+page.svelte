@@ -2,8 +2,13 @@
 	import ArticleCard from '$lib/components/ArticleCard.svelte';
 	import EventCard from '$lib/components/EventCard.svelte';
 	import ThroneTable from '$lib/components/ThroneTable.svelte';
+	import { getFirstImage, getImageUrl, getImageAlt } from '$lib/utils/image';
 
 	let { data } = $props();
+
+	let throneImage = $derived(
+		data.currentThroneArticle ? getFirstImage(data.currentThroneArticle.images) : undefined
+	);
 </script>
 
 <svelte:head>
@@ -41,6 +46,15 @@
 	<!-- Sidebar: Aktueller Thron -->
 	<aside>
 		{#if data.currentThrone}
+			{#if throneImage}
+				<img
+					src={getImageUrl(throneImage, 640, 427)}
+					alt={getImageAlt(throneImage)}
+					width="640"
+					height="427"
+					class="mb-4 w-full rounded-lg object-cover"
+				/>
+			{/if}
 			<ThroneTable throne={data.currentThrone} />
 		{/if}
 	</aside>

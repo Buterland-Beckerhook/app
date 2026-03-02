@@ -15,10 +15,14 @@
 <article class="mx-auto max-w-3xl">
 	<header class="mb-8">
 		{#if isCanceled}
-			<div class="mb-4 rounded-lg bg-red-50 p-4">
-				<p class="font-medium text-red-700">Diese Veranstaltung wurde abgesagt.</p>
+			<div class="mb-4 rounded-lg bg-red-50 p-4 dark:bg-red-900/20">
+				<p class="font-medium text-red-700 dark:text-red-300">
+					Diese Veranstaltung wurde abgesagt.
+				</p>
 				{#if data.event.cancel_reason}
-					<p class="mt-1 text-sm text-red-600">{data.event.cancel_reason}</p>
+					<p class="mt-1 text-sm text-red-600 dark:text-red-400">
+						{data.event.cancel_reason}
+					</p>
 				{/if}
 			</div>
 		{/if}
@@ -27,8 +31,8 @@
 			{data.event.title}
 		</h1>
 
-		<div class="mt-4 flex flex-col gap-2 text-gray-600">
-			<div class="flex items-center gap-2">
+		<div class="mt-4 flex flex-col gap-2 text-gray-600 dark:text-gray-300">
+			<div class="flex flex-wrap items-center gap-2">
 				<span class="font-medium">Datum:</span>
 				<DateFormat date={data.event.start} withTime />
 				{#if data.event.end}
@@ -37,11 +41,11 @@
 				{/if}
 			</div>
 			{#if location}
-				<div class="flex items-center gap-2">
+				<div class="flex flex-wrap items-center gap-2">
 					<span class="font-medium">Ort:</span>
 					<span>{location.name}</span>
 					{#if location.street}
-						<span class="text-sm text-gray-400"
+						<span class="text-sm text-gray-400 dark:text-gray-500"
 							>({location.street}, {location.zip} {location.city})</span
 						>
 					{/if}
@@ -61,12 +65,12 @@
 	</header>
 
 	{#if data.event.body}
-		<div class="prose max-w-none">
+		<div class="prose dark:prose-invert max-w-none">
 			{@html data.event.body}
 		</div>
 	{/if}
 
-	<footer class="mt-8 border-t border-gray-200 pt-4">
+	<footer class="mt-8 border-t border-gray-200 pt-4 dark:border-gray-700">
 		<a href="/termine" class="text-primary hover:underline">&larr; Zurück zu den Terminen</a>
 	</footer>
 </article>

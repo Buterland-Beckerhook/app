@@ -9,7 +9,7 @@
 <h1 class="mb-8 text-3xl font-bold">Datenschutzerklärung</h1>
 
 {#if data.page?.body}
-	<div class="prose max-w-none">
+	<div class="prose dark:prose-invert max-w-none">
 		{@html data.page.body}
 	</div>
 {/if}

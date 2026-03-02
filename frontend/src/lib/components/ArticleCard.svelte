@@ -8,7 +8,7 @@
 	let thumbnail = $derived(getFirstImage(article.images));
 </script>
 
-<article class="border-b border-gray-200 py-6 last:border-b-0">
+<article class="border-b border-gray-200 py-6 last:border-b-0 dark:border-gray-700">
 	<a href="/aktuell/{article.slug}" class="group block">
 		<div class="flex gap-4">
 			{#if thumbnail}
@@ -24,19 +24,22 @@
 				</div>
 			{/if}
 			<div class="flex min-w-0 flex-col gap-2">
-				<time datetime={article.date_published} class="text-sm text-gray-500">
+				<time datetime={article.date_published} class="text-sm text-gray-500 dark:text-gray-400">
 					<DateFormat date={article.date_published} />
 				</time>
 				<h2 class="text-xl font-semibold group-hover:text-primary">
 					{article.title}
 				</h2>
 				{#if article.subtitle}
-					<p class="text-gray-600">{article.subtitle}</p>
+					<p class="text-gray-600 dark:text-gray-300">{article.subtitle}</p>
 				{/if}
 				{#if article.tags && article.tags.length > 0}
 					<div class="flex flex-wrap gap-2">
 						{#each article.tags as tag (tag)}
-							<span class="rounded-full bg-gray-100 px-3 py-0.5 text-xs text-gray-600">{tag}</span>
+							<span
+								class="rounded-full bg-gray-100 px-3 py-0.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+								>{tag}</span
+							>
 						{/each}
 					</div>
 				{/if}

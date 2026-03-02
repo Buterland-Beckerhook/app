@@ -1,4 +1,13 @@
 @import 'tailwindcss';
+@plugin '@tailwindcss/typography';
+
+@font-face {
+	font-family: 'Oranienbaum';
+	src: url('/fonts/oranienbaum.ttf') format('truetype');
+	font-weight: normal;
+	font-style: normal;
+	font-display: swap;
+}
 
 /*
  * Vereinsgrün als CSS Custom Property für Tailwind 4
@@ -8,4 +17,5 @@
 	--color-primary: #0b8d36;
 	--color-primary-light: #10b345;
 	--color-primary-dark: #086b28;
+	--font-logo: 'Oranienbaum', serif;
 }

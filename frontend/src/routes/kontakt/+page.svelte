@@ -9,7 +9,7 @@
 <h1 class="mb-8 text-3xl font-bold">Kontakt</h1>
 
 <div class="mx-auto max-w-2xl">
-	<p class="mb-6 text-gray-600">
+	<p class="mb-6 text-gray-600 dark:text-gray-300">
 		Sie haben Fragen oder Anregungen? Nehmen Sie gerne Kontakt mit uns auf.
 	</p>
 
@@ -21,7 +21,7 @@
 				id="name"
 				name="name"
 				required
-				class="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+				class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
 			/>
 		</div>
 
@@ -32,7 +32,7 @@
 				id="email"
 				name="email"
 				required
-				class="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+				class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
 			/>
 		</div>
 
@@ -43,13 +43,13 @@
 				name="message"
 				rows="5"
 				required
-				class="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+				class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
 			></textarea>
 		</div>
 
 		<div class="flex items-start gap-2">
 			<input type="checkbox" id="privacy" name="privacy" required class="mt-1" />
-			<label for="privacy" class="text-sm text-gray-600">
+			<label for="privacy" class="text-sm text-gray-600 dark:text-gray-300">
 				Ich habe die <a href="/datenschutz" class="text-primary hover:underline"
 					>Datenschutzerklärung</a
 				> gelesen und stimme der Verarbeitung meiner Daten zu.
