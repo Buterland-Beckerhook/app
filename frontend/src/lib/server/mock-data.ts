@@ -470,7 +470,8 @@ export const mockEvents: Event[] = [
 		cancel_reason: null,
 		announce: true,
 		revision: 1,
-		enable_ical: true
+		enable_ical: true,
+		parent: null
 	},
 	{
 		id: 'evt-2',
@@ -484,7 +485,8 @@ export const mockEvents: Event[] = [
 		cancel_reason: null,
 		announce: true,
 		revision: 1,
-		enable_ical: true
+		enable_ical: true,
+		parent: null
 	},
 	{
 		id: 'evt-3',
@@ -498,7 +500,8 @@ export const mockEvents: Event[] = [
 		cancel_reason: null,
 		announce: true,
 		revision: 1,
-		enable_ical: true
+		enable_ical: true,
+		parent: null
 	},
 	{
 		id: 'evt-4',
@@ -512,7 +515,8 @@ export const mockEvents: Event[] = [
 		cancel_reason: 'Wegen anhaltender Trockenheit und Waldbrandgefahr abgesagt.',
 		announce: true,
 		revision: 2,
-		enable_ical: false
+		enable_ical: false,
+		parent: null
 	},
 	{
 		id: 'evt-5',
@@ -526,7 +530,8 @@ export const mockEvents: Event[] = [
 		cancel_reason: null,
 		announce: true,
 		revision: 1,
-		enable_ical: true
+		enable_ical: true,
+		parent: null
 	},
 	{
 		id: 'evt-6',
@@ -540,7 +545,8 @@ export const mockEvents: Event[] = [
 		cancel_reason: null,
 		announce: true,
 		revision: 1,
-		enable_ical: true
+		enable_ical: true,
+		parent: null
 	},
 	{
 		id: 'evt-7',
@@ -554,7 +560,8 @@ export const mockEvents: Event[] = [
 		cancel_reason: null,
 		announce: true,
 		revision: 1,
-		enable_ical: true
+		enable_ical: true,
+		parent: null
 	},
 	{
 		id: 'evt-8',
@@ -568,7 +575,8 @@ export const mockEvents: Event[] = [
 		cancel_reason: null,
 		announce: true,
 		revision: 1,
-		enable_ical: true
+		enable_ical: true,
+		parent: null
 	},
 	{
 		id: 'evt-9',
@@ -582,7 +590,8 @@ export const mockEvents: Event[] = [
 		cancel_reason: null,
 		announce: true,
 		revision: 1,
-		enable_ical: true
+		enable_ical: true,
+		parent: null
 	},
 	{
 		id: 'evt-10',
@@ -596,7 +605,130 @@ export const mockEvents: Event[] = [
 		cancel_reason: null,
 		announce: true,
 		revision: 1,
-		enable_ical: true
+		enable_ical: true,
+		parent: null
+	},
+
+	// --- Sub-Events: Schützenfest 2025 Festprogramm ---
+	{
+		id: 'evt-sub-1',
+		status: 'published',
+		title: 'Antreten und Abmarsch',
+		slug: 'schuetzenfest-2025-antreten-freitag',
+		start: '2025-07-11T18:00:00Z',
+		end: null,
+		location: mockLocations[0],
+		body: '<p>Antreten der Schützen am Ehrenmal mit anschließendem Abmarsch zum Festzelt.</p>',
+		cancel_reason: null,
+		announce: false,
+		revision: 1,
+		enable_ical: true,
+		parent: 'evt-1'
+	},
+	{
+		id: 'evt-sub-2',
+		status: 'published',
+		title: 'Festball mit DJ',
+		slug: 'schuetzenfest-2025-festball-freitag',
+		start: '2025-07-11T20:00:00Z',
+		end: '2025-07-12T02:00:00Z',
+		location: mockLocations[0],
+		body: '<p>Festball im Zelt mit DJ-Musik für Jung und Alt.</p>',
+		cancel_reason: null,
+		announce: false,
+		revision: 1,
+		enable_ical: true,
+		parent: 'evt-1'
+	},
+	{
+		id: 'evt-sub-3',
+		status: 'published',
+		title: 'Kinderfest',
+		slug: 'schuetzenfest-2025-kinderfest',
+		start: '2025-07-12T10:00:00Z',
+		end: '2025-07-12T13:00:00Z',
+		location: mockLocations[0],
+		body: '<p>Spiele, Umzug und Wahl des Kinderkönigs/der Kinderkönigin.</p>',
+		cancel_reason: null,
+		announce: false,
+		revision: 1,
+		enable_ical: true,
+		parent: 'evt-1'
+	},
+	{
+		id: 'evt-sub-4',
+		status: 'published',
+		title: 'Vogelschießen',
+		slug: 'schuetzenfest-2025-vogelschiessen',
+		start: '2025-07-12T14:00:00Z',
+		end: null,
+		location: mockLocations[0],
+		body: '<p>Wer wird neuer Schützenkönig? Spannung pur an der Vogelstange.</p>',
+		cancel_reason: null,
+		announce: false,
+		revision: 1,
+		enable_ical: true,
+		parent: 'evt-1'
+	},
+	{
+		id: 'evt-sub-5',
+		status: 'published',
+		title: 'Königsball',
+		slug: 'schuetzenfest-2025-koenigsball',
+		start: '2025-07-12T20:00:00Z',
+		end: '2025-07-13T03:00:00Z',
+		location: mockLocations[0],
+		body: '<p>Großer Königsball zu Ehren des neuen Königspaares mit Live-Musik.</p>',
+		cancel_reason: null,
+		announce: false,
+		revision: 1,
+		enable_ical: true,
+		parent: 'evt-1'
+	},
+	{
+		id: 'evt-sub-6',
+		status: 'published',
+		title: 'Hl. Messe',
+		slug: 'schuetzenfest-2025-gottesdienst',
+		start: '2025-07-13T09:30:00Z',
+		end: null,
+		location: mockLocations[0],
+		body: '<p>Gottesdienst für die Schützenfamilie auf dem Schützenplatz.</p>',
+		cancel_reason: null,
+		announce: false,
+		revision: 1,
+		enable_ical: true,
+		parent: 'evt-1'
+	},
+	{
+		id: 'evt-sub-7',
+		status: 'published',
+		title: 'Frühschoppen',
+		slug: 'schuetzenfest-2025-fruehschoppen',
+		start: '2025-07-13T10:30:00Z',
+		end: '2025-07-13T13:00:00Z',
+		location: mockLocations[0],
+		body: '<p>Gemütlicher Frühschoppen mit Blasmusik.</p>',
+		cancel_reason: null,
+		announce: false,
+		revision: 1,
+		enable_ical: true,
+		parent: 'evt-1'
+	},
+	{
+		id: 'evt-sub-8',
+		status: 'published',
+		title: 'Festumzug',
+		slug: 'schuetzenfest-2025-festumzug',
+		start: '2025-07-13T14:00:00Z',
+		end: null,
+		location: mockLocations[0],
+		body: '<p>Großer Festumzug durch die Nachbarschaft mit allen Vereinen.</p>',
+		cancel_reason: null,
+		announce: false,
+		revision: 1,
+		enable_ical: true,
+		parent: 'evt-1'
 	}
 ];
 
@@ -840,6 +972,7 @@ export function getEvents(year?: number): Event[] {
 	return mockEvents
 		.filter((e) => {
 			if (e.status === 'draft') return false;
+			if (!e.announce) return false;
 			if (year) return new Date(e.start).getFullYear() === year;
 			return true;
 		})
@@ -933,8 +1066,15 @@ export function getVereinPages(): Page[] {
 export function getNextEvent(): Event | undefined {
 	const now = new Date();
 	return mockEvents
-		.filter((e) => e.status === 'published' && new Date(e.start) > now)
+		.filter((e) => e.status === 'published' && e.announce && new Date(e.start) > now)
 		.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())[0];
+}
+
+/** Get sub-events for a parent event, sorted by start time. */
+export function getSubEvents(parentId: string): Event[] {
+	return mockEvents
+		.filter((e) => e.parent === parentId && e.status !== 'draft')
+		.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
 }
 
 export function getCurrentThrone(): Throne | undefined {

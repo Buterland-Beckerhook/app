@@ -176,7 +176,7 @@ api_post "/collections" '{
     {"field": "id", "type": "uuid", "meta": {"hidden": true, "interface": "input", "readonly": true, "special": ["uuid"]}, "schema": {"is_primary_key": true, "has_auto_increment": false}},
     {"field": "logical_name", "type": "string", "meta": {"interface": "input", "note": "z.B. thron-1, bild-1"}, "schema": {"is_nullable": true}},
     {"field": "title", "type": "string", "meta": {"interface": "input", "note": "Bildunterschrift"}, "schema": {"is_nullable": true}},
-    {"field": "copyright", "type": "string", "meta": {"interface": "input", "note": "Urheber"}, "schema": {"is_nullable": true}},
+    {"field": "copyright", "type": "string", "meta": {"interface": "input", "note": "Urheber"}, "schema": {"is_nullable": true, "default_value": "Buterland-Beckerhook e.V."}},
     {"field": "sort", "type": "integer", "meta": {"interface": "input", "hidden": true}, "schema": {"is_nullable": true}},
     {"field": "use_as_throne_picture", "type": "boolean", "meta": {"interface": "boolean", "note": "Als Thron-Bild verwenden?"}, "schema": {"is_nullable": false, "default_value": false}}
   ]
@@ -318,6 +318,20 @@ api_post "/relations" '{
   "collection": "events",
   "field": "location",
   "related_collection": "locations",
+  "meta": {"one_field": null, "sort_field": null}
+}'
+
+# events.parent → events (self-referencing M2O, like pages)
+api_post "/fields/events" '{
+  "field": "parent",
+  "type": "uuid",
+  "meta": {"interface": "select-dropdown-m2o", "special": ["m2o"], "note": "Übergeordneter Termin (z.B. Schützenfest)"},
+  "schema": {"is_nullable": true}
+}'
+api_post "/relations" '{
+  "collection": "events",
+  "field": "parent",
+  "related_collection": "events",
   "meta": {"one_field": null, "sort_field": null}
 }'
 

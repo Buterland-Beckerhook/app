@@ -60,6 +60,7 @@ export interface Event {
 	announce: boolean;
 	revision: number | null;
 	enable_ical: boolean;
+	parent: string | Event | null;
 }
 
 export interface Location {
