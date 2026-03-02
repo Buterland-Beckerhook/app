@@ -1,6 +1,9 @@
 @import 'tailwindcss';
 @plugin '@tailwindcss/typography';
 
+/* Class-based dark mode (instead of automatic prefers-color-scheme) */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @font-face {
 	font-family: 'Oranienbaum';
 	src: url('/fonts/oranienbaum.ttf') format('truetype');

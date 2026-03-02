@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import ThemeSwitch from '$lib/components/ThemeSwitch.svelte';
 	import '../app.css';
 
 	let { children } = $props();
@@ -37,10 +38,11 @@
 			</a>
 
 			<!-- Desktop nav -->
-			<div class="hidden gap-6 md:flex">
+			<div class="hidden items-center gap-6 md:flex">
 				{#each navLinks as link (link.href)}
 					<a href={link.href} class="hover:underline">{link.label}</a>
 				{/each}
+				<ThemeSwitch />
 			</div>
 
 			<!-- Mobile hamburger -->
@@ -80,6 +82,9 @@
 				{#each navLinks as link (link.href)}
 					<a href={link.href} class="block py-2 hover:underline">{link.label}</a>
 				{/each}
+				<div class="mt-2 border-t border-white/20 pt-3">
+					<ThemeSwitch variant="full" />
+				</div>
 			</div>
 		{/if}
 	</header>

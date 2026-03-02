@@ -2,6 +2,7 @@ import eslint from '@eslint/js';
 import svelte from 'eslint-plugin-svelte';
 import prettier from 'eslint-config-prettier';
 import ts from 'typescript-eslint';
+import globals from 'globals';
 
 export default ts.config(
 	eslint.configs.recommended,
@@ -9,6 +10,14 @@ export default ts.config(
 	...svelte.configs['flat/recommended'],
 	prettier,
 	...svelte.configs['flat/prettier'],
+	{
+		languageOptions: {
+			globals: {
+				...globals.browser,
+				...globals.node
+			}
+		}
+	},
 	{
 		files: ['**/*.svelte', '**/*.svelte.ts'],
 		languageOptions: {
