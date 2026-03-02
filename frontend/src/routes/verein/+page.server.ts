@@ -1,9 +1,9 @@
 import type { PageServerLoad } from './$types';
-import { getPage, getVereinPages } from '$lib/server/mock-data';
+import { getPage, getVereinPages } from '$lib/server/directus';
 
 export const load: PageServerLoad = async () => {
-	const page = getPage('ueber-uns');
-	const subPages = getVereinPages().filter((p) => p.slug !== 'ueber-uns');
+	const [page, allPages] = await Promise.all([getPage('ueber-uns'), getVereinPages()]);
+	const subPages = allPages.filter((p) => p.slug !== 'ueber-uns');
 
 	return {
 		page,

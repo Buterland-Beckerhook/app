@@ -1,13 +1,16 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { getEventBySlug } from '$lib/server/mock-data';
+import { getEventBySlug, getSubEvents } from '$lib/server/directus';
 
 export const load: PageServerLoad = async ({ params }) => {
-	const event = getEventBySlug(params.slug);
+	const event = await getEventBySlug(params.slug);
 
 	if (!event) {
 		throw error(404, 'Termin nicht gefunden');
 	}
 
-	return { event };
+	// Load sub-events if this is a parent event
+	const subEvents = await getSubEvents(event.id);
+
+	return { event, subEvents };
 };

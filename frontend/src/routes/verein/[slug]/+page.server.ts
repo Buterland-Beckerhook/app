@@ -1,9 +1,9 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { getPage, getPeople } from '$lib/server/mock-data';
+import { getPage, getPeople } from '$lib/server/directus';
 
 export const load: PageServerLoad = async ({ params }) => {
-	const page = getPage(params.slug);
+	const page = await getPage(params.slug);
 
 	if (!page) {
 		throw error(404, 'Seite nicht gefunden');
@@ -11,7 +11,9 @@ export const load: PageServerLoad = async ({ params }) => {
 
 	// Load people data for vorstand/offiziere pages
 	const people =
-		params.slug === 'vorstand' || params.slug === 'offiziere' ? getPeople(params.slug) : undefined;
+		params.slug === 'vorstand' || params.slug === 'offiziere'
+			? await getPeople(params.slug)
+			: undefined;
 
 	return { page, people };
 };

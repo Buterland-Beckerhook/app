@@ -1,7 +1,7 @@
 import type { PageServerLoad } from './$types';
-import { getPage } from '$lib/server/mock-data';
+import { getPage } from '$lib/server/directus';
 
 export const load: PageServerLoad = async () => {
-	const page = getPage('datenschutz');
+	const page = await getPage('datenschutz');
 	return { page };
 };

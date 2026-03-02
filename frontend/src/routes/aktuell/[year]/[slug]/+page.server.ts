@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { getArticleBySlug, getArticleYear } from '$lib/server/mock-data';
+import { getArticleBySlug, getArticleYear } from '$lib/server/directus';
 
 export const load: PageServerLoad = async ({ params }) => {
 	const year = Number(params.year);
@@ -8,7 +8,7 @@ export const load: PageServerLoad = async ({ params }) => {
 		throw error(404, 'Artikel nicht gefunden');
 	}
 
-	const article = getArticleBySlug(params.slug);
+	const article = await getArticleBySlug(params.slug);
 
 	if (!article) {
 		throw error(404, 'Artikel nicht gefunden');
