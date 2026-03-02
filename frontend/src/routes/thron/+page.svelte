@@ -7,6 +7,7 @@
 
 	let article = $derived(data.articles[0]);
 	let throneImage = $derived(article ? getThroneImage(article) : undefined);
+	let articleYear = $derived(article ? new Date(article.date_published).getFullYear() : 0);
 </script>
 
 <svelte:head>
@@ -44,7 +45,7 @@
 			<ThroneTable throne={article.throne} />
 			{#if !article.no_article}
 				<a
-					href="/aktuell/{article.slug}"
+					href="/aktuell/{articleYear}/{article.slug}"
 					class="mt-4 inline-block text-sm text-primary hover:underline"
 				>
 					Zum Artikel &rarr;

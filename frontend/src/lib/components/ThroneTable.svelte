@@ -3,14 +3,15 @@
 
 	let { throne }: { throne: Throne } = $props();
 
-	let isKaiser = $derived(throne.type === 'kaiserthron');
+	let isKaiser = $derived(throne.type === 'kaiser');
+	let years = $derived(throne.end != null ? `${throne.begin}–${throne.end}` : `${throne.begin}–`);
 </script>
 
 <div class="overflow-x-auto">
 	<table class="w-full text-left text-sm">
 		<caption class="mb-3 text-left text-lg font-semibold">
-			{isKaiser ? 'Kaiserthron' : 'Thron'}
-			{throne.years}
+			{isKaiser ? 'Kaiserthron' : throne.type === 'stadtkaiser' ? 'Stadtkaiser' : 'Thron'}
+			{years}
 		</caption>
 		<tbody>
 			<tr class="border-b border-gray-100 dark:border-zinc-700">

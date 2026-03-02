@@ -27,8 +27,8 @@
 			label: 'Thron',
 			children: [
 				{ href: '/thron', label: 'Throne seit 1909' },
-				{ href: '/aktuell/kaiserthron-2009', label: 'Kaiserthron 2009' },
-				{ href: '/aktuell/kaiserthron-1984', label: 'Kaiserthron 1984' }
+				{ href: '/aktuell/2009/kaiserthron-2009', label: 'Kaiserthron 2009' },
+				{ href: '/aktuell/1984/kaiserthron-1984', label: 'Kaiserthron 1984' }
 			]
 		},
 		{
@@ -60,7 +60,7 @@
 			return link.children.some((c) => isChildActive(c.href, link.href));
 		}
 		// Sections like /aktuell, /termine match their sub-routes too,
-		// but not if the path is claimed by a dropdown child (e.g. /aktuell/kaiserthron-2009)
+		// but not if the path is claimed by a dropdown child (e.g. /aktuell/2009/kaiserthron-2009)
 		if (['/aktuell', '/termine'].includes(link.href)) {
 			const matches = path === link.href || path.startsWith(link.href + '/');
 			if (matches && allChildHrefs.some((ch) => path === ch || path.startsWith(ch + '/'))) {

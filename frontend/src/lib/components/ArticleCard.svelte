@@ -6,10 +6,11 @@
 	let { article }: { article: Article } = $props();
 
 	let thumbnail = $derived(getFirstImage(article.images));
+	let year = $derived(new Date(article.date_published).getFullYear());
 </script>
 
 <article class="border-b border-gray-200 py-6 last:border-b-0 dark:border-zinc-700">
-	<a href="/aktuell/{article.slug}" class="group block">
+	<a href="/aktuell/{year}/{article.slug}" class="group block">
 		<div class="flex gap-4">
 			{#if thumbnail}
 				<div class="hidden shrink-0 sm:block">

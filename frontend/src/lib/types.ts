@@ -13,7 +13,6 @@ export interface Article {
 	author: string | null;
 	tags: string[] | null;
 	body: string | null;
-	is_throne_article: boolean;
 	no_article: boolean;
 	aliases: string[] | null;
 	images: ArticleImage[];
@@ -34,8 +33,9 @@ export interface ArticleImage {
 export interface Throne {
 	id: string;
 	article: string | Article;
-	type: 'thron' | 'kaiserthron' | 'stadtkaiser';
-	years: string;
+	type: 'koenig' | 'kaiser' | 'stadtkaiser';
+	begin: number;
+	end: number | null;
 	king_title: string | null;
 	king: string;
 	queen: string;
@@ -72,6 +72,7 @@ export interface Location {
 	lat: number | null;
 	lng: number | null;
 	maps_url: string | null;
+	url: string | null;
 }
 
 export interface Person {

@@ -55,7 +55,8 @@ export const mockLocations: Location[] = [
 		city: 'Ahaus',
 		lat: 52.095,
 		lng: 7.035,
-		maps_url: 'https://maps.google.com/?q=52.095,7.035'
+		maps_url: 'https://maps.google.com/?q=52.095,7.035',
+		url: null
 	},
 	{
 		id: 'loc-2',
@@ -66,7 +67,8 @@ export const mockLocations: Location[] = [
 		city: 'Ahaus',
 		lat: 52.093,
 		lng: 7.032,
-		maps_url: null
+		maps_url: null,
+		url: null
 	},
 	{
 		id: 'loc-3',
@@ -77,7 +79,8 @@ export const mockLocations: Location[] = [
 		city: null,
 		lat: null,
 		lng: null,
-		maps_url: null
+		maps_url: null,
+		url: null
 	}
 ];
 
@@ -87,8 +90,9 @@ export const mockThrones: Throne[] = [
 	{
 		id: 'throne-1',
 		article: 'art-1',
-		type: 'thron',
-		years: '2024-2025',
+		type: 'koenig',
+		begin: 2024,
+		end: 2025,
 		king_title: 'Markus I.',
 		king: 'Markus Mustermann',
 		queen: 'Sabine Musterfrau',
@@ -102,8 +106,9 @@ export const mockThrones: Throne[] = [
 	{
 		id: 'throne-2',
 		article: 'art-2',
-		type: 'thron',
-		years: '2023-2024',
+		type: 'koenig',
+		begin: 2023,
+		end: 2024,
 		king_title: 'Stefan II.',
 		king: 'Stefan Beckermann',
 		queen: 'Maria Beckermann',
@@ -117,8 +122,9 @@ export const mockThrones: Throne[] = [
 	{
 		id: 'throne-3',
 		article: 'art-7',
-		type: 'thron',
-		years: '2022-2023',
+		type: 'koenig',
+		begin: 2022,
+		end: 2023,
 		king_title: 'Hermann III.',
 		king: 'Hermann Feldmann',
 		queen: 'Inge Feldmann',
@@ -132,8 +138,9 @@ export const mockThrones: Throne[] = [
 	{
 		id: 'throne-4',
 		article: 'art-8',
-		type: 'thron',
-		years: '2021-2022',
+		type: 'koenig',
+		begin: 2021,
+		end: 2022,
 		king_title: 'Andreas I.',
 		king: 'Andreas Brinkmann',
 		queen: 'Heike Brinkmann',
@@ -147,8 +154,9 @@ export const mockThrones: Throne[] = [
 	{
 		id: 'throne-5',
 		article: 'art-9',
-		type: 'thron',
-		years: '2019-2021',
+		type: 'koenig',
+		begin: 2019,
+		end: 2021,
 		king_title: 'Dieter IV.',
 		king: 'Dieter Ahlert',
 		queen: 'Brigitte Ahlert',
@@ -162,8 +170,9 @@ export const mockThrones: Throne[] = [
 	{
 		id: 'throne-6',
 		article: 'art-6',
-		type: 'kaiserthron',
-		years: '2009-2012',
+		type: 'kaiser',
+		begin: 2009,
+		end: 2012,
 		king_title: 'Gerd X.',
 		king: 'Gerd Kaiserlich',
 		queen: 'Helga Kaiserlich',
@@ -177,8 +186,9 @@ export const mockThrones: Throne[] = [
 	{
 		id: 'throne-7',
 		article: 'art-10',
-		type: 'kaiserthron',
-		years: '1984-1987',
+		type: 'kaiser',
+		begin: 1984,
+		end: 1987,
 		king_title: 'Heinrich V.',
 		king: 'Heinrich Bröker',
 		queen: 'Hildegard Bröker',
@@ -193,7 +203,8 @@ export const mockThrones: Throne[] = [
 		id: 'throne-8',
 		article: 'art-11',
 		type: 'stadtkaiser',
-		years: '2018-2023',
+		begin: 2018,
+		end: 2023,
 		king_title: 'Werner II.',
 		king: 'Werner Stadtmann',
 		queen: 'Ursula Stadtmann',
@@ -208,7 +219,8 @@ export const mockThrones: Throne[] = [
 		id: 'throne-9',
 		article: 'art-12',
 		type: 'stadtkaiser',
-		years: '2013-2018',
+		begin: 2013,
+		end: 2018,
 		king_title: 'Paul I.',
 		king: 'Paul Ahaus',
 		queen: 'Erika Ahaus',
@@ -238,7 +250,6 @@ export const mockArticles: Article[] = [
 <p>Bei strahlendem Sonnenschein feierten die Schützenbrüder und ihre Familien ein gelungenes Schützenfest. Nach spannendem Wettstreit fiel der Vogel um 17:23 Uhr.</p>
 <h3>Der Hofstaat</h3>
 <p>An der Seite des Königspaares stehen die Ehrendamen Anna Beispiel und Lisa Testerin sowie die Ehrenherren Peter Testmann und Klaus Beispielmann. Als Mundschenk fungiert Frank Mundschenk, Oberhofmarschall ist Heinz Hofmarschall.</p>`,
-		is_throne_article: true,
 		no_article: false,
 		aliases: ['/aktuell/2024/markus-mustermann-regiert/'],
 		images: [
@@ -258,7 +269,6 @@ export const mockArticles: Article[] = [
 		author: 'Redaktion',
 		tags: ['Thron', 'Schützenfest'],
 		body: `<p>Stefan Beckermann hat beim diesjährigen Schützenfest den Vogel abgeschossen und regiert nun als <strong>Stefan II.</strong> den Schützenverein.</p>`,
-		is_throne_article: true,
 		no_article: false,
 		aliases: null,
 		images: [
@@ -284,7 +294,6 @@ export const mockArticles: Article[] = [
 <li>Das Schützenfest findet vom 12.-14. Juli statt</li>
 <li>Renovierung der Schützenhalle wird geplant</li>
 </ul>`,
-		is_throne_article: false,
 		no_article: false,
 		aliases: null,
 		images: [
@@ -303,7 +312,6 @@ export const mockArticles: Article[] = [
 		tags: ['Veranstaltung'],
 		body: `<p>Trotz frostiger Temperaturen machten sich rund 40 Vereinsmitglieder mit Familien auf den Weg zur traditionellen Winterwanderung durch das Buterland.</p>
 <p>Im Anschluss gab es warmen Glühwein und Erbsensuppe im Dinkelhof.</p>`,
-		is_throne_article: false,
 		no_article: false,
 		aliases: null,
 		images: [
@@ -328,7 +336,6 @@ export const mockArticles: Article[] = [
 <p>14:00 Uhr — Vogelschießen<br>20:00 Uhr — Königsball</p>
 <h3>Sonntag, 14. Juli</h3>
 <p>10:00 Uhr — Frühschoppen<br>14:00 Uhr — Festumzug</p>`,
-		is_throne_article: false,
 		no_article: false,
 		aliases: null,
 		images: [mockImage('img-5-1', 'art-5', 501, 'plakat', 'Plakat Schützenfest 2024', 1)],
@@ -345,7 +352,6 @@ export const mockArticles: Article[] = [
 		tags: ['Thron', 'Kaiserthron'],
 		body: `<p>Gerd Kaiserlich hat beim Bezirksschützenfest den Vogel geholt und regiert nun als Kaiser <strong>Gerd X.</strong> den Schützenbezirk.</p>
 <p>Ein historischer Moment für den Schützenverein Buterland-Beckerhook — nach 25 Jahren stellt der Verein wieder einen Bezirkskönig.</p>`,
-		is_throne_article: true,
 		no_article: false,
 		aliases: null,
 		images: [
@@ -364,7 +370,6 @@ export const mockArticles: Article[] = [
 		author: 'Redaktion',
 		tags: ['Thron', 'Schützenfest'],
 		body: `<p>Hermann Feldmann holte den Vogel von der Stange und regiert nun als <strong>Hermann III.</strong> den Schützenverein Buterland-Beckerhook.</p>`,
-		is_throne_article: true,
 		no_article: false,
 		aliases: null,
 		images: [
@@ -383,7 +388,6 @@ export const mockArticles: Article[] = [
 		author: 'Redaktion',
 		tags: ['Thron', 'Schützenfest'],
 		body: `<p>Andreas Brinkmann regiert als <strong>Andreas I.</strong> den Schützenverein Buterland-Beckerhook.</p>`,
-		is_throne_article: true,
 		no_article: false,
 		aliases: null,
 		images: [mockImage('img-8-1', 'art-8', 801, 'thron', 'Thron 2021', 1, true)],
@@ -399,7 +403,6 @@ export const mockArticles: Article[] = [
 		author: 'Redaktion',
 		tags: ['Thron', 'Schützenfest'],
 		body: `<p>Dieter Ahlert holte den Vogel von der Stange und regiert als <strong>Dieter IV.</strong> — wegen der Corona-Pandemie gleich für zwei Jahre.</p>`,
-		is_throne_article: true,
 		no_article: false,
 		aliases: null,
 		images: [mockImage('img-9-1', 'art-9', 901, 'thron', 'Thron 2019', 1, true)],
@@ -415,7 +418,6 @@ export const mockArticles: Article[] = [
 		author: 'Redaktion',
 		tags: ['Thron', 'Kaiserthron'],
 		body: `<p>Heinrich Bröker hat beim Bezirksschützenfest den Vogel geholt und regiert als Kaiser <strong>Heinrich V.</strong> den Schützenbezirk.</p>`,
-		is_throne_article: true,
 		no_article: false,
 		aliases: null,
 		images: [mockImage('img-10-1', 'art-10', 1001, 'kaiserthron', 'Kaiserthron 1984', 1, true)],
@@ -431,7 +433,6 @@ export const mockArticles: Article[] = [
 		author: 'Redaktion',
 		tags: ['Thron', 'Stadtkaiser'],
 		body: `<p>Werner Stadtmann hat beim Stadtschützenfest der 10 Ahauser Vereine den Vogel geholt und regiert als Stadtkaiser <strong>Werner II.</strong></p>`,
-		is_throne_article: true,
 		no_article: false,
 		aliases: null,
 		images: [mockImage('img-11-1', 'art-11', 1101, 'stadtkaiser', 'Stadtkaiser 2018', 1, true)],
@@ -447,7 +448,6 @@ export const mockArticles: Article[] = [
 		author: 'Redaktion',
 		tags: ['Thron', 'Stadtkaiser'],
 		body: `<p>Paul Ahaus hat den Vogel von der Stange geholt und regiert als Stadtkaiser <strong>Paul I.</strong></p>`,
-		is_throne_article: true,
 		no_article: false,
 		aliases: null,
 		images: [mockImage('img-12-1', 'art-12', 1201, 'stadtkaiser', 'Stadtkaiser 2013', 1, true)],
@@ -812,6 +812,17 @@ export const mockPages: Page[] = [
 
 // --- Helper functions ---
 
+/** Derive year from article date_published for URL construction. */
+export function getArticleYear(article: Article): number {
+	return new Date(article.date_published).getFullYear();
+}
+
+/** Format throne years for display (e.g. "2024–2025" or "2024–"). */
+export function formatThroneYears(throne: Throne): string {
+	if (throne.end != null) return `${throne.begin}–${throne.end}`;
+	return `${throne.begin}–`;
+}
+
 export function getArticles(page = 1, limit = 10): { articles: Article[]; total: number } {
 	const published = mockArticles
 		.filter((a) => a.status === 'published')
@@ -840,18 +851,18 @@ export function getEventBySlug(slug: string): Event | undefined {
 }
 
 export function getThrones(): Throne[] {
-	return mockThrones.sort((a, b) => b.years.localeCompare(a.years));
+	return mockThrones.sort((a, b) => b.begin - a.begin);
 }
 
 export function getThroneArticles(): Article[] {
 	return mockArticles
-		.filter((a) => a.is_throne_article && a.status === 'published')
+		.filter((a) => a.throne != null && a.status === 'published')
 		.sort((a, b) => new Date(b.date_published).getTime() - new Date(a.date_published).getTime());
 }
 
 /**
  * Get paginated throne articles (regular thrones + stadtkaiser, NOT kaiserthrone).
- * Sorted by throne years descending (newest first).
+ * Sorted by throne begin year descending (newest first).
  */
 export function getPaginatedThrones(
 	page = 1,
@@ -860,15 +871,14 @@ export function getPaginatedThrones(
 	const throneArticles = mockArticles
 		.filter(
 			(a) =>
-				a.is_throne_article &&
+				a.throne != null &&
 				a.status === 'published' &&
-				a.throne &&
-				(a.throne.type === 'thron' || a.throne.type === 'stadtkaiser')
+				(a.throne.type === 'koenig' || a.throne.type === 'stadtkaiser')
 		)
 		.sort((a, b) => {
-			const yearA = a.throne?.years ?? '';
-			const yearB = b.throne?.years ?? '';
-			return yearB.localeCompare(yearA);
+			const yearA = a.throne?.begin ?? 0;
+			const yearB = b.throne?.begin ?? 0;
+			return yearB - yearA;
 		});
 	const total = throneArticles.length;
 	const totalPages = Math.ceil(total / limit);
@@ -883,21 +893,15 @@ export function getPaginatedThrones(
 
 /**
  * Get all Kaiserthron articles (for navigation dropdown items).
- * Returns them sorted by year descending.
+ * Returns them sorted by begin year descending.
  */
 export function getEmperorThrones(): Article[] {
 	return mockArticles
-		.filter(
-			(a) =>
-				a.is_throne_article &&
-				a.status === 'published' &&
-				a.throne &&
-				a.throne.type === 'kaiserthron'
-		)
+		.filter((a) => a.throne != null && a.status === 'published' && a.throne.type === 'kaiser')
 		.sort((a, b) => {
-			const yearA = a.throne?.years ?? '';
-			const yearB = b.throne?.years ?? '';
-			return yearB.localeCompare(yearA);
+			const yearA = a.throne?.begin ?? 0;
+			const yearB = b.throne?.begin ?? 0;
+			return yearB - yearA;
 		});
 }
 
@@ -934,9 +938,7 @@ export function getNextEvent(): Event | undefined {
 }
 
 export function getCurrentThrone(): Throne | undefined {
-	return mockThrones
-		.filter((t) => t.type === 'thron')
-		.sort((a, b) => b.years.localeCompare(a.years))[0];
+	return mockThrones.filter((t) => t.type === 'koenig').sort((a, b) => b.begin - a.begin)[0];
 }
 
 export function getCurrentThroneArticle(): Article | undefined {
