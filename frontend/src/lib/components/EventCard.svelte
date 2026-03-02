@@ -5,8 +5,10 @@
 	let { event }: { event: Event } = $props();
 
 	let isCanceled = $derived(event.status === 'canceled');
+	let isPast = $derived(event.end ? new Date(event.end) < new Date() : new Date(event.start) < new Date());
 	let locationName = $derived(
 		typeof event.location === 'object' && event.location ? event.location.name : null
+	
 	);
 </script>
 
@@ -17,7 +19,7 @@
 	<a href="/termine/{event.slug}" class="block">
 		<div class="flex flex-col gap-2">
 			<div class="flex items-start justify-between gap-2">
-				<time datetime={event.start} class="text-sm font-medium text-primary">
+				<time datetime={event.start} class="text-sm font-medium text-primary" class:opacity-40={isPast}>
 					<DateFormat date={event.start} />
 				</time>
 				{#if isCanceled}
@@ -28,11 +30,13 @@
 					</span>
 				{/if}
 			</div>
-			<h3 class="text-lg font-semibold" class:line-through={isCanceled}>
-				{event.title}
-			</h3>
+			<h3 class="text-lg font-semibold" class:opacity-40={isPast} class:line-through={isCanceled}>
+				{event.title}	
+				</h3>
 			{#if locationName}
-				<p class="text-sm text-gray-500 dark:text-gray-400">{locationName}</p>
+				<p class="text-sm text-gray-500 dark:text-gray-400" class:opacity-40={isPast}>
+				{locationName}
+				</p>
 			{/if}
 			{#if isCanceled && event.cancel_reason}
 				<p class="text-sm text-red-600 dark:text-red-400">{event.cancel_reason}</p>

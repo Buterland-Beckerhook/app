@@ -17,20 +17,6 @@
 
 <div class="mb-6 flex items-center justify-between">
 	<h1 class="text-3xl font-bold">Termine {data.year}</h1>
-	<div class="flex gap-2">
-		<a
-			href="/termine?jahr={data.year - 1}"
-			class="rounded border border-gray-300 px-3 py-1 text-sm hover:bg-gray-50 dark:border-zinc-600 dark:hover:bg-zinc-700"
-		>
-			{data.year - 1}
-		</a>
-		<a
-			href="/termine?jahr={data.year + 1}"
-			class="rounded border border-gray-300 px-3 py-1 text-sm hover:bg-gray-50 dark:border-zinc-600 dark:hover:bg-zinc-700"
-		>
-			{data.year + 1}
-		</a>
-	</div>
 </div>
 
 {#if data.events.length > 0}
@@ -42,3 +28,19 @@
 {:else}
 	<p class="text-gray-500 dark:text-gray-400">Keine Termine für {data.year} vorhanden.</p>
 {/if}
+
+
+<div class="flex gap-2">
+	<a
+		href="/termine?jahr={data.year - 1}"
+		class="rounded border border-gray-300 px-3 py-1 text-sm hover:bg-gray-50 dark:border-zinc-600 dark:hover:bg-zinc-700"
+	>
+		{data.year - 1}
+	</a>
+	<a
+		href="/termine?jahr={data.year + 1}"
+		class="rounded border border-gray-300 px-3 py-1 text-sm hover:bg-gray-50 dark:border-zinc-600 dark:hover:bg-zinc-700"
+	>
+		{data.year + 1}
+	</a>
+</div>

@@ -19,10 +19,10 @@
 					{isKaiser ? 'Kaiser' : 'König'}
 				</td>
 				<td class="py-2">
-					{#if throne.king_title}
-						<span class="font-semibold">{throne.king_title}</span> &mdash;
-					{/if}
 					{throne.king}
+					{#if throne.king_title}
+						als&nbsp;<span class="font-semibold">{throne.king_title}</span>
+					{/if}
 				</td>
 			</tr>
 			<tr class="border-b border-gray-100 dark:border-zinc-700">
@@ -31,19 +31,19 @@
 				</td>
 				<td class="py-2">{throne.queen}</td>
 			</tr>
-			{#if throne.moh1 || throne.moh2}
+			{#if throne.moh1 || throne.loh1}
 				<tr class="border-b border-gray-100 dark:border-zinc-700">
-					<td class="py-2 pr-4 font-medium text-gray-500 dark:text-gray-400">Ehrendamen</td>
+					<td class="py-2 pr-4 font-medium text-gray-500 dark:text-gray-400">Ehrenpaare</td>
 					<td class="py-2">
-						{[throne.moh1, throne.moh2].filter(Boolean).join(', ')}
+						{[throne.loh1, throne.moh1].filter(Boolean).join(' und ')}
 					</td>
 				</tr>
 			{/if}
-			{#if throne.loh1 || throne.loh2}
+			{#if throne.loh2 || throne.moh2}
 				<tr class="border-b border-gray-100 dark:border-zinc-700">
-					<td class="py-2 pr-4 font-medium text-gray-500 dark:text-gray-400">Ehrenherren</td>
+					<td class="py-2 pr-4 font-medium text-gray-500 dark:text-gray-400"></td>
 					<td class="py-2">
-						{[throne.loh1, throne.loh2].filter(Boolean).join(', ')}
+						{[throne.loh2, throne.moh2].filter(Boolean).join(' und ')}
 					</td>
 				</tr>
 			{/if}

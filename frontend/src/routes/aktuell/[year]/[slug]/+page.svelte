@@ -56,10 +56,18 @@
 			/>
 			{#if heroImage.copyright}
 				<figcaption class="mt-1 text-right text-xs text-gray-400 dark:text-gray-500">
-					{heroImage.copyright}
+					© {heroImage.copyright}
 				</figcaption>
 			{/if}
 		</figure>
+	{/if}
+
+	{#if data.article.throne}
+		<div class="pb-6">
+			<section class="mt-8 p-6 pb-2 rounded-lg border border-gray-200 dark:border-zinc-700">
+				<ThroneTable throne={data.article.throne} />
+			</section>
+		</div>
 	{/if}
 
 	{#if data.article.body}
@@ -82,20 +90,9 @@
 							loading="lazy"
 							class="w-full rounded-lg object-cover"
 						/>
-						{#if image.title}
-							<figcaption class="mt-1 text-center text-xs text-gray-500 dark:text-gray-400">
-								{image.title}
-							</figcaption>
-						{/if}
 					</figure>
 				{/each}
 			</div>
-		</section>
-	{/if}
-
-	{#if data.article.throne}
-		<section class="mt-8 rounded-lg border border-gray-200 p-6 dark:border-zinc-700">
-			<ThroneTable throne={data.article.throne} />
 		</section>
 	{/if}
 

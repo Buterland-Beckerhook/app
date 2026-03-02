@@ -38,6 +38,23 @@ export function formatThroneYears(throne: Throne): string {
 	return `${throne.begin}–`;
 }
 
+// --- Data normalization ---
+
+/**
+ * Normalize a raw article from Directus.
+ *
+ * The `throne` field is a O2M alias in Directus (thrones.article FK points to articles).
+ * This means the API always returns `throne` as an array, even though each article
+ * has at most one throne. We normalize it to a single object or null.
+ */
+function normalizeArticle(raw: Record<string, unknown>): Article {
+	const article = raw as unknown as Article;
+	if (Array.isArray(article.throne)) {
+		article.throne = (article.throne as Throne[])[0] ?? null;
+	}
+	return article;
+}
+
 // --- Shared field definitions ---
 
 // Directus SDK v21 uses nested object syntax for relational fields.
@@ -133,7 +150,7 @@ export async function getArticles(
 	]);
 
 	const total = Number(countResult[0]?.count ?? 0);
-	return { articles: articles as unknown as Article[], total };
+	return { articles: (articles as Record<string, unknown>[]).map(normalizeArticle), total };
 }
 
 /** Get a single published article by slug. */
@@ -149,7 +166,7 @@ export async function getArticleBySlug(slug: string): Promise<Article | undefine
 		})
 	);
 
-	return (results[0] as unknown as Article) ?? undefined;
+	return results[0] ? normalizeArticle(results[0] as Record<string, unknown>) : undefined;
 }
 
 // --- Throne queries ---
@@ -171,14 +188,16 @@ export async function getPaginatedThrones(
 
 	const [articles, countResult] = await Promise.all([
 		directus.request(
+			// Directus supports sorting by relational fields via dot-notation,
+			// but the SDK's type system doesn't know about deep sort paths.
 			readItems('articles', {
 				fields: articleFields,
 				filter: throneFilter,
-				// Sort by related throne.begin — Directus supports deep sort via string
-				sort: ['-date_published'],
+				sort: ['-throne.begin'],
 				limit: perPage,
 				offset: (page - 1) * perPage
-			})
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			} as any)
 		),
 		directus.request(
 			aggregate('articles', {
@@ -188,21 +207,12 @@ export async function getPaginatedThrones(
 		)
 	]);
 
-	// Since Directus may not support sorting by relational field in all versions,
-	// we sort client-side by throne.begin descending
-	const sorted = (articles as unknown as Article[]).sort((a, b) => {
-		const yearA = (a.throne as Throne | null)?.begin ?? 0;
-		const yearB = (b.throne as Throne | null)?.begin ?? 0;
-		return yearB - yearA;
-	});
+	const normalized = (articles as Record<string, unknown>[]).map(normalizeArticle);
 
 	const total = Number(countResult[0]?.count ?? 0);
 	const totalPages = Math.ceil(total / perPage);
 
-	// Apply pagination after sorting
-	// Note: If the total number of koenig+stadtkaiser thrones is very large,
-	// we'd want server-side sort. For ~90 thrones this is fine.
-	return { articles: sorted, total, page, totalPages };
+	return { articles: normalized, total, page, totalPages };
 }
 
 /** Get current throne (koenig type with highest begin year). */
@@ -253,7 +263,7 @@ export async function getCurrentThroneArticle(): Promise<Article | undefined> {
 		})
 	);
 
-	return (results[0] as unknown as Article) ?? undefined;
+	return results[0] ? normalizeArticle(results[0] as Record<string, unknown>) : undefined;
 }
 
 // --- Event queries ---

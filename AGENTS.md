@@ -2,143 +2,136 @@
 
 ## Project Overview
 
-Monorepo for **buterland-beckerhook.de** -- a German shooting club (Schuetzenverein) website.
-Stack: SvelteKit (SSR, Node adapter) + Directus CMS (PostgreSQL) + TailwindCSS 4 + TypeScript.
+Monorepo for **buterland-beckerhook.de** -- a German shooting club (Schützenverein) website.
+Stack: SvelteKit 5 (SSR, Node adapter) + Directus CMS (PostgreSQL) + TailwindCSS 4 + TypeScript.
 Deployed via Docker Compose with Caddy reverse proxy.
 
 ## Repository Structure
 
 ```
-frontend/          # SvelteKit app (main application)
-  src/lib/         # Components, server utilities, shared utils
-  src/routes/      # SvelteKit pages and API routes
-  static/          # Favicon, manifest, PWA icons
-migration/         # TypeScript content migration scripts (Hugo -> Directus)
-docker/            # Caddy config, Directus extensions
+frontend/           # SvelteKit app (main application)
+  src/lib/          # Components, server utilities, shared utils
+  src/lib/server/   # Server-only code (Directus client, queries)
+  src/lib/components/  # Svelte components (PascalCase)
+  src/lib/utils/    # Shared utility functions
+  src/lib/types.ts  # All Directus schema types + SDK Schema interface
+  src/routes/       # SvelteKit pages and API routes
+  static/           # Favicon, fonts, manifest, PWA icons
+migration/          # TypeScript migration scripts (Hugo -> Directus), run via tsx
+docker/             # Caddy config, Directus extensions
+scripts/            # Shell scripts for Directus schema/permissions setup
 ```
 
-## Build / Dev / Lint / Test Commands
+## Build / Dev / Lint Commands
 
 All frontend commands run from the `frontend/` directory.
 
 ```bash
-# Install dependencies
-cd frontend && npm install
-
-# Development (runs Vite dev server on localhost:5173)
-npm run dev
-
-# Build for production
-npm run build
-
-# Preview production build
-npm run preview
+npm install                # Install dependencies
+npm run dev                # Vite dev server on localhost:5173
+npm run build              # Production build
+npm run preview            # Preview production build
 
 # Type checking
-npx svelte-check --tsconfig ./tsconfig.json
+npm run check              # svelte-kit sync + svelte-check (strict mode)
 
-# Linting
-npm run lint            # ESLint + Prettier check
-npm run lint:fix        # Auto-fix lint issues
-npx eslint src/         # Lint only src directory
+# Linting & formatting
+npm run lint               # ESLint + Prettier check
+npm run lint:fix           # Auto-fix lint + format
+npm run format             # Prettier --write only
 npx eslint src/routes/aktuell/+page.server.ts   # Lint a single file
-
-# Formatting
-npx prettier --check .
-npx prettier --write .
-npx prettier --write src/lib/components/Navbar.svelte  # Format single file
-
-# Tests (Vitest for unit, Playwright for e2e)
-npm run test            # Run all unit tests
-npm run test:unit       # Unit tests only (Vitest)
-npx vitest run src/lib/utils/date.test.ts         # Single unit test file
-npx vitest run --testNamePattern="formats date"   # Single test by name
-npm run test:e2e        # End-to-end tests (Playwright)
-npx playwright test tests/homepage.spec.ts        # Single e2e test
+npx prettier --write src/lib/components/Foo.svelte  # Format a single file
 
 # Docker (from repo root)
-docker compose -f docker-compose.dev.yml up       # Dev environment (Directus + PostgreSQL)
-docker compose up --build                         # Full production stack
-
-# Migration scripts (from migration/)
-cd migration && npm install
-npx tsx src/import-locations.ts
-npx tsx src/import-articles.ts
+docker compose -f compose.yml -f compose.dev.yml up -d   # Dev backend (Directus + PostgreSQL)
+docker compose up --build                                 # Full production stack
 ```
+
+There is also a `Makefile` in the repo root with shortcuts: `make dev`, `make backend`, `make frontend`, `make lint`, `make check`, `make build`, `make format`, `make clean`, `make install`.
+
+### Tests
+
+No test framework is currently configured. There are no Vitest/Playwright configs or test files yet. When tests are added, they should use Vitest for unit tests (colocated `.test.ts` files) and Playwright for e2e tests.
 
 ## Code Style Guidelines
 
-### Language & Framework
+### Formatting (Prettier)
 
-- **TypeScript** in strict mode everywhere. No `any` unless absolutely unavoidable (and then add a comment explaining why).
-- **SvelteKit** with SSR via `@sveltejs/adapter-node`. Use `+page.server.ts` for data loading (server-side), `+server.ts` for API endpoints.
-- **TailwindCSS 4** for styling. No custom CSS files unless absolutely necessary.
+- **Tabs** for indentation (not spaces)
+- **Single quotes**
+- **No trailing commas**
+- **100 character** print width
+- Svelte files parsed with `prettier-plugin-svelte`
+
+### ESLint
+
+- Flat config with `typescript-eslint` + `eslint-plugin-svelte` + `eslint-config-prettier`
+- `svelte/no-at-html-tags`: **off** (CMS content uses `{@html}`)
+- `svelte/no-navigation-without-resolve`: **off**
+- Ignores: `build/`, `.svelte-kit/`, `dist/`, `node_modules/`
+
+### TypeScript
+
+- **Strict mode** everywhere. No `any` unless unavoidable (add a comment explaining why).
+- `moduleResolution: "bundler"`, `esModuleInterop: true`
+- Always type function parameters and return values. Let TypeScript infer locals.
+- Use `interface` for object shapes, `type` for unions and computed types.
+- Prefer `unknown` over `any`. Validate and narrow before use.
 
 ### File Naming
 
-- Svelte components: **PascalCase** -- `ArticleCard.svelte`, `ThroneGallery.svelte`
-- TypeScript files: **kebab-case** -- `directus.ts`, `push-utils.ts`, `date-format.ts`
-- SvelteKit routes: follow SvelteKit conventions -- `+page.svelte`, `+page.server.ts`, `+layout.svelte`, `+server.ts`
-- Test files: colocated with source, suffix `.test.ts` -- `date-format.test.ts`
+- Svelte components: **PascalCase** -- `ArticleCard.svelte`, `ThroneTable.svelte`
+- TypeScript files: **kebab-case** -- `directus.ts`, `push-utils.ts`
+- SvelteKit routes: conventions -- `+page.svelte`, `+page.server.ts`, `+layout.svelte`, `+server.ts`
+
+### Naming Conventions
+
+- Variables/functions: **camelCase** -- `getArticles`, `datePublished`
+- Types/interfaces: **PascalCase** -- `Article`, `ThroneData`
+- Constants/env vars: **UPPER_SNAKE_CASE** -- `DIRECTUS_URL`, `ITEMS_PER_PAGE`
+- URL slugs/route params: **kebab-case** -- `/aktuell/mein-artikel`
+- German URL params: `?seite=` (page), `?jahr=` (year)
 
 ### Imports
 
-- Use `$lib/` alias for imports from `src/lib/` (SvelteKit convention).
-- Server-only code goes in `$lib/server/` and must only be imported from `+page.server.ts`, `+layout.server.ts`, or `+server.ts`.
-- Group imports in order: (1) svelte/sveltekit, (2) third-party, (3) `$lib/` local.
-- Use named exports, not default exports (except for Svelte components which are default by nature).
+- Use `$lib/` alias for imports from `src/lib/`.
+- Server-only code in `$lib/server/` -- only import from `+page.server.ts`, `+layout.server.ts`, or `+server.ts`.
+- Group imports: (1) svelte/sveltekit, (2) third-party, (3) `$lib/` local.
+- Named exports, not default exports (Svelte components are default by nature).
 
 ```typescript
-// Good
 import { error, redirect } from '@sveltejs/kit';
 import { readItems } from '@directus/sdk';
 import { directus } from '$lib/server/directus';
 import type { Article } from '$lib/types';
 ```
 
-### Types
-
-- Define shared types in `$lib/types/` or `$lib/types.ts`.
-- Directus schema types should mirror the CMS collections exactly.
-- Use `interface` for object shapes, `type` for unions and computed types.
-- Always type function parameters and return values. Let TypeScript infer locals.
-- Prefer `unknown` over `any` for truly unknown data. Validate and narrow before use.
-
 ### Svelte Components
 
-- Use Svelte 5 runes syntax (`$state`, `$derived`, `$effect`, `$props`).
-- Props via `$props()`, not `export let`.
-- Keep components focused and small. Extract reusable logic into `$lib/utils/`.
-- Use semantic HTML elements. Add ARIA labels where needed (a11y).
-- Reactive declarations with `$derived` instead of `$:`.
+- **Svelte 5 runes** syntax: `$state`, `$derived`, `$effect`, `$props`.
+- Props via `$props()`, **not** `export let`.
+- Reactive declarations with `$derived`, **not** `$:`.
+- Snippets via `{#snippet}` / `{@render}`, **not** slots.
+- Semantic HTML elements. ARIA labels where needed.
+- TailwindCSS 4 utility classes only. No custom CSS files unless necessary.
 
 ```svelte
 <script lang="ts">
   import type { Article } from '$lib/types';
-
   let { article, showImage = true }: { article: Article; showImage?: boolean } = $props();
   let formattedDate = $derived(new Date(article.date_published).toLocaleDateString('de-DE'));
 </script>
 ```
 
-### Naming Conventions
-
-- Variables and functions: **camelCase** -- `getArticles`, `datePublished`
-- Types and interfaces: **PascalCase** -- `Article`, `ThroneData`, `PushSubscription`
-- Constants: **UPPER_SNAKE_CASE** for env vars and true constants -- `DIRECTUS_URL`, `ITEMS_PER_PAGE`
-- CSS classes: TailwindCSS utility classes only. Use `class:` directive for conditional styles.
-- URL slugs and route params: **kebab-case** -- `/aktuell/mein-artikel`
-
 ### Error Handling
 
-- In `+page.server.ts` / `+server.ts`: use SvelteKit's `error()` and `redirect()` helpers.
-- Wrap Directus SDK calls in try/catch. Throw `error(404)` for missing content, `error(500)` for unexpected failures.
-- Never expose internal error details to the client. Log them server-side.
-- API endpoints (`+server.ts`) return proper HTTP status codes and JSON bodies.
+- In `+page.server.ts` / `+server.ts`: use SvelteKit `error()` and `redirect()` helpers.
+- Wrap Directus SDK calls in try/catch. `error(404)` for missing content, `error(500)` for unexpected failures.
+- Never expose internal error details to the client. Log server-side with `console.error`.
 
 ```typescript
-// +page.server.ts
 import { error } from '@sveltejs/kit';
+import type { HttpError } from '@sveltejs/kit';
 
 export const load = async ({ params }) => {
   try {
@@ -146,7 +139,7 @@ export const load = async ({ params }) => {
     if (!article) throw error(404, 'Artikel nicht gefunden');
     return { article };
   } catch (err) {
-    if (err instanceof HttpError) throw err;
+    if ((err as HttpError).status) throw err;
     console.error('Failed to load article:', err);
     throw error(500, 'Interner Fehler');
   }
@@ -155,37 +148,30 @@ export const load = async ({ params }) => {
 
 ### Directus Integration
 
-- Directus client lives in `$lib/server/directus.ts` (server-only).
-- Use `@directus/sdk` with typed schema for all API calls.
+- Client in `$lib/server/directus.ts` (server-only). Uses `@directus/sdk` v21 with typed schema.
+- Auth via static token (`DIRECTUS_TOKEN` env var from `$env/dynamic/private`).
 - Always filter by `status: 'published'` for public-facing queries.
-- Use static token auth (`DIRECTUS_TOKEN` env var), not user credentials.
-- Fetch only the fields you need (use `fields` parameter), never fetch `*`.
+- Fetch only needed fields (use `fields` parameter), never `*`.
+- Image URLs built via `$lib/utils/image.ts` using `PUBLIC_DIRECTUS_URL`.
 
 ### Environment Variables
 
-- Secrets (DB passwords, tokens, VAPID private key) go in `.env`, **never committed**.
-- Use `.env.example` as reference for required variables.
-- SvelteKit public env: prefix with `PUBLIC_` -- `PUBLIC_SITE_URL`, `PUBLIC_VAPID_KEY`.
+- Secrets in `.env`, **never committed**. See `.env.example` for reference.
+- SvelteKit public env: prefix `PUBLIC_` -- `PUBLIC_SITE_URL`, `PUBLIC_DIRECTUS_URL`.
 - Private env: no prefix -- `DIRECTUS_URL`, `DIRECTUS_TOKEN`, `VAPID_PRIVATE_KEY`.
 
 ### Internationalization
 
-- This is a **German-language** site. UI strings are in German.
-- Date formatting: use `de-DE` locale -- `toLocaleDateString('de-DE')`.
-- No i18n framework needed. Hardcoded German strings are acceptable.
+- **German-language** site. UI strings are hardcoded German.
+- Date formatting: `de-DE` locale -- `toLocaleDateString('de-DE')`.
 
 ### Accessibility & SEO
 
 - Semantic HTML (`<article>`, `<nav>`, `<main>`, `<section>`, `<time>`).
 - Every page sets `<title>` and `<meta name="description">` via `<svelte:head>`.
-- Images require `alt` text. Use Directus `title` field as alt text.
-- Keyboard navigable. Visible focus indicators.
-- Structured data (JSON-LD) for events.
+- Images require `alt` text (use Directus `title` field).
 
 ### Git & Workflow
 
-- Main branches: `main` (production), `develop` (integration).
-- Feature branches off `develop`, merged via PR.
+- Branches: `main` (production), `develop` (integration). Feature branches off `develop`.
 - Commit messages: conventional style -- `feat:`, `fix:`, `chore:`, `docs:`, `refactor:`.
-- CI runs lint + type-check on push to `main`.
-- Docker images are built and deployed from `main`.

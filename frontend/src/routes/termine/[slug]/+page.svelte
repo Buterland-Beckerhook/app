@@ -6,6 +6,8 @@
 
 	let isCanceled = $derived(data.event.status === 'canceled');
 	let location = $derived(typeof data.event.location === 'object' ? data.event.location : null);
+	let isPast = $derived(data.event.end ? new Date(data.event.end) < new Date() : new Date(data.event.start) < new
+	Date());
 </script>
 
 <svelte:head>
@@ -30,7 +32,7 @@
 			</div>
 		{/if}
 
-		<h1 class="text-3xl font-bold" class:line-through={isCanceled}>
+		<h1 class="text-3xl font-bold" class:line-through={isCanceled} class:color-red-100={isPast}>
 			{data.event.title}
 		</h1>
 
