@@ -27,7 +27,7 @@
 		{#each data.subPages as subPage (subPage.id)}
 			<a
 				href="/verein/{subPage.slug}"
-				class="group rounded-lg border border-gray-200 p-5 transition-colors hover:border-primary/50 hover:bg-gray-50 dark:border-gray-700 dark:hover:border-primary/50 dark:hover:bg-gray-800"
+				class="group rounded-lg border border-gray-200 p-5 transition-colors hover:border-primary/50 hover:bg-gray-50 dark:border-zinc-700 dark:hover:border-primary/50 dark:hover:bg-zinc-800"
 			>
 				<h2
 					class="text-lg font-semibold text-gray-900 group-hover:text-primary dark:text-gray-100 dark:group-hover:text-primary"

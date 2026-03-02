@@ -94,12 +94,12 @@
 	{/if}
 
 	{#if data.article.throne}
-		<section class="mt-8 rounded-lg border border-gray-200 p-6 dark:border-gray-700">
+		<section class="mt-8 rounded-lg border border-gray-200 p-6 dark:border-zinc-700">
 			<ThroneTable throne={data.article.throne} />
 		</section>
 	{/if}
 
-	<footer class="mt-8 border-t border-gray-200 pt-4 dark:border-gray-700">
+	<footer class="mt-8 border-t border-gray-200 pt-4 dark:border-zinc-700">
 		<a href="/aktuell" class="text-primary hover:underline">&larr; Zurück zur Übersicht</a>
 	</footer>
 </article>

@@ -11,7 +11,7 @@
 </script>
 
 <article
-	class="rounded-lg border border-gray-200 p-4 transition-shadow hover:shadow-md dark:border-gray-700"
+	class="rounded-lg border border-gray-200 p-4 transition-shadow hover:shadow-md dark:border-zinc-700"
 	class:opacity-60={isCanceled}
 >
 	<a href="/termine/{event.slug}" class="block">

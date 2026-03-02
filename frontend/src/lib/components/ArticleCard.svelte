@@ -8,7 +8,7 @@
 	let thumbnail = $derived(getFirstImage(article.images));
 </script>
 
-<article class="border-b border-gray-200 py-6 last:border-b-0 dark:border-gray-700">
+<article class="border-b border-gray-200 py-6 last:border-b-0 dark:border-zinc-700">
 	<a href="/aktuell/{article.slug}" class="group block">
 		<div class="flex gap-4">
 			{#if thumbnail}

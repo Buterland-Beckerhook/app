@@ -24,6 +24,6 @@
 	<PeopleTable people={data.people} title={data.page.title} />
 {/if}
 
-<footer class="mt-8 border-t border-gray-200 pt-4 dark:border-gray-700">
+<footer class="mt-8 border-t border-gray-200 pt-4 dark:border-zinc-700">
 	<a href="/verein" class="text-primary hover:underline">&larr; Zurück zum Verein</a>
 </footer>

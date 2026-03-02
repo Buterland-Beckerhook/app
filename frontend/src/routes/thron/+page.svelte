@@ -40,7 +40,7 @@
 			</figure>
 		{/if}
 
-		<div class="rounded-lg border border-gray-200 p-6 dark:border-gray-700">
+		<div class="rounded-lg border border-gray-200 p-6 dark:border-zinc-700">
 			<ThroneTable throne={article.throne} />
 			{#if !article.no_article}
 				<a
@@ -58,7 +58,7 @@
 				{#if data.page > 1}
 					<a
 						href="/thron?seite={data.page - 1}"
-						class="rounded border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
+						class="rounded border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50 dark:border-zinc-600 dark:hover:bg-zinc-700"
 					>
 						&larr; Neuerer Thron
 					</a>
@@ -73,7 +73,7 @@
 				{#if data.page < data.totalPages}
 					<a
 						href="/thron?seite={data.page + 1}"
-						class="rounded border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
+						class="rounded border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50 dark:border-zinc-600 dark:hover:bg-zinc-700"
 					>
 						Älterer Thron &rarr;
 					</a>

@@ -20,13 +20,13 @@
 	<div class="flex gap-2">
 		<a
 			href="/termine?jahr={data.year - 1}"
-			class="rounded border border-gray-300 px-3 py-1 text-sm hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
+			class="rounded border border-gray-300 px-3 py-1 text-sm hover:bg-gray-50 dark:border-zinc-600 dark:hover:bg-zinc-700"
 		>
 			{data.year - 1}
 		</a>
 		<a
 			href="/termine?jahr={data.year + 1}"
-			class="rounded border border-gray-300 px-3 py-1 text-sm hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
+			class="rounded border border-gray-300 px-3 py-1 text-sm hover:bg-gray-50 dark:border-zinc-600 dark:hover:bg-zinc-700"
 		>
 			{data.year + 1}
 		</a>
