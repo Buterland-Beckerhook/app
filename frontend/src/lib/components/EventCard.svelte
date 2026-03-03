@@ -5,19 +5,24 @@
 	let { event }: { event: Event } = $props();
 
 	let isCanceled = $derived(event.status === 'canceled');
+	let timeSeparator = $derived(event.end ? 'von ' : 'ab ');
+	let withDate = $derived(
+		event.end ? new Date(event.start).toDateString() !== new Date(event.end).toDateString() : true
+	);
 	let isPast = $derived(
 		event.end ? new Date(event.end) < new Date() : new Date(event.start) < new Date()
 	);
 	let locationName = $derived(
 		typeof event.location === 'object' && event.location ? event.location.name : null
 	);
+	let eventYear = $derived(event.year ?? new Date(event.start).getFullYear());
 </script>
 
 <article
 	class="rounded-lg border border-gray-200 p-4 transition-shadow hover:shadow-md dark:border-zinc-700"
 	class:opacity-60={isCanceled}
 >
-	<a href="/termine/{event.slug}" class="block">
+	<a href="/termine/{eventYear}/{event.slug}" class="block">
 		<div class="flex flex-col gap-2">
 			<div class="flex items-start justify-between gap-2">
 				<time
@@ -25,7 +30,11 @@
 					class="text-sm font-medium text-primary"
 					class:opacity-40={isPast}
 				>
-					<DateFormat date={event.start} />
+					<DateFormat date={event.start} withTime={!event.all_day} {timeSeparator} />
+					{#if event.end}
+						<span>&mdash;</span>
+						<DateFormat date={event.end} {withDate} withTime={!event.all_day} timeSeparator="bis" />
+					{/if}
 				</time>
 				{#if isCanceled}
 					<span

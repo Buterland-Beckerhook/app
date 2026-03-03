@@ -11,6 +11,7 @@ export interface Article {
 	slug: string;
 	date_published: string;
 	date_modified: string | null;
+	year: number;
 	author: string | null;
 	tags: string[] | null;
 	body: string | null;
@@ -58,6 +59,7 @@ export interface Event {
 	slug: string;
 	start: string;
 	end: string | null;
+	year: number;
 	all_day: boolean;
 	location: string | Location | null;
 	body: string | null;

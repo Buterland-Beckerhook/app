@@ -320,7 +320,8 @@ async function main() {
 			frontmatter = parsed.frontmatter;
 			rawBody = parsed.body;
 		} catch (err) {
-			console.error(`  ERROR parsing ${articlePath}: ${err}`);
+			const message = err instanceof Error ? err.message : JSON.stringify(err);
+			console.error(`  ERROR parsing ${articlePath}: ${message}`);
 			errors++;
 			continue;
 		}
@@ -358,6 +359,7 @@ async function main() {
 				subtitle: frontmatter.subtitle ?? null,
 				slug,
 				date_published: frontmatter.date,
+				year: parseInt(yearDir, 10),
 				author: frontmatter.author ?? null,
 				tags: tags.length > 0 ? tags : null,
 				body: htmlBody,
@@ -406,7 +408,8 @@ async function main() {
 			);
 			imported++;
 		} catch (err) {
-			console.error(`  ERROR: ${label} → ${err}`);
+			const msg = err instanceof Error ? err.message : JSON.stringify(err);
+			console.error(`  ERROR: ${label} → ${msg}`);
 			errors++;
 		}
 	}

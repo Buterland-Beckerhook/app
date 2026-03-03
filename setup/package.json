@@ -7,7 +7,8 @@
 		"setup:schema": "tsx src/setup-schema.ts",
 		"setup:db-index": "tsx src/setup-db-index.ts",
 		"setup:permissions": "tsx src/setup-permissions.ts",
-		"setup:all": "npm run setup:schema && npm run setup:db-index && npm run setup:permissions"
+		"setup:branding": "tsx src/setup-branding.ts",
+		"setup:all": "npm run setup:schema && npm run setup:db-index && npm run setup:permissions && npm run setup:branding"
 	},
 	"dependencies": {
 		"@directus/sdk": "^21.1.0",

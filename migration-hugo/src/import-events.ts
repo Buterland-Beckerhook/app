@@ -226,7 +226,8 @@ async function main() {
 			frontmatter = parsed.frontmatter;
 			rawBody = parsed.body;
 		} catch (err) {
-			console.error(`  ERROR parsing ${eventPath}: ${err}`);
+			const message = err instanceof Error ? err.message : JSON.stringify(err);
+			console.error(`  ERROR parsing ${eventPath}: ${message}`);
 			errors++;
 			continue;
 		}
@@ -272,6 +273,10 @@ async function main() {
 		const end = frontmatter.end ? String(frontmatter.end) : null;
 		const allDay = isAllDay(start, end ?? undefined);
 
+		// Year is required by Directus (NOT NULL). The DB trigger also sets it from
+		// `start`, but Directus validates before the INSERT reaches the DB.
+		const year = parseInt(start.substring(0, 4), 10);
+
 		const label = `${yearDir}/${fileName}`;
 
 		try {
@@ -280,6 +285,7 @@ async function main() {
 				slug,
 				start,
 				end,
+				year,
 				all_day: allDay,
 				location: locationId,
 				body,
@@ -298,7 +304,8 @@ async function main() {
 			console.log(`  OK: ${label} → "${frontmatter.title}"${locationLabel}${statusLabel}${allDayLabel}`);
 			imported++;
 		} catch (err) {
-			console.error(`  ERROR: ${label} → ${err}`);
+			const message = err instanceof Error ? err.message : JSON.stringify(err);
+			console.error(`  ERROR: ${label} → ${message}`);
 			errors++;
 		}
 	}

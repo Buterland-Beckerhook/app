@@ -5,25 +5,28 @@
 
 	let { article }: { article: Article } = $props();
 
-	let thumbnail = $derived(getFirstImage(article.images));
-	let year = $derived(new Date(article.date_published).getFullYear());
+		let thumbnail = $derived(getFirstImage(article.images) || '/logo.svg');
+		let year = $derived(new Date(article.date_published).getFullYear());
+
+		let thumbnailUrl = $derived(typeof thumbnail === 'string' ? thumbnail : getImageUrl(thumbnail, 320, 213));
+		let thumbnailAlt = $derived(typeof thumbnail === 'string' ? 'Logo' : getImageAlt(thumbnail));
 </script>
 
 <article class="border-b border-gray-200 py-6 last:border-b-0 dark:border-zinc-700">
 	<a href="/aktuell/{year}/{article.slug}" class="group block">
 		<div class="flex gap-4">
-			{#if thumbnail}
-				<div class="hidden shrink-0 sm:block">
-					<img
-						src={getImageUrl(thumbnail, 320, 213)}
-						alt={getImageAlt(thumbnail)}
-						width="320"
-						height="213"
-						loading="lazy"
-						class="h-auto w-40 rounded-lg object-cover md:w-52"
-					/>
-				</div>
-			{/if}
+				{#if thumbnail}
+					<div class="hidden shrink-0 sm:block">
+						<img
+							src={thumbnailUrl}
+							alt={thumbnailAlt}
+							width="320"
+							height="213"
+							loading="lazy"
+							class="h-auto w-40 rounded-lg object-cover md:w-52"
+						/>
+					</div>
+				{/if}
 			<div class="flex min-w-0 flex-col gap-2">
 				<time datetime={article.date_published} class="text-sm text-gray-500 dark:text-gray-400">
 					<DateFormat date={article.date_published} />

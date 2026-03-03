@@ -27,9 +27,9 @@ const directus = createClient();
 
 // --- Pure helper functions ---
 
-/** Derive year from article date_published for URL construction. */
+/** Derive year from article for URL construction. */
 export function getArticleYear(article: Article): number {
-	return new Date(article.date_published).getFullYear();
+	return article.year;
 }
 
 /** Format throne years for display (e.g. "2024–2025" or "2024–"). */
@@ -70,6 +70,7 @@ const articleFields: any = [
 	'slug',
 	'date_published',
 	'date_modified',
+	'year',
 	'author',
 	'tags',
 	'body',
@@ -114,6 +115,7 @@ const eventFields: any = [
 	'slug',
 	'start',
 	'end',
+	'year',
 	'all_day',
 	'body',
 	'cancel_reason',
@@ -158,20 +160,14 @@ export async function getArticles(
 
 /** Get a single published article by slug and year. */
 export async function getArticleBySlug(slug: string, year: number): Promise<Article | undefined> {
-	// Build filter as Record to avoid SDK type constraints on date range operators
-	const filter: Record<string, unknown> = {
-		slug: { _eq: slug },
-		status: { _eq: 'published' },
-		date_published: {
-			_gte: `${year}-01-01`,
-			_lt: `${year + 1}-01-01`
-		}
-	};
-
 	const results = await directus.request(
 		readItems('articles', {
 			fields: articleFields,
-			filter,
+			filter: {
+				slug: { _eq: slug },
+				status: { _eq: 'published' },
+				year: { _eq: year }
+			},
 			limit: 1
 		})
 	);
@@ -303,13 +299,14 @@ export async function getEvents(year?: number): Promise<Event[]> {
 	return results as unknown as Event[];
 }
 
-/** Get a single event by slug (not draft). Includes location. */
-export async function getEventBySlug(slug: string): Promise<Event | undefined> {
+/** Get a single event by slug and year (not draft). Includes location. */
+export async function getEventBySlug(slug: string, year: number): Promise<Event | undefined> {
 	const results = await directus.request(
 		readItems('events', {
 			fields: eventFields,
 			filter: {
 				slug: { _eq: slug },
+				year: { _eq: year },
 				status: { _neq: 'draft' }
 			},
 			limit: 1

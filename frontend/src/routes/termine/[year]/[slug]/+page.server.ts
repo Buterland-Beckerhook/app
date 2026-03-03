@@ -3,7 +3,12 @@ import type { PageServerLoad } from './$types';
 import { getEventBySlug, getSubEvents } from '$lib/server/directus';
 
 export const load: PageServerLoad = async ({ params }) => {
-	const event = await getEventBySlug(params.slug);
+	const year = Number(params.year);
+	if (isNaN(year)) {
+		throw error(404, 'Termin nicht gefunden');
+	}
+
+	const event = await getEventBySlug(params.slug, year);
 
 	if (!event) {
 		throw error(404, 'Termin nicht gefunden');

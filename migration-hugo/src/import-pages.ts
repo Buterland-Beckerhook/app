@@ -374,7 +374,8 @@ async function main() {
 				}
 			}
 		} catch (err) {
-			console.error(`${indent}ERROR: ${def.slug} → ${err}`);
+			const message = err instanceof Error ? err.message : JSON.stringify(err);
+			console.error(`${indent}ERROR: ${def.slug} → ${message}`);
 			errors++;
 		}
 	}

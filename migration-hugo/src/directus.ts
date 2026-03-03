@@ -24,7 +24,8 @@ import {
 	uploadFiles as sdkUploadFiles,
 	readFolders,
 	createFolder,
-	deleteFolders as sdkDeleteFolders
+	deleteFolders as sdkDeleteFolders,
+	readSettings
 } from '@directus/sdk';
 
 export const DIRECTUS_URL = process.env.DIRECTUS_URL ?? 'http://localhost:8055';
@@ -149,14 +150,44 @@ export async function uploadFile(
 	return result as DirectusItem;
 }
 
-/** Delete all files from Directus. */
+/**
+ * Collect file IDs referenced by directus_settings (logo, favicon, etc.)
+ * so they can be excluded from bulk-delete operations.
+ */
+async function getSettingsFileIds(): Promise<Set<string>> {
+	const ids = new Set<string>();
+	try {
+		const settings = await client.request(
+			readSettings({ fields: ['project_logo', 'public_favicon'] })
+		);
+		const s = settings as Record<string, unknown>;
+		for (const key of ['project_logo', 'public_favicon']) {
+			if (s[key] && typeof s[key] === 'string') ids.add(s[key]);
+		}
+	} catch {
+		// Settings may not exist yet -- nothing to protect
+	}
+	return ids;
+}
+
+/**
+ * Delete all files from Directus, except those referenced by directus_settings
+ * (logo, favicon, etc.) which would cause a foreign-key violation.
+ */
 export async function deleteAllFiles(): Promise<number> {
 	const files = await client.request(readFiles({ limit: -1, fields: ['id'] }));
 	if (files.length === 0) return 0;
 
-	const ids = files.map((f) => f.id as string);
+	const protectedIds = await getSettingsFileIds();
+	const ids = files.map((f) => f.id as string).filter((id) => !protectedIds.has(id));
+	if (ids.length === 0) return 0;
+
+	if (protectedIds.size > 0) {
+		console.log(`  Skipping ${protectedIds.size} file(s) referenced by directus_settings.`);
+	}
+
 	await client.request(sdkDeleteFiles(ids));
-	return files.length;
+	return ids.length;
 }
 
 /** Delete specific files by IDs. */

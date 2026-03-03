@@ -17,9 +17,9 @@ frontend/           # SvelteKit app (main application)
   src/lib/types.ts  # All Directus schema types + SDK Schema interface
   src/routes/       # SvelteKit pages and API routes
   static/           # Favicon, fonts, manifest, PWA icons
+setup/              # TypeScript setup scripts (schema, permissions, branding), run via tsx
 migration/          # TypeScript migration scripts (Hugo -> Directus), run via tsx
 docker/             # Caddy config, Directus extensions
-scripts/            # Shell scripts for Directus schema/permissions setup
 ```
 
 ## Build / Dev / Lint Commands
@@ -47,7 +47,7 @@ docker compose -f compose.yml -f compose.dev.yml up -d   # Dev backend (Directus
 docker compose up --build                                 # Full production stack
 ```
 
-There is also a `Makefile` in the repo root with shortcuts: `make dev`, `make backend`, `make frontend`, `make lint`, `make check`, `make build`, `make format`, `make clean`, `make install`.
+There is also a `Makefile` in the repo root with shortcuts: `make dev`, `make backend`, `make frontend`, `make lint`, `make check`, `make build`, `make format`, `make clean`, `make install`, `make setup-schema`, `make setup-db-index`, `make setup-permissions`, `make setup-branding`, `make setup-all`.
 
 ### Tests
 

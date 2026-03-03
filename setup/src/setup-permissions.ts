@@ -339,6 +339,9 @@ async function main(): Promise<void> {
 	console.log('');
 	console.log('Calendar role "Kalender" and policy "Kalender-Bearbeiter" are ready.');
 	console.log('Assign individual users to the "Kalender" role via the Directus admin UI.');
+
+	// Exit explicitly — the SDK auth refresh timer keeps Node alive otherwise
+	process.exit(0);
 }
 
 main().catch((err) => {

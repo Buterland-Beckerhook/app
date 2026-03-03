@@ -17,7 +17,7 @@ import {
 	createRelation,
 	updateField
 } from '@directus/sdk';
-import { createAdminClient, DIRECTUS_URL, ADMIN_EMAIL } from './directus.js';
+import { createAdminClient, rawGet, rawPatch, rawPost, DIRECTUS_URL, ADMIN_EMAIL } from './directus.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type NestedPartial = any;
@@ -390,6 +390,17 @@ async function main(): Promise<void> {
 				schema: { is_nullable: false }
 			},
 			{
+				field: 'year',
+				type: 'integer',
+				meta: {
+					interface: 'input',
+					readonly: true,
+					hidden: true,
+					note: 'Wird automatisch per DB-Trigger aus date_published abgeleitet'
+				},
+				schema: { is_nullable: false }
+			},
+			{
 				field: 'author',
 				type: 'string',
 				meta: { interface: 'input', width: 'half' },
@@ -666,27 +677,39 @@ async function main(): Promise<void> {
 				meta: { interface: 'input', required: true },
 				schema: { is_nullable: false }
 			},
-			{
-				field: 'slug',
-				type: 'string',
-				meta: {
-					interface: 'input',
-					required: true,
-					options: { slug: true }
-				},
-				schema: { is_unique: true, is_nullable: false }
+		{
+			field: 'slug',
+			type: 'string',
+			meta: {
+				interface: 'input',
+				required: true,
+				note: 'URL-Slug (Eindeutigkeit zusammen mit Jahr per DB-Index)',
+				options: { slug: true }
 			},
-			{
-				field: 'start',
-				type: 'timestamp',
-				meta: { interface: 'datetime', required: true, width: 'half' },
-				schema: { is_nullable: false }
-			},
+			schema: { is_unique: false, is_nullable: false }
+		},
+		{
+			field: 'start',
+			type: 'timestamp',
+			meta: { interface: 'datetime', required: true, width: 'half' },
+			schema: { is_nullable: false }
+		},
 			{
 				field: 'end',
 				type: 'timestamp',
 				meta: { interface: 'datetime', width: 'half' },
 				schema: { is_nullable: true }
+			},
+			{
+				field: 'year',
+				type: 'integer',
+				meta: {
+					interface: 'input',
+					readonly: true,
+					hidden: true,
+					note: 'Wird automatisch per DB-Trigger aus start abgeleitet'
+				},
+				schema: { is_nullable: false }
 			},
 			{
 				field: 'all_day',
@@ -907,6 +930,44 @@ async function main(): Promise<void> {
 		related_collection: 'directus_users'
 	});
 
+	// =========================================================================
+	// 3. DEFAULT SORT ORDER (Directus admin table view via global presets)
+	// =========================================================================
+	console.log('');
+	console.log('--- Setting Default Sort Order (Presets) ---');
+
+	const defaultSorts: { collection: string; sort: string[]; label: string }[] = [
+		{ collection: 'articles', sort: ['-date_published'], label: 'date_published DESC' },
+		{ collection: 'events', sort: ['-start'], label: 'start DESC' }
+	];
+
+	for (const preset of defaultSorts) {
+		try {
+			// Check for existing global preset (user = null) for this collection
+			const existing = (await rawGet(
+				client,
+				`/presets?filter[collection][_eq]=${preset.collection}&filter[user][_null]=true&limit=1`
+			)) as { data: { id: number }[] };
+
+			if (existing.data.length > 0) {
+				await rawPatch(client, `/presets/${existing.data[0].id}`, {
+					layout_query: { tabular: { sort: preset.sort } }
+				});
+			} else {
+				await rawPost(client, '/presets', {
+					collection: preset.collection,
+					user: null,
+					role: null,
+					layout_query: { tabular: { sort: preset.sort } }
+				});
+			}
+			console.log(`  OK: ${preset.collection} → ${preset.label}`);
+		} catch (err) {
+			const msg = err instanceof Error ? err.message : String(err);
+			console.log(`  WARN: ${preset.collection} preset failed: ${msg}`);
+		}
+	}
+
 	console.log('');
 	console.log('=== Schema setup complete! ===');
 	console.log('');
@@ -914,6 +975,9 @@ async function main(): Promise<void> {
 	console.log('  1. Configure a static token for API access');
 	console.log('  2. Set up public read permissions');
 	console.log('  3. Import data');
+
+	// Exit explicitly — the SDK auth refresh timer keeps Node alive otherwise
+	process.exit(0);
 }
 
 main().catch((err) => {

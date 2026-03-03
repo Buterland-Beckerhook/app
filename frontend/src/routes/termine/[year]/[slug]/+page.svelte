@@ -16,7 +16,13 @@
 	<meta name="description" content={data.event.title} />
 </svelte:head>
 
-<Breadcrumb crumbs={[{ label: 'Termine', href: '/termine' }, { label: data.event.title }]} />
+<Breadcrumb
+	crumbs={[
+		{ label: 'Termine', href: '/termine' },
+		{ label: String(data.event.year), href: `/termine?jahr=${data.event.year}` },
+		{ label: data.event.title }
+	]}
+/>
 
 <article class="mx-auto max-w-3xl">
 	<header class="mb-8">
@@ -40,10 +46,10 @@
 		<div class="mt-4 flex flex-col gap-2 text-gray-600 dark:text-gray-300">
 			<div class="flex flex-wrap items-center gap-2">
 				<span class="font-medium">Datum:</span>
-				<DateFormat date={data.event.start} withTime />
+				<DateFormat date={data.event.start} withTime={!data.event.all_day} />
 				{#if data.event.end}
 					<span>&mdash;</span>
-					<DateFormat date={data.event.end} withTime />
+					<DateFormat date={data.event.end} withTime={!data.event.all_day} />
 				{/if}
 			</div>
 			{#if location}

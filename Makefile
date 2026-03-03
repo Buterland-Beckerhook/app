@@ -39,7 +39,10 @@ setup-db-index: ## Create composite DB indexes (slug + year)
 setup-permissions: ## Set up static token, public permissions, and calendar role
 	cd setup && npm run setup:permissions
 
-setup-all: setup-schema setup-db-index setup-permissions ## Run all Directus setup scripts
+setup-branding: ## Configure Directus branding (logo, favicon, colors)
+	cd setup && npm run setup:branding
+
+setup-all: setup-schema setup-db-index setup-permissions setup-branding ## Run all Directus setup scripts
 
 migrate-hugo: ## Run all Hugo migration import scripts
 	cd migration-hugo && npm run import:all
