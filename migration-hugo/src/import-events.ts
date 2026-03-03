@@ -84,6 +84,26 @@ function getStatus(fm: HugoEventFrontmatter): 'draft' | 'published' | 'canceled'
 }
 
 /**
+ * Detect whether an event is all-day (no meaningful time component).
+ * All-day if:
+ *   - Date-only string (e.g. "2024-06-15")
+ *   - Time is midnight with no offset or UTC (e.g. "2024-06-15T00:00:00", "2024-06-15T00:00:00Z")
+ * If start has no time component we consider it all-day regardless of end.
+ */
+function isAllDay(start: string, end?: string): boolean {
+	return hasNoTime(String(start)) && (end == null || hasNoTime(String(end)));
+}
+
+/** Check if a date string has no meaningful time component. */
+function hasNoTime(dateStr: string): boolean {
+	// Pure date: "2024-06-15"
+	if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return true;
+	// Midnight variants: T00:00:00, T00:00:00Z, T00:00:00+00:00, etc.
+	if (/T00:00:00([Z+\-].*)?$/.test(dateStr)) return true;
+	return false;
+}
+
+/**
  * Process body: remove Hugo shortcodes and refs, convert Markdown to HTML.
  */
 function processBody(rawBody: string): string | null {
@@ -250,6 +270,7 @@ async function main() {
 		// Format start/end dates as ISO strings
 		const start = String(frontmatter.start);
 		const end = frontmatter.end ? String(frontmatter.end) : null;
+		const allDay = isAllDay(start, end ?? undefined);
 
 		const label = `${yearDir}/${fileName}`;
 
@@ -259,6 +280,7 @@ async function main() {
 				slug,
 				start,
 				end,
+				all_day: allDay,
 				location: locationId,
 				body,
 				status,
@@ -272,7 +294,8 @@ async function main() {
 
 			const statusLabel = status !== 'published' ? ` [${status}]` : '';
 			const locationLabel = frontmatter.location ? ` @ ${frontmatter.location}` : '';
-			console.log(`  OK: ${label} → "${frontmatter.title}"${locationLabel}${statusLabel}`);
+			const allDayLabel = allDay ? ' [ganztägig]' : '';
+			console.log(`  OK: ${label} → "${frontmatter.title}"${locationLabel}${statusLabel}${allDayLabel}`);
 			imported++;
 		} catch (err) {
 			console.error(`  ERROR: ${label} → ${err}`);

@@ -378,9 +378,10 @@ async function main(): Promise<void> {
 				meta: {
 					interface: 'input',
 					required: true,
+					note: 'URL-Slug (Eindeutigkeit zusammen mit Veröffentlichungsjahr per DB-Index)',
 					options: { slug: true }
 				},
-				schema: { is_unique: true, is_nullable: false }
+				schema: { is_unique: false, is_nullable: false }
 			},
 			{
 				field: 'date_published',
@@ -427,6 +428,18 @@ async function main(): Promise<void> {
 					interface: 'tags',
 					special: ['cast-json'],
 					note: 'Alte URLs für Redirects'
+				},
+				schema: { is_nullable: true }
+			},
+			{
+				field: 'date_modified',
+				type: 'timestamp',
+				meta: {
+					interface: 'datetime',
+					readonly: true,
+					hidden: true,
+					special: ['date-updated'],
+					note: 'Wird automatisch bei Änderungen aktualisiert'
 				},
 				schema: { is_nullable: true }
 			}
@@ -479,6 +492,12 @@ async function main(): Promise<void> {
 				field: 'use_as_throne_picture',
 				type: 'boolean',
 				meta: { interface: 'boolean', note: 'Als Thron-Bild verwenden?' },
+				schema: { is_nullable: false, default_value: false }
+			},
+			{
+				field: 'use_as_article_image',
+				type: 'boolean',
+				meta: { interface: 'boolean', note: 'Als Artikelbild (Vorschau/Hero) verwenden?' },
 				schema: { is_nullable: false, default_value: false }
 			}
 		]
@@ -668,6 +687,16 @@ async function main(): Promise<void> {
 				type: 'timestamp',
 				meta: { interface: 'datetime', width: 'half' },
 				schema: { is_nullable: true }
+			},
+			{
+				field: 'all_day',
+				type: 'boolean',
+				meta: {
+					interface: 'boolean',
+					width: 'half',
+					note: 'Ganztägiger Termin (ohne Uhrzeit)'
+				},
+				schema: { is_nullable: false, default_value: false }
 			},
 			{
 				field: 'body',
@@ -884,7 +913,7 @@ async function main(): Promise<void> {
 	console.log('Next steps:');
 	console.log('  1. Configure a static token for API access');
 	console.log('  2. Set up public read permissions');
-	console.log('  3. Import seed data');
+	console.log('  3. Import data');
 }
 
 main().catch((err) => {

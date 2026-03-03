@@ -207,10 +207,9 @@ function splitMore(md: string): { summary: string | null; body: string } {
 	return { summary, body: fullBody };
 }
 
-/** Generate slug from year dir and article dir name. Always includes year for global uniqueness. */
-function generateSlug(yearDir: string, articleDir: string): string {
-	const dirName = articleDir.toLowerCase().replace(/[_\s]+/g, '-');
-	return `${dirName}-${yearDir}`;
+/** Generate slug from article directory name. Uniqueness is per year (DB index). */
+function generateSlug(articleDir: string): string {
+	return articleDir.toLowerCase().replace(/[_\s]+/g, '-');
 }
 
 /** Find all non-throne article directories in aktuell/. */
@@ -326,7 +325,7 @@ async function main() {
 			continue;
 		}
 
-		const slug = generateSlug(yearDir, dirName);
+		const slug = generateSlug(dirName);
 		const tags = normalizeTags(frontmatter.tags);
 
 		// Process body: split <!--more-->, process shortcodes, convert MD → HTML

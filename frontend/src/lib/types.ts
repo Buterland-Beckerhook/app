@@ -10,6 +10,7 @@ export interface Article {
 	subtitle: string | null;
 	slug: string;
 	date_published: string;
+	date_modified: string | null;
 	author: string | null;
 	tags: string[] | null;
 	body: string | null;
@@ -28,6 +29,7 @@ export interface ArticleImage {
 	copyright: string | null;
 	sort: number | null;
 	use_as_throne_picture: boolean;
+	use_as_article_image: boolean;
 }
 
 export interface Throne {
@@ -56,6 +58,7 @@ export interface Event {
 	slug: string;
 	start: string;
 	end: string | null;
+	all_day: boolean;
 	location: string | Location | null;
 	body: string | null;
 	cancel_reason: string | null;

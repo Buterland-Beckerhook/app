@@ -37,10 +37,13 @@ export function getImageAlt(articleImage: ArticleImage): string {
 }
 
 /**
- * Get the first image from an article's images array (sorted by sort order).
+ * Get the article image from an article's images array.
+ * Prefers images flagged with use_as_article_image, falls back to the first by sort order.
  */
 export function getFirstImage(images: ArticleImage[]): ArticleImage | undefined {
 	if (!images || images.length === 0) return undefined;
+	const flagged = images.find((img) => img.use_as_article_image);
+	if (flagged) return flagged;
 	return [...images].sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))[0];
 }
 

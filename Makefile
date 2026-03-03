@@ -33,10 +33,13 @@ format: ## Auto-format code with Prettier
 setup-schema: ## Create Directus collections, fields, and relations
 	cd setup && npm run setup:schema
 
+setup-db-index: ## Create composite DB indexes (slug + year)
+	cd setup && npm run setup:db-index
+
 setup-permissions: ## Set up static token, public permissions, and calendar role
 	cd setup && npm run setup:permissions
 
-setup-all: setup-schema setup-permissions ## Run all Directus setup scripts
+setup-all: setup-schema setup-db-index setup-permissions ## Run all Directus setup scripts
 
 migrate-hugo: ## Run all Hugo migration import scripts
 	cd migration-hugo && npm run import:all

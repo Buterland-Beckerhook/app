@@ -337,10 +337,6 @@ async function main(): Promise<void> {
 	console.log('');
 	console.log('=== Permissions setup complete! ===');
 	console.log('');
-	console.log(`Static token for .env: DIRECTUS_STATIC_TOKEN=${STATIC_TOKEN}`);
-	console.log(`For dev frontend .env: DIRECTUS_URL=http://localhost:8055`);
-	console.log(`                       DIRECTUS_TOKEN=${STATIC_TOKEN}`);
-	console.log('');
 	console.log('Calendar role "Kalender" and policy "Kalender-Bearbeiter" are ready.');
 	console.log('Assign individual users to the "Kalender" role via the Directus admin UI.');
 }

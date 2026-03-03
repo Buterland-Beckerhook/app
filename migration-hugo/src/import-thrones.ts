@@ -109,10 +109,9 @@ function getThroneType(tags?: string[]): 'koenig' | 'kaiser' {
 	return 'koenig';
 }
 
-/** Generate slug from year directory and throne type. */
-function generateSlug(yearDir: string, throneType: string): string {
-	if (throneType === 'kaiser') return `kaiserthron-${yearDir}`;
-	return `thron-${yearDir}`;
+/** Generate slug from throne type. Uniqueness is per year (DB index). */
+function generateSlug(throneType: string): string {
+	return throneType === 'kaiser' ? 'kaiserthron' : 'thron';
 }
 
 /** Find all throne article directories by scanning aktuell/YYYY/ for dirs containing index.md with "throne:" */
@@ -212,7 +211,7 @@ async function main() {
 		}
 
 		const throneType = getThroneType(frontmatter.tags);
-		const slug = generateSlug(yearDir, throneType);
+		const slug = generateSlug(throneType);
 		const { begin, end } = parseYears(frontmatter.throne.years);
 
 		// Process body: remove shortcodes, <!--more-->, convert MD → HTML

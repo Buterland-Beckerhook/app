@@ -69,6 +69,7 @@ const articleFields: any = [
 	'subtitle',
 	'slug',
 	'date_published',
+	'date_modified',
 	'author',
 	'tags',
 	'body',
@@ -82,6 +83,7 @@ const articleFields: any = [
 			'copyright',
 			'sort',
 			'use_as_throne_picture',
+			'use_as_article_image',
 			{ image: ['id', 'title', 'filename_download', 'type', 'width', 'height'] }
 		]
 	},
@@ -112,6 +114,7 @@ const eventFields: any = [
 	'slug',
 	'start',
 	'end',
+	'all_day',
 	'body',
 	'cancel_reason',
 	'announce',
@@ -153,15 +156,22 @@ export async function getArticles(
 	return { articles: (articles as Record<string, unknown>[]).map(normalizeArticle), total };
 }
 
-/** Get a single published article by slug. */
-export async function getArticleBySlug(slug: string): Promise<Article | undefined> {
+/** Get a single published article by slug and year. */
+export async function getArticleBySlug(slug: string, year: number): Promise<Article | undefined> {
+	// Build filter as Record to avoid SDK type constraints on date range operators
+	const filter: Record<string, unknown> = {
+		slug: { _eq: slug },
+		status: { _eq: 'published' },
+		date_published: {
+			_gte: `${year}-01-01`,
+			_lt: `${year + 1}-01-01`
+		}
+	};
+
 	const results = await directus.request(
 		readItems('articles', {
 			fields: articleFields,
-			filter: {
-				slug: { _eq: slug },
-				status: { _eq: 'published' }
-			},
+			filter,
 			limit: 1
 		})
 	);
