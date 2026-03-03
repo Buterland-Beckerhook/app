@@ -29,7 +29,6 @@
 	<p class="text-gray-500 dark:text-gray-400">Keine Termine für {data.year} vorhanden.</p>
 {/if}
 
-
 <div class="flex gap-2">
 	<a
 		href="/termine?jahr={data.year - 1}"

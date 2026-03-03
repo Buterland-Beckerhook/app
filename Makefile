@@ -21,14 +21,30 @@ build: ## Build frontend for production
 lint: ## Run ESLint + Prettier check
 	cd frontend && npm run lint
 
+lint-fix: ## Run ESLint + Prettier check
+	cd frontend && npm run lint:fix
+
 check: ## Run svelte-check (type checking)
 	cd frontend && npm run check
 
 format: ## Auto-format code with Prettier
 	cd frontend && npm run format
 
-clean: ## Remove build artifacts and node_modules
-	rm -rf frontend/build frontend/.svelte-kit frontend/node_modules
+setup-schema: ## Create Directus collections, fields, and relations
+	cd setup && npm run setup:schema
 
-install: ## Install frontend dependencies
+setup-permissions: ## Set up static token, public permissions, and calendar role
+	cd setup && npm run setup:permissions
+
+setup-all: setup-schema setup-permissions ## Run all Directus setup scripts
+
+migrate-hugo: ## Run all Hugo migration import scripts
+	cd migration-hugo && npm run import:all
+
+clean: ## Remove build artifacts and node_modules
+	rm -rf frontend/build frontend/.svelte-kit frontend/node_modules setup/node_modules migration-hugo/node_modules
+
+install: ## Install all dependencies (frontend + setup + migration-hugo)
 	cd frontend && npm install
+	cd setup && npm install
+	cd migration-hugo && npm install

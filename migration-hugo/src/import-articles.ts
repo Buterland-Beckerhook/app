@@ -12,7 +12,15 @@ import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
 import { join, basename, dirname } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import { marked } from 'marked';
-import { createItem, readItems, uploadFile, getOrCreateFolder, DIRECTUS_URL } from './directus.js';
+import {
+	createItem,
+	readItems,
+	deleteItemsByIds,
+	deleteFilesByIds,
+	uploadFile,
+	getOrCreateFolder,
+	DIRECTUS_URL
+} from './directus.js';
 
 const HUGO_CONTENT_PATH = process.argv[2] ?? '../../buterland-beckerhook/content';
 const AKTUELL_DIR = join(HUGO_CONTENT_PATH, 'aktuell');
@@ -264,42 +272,27 @@ async function main() {
 			if (images.length > 0) {
 				const imageIds = images.map((i) => i.id as string);
 				// Delete article_images
-				const delRes = await fetch(`${DIRECTUS_URL}/items/article_images`, {
-					method: 'DELETE',
-					headers: {
-						Authorization: `Bearer ${process.env.DIRECTUS_TOKEN ?? 'dev-static-token-change-in-production'}`,
-						'Content-Type': 'application/json'
-					},
-					body: JSON.stringify(imageIds)
-				});
-				if (!delRes.ok) {
+				try {
+					await deleteItemsByIds('article_images', imageIds);
+				} catch {
 					console.error(`  WARN: Failed to delete article_images for ${article.slug}`);
 				}
 				// Delete associated files
 				const fileIds = images.map((i) => i.image as string).filter(Boolean);
 				if (fileIds.length > 0) {
-					await fetch(`${DIRECTUS_URL}/files`, {
-						method: 'DELETE',
-						headers: {
-							Authorization: `Bearer ${process.env.DIRECTUS_TOKEN ?? 'dev-static-token-change-in-production'}`,
-							'Content-Type': 'application/json'
-						},
-						body: JSON.stringify(fileIds)
-					});
+					try {
+						await deleteFilesByIds(fileIds);
+					} catch {
+						console.error(`  WARN: Failed to delete files for ${article.slug}`);
+					}
 				}
 			}
 		}
 		// Delete the articles themselves
 		const articleIds = nonThroneArticles.map((a) => a.id as string);
-		const delRes = await fetch(`${DIRECTUS_URL}/items/articles`, {
-			method: 'DELETE',
-			headers: {
-				Authorization: `Bearer ${process.env.DIRECTUS_TOKEN ?? 'dev-static-token-change-in-production'}`,
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify(articleIds)
-		});
-		if (!delRes.ok) {
+		try {
+			await deleteItemsByIds('articles', articleIds);
+		} catch {
 			console.error('  WARN: Failed to delete existing non-throne articles');
 		}
 	}
