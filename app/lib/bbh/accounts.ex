@@ -60,6 +60,41 @@ defmodule Bbh.Accounts do
   """
   def get_user!(id), do: Repo.get!(User, id)
 
+  ## TOTP two-factor authentication
+
+  @doc "Generate a fresh TOTP secret (not yet persisted)."
+  def generate_totp_secret, do: NimbleTOTP.secret()
+
+  @doc "otpauth:// URI for authenticator apps (QR code)."
+  def totp_uri(%User{email: email}, secret) do
+    NimbleTOTP.otpauth_uri("Buterland-Beckerhook:#{email}", secret, issuer: "Buterland-Beckerhook")
+  end
+
+  @doc "Validate a TOTP code against a raw secret."
+  def valid_totp?(secret, code) when is_binary(secret) and is_binary(code) do
+    code = String.trim(code)
+    code != "" and NimbleTOTP.valid?(secret, code)
+  end
+
+  def valid_totp?(_, _), do: false
+
+  @doc "Validate a code against the user's stored TOTP secret."
+  def valid_user_totp?(%User{totp_secret: secret}, code), do: valid_totp?(secret, code)
+
+  @doc "Enable TOTP for a user with a verified secret."
+  def enable_totp(%User{} = user, secret) do
+    user
+    |> Ecto.Changeset.change(totp_secret: secret, totp_confirmed_at: DateTime.utc_now(:second))
+    |> Repo.update()
+  end
+
+  @doc "Disable TOTP for a user."
+  def disable_totp(%User{} = user) do
+    user
+    |> Ecto.Changeset.change(totp_secret: nil, totp_confirmed_at: nil)
+    |> Repo.update()
+  end
+
   ## User registration
 
   @doc """

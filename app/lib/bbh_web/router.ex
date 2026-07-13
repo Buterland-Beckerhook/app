@@ -106,6 +106,7 @@ defmodule BbhWeb.Router do
       on_mount: [{BbhWeb.UserAuth, :require_authenticated}] do
       live "/users/settings", UserLive.Settings, :edit
       live "/users/settings/confirm-email/:token", UserLive.Settings, :confirm_email
+      live "/users/2fa", UserLive.Totp, :edit
     end
 
     post "/users/update-password", UserSessionController, :update_password
@@ -123,5 +124,9 @@ defmodule BbhWeb.Router do
 
     post "/users/log-in", UserSessionController, :create
     delete "/users/log-out", UserSessionController, :delete
+
+    # TOTP second-factor challenge (pending login held in the session).
+    get "/users/totp", TotpController, :new
+    post "/users/totp", TotpController, :create
   end
 end

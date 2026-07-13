@@ -2,6 +2,7 @@ defmodule BbhWeb.UserSessionController do
   use BbhWeb, :controller
 
   alias Bbh.Accounts
+  alias Bbh.Accounts.User
   alias BbhWeb.UserAuth
 
   def create(conn, %{"_action" => "confirmed"} = params) do
@@ -17,10 +18,7 @@ defmodule BbhWeb.UserSessionController do
     case Accounts.login_user_by_magic_link(token) do
       {:ok, {user, tokens_to_disconnect}} ->
         UserAuth.disconnect_sessions(tokens_to_disconnect)
-
-        conn
-        |> put_flash(:info, info)
-        |> UserAuth.log_in_user(user, user_params)
+        maybe_require_totp(conn, user, user_params, info)
 
       _ ->
         conn
@@ -34,9 +32,7 @@ defmodule BbhWeb.UserSessionController do
     %{"email" => email, "password" => password} = user_params
 
     if user = Accounts.get_user_by_email_and_password(email, password) do
-      conn
-      |> put_flash(:info, info)
-      |> UserAuth.log_in_user(user, user_params)
+      maybe_require_totp(conn, user, user_params, info)
     else
       # In order to prevent user enumeration attacks, don't disclose whether the email is registered.
       conn
@@ -63,5 +59,17 @@ defmodule BbhWeb.UserSessionController do
     conn
     |> put_flash(:info, "Logged out successfully.")
     |> UserAuth.log_out_user()
+  end
+
+  # If the user has a TOTP second factor, hold the login and require a code first.
+  defp maybe_require_totp(conn, %User{} = user, params, info) do
+    if User.totp_enabled?(user) do
+      conn
+      |> put_session(:totp_pending_user_id, user.id)
+      |> put_session(:totp_pending_remember, params["remember_me"] == "true")
+      |> redirect(to: ~p"/users/totp")
+    else
+      conn |> put_flash(:info, info) |> UserAuth.log_in_user(user, params)
+    end
   end
 end
