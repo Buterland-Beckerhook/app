@@ -115,6 +115,24 @@ defmodule Bbh.Accounts do
     |> Repo.insert()
   end
 
+  ## Admin user management
+
+  def list_users, do: Repo.all(from u in User, order_by: u.email)
+
+  def delete_user(%User{} = user), do: Repo.delete(user)
+
+  def update_user_role(%User{} = user, role),
+    do: user |> User.role_changeset(%{role: role}) |> Repo.update()
+
+  @doc "Invite a new user: create the account with a role and email login instructions."
+  def invite_user(attrs, magic_link_url_fun) do
+    with {:ok, user} <- register_user(attrs),
+         {:ok, user} <- update_user_role(user, attrs["role"] || "editor") do
+      deliver_login_instructions(user, magic_link_url_fun)
+      {:ok, user}
+    end
+  end
+
   ## Settings
 
   @doc """

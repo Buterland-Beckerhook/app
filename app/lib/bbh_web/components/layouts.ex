@@ -237,6 +237,11 @@ defmodule BbhWeb.Layouts do
                 {label}
               </.link>
             </li>
+            <li :if={admin_user?(@current_scope)}>
+              <.link navigate={~p"/admin/benutzer"} class={@active == :users && "menu-active font-semibold"}>
+                Benutzer
+              </.link>
+            </li>
           </ul>
           <div class="border-t border-base-300 p-4 text-sm">
             <p class="truncate text-base-content/70">{@current_scope.user.email}</p>
@@ -251,6 +256,9 @@ defmodule BbhWeb.Layouts do
     </div>
     """
   end
+
+  defp admin_user?(%{user: user}), do: Bbh.Accounts.User.admin?(user)
+  defp admin_user?(_), do: false
 
   @doc """
   Shows the flash group with standard titles and content.

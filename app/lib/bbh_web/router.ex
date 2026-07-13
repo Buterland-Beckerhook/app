@@ -95,6 +95,11 @@ defmodule BbhWeb.Router do
       live "/seiten/neu", PageLive.Form, :new
       live "/seiten/:id/bearbeiten", PageLive.Form, :edit
     end
+
+    # Admin-only sections.
+    live_session :admin_only, on_mount: [{BbhWeb.UserAuth, :require_admin}] do
+      live "/benutzer", UserLive.Index, :index
+    end
   end
 
   ## Authentication routes
