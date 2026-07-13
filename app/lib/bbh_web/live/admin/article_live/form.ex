@@ -2,7 +2,7 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
   use BbhWeb, :live_view
 
   alias Bbh.Content
-  alias Bbh.Content.Article
+  alias Bbh.Content.{Article, ArticleImage}
 
   @statuses [{"Entwurf", "draft"}, {"Veröffentlicht", "published"}, {"Archiviert", "archived"}]
 
@@ -15,7 +15,7 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
     article = %Article{status: "draft", date_published: DateTime.utc_now(:second), tags: []}
 
     socket
-    |> assign(page_title: "Neuer Artikel", article: article)
+    |> assign(page_title: "Neuer Artikel", article: article, images: [], media_options: [])
     |> assign_form(Content.change_article(article))
   end
 
@@ -24,6 +24,7 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
 
     socket
     |> assign(page_title: "Artikel bearbeiten", article: article)
+    |> assign(images: Content.list_article_images(id), media_options: media_options())
     |> assign_form(Content.change_article(article))
   end
 
@@ -40,6 +41,28 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
   def handle_event("save", %{"article" => params}, socket) do
     save(socket, socket.assigns.live_action, normalize(params))
   end
+
+  def handle_event("add_image", %{"media_id" => ""}, socket), do: {:noreply, socket}
+
+  def handle_event("add_image", %{"media_id" => media_id}, socket) do
+    {:ok, _} = Content.add_article_image(socket.assigns.article, media_id)
+    {:noreply, reload_images(socket)}
+  end
+
+  def handle_event("save_image", %{"img_id" => id, "image" => params}, socket) do
+    id |> Content.get_article_image!() |> Content.update_article_image(params)
+    {:noreply, socket |> put_flash(:info, "Bild gespeichert.") |> reload_images()}
+  end
+
+  def handle_event("delete_image", %{"img_id" => id}, socket) do
+    id |> Content.get_article_image!() |> Content.delete_article_image()
+    {:noreply, reload_images(socket)}
+  end
+
+  defp reload_images(socket),
+    do: assign(socket, :images, Content.list_article_images(socket.assigns.article.id))
+
+  defp media_options, do: Enum.map(Bbh.Media.list_uploads(), &{&1.filename, &1.id})
 
   defp save(socket, :new, params) do
     case Content.create_article(params) do
@@ -114,9 +137,63 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
           <.button navigate={~p"/admin/artikel"}>Abbrechen</.button>
         </div>
       </.form>
+
+      <section :if={@live_action == :edit} class="mt-10">
+        <h2 class="text-xl font-semibold">Bilder</h2>
+
+        <div class="mt-4 grid gap-4 sm:grid-cols-2">
+          <div :for={img <- @images} class="rounded-box border border-base-300 p-3">
+            <img
+              src={media_url(img.media, width: 320, height: 200)}
+              alt={img.title || ""}
+              class="mb-2 aspect-video w-full rounded object-cover"
+            />
+            <.form :let={f} for={image_form(img)} id={"image-#{img.id}"} phx-submit="save_image">
+              <input type="hidden" name="img_id" value={img.id} />
+              <.input field={f[:title]} label="Bildunterschrift" />
+              <.input field={f[:copyright]} label="Copyright" />
+              <div class="grid grid-cols-2 gap-2">
+                <.input field={f[:use_as_article_image]} type="checkbox" label="Titelbild" />
+                <.input field={f[:use_as_throne_picture]} type="checkbox" label="Thronbild" />
+              </div>
+              <.input field={f[:sort]} type="number" label="Sortierung" />
+              <div class="mt-2 flex gap-2">
+                <.button variant="primary" class="btn btn-primary btn-sm" phx-disable-with="…">Speichern</.button>
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-sm text-error"
+                  phx-click="delete_image"
+                  phx-value-img_id={img.id}
+                  data-confirm="Bild entfernen?"
+                >
+                  Entfernen
+                </button>
+              </div>
+            </.form>
+          </div>
+
+          <p :if={@images == []} class="text-base-content/60">Noch keine Bilder.</p>
+        </div>
+
+        <form phx-submit="add_image" class="mt-4 flex items-end gap-2">
+          <label class="fieldset">
+            <span class="label mb-1">Bild aus Mediathek hinzufügen</span>
+            <select name="media_id" class="select select-bordered">
+              <option value="">— Bild wählen —</option>
+              <option :for={{name, id} <- @media_options} value={id}>{name}</option>
+            </select>
+          </label>
+          <.button variant="primary">Hinzufügen</.button>
+        </form>
+        <p class="mt-1 text-xs text-base-content/50">
+          Bilder zuerst in der <.link navigate={~p"/admin/medien"} class="link">Mediathek</.link> hochladen.
+        </p>
+      </section>
     </Layouts.admin>
     """
   end
+
+  defp image_form(%ArticleImage{} = img), do: to_form(ArticleImage.changeset(img, %{}), as: "image")
 
   defp tags_value(tags) when is_list(tags), do: Enum.join(tags, ", ")
   defp tags_value(str) when is_binary(str), do: str

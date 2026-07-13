@@ -2,7 +2,7 @@ defmodule Bbh.Content do
   @moduledoc "Read/query API for articles, thrones, and block-based pages."
   import Ecto.Query
   alias Bbh.Repo
-  alias Bbh.Content.{Article, Throne, Page, PageBlock, Blocks}
+  alias Bbh.Content.{Article, ArticleImage, Throne, Page, PageBlock, Blocks}
 
   @doc "Published, real articles (excludes throne-only entries), newest first, paginated."
   def list_published_articles(page \\ 1, per_page \\ 10) do
@@ -104,6 +104,35 @@ defmodule Bbh.Content do
   def delete_article(%Article{} = article), do: Repo.delete(article)
 
   def change_article(%Article{} = article, attrs \\ %{}), do: Article.changeset(article, attrs)
+
+  ## Admin — article images
+
+  def list_article_images(article_id) do
+    Repo.all(from i in ArticleImage, where: i.article_id == ^article_id, order_by: i.sort, preload: :media)
+  end
+
+  def get_article_image!(id), do: ArticleImage |> Repo.get!(id) |> Repo.preload(:media)
+
+  @doc "Attach a media item to an article (appended)."
+  def add_article_image(%Article{} = article, media_id) do
+    %ArticleImage{}
+    |> ArticleImage.changeset(%{
+      "article_id" => article.id,
+      "media_id" => media_id,
+      "sort" => next_image_sort(article.id)
+    })
+    |> Repo.insert()
+  end
+
+  def update_article_image(%ArticleImage{} = image, attrs),
+    do: image |> ArticleImage.changeset(attrs) |> Repo.update()
+
+  def delete_article_image(%ArticleImage{} = image), do: Repo.delete(image)
+
+  defp next_image_sort(article_id) do
+    (Repo.one(from i in ArticleImage, where: i.article_id == ^article_id, select: max(i.sort)) || -1) +
+      1
+  end
 
   ## Admin CRUD — pages
 
