@@ -2,7 +2,7 @@ defmodule Bbh.Calendar do
   @moduledoc "Read/query API for events and locations."
   import Ecto.Query
   alias Bbh.Repo
-  alias Bbh.Calendar.Event
+  alias Bbh.Calendar.{Event, Location}
 
   @doc "The next upcoming public event (published, announced, no internal calendar)."
   def next_event(now \\ DateTime.utc_now()) do
@@ -48,4 +48,31 @@ defmodule Bbh.Calendar do
   defp public_events do
     from e in Event, where: e.status == "published" and e.announce == true and is_nil(e.calendar)
   end
+
+  ## Admin CRUD — locations
+
+  def list_locations, do: Repo.all(from l in Location, order_by: l.name)
+  def get_location!(id), do: Repo.get!(Location, id)
+  def create_location(attrs), do: %Location{} |> Location.changeset(attrs) |> Repo.insert()
+
+  def update_location(%Location{} = loc, attrs),
+    do: loc |> Location.changeset(attrs) |> Repo.update()
+
+  def delete_location(%Location{} = loc), do: Repo.delete(loc)
+  def change_location(%Location{} = loc, attrs \\ %{}), do: Location.changeset(loc, attrs)
+
+  @doc "Locations as {name, id} tuples for a form select."
+  def location_options do
+    Repo.all(from l in Location, order_by: l.name, select: {l.name, l.id})
+  end
+
+  ## Admin CRUD — events
+
+  def list_events, do: Repo.all(from e in Event, order_by: [desc: e.starts_at], preload: [:location])
+  def count_events, do: Repo.aggregate(Event, :count, :id)
+  def get_event!(id), do: Event |> Repo.get!(id) |> Repo.preload([:location])
+  def create_event(attrs), do: %Event{} |> Event.changeset(attrs) |> Repo.insert()
+  def update_event(%Event{} = e, attrs), do: e |> Event.changeset(attrs) |> Repo.update()
+  def delete_event(%Event{} = e), do: Repo.delete(e)
+  def change_event(%Event{} = e, attrs \\ %{}), do: Event.changeset(e, attrs)
 end

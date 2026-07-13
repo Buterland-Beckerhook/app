@@ -192,7 +192,9 @@ defmodule BbhWeb.Layouts do
   # Sections are added here as their CRUD is built.
   @admin_nav [
     {:dashboard, "/admin", "Übersicht"},
-    {:articles, "/admin/artikel", "Artikel"}
+    {:articles, "/admin/artikel", "Artikel"},
+    {:events, "/admin/termine", "Termine"},
+    {:locations, "/admin/orte", "Orte"}
   ]
 
   @doc "Admin area layout: mobile-first drawer nav + content."
