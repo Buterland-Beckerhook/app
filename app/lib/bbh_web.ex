@@ -86,6 +86,10 @@ defmodule BbhWeb do
       import Phoenix.HTML
       # Core UI components
       import BbhWeb.CoreComponents
+      # German date/media formatting helpers
+      import BbhWeb.Format
+      # Reusable public-site components
+      import BbhWeb.SiteComponents
 
       # Common modules used in templates
       alias Phoenix.LiveView.JS

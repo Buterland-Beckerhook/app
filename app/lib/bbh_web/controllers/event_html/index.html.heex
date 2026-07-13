@@ -1,0 +1,33 @@
+<Layouts.app flash={@flash} current_path={@conn.request_path}>
+  <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
+    <h1 class="text-3xl font-semibold">Termine {@year}</h1>
+    <a
+      href={~p"/termine/abo.ics"}
+      class="rounded border border-primary px-3 py-1 text-sm text-primary hover:bg-primary hover:text-primary-content"
+    >
+      Kalender abonnieren
+    </a>
+  </div>
+
+  <div :if={@years != []} class="mb-6 flex flex-wrap gap-2">
+    <a
+      :for={y <- @years}
+      href={~p"/termine?jahr=#{y}"}
+      class={[
+        "rounded border px-3 py-1 text-sm",
+        y == @year && "border-primary bg-primary text-primary-content",
+        y != @year && "border-gray-200 hover:border-primary hover:text-primary dark:border-zinc-700"
+      ]}
+    >
+      {y}
+    </a>
+  </div>
+
+  <p :if={@events == []} class="text-gray-500 dark:text-gray-400">
+    Für {@year} sind keine Termine eingetragen.
+  </p>
+
+  <div class="grid gap-4 sm:grid-cols-2">
+    <.event_card :for={event <- @events} event={event} />
+  </div>
+</Layouts.app>

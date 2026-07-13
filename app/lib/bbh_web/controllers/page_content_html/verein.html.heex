@@ -1,0 +1,16 @@
+<Layouts.app flash={@flash} current_path={@conn.request_path}>
+  <div class="mx-auto max-w-3xl">
+    <h1 class="mb-6 text-3xl font-semibold">Verein</h1>
+    <.blocks blocks={@blocks} />
+
+    <nav class="mt-10 grid gap-4 sm:grid-cols-2">
+      <a
+        :for={sub <- @subpages}
+        href={~p"/verein/#{sub.slug}"}
+        class="rounded-lg border border-gray-200 p-4 font-medium hover:border-primary hover:text-primary dark:border-zinc-700"
+      >
+        {sub.label}
+      </a>
+    </nav>
+  </div>
+</Layouts.app>

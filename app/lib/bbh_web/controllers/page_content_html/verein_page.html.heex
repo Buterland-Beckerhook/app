@@ -1,0 +1,12 @@
+<Layouts.app flash={@flash} current_path={@conn.request_path}>
+  <div class="mx-auto max-w-3xl">
+    <a href={~p"/verein"} class="text-sm text-primary hover:underline">&larr; Zurück zum Verein</a>
+    <h1 class="mt-4 mb-6 text-3xl font-semibold">{@title}</h1>
+
+    <div :if={@people not in [nil, []]} class="mb-8 rounded-lg border border-gray-200 p-4 dark:border-zinc-700">
+      <.person_table people={@people} show_address={false} />
+    </div>
+
+    <.blocks blocks={@blocks} />
+  </div>
+</Layouts.app>

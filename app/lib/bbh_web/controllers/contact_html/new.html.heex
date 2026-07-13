@@ -1,0 +1,63 @@
+<Layouts.app flash={@flash} current_path={@conn.request_path}>
+  <div class="mx-auto max-w-xl">
+    <h1 class="mb-6 text-3xl font-semibold">Kontakt</h1>
+
+    <form method="post" action={~p"/kontakt"} class="space-y-4">
+      <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+
+      <div>
+        <label for="name" class="mb-1 block text-sm font-medium">Name</label>
+        <input
+          type="text"
+          id="name"
+          name="name"
+          value={value_for(@params, "name")}
+          class="w-full rounded border border-gray-300 px-3 py-2 dark:border-zinc-600 dark:bg-zinc-800"
+        />
+        <p :if={error_for(@errors, :name)} class="mt-1 text-sm text-error">{error_for(@errors, :name)}</p>
+      </div>
+
+      <div>
+        <label for="email" class="mb-1 block text-sm font-medium">E-Mail</label>
+        <input
+          type="email"
+          id="email"
+          name="email"
+          value={value_for(@params, "email")}
+          class="w-full rounded border border-gray-300 px-3 py-2 dark:border-zinc-600 dark:bg-zinc-800"
+        />
+        <p :if={error_for(@errors, :email)} class="mt-1 text-sm text-error">{error_for(@errors, :email)}</p>
+      </div>
+
+      <div>
+        <label for="message" class="mb-1 block text-sm font-medium">Nachricht</label>
+        <textarea
+          id="message"
+          name="message"
+          rows="6"
+          class="w-full rounded border border-gray-300 px-3 py-2 dark:border-zinc-600 dark:bg-zinc-800"
+        >{value_for(@params, "message")}</textarea>
+        <p :if={error_for(@errors, :message)} class="mt-1 text-sm text-error">{error_for(@errors, :message)}</p>
+      </div>
+
+      <div>
+        <label class="flex items-start gap-2 text-sm">
+          <input type="checkbox" name="privacy" value="true" class="mt-1" />
+          <span>
+            Ich habe die <a href={~p"/datenschutz"} class="text-primary hover:underline">Datenschutzerklärung</a>
+            gelesen und stimme zu.
+          </span>
+        </label>
+        <p :if={error_for(@errors, :privacy)} class="mt-1 text-sm text-error">{error_for(@errors, :privacy)}</p>
+      </div>
+
+      <div :if={@altcha}>
+        <altcha-widget challengejson={Jason.encode!(@altcha)}></altcha-widget>
+      </div>
+
+      <button type="submit" class="rounded bg-primary px-4 py-2 font-medium text-primary-content hover:opacity-90">
+        Absenden
+      </button>
+    </form>
+  </div>
+</Layouts.app>

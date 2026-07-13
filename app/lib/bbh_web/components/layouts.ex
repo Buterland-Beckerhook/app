@@ -25,7 +25,35 @@ defmodule BbhWeb.Layouts do
       </Layouts.app>
 
   """
+  @nav [
+    %{href: "/aktuell", label: "Aktuelles"},
+    %{href: "/termine", label: "Termine"},
+    %{
+      href: "/thron",
+      label: "Thron",
+      children: [
+        %{href: "/thron", label: "Throne seit 1909"},
+        %{href: "/aktuell/2009/kaiserthron-2009", label: "Kaiserthron 2009"},
+        %{href: "/aktuell/1984/kaiserthron-1984", label: "Kaiserthron 1984"}
+      ]
+    },
+    %{
+      href: "/verein",
+      label: "Verein",
+      children: [
+        %{href: "/verein", label: "Über uns"},
+        %{href: "/verein/vorstand", label: "Vorstand"},
+        %{href: "/verein/offiziere", label: "Offiziere"},
+        %{href: "/verein/jungschuetzen", label: "Jungschützen"},
+        %{href: "/verein/kinderfest", label: "Kinderfest"},
+        %{href: "/verein/mitglied-werden", label: "Mitglied werden"}
+      ]
+    },
+    %{href: "/kontakt", label: "Kontakt"}
+  ]
+
   attr :flash, :map, required: true, doc: "the map of flash messages"
+  attr :current_path, :string, default: "/", doc: "request path, for active nav highlighting"
 
   attr :current_scope, :map,
     default: nil,
@@ -34,43 +62,132 @@ defmodule BbhWeb.Layouts do
   slot :inner_block, required: true
 
   def app(assigns) do
-    ~H"""
-    <header class="navbar px-4 sm:px-6 lg:px-8">
-      <div class="flex-1">
-        <a href="/" class="flex-1 flex w-fit items-center gap-2">
-          <img src={~p"/images/logo.svg"} width="36" />
-          <span class="text-sm font-semibold">v{Application.spec(:phoenix, :vsn)}</span>
-        </a>
-      </div>
-      <div class="flex-none">
-        <ul class="flex flex-column px-1 space-x-4 items-center">
-          <li>
-            <a href="https://phoenixframework.org/" class="btn btn-ghost">Website</a>
-          </li>
-          <li>
-            <a href="https://github.com/phoenixframework/phoenix" class="btn btn-ghost">GitHub</a>
-          </li>
-          <li>
-            <.theme_toggle />
-          </li>
-          <li>
-            <a href="https://phoenix.hexdocs.pm/overview.html" class="btn btn-primary">
-              Get Started <span aria-hidden="true">&rarr;</span>
-            </a>
-          </li>
-        </ul>
-      </div>
-    </header>
+    assigns = assign(assigns, :nav, @nav)
 
-    <main class="px-4 py-20 sm:px-6 lg:px-8">
-      <div class="mx-auto max-w-2xl space-y-4">
+    ~H"""
+    <div class="flex min-h-screen flex-col bg-white text-gray-900 dark:bg-zinc-900 dark:text-gray-200">
+      <header class="border-b border-gray-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
+        <nav class="mx-auto flex max-w-6xl items-center justify-between px-4 py-2">
+          <a href="/" class="flex items-center gap-3">
+            <img src={~p"/images/logo.svg"} alt="" width="48" height="48" class="h-12 w-12 md:h-20 md:w-20" />
+            <div class="font-logo leading-tight">
+              <span class="block text-sm text-gray-600 md:text-xl dark:text-gray-400">Schützenverein</span>
+              <span class="block text-xl text-primary md:text-3xl">Buterland-Beckerhook e.V.</span>
+            </div>
+          </a>
+
+    <!-- Desktop nav -->
+          <div class="hidden items-center gap-6 md:flex">
+            <%= for link <- @nav do %>
+              <%= if link[:children] do %>
+                <div class="group relative">
+                  <a
+                    href={link.href}
+                    class={[
+                      "flex items-center gap-1 transition-colors",
+                      nav_active?(@current_path, link) && "font-semibold text-primary",
+                      !nav_active?(@current_path, link) &&
+                        "text-gray-600 hover:text-primary dark:text-gray-300 dark:hover:text-primary"
+                    ]}
+                  >
+                    {link.label}
+                    <.icon name="hero-chevron-down-mini" class="size-4" />
+                  </a>
+                  <div class="invisible absolute top-full left-0 z-50 min-w-48 pt-2 opacity-0 transition-all group-hover:visible group-hover:opacity-100">
+                    <div class="rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
+                      <a
+                        :for={child <- link.children}
+                        href={child.href}
+                        class={[
+                          "block px-4 py-2 text-sm transition-colors",
+                          child_active?(@current_path, child.href, link.href) &&
+                            "bg-gray-50 font-medium text-primary dark:bg-zinc-700",
+                          !child_active?(@current_path, child.href, link.href) &&
+                            "text-gray-600 hover:bg-gray-50 hover:text-primary dark:text-gray-300 dark:hover:bg-zinc-700 dark:hover:text-primary"
+                        ]}
+                      >
+                        {child.label}
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              <% else %>
+                <a
+                  href={link.href}
+                  class={[
+                    "transition-colors",
+                    nav_active?(@current_path, link) && "font-semibold text-primary",
+                    !nav_active?(@current_path, link) &&
+                      "text-gray-600 hover:text-primary dark:text-gray-300 dark:hover:text-primary"
+                  ]}
+                >
+                  {link.label}
+                </a>
+              <% end %>
+            <% end %>
+            <.theme_toggle />
+          </div>
+
+    <!-- Mobile menu (daisyUI dropdown, no custom JS) -->
+          <div class="dropdown dropdown-end md:hidden">
+            <button tabindex="0" class="flex items-center text-gray-600 dark:text-gray-300" aria-label="Menü öffnen">
+              <.icon name="hero-bars-3" class="size-6" />
+            </button>
+            <ul tabindex="0" class="dropdown-content menu z-50 mt-2 w-64 rounded-box border border-gray-200 bg-white p-2 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
+              <%= for link <- @nav do %>
+                <li>
+                  <a href={link.href} class="font-medium">{link.label}</a>
+                  <ul :if={link[:children]}>
+                    <li :for={child <- link.children}>
+                      <a href={child.href}>{child.label}</a>
+                    </li>
+                  </ul>
+                </li>
+              <% end %>
+              <li class="mt-2 border-t border-gray-200 pt-2 dark:border-zinc-700">
+                <.theme_toggle />
+              </li>
+            </ul>
+          </div>
+        </nav>
+      </header>
+
+      <main class="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
         {render_slot(@inner_block)}
-      </div>
-    </main>
+      </main>
+
+      <footer class="border-t border-gray-200 bg-gray-50 text-sm text-gray-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-gray-400">
+        <div class="mx-auto flex max-w-6xl flex-col items-center gap-2 px-4 py-6 md:flex-row md:justify-between">
+          <p>&copy; {Date.utc_today().year} Schützenverein Buterland-Beckerhook e.V.</p>
+          <div class="flex gap-4">
+            <a href="/impressum" class="hover:text-primary">Impressum</a>
+            <a href="/datenschutz" class="hover:text-primary">Datenschutz</a>
+          </div>
+        </div>
+      </footer>
+    </div>
 
     <.flash_group flash={@flash} />
     """
   end
+
+  @child_hrefs Enum.flat_map(@nav, fn l -> Enum.map(l[:children] || [], & &1.href) end)
+
+  # Top-level link is active on exact match, or as a section prefix for /aktuell and
+  # /termine — but not when the path belongs to a dropdown child (e.g. a Thron article).
+  defp nav_active?(path, %{children: children}),
+    do: Enum.any?(children, fn c -> child_active?(path, c.href, nil) end)
+
+  defp nav_active?(path, %{href: href}) when href in ["/aktuell", "/termine"] do
+    section = path == href or String.starts_with?(path, href <> "/")
+    section and not Enum.any?(@child_hrefs, &(path == &1 or String.starts_with?(path, &1 <> "/")))
+  end
+
+  defp nav_active?(path, %{href: href}), do: path == href
+
+  # A "Über uns"-style child whose href equals its parent matches exactly only.
+  defp child_active?(path, href, parent_href) when href == parent_href, do: path == href
+  defp child_active?(path, href, _parent), do: path == href or String.starts_with?(path, href <> "/")
 
   @doc """
   Shows the flash group with standard titles and content.

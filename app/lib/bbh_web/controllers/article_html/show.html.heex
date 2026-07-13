@@ -1,0 +1,54 @@
+<Layouts.app flash={@flash} current_path={@conn.request_path}>
+  <article class="mx-auto max-w-3xl">
+    <a href={~p"/aktuell"} class="text-sm text-primary hover:underline">&larr; Zurück zu Aktuelles</a>
+
+    <header class="mt-4">
+      <h1 class="text-3xl font-semibold">{@article.title}</h1>
+      <p :if={@article.subtitle} class="mt-1 text-lg text-gray-600 dark:text-gray-300">
+        {@article.subtitle}
+      </p>
+      <div class="mt-2 flex flex-wrap items-center gap-x-3 text-sm text-gray-500 dark:text-gray-400">
+        <time>{de_date(@article.date_published)}</time>
+        <span :if={@article.author}>von {@article.author}</span>
+      </div>
+      <div :if={@article.tags != []} class="mt-3 flex flex-wrap gap-1">
+        <span
+          :for={tag <- @article.tags}
+          class="rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary"
+        >
+          {tag}
+        </span>
+      </div>
+    </header>
+
+    <% hero = article_hero(@article) %>
+    <img
+      :if={hero}
+      src={media_url(hero.media, width: 1024)}
+      alt={image_alt(hero)}
+      class="mt-6 w-full rounded-lg object-cover"
+    />
+
+    <div :if={@article.body} class="prose mt-6 max-w-none dark:prose-invert">
+      {Phoenix.HTML.raw(@article.body)}
+    </div>
+
+    <section :if={@article.throne} class="mt-8 rounded-lg border border-gray-200 p-4 dark:border-zinc-700">
+      <.throne_table throne={@article.throne} />
+    </section>
+
+    <% gallery = Enum.reject(@article.images, &(hero && &1.id == hero.id)) %>
+    <section :if={gallery != []} class="mt-8">
+      <h2 class="mb-3 text-xl font-semibold">Bilder</h2>
+      <div class="grid grid-cols-2 gap-2 md:grid-cols-3">
+        <img
+          :for={img <- gallery}
+          src={media_url(img.media, width: 400, height: 400)}
+          alt={image_alt(img)}
+          loading="lazy"
+          class="aspect-square w-full rounded object-cover"
+        />
+      </div>
+    </section>
+  </article>
+</Layouts.app>

@@ -18,6 +18,25 @@ defmodule BbhWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
+
+    get "/aktuell", ArticleController, :index
+    get "/aktuell/:year/:slug", ArticleController, :show
+
+    get "/termine", EventController, :index
+    get "/termine/abo.ics", EventController, :feed
+    get "/termine/:year/:slug", EventController, :show
+    get "/termine/:year/:slug/event.ics", EventController, :ics
+
+    get "/thron", ThroneController, :index
+
+    get "/verein", PageContentController, :verein
+    get "/verein/:slug", PageContentController, :verein_page
+
+    get "/impressum", PageContentController, :impressum
+    get "/datenschutz", PageContentController, :datenschutz
+
+    get "/kontakt", ContactController, :new
+    post "/kontakt", ContactController, :create
   end
 
   # Other scopes may use custom stacks.

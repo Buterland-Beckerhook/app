@@ -8,9 +8,25 @@ defmodule Bbh.Club.Person do
   @vorstand_roles ~w(praesident vizepraesident geschaeftsfuehrer schriftfuehrer kassierer vorstand)
   @offiziere_roles ~w(oberst oberstleutnant major offizier)
 
+  @role_labels %{
+    "oberst" => "Oberst",
+    "oberstleutnant" => "Oberstleutnant",
+    "major" => "Major",
+    "praesident" => "Präsident",
+    "vizepraesident" => "Vizepräsident",
+    "geschaeftsfuehrer" => "Geschäftsführer",
+    "schriftfuehrer" => "Schriftführer",
+    "kassierer" => "Kassierer",
+    "vorstand" => "Vorstand",
+    "offizier" => "Offizier",
+    "jungschuetzensprecher" => "Jungschützensprecher",
+    "mitglied" => "Mitglied"
+  }
+
   def roles, do: @roles
   def vorstand_roles, do: @vorstand_roles
   def offiziere_roles, do: @offiziere_roles
+  def role_label(role), do: Map.get(@role_labels, role, role)
 
   schema "people" do
     field :name, :string
