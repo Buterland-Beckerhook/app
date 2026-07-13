@@ -15,7 +15,8 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
     article = %Article{status: "draft", date_published: DateTime.utc_now(:second), tags: []}
 
     socket
-    |> assign(page_title: "Neuer Artikel", article: article, images: [], media_options: [])
+    |> assign(page_title: "Neuer Artikel", article: article)
+    |> assign(images: [], media_library: [], picker_search: "", show_throne: false)
     |> assign_form(Content.change_article(article))
   end
 
@@ -24,7 +25,8 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
 
     socket
     |> assign(page_title: "Artikel bearbeiten", article: article, throne: article.throne)
-    |> assign(images: Content.list_article_images(id), media_options: media_options())
+    |> assign(show_throne: not is_nil(article.throne))
+    |> assign(images: Content.list_article_images(id), media_library: Bbh.Media.list_uploads(), picker_search: "")
     |> assign_throne_form(Content.change_throne(throne_or_new(article)))
     |> assign_form(Content.change_article(article))
   end
@@ -43,11 +45,17 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
     save(socket, socket.assigns.live_action, normalize(params))
   end
 
-  def handle_event("add_image", %{"media_id" => ""}, socket), do: {:noreply, socket}
-
   def handle_event("add_image", %{"media_id" => media_id}, socket) do
     {:ok, _} = Content.add_article_image(socket.assigns.article, media_id)
     {:noreply, reload_images(socket)}
+  end
+
+  def handle_event("search_media", %{"search" => search}, socket) do
+    {:noreply, assign(socket, picker_search: search, media_library: Bbh.Media.list_uploads(search: search))}
+  end
+
+  def handle_event("add_throne_section", _params, socket) do
+    {:noreply, assign(socket, :show_throne, true)}
   end
 
   def handle_event("save_image", %{"img_id" => id, "image" => params}, socket) do
@@ -88,7 +96,8 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
     article = Content.get_article!(socket.assigns.article.id)
 
     socket
-    |> assign(article: article, throne: article.throne, images: Content.list_article_images(article.id))
+    |> assign(article: article, throne: article.throne, show_throne: not is_nil(article.throne))
+    |> assign(images: Content.list_article_images(article.id))
     |> assign_throne_form(Content.change_throne(throne_or_new(article)))
   end
 
@@ -97,8 +106,6 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
 
   defp throne_or_new(%Article{throne: %Throne{} = t}), do: t
   defp throne_or_new(%Article{id: id}), do: %Throne{article_id: id}
-
-  defp media_options, do: Enum.map(Bbh.Media.list_uploads(), &{&1.filename, &1.id})
 
   defp save(socket, :new, params) do
     case Content.create_article(params) do
@@ -211,26 +218,56 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
           <p :if={@images == []} class="text-base-content/60">Noch keine Bilder.</p>
         </div>
 
-        <form phx-submit="add_image" class="mt-4 flex items-end gap-2">
-          <label class="fieldset">
-            <span class="label mb-1">Bild aus Mediathek hinzufügen</span>
-            <select name="media_id" class="select select-bordered">
-              <option value="">— Bild wählen —</option>
-              <option :for={{name, id} <- @media_options} value={id}>{name}</option>
-            </select>
-          </label>
-          <.button variant="primary">Hinzufügen</.button>
-        </form>
-        <p class="mt-1 text-xs text-base-content/50">
-          Bilder zuerst in der <.link navigate={~p"/admin/medien"} class="link">Mediathek</.link> hochladen.
-        </p>
+        <div class="mt-4">
+          <p class="mb-2 text-sm font-medium">Bild aus Mediathek hinzufügen</p>
+          <form phx-change="search_media" class="mb-2">
+            <input
+              type="text"
+              name="search"
+              value={@picker_search}
+              placeholder="Mediathek durchsuchen…"
+              phx-debounce="300"
+              class="input input-bordered w-full max-w-xs"
+            />
+          </form>
+          <div class="grid max-h-72 grid-cols-3 gap-2 overflow-y-auto rounded-box border border-base-300 p-2 sm:grid-cols-4 md:grid-cols-6">
+            <button
+              :for={m <- @media_library}
+              type="button"
+              phx-click="add_image"
+              phx-value-media_id={m.id}
+              title={m.filename}
+              class="group relative"
+            >
+              <img
+                src={media_url(m, width: 120, height: 120)}
+                alt={m.filename}
+                class="aspect-square w-full rounded object-cover"
+              />
+              <span class="absolute inset-0 flex items-center justify-center rounded bg-black/50 text-xs text-white opacity-0 group-hover:opacity-100">
+                + hinzufügen
+              </span>
+            </button>
+            <p :if={@media_library == []} class="col-span-full p-2 text-sm text-base-content/60">
+              Keine Bilder gefunden.
+            </p>
+          </div>
+          <p class="mt-1 text-xs text-base-content/50">
+            Bilder zuerst in der <.link navigate={~p"/admin/medien"} class="link">Mediathek</.link> hochladen.
+          </p>
+        </div>
       </section>
 
       <section :if={@live_action == :edit} class="mt-10">
         <h2 class="text-xl font-semibold">Thron</h2>
-        <p class="text-sm text-base-content/60">Optional: Königs- oder Kaiserdaten für diesen Artikel.</p>
+        <p :if={!@show_throne} class="mt-1 text-sm text-base-content/60">
+          Kein Thron-Artikel.
+          <button type="button" class="link link-primary" phx-click="add_throne_section">
+            Thron-Angaben hinzufügen
+          </button>
+        </p>
 
-        <.form :let={t} for={@throne_form} id="throne-form" phx-submit="save_throne" class="mt-4 space-y-3">
+        <.form :if={@show_throne} :let={t} for={@throne_form} id="throne-form" phx-submit="save_throne" class="mt-4 space-y-3">
           <.input
             field={t[:type]}
             type="select"

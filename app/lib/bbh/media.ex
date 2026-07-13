@@ -25,7 +25,24 @@ defmodule Bbh.Media do
 
   def get_by_key(key), do: Repo.get_by(Upload, storage_key: key)
 
-  def list_uploads, do: Repo.all(from u in Upload, order_by: [desc: u.inserted_at])
+  @doc "List uploads, optionally filtered by `:search` (filename/title) and `:sort`."
+  def list_uploads(opts \\ []) do
+    from(u in Upload)
+    |> filter_search(opts[:search])
+    |> sort_uploads(opts[:sort] || "newest")
+    |> Repo.all()
+  end
+
+  defp filter_search(query, search) when is_binary(search) and search != "" do
+    like = "%#{String.replace(search, "%", "\\%")}%"
+    from u in query, where: ilike(u.filename, ^like) or ilike(u.title, ^like)
+  end
+
+  defp filter_search(query, _), do: query
+
+  defp sort_uploads(query, "oldest"), do: from(u in query, order_by: [asc: u.inserted_at])
+  defp sort_uploads(query, "name"), do: from(u in query, order_by: [asc: u.filename])
+  defp sort_uploads(query, _newest), do: from(u in query, order_by: [desc: u.inserted_at])
   def get_upload!(id), do: Repo.get!(Upload, id)
 
   def change_upload(%Upload{} = upload, attrs \\ %{}), do: Upload.changeset(upload, attrs)

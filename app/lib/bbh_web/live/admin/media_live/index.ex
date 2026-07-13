@@ -7,7 +7,8 @@ defmodule BbhWeb.Admin.MediaLive.Index do
   def mount(_params, _session, socket) do
     socket =
       socket
-      |> assign(page_title: "Medien", items: Media.list_uploads())
+      |> assign(page_title: "Medien", search: "", sort: "newest")
+      |> assign(items: Media.list_uploads())
       |> allow_upload(:files,
         accept: ~w(.jpg .jpeg .png .webp .gif),
         max_entries: 10,
@@ -19,6 +20,13 @@ defmodule BbhWeb.Admin.MediaLive.Index do
 
   @impl true
   def handle_event("validate", _params, socket), do: {:noreply, socket}
+
+  def handle_event("filter", %{"search" => search, "sort" => sort}, socket) do
+    {:noreply,
+     socket
+     |> assign(search: search, sort: sort)
+     |> assign(items: Media.list_uploads(search: search, sort: sort))}
+  end
 
   def handle_event("cancel", %{"ref" => ref}, socket) do
     {:noreply, cancel_upload(socket, :files, ref)}
@@ -33,14 +41,17 @@ defmodule BbhWeb.Admin.MediaLive.Index do
     end)
 
     {:noreply,
-     socket |> put_flash(:info, "Bilder hochgeladen.") |> assign(:items, Media.list_uploads())}
+     socket |> put_flash(:info, "Bilder hochgeladen.") |> reload_items()}
   end
 
   def handle_event("delete", %{"id" => id}, socket) do
     id |> Media.get_upload!() |> Media.delete_upload()
 
-    {:noreply, socket |> put_flash(:info, "Bild gelöscht.") |> assign(:items, Media.list_uploads())}
+    {:noreply, socket |> put_flash(:info, "Bild gelöscht.") |> reload_items()}
   end
+
+  defp reload_items(socket),
+    do: assign(socket, :items, Media.list_uploads(search: socket.assigns.search, sort: socket.assigns.sort))
 
   @impl true
   def render(assigns) do
@@ -89,7 +100,29 @@ defmodule BbhWeb.Admin.MediaLive.Index do
         </div>
       </form>
 
-      <div class="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
+      <form phx-change="filter" class="mt-8 flex flex-wrap items-end gap-3">
+        <label class="fieldset">
+          <span class="label mb-1">Suche</span>
+          <input
+            type="text"
+            name="search"
+            value={@search}
+            placeholder="Dateiname oder Titel"
+            phx-debounce="300"
+            class="input input-bordered"
+          />
+        </label>
+        <label class="fieldset">
+          <span class="label mb-1">Sortierung</span>
+          <select name="sort" class="select select-bordered">
+            <option value="newest" selected={@sort == "newest"}>Neueste zuerst</option>
+            <option value="oldest" selected={@sort == "oldest"}>Älteste zuerst</option>
+            <option value="name" selected={@sort == "name"}>Name (A–Z)</option>
+          </select>
+        </label>
+      </form>
+
+      <div class="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
         <figure :for={item <- @items} class="rounded-box border border-base-300 p-2">
           <img
             src={media_url(item, width: 300, height: 300)}
