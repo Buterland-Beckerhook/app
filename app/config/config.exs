@@ -14,6 +14,11 @@ config :bbh,
 # German-language site
 config :gettext, :default_locale, "de"
 
+# Media: original uploads live in :uploads_dir; derived responsive variants are
+# cached (regenerable) in :media_cache_dir. Overridden per-env in runtime.exs.
+config :bbh, :uploads_dir, Path.expand("../priv/uploads", __DIR__)
+config :bbh, :media_cache_dir, Path.expand("../priv/uploads_cache", __DIR__)
+
 # Configure the endpoint
 config :bbh, BbhWeb.Endpoint,
   url: [host: "localhost"],

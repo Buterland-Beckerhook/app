@@ -37,6 +37,8 @@ defmodule BbhWeb.Router do
 
     get "/kontakt", ContactController, :new
     post "/kontakt", ContactController, :create
+
+    get "/media/*path", MediaController, :show
   end
 
   # Other scopes may use custom stacks.

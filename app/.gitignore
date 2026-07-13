@@ -35,3 +35,7 @@ bbh-*.tar
 npm-debug.log
 /assets/node_modules/
 
+# Runtime media: uploaded originals and the regenerable variant cache.
+/priv/uploads/
+/priv/uploads_cache/
+
