@@ -2,7 +2,7 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
   use BbhWeb, :live_view
 
   alias Bbh.Content
-  alias Bbh.Content.{Article, ArticleImage}
+  alias Bbh.Content.{Article, ArticleImage, Throne}
 
   @statuses [{"Entwurf", "draft"}, {"Veröffentlicht", "published"}, {"Archiviert", "archived"}]
 
@@ -23,8 +23,9 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
     article = Content.get_article!(id)
 
     socket
-    |> assign(page_title: "Artikel bearbeiten", article: article)
+    |> assign(page_title: "Artikel bearbeiten", article: article, throne: article.throne)
     |> assign(images: Content.list_article_images(id), media_options: media_options())
+    |> assign_throne_form(Content.change_throne(throne_or_new(article)))
     |> assign_form(Content.change_article(article))
   end
 
@@ -59,8 +60,43 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
     {:noreply, reload_images(socket)}
   end
 
+  def handle_event("save_throne", %{"throne" => params}, socket) do
+    article = socket.assigns.article
+    params = Map.put(params, "article_id", article.id)
+
+    result =
+      case article.throne do
+        %Throne{} = throne -> Content.update_throne(throne, params)
+        _ -> Content.create_throne(params)
+      end
+
+    case result do
+      {:ok, _} -> {:noreply, socket |> put_flash(:info, "Thron gespeichert.") |> reload_article()}
+      {:error, changeset} -> {:noreply, assign_throne_form(socket, changeset)}
+    end
+  end
+
+  def handle_event("delete_throne", _params, socket) do
+    with %Throne{} = throne <- socket.assigns.article.throne, do: Content.delete_throne(throne)
+    {:noreply, socket |> put_flash(:info, "Thron entfernt.") |> reload_article()}
+  end
+
   defp reload_images(socket),
     do: assign(socket, :images, Content.list_article_images(socket.assigns.article.id))
+
+  defp reload_article(socket) do
+    article = Content.get_article!(socket.assigns.article.id)
+
+    socket
+    |> assign(article: article, throne: article.throne, images: Content.list_article_images(article.id))
+    |> assign_throne_form(Content.change_throne(throne_or_new(article)))
+  end
+
+  defp assign_throne_form(socket, changeset),
+    do: assign(socket, :throne_form, to_form(changeset, as: "throne"))
+
+  defp throne_or_new(%Article{throne: %Throne{} = t}), do: t
+  defp throne_or_new(%Article{id: id}), do: %Throne{article_id: id}
 
   defp media_options, do: Enum.map(Bbh.Media.list_uploads(), &{&1.filename, &1.id})
 
@@ -188,6 +224,53 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
         <p class="mt-1 text-xs text-base-content/50">
           Bilder zuerst in der <.link navigate={~p"/admin/medien"} class="link">Mediathek</.link> hochladen.
         </p>
+      </section>
+
+      <section :if={@live_action == :edit} class="mt-10">
+        <h2 class="text-xl font-semibold">Thron</h2>
+        <p class="text-sm text-base-content/60">Optional: Königs- oder Kaiserdaten für diesen Artikel.</p>
+
+        <.form :let={t} for={@throne_form} id="throne-form" phx-submit="save_throne" class="mt-4 space-y-3">
+          <.input
+            field={t[:type]}
+            type="select"
+            label="Typ"
+            options={[{"König", "koenig"}, {"Kaiser", "kaiser"}, {"Stadtkaiser", "stadtkaiser"}]}
+          />
+          <div class="grid grid-cols-2 gap-2">
+            <.input field={t[:begin_year]} type="number" label="Beginn (Jahr)" />
+            <.input field={t[:end_year]} type="number" label="Ende (Jahr)" />
+          </div>
+          <.input field={t[:king_title]} label="Regentenname (z. B. Gerd X.)" />
+          <div class="grid grid-cols-2 gap-2">
+            <.input field={t[:king]} label="König" />
+            <.input field={t[:queen]} label="Königin" />
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <.input field={t[:moh1]} label="Ehrendame 1" />
+            <.input field={t[:moh2]} label="Ehrendame 2" />
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <.input field={t[:loh1]} label="Ehrenherr 1" />
+            <.input field={t[:loh2]} label="Ehrenherr 2" />
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <.input field={t[:cupbearer]} label="Mundschenk" />
+            <.input field={t[:courtmarshal]} label="Oberhofmarschall" />
+          </div>
+          <div class="flex gap-2">
+            <.button variant="primary" class="btn btn-primary btn-sm" phx-disable-with="…">Thron speichern</.button>
+            <button
+              :if={@throne}
+              type="button"
+              class="btn btn-ghost btn-sm text-error"
+              phx-click="delete_throne"
+              data-confirm="Thron wirklich entfernen?"
+            >
+              Thron entfernen
+            </button>
+          </div>
+        </.form>
       </section>
     </Layouts.admin>
     """

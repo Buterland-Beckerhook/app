@@ -134,6 +134,13 @@ defmodule Bbh.Content do
       1
   end
 
+  ## Admin — thrones (edited in the context of their article)
+
+  def create_throne(attrs), do: %Throne{} |> Throne.changeset(attrs) |> Repo.insert()
+  def update_throne(%Throne{} = t, attrs), do: t |> Throne.changeset(attrs) |> Repo.update()
+  def delete_throne(%Throne{} = t), do: Repo.delete(t)
+  def change_throne(%Throne{} = t, attrs \\ %{}), do: Throne.changeset(t, attrs)
+
   ## Admin CRUD — pages
 
   def list_pages, do: Repo.all(from p in Page, order_by: [asc: p.sort_order, asc: p.title])
