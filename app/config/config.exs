@@ -7,6 +7,19 @@
 # General application configuration
 import Config
 
+config :bbh, :scopes,
+  user: [
+    default: true,
+    module: Bbh.Accounts.Scope,
+    assign_key: :current_scope,
+    access_path: [:user, :id],
+    schema_key: :user_id,
+    schema_type: :binary_id,
+    schema_table: :users,
+    test_data_fixture: Bbh.AccountsFixtures,
+    test_setup_helper: :register_and_log_in_user
+  ]
+
 config :bbh,
   ecto_repos: [Bbh.Repo],
   generators: [timestamp_type: :utc_datetime, binary_id: true]

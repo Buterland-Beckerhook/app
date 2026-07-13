@@ -7,6 +7,7 @@ alias Bbh.Calendar.{Location, Event}
 alias Bbh.Club.Person
 alias Bbh.Content.{Article, ArticleImage, Throne, Page, PageBlock}
 alias Bbh.Content.Blocks
+alias Bbh.Accounts.User
 
 if Repo.aggregate(Article, :count) == 0 do
   location =
@@ -113,4 +114,16 @@ if Repo.aggregate(Article, :count) == 0 do
   IO.puts("Seeded sample data.")
 else
   IO.puts("Data already present, skipping seeds.")
+end
+
+# Dev admin (change the password after first login).
+if Repo.aggregate(User, :count) == 0 do
+  %User{}
+  |> User.email_changeset(%{email: "admin@buterland-beckerhook.de"})
+  |> User.password_changeset(%{password: "change-me-please-1234"})
+  |> Ecto.Changeset.put_change(:role, "admin")
+  |> Ecto.Changeset.put_change(:confirmed_at, DateTime.utc_now(:second))
+  |> Repo.insert!()
+
+  IO.puts("Created dev admin admin@buterland-beckerhook.de / change-me-please-1234")
 end
