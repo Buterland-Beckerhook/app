@@ -84,6 +84,10 @@ defmodule BbhWeb.Router do
       live "/orte", LocationLive.Index, :index
       live "/orte/neu", LocationLive.Form, :new
       live "/orte/:id/bearbeiten", LocationLive.Form, :edit
+
+      live "/personen", PersonLive.Index, :index
+      live "/personen/neu", PersonLive.Form, :new
+      live "/personen/:id/bearbeiten", PersonLive.Form, :edit
     end
   end
 

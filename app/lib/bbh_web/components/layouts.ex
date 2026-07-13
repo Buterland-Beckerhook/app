@@ -194,7 +194,8 @@ defmodule BbhWeb.Layouts do
     {:dashboard, "/admin", "Übersicht"},
     {:articles, "/admin/artikel", "Artikel"},
     {:events, "/admin/termine", "Termine"},
-    {:locations, "/admin/orte", "Orte"}
+    {:locations, "/admin/orte", "Orte"},
+    {:people, "/admin/personen", "Personen"}
   ]
 
   @doc "Admin area layout: mobile-first drawer nav + content."

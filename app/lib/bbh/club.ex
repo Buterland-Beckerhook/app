@@ -21,4 +21,20 @@ defmodule Bbh.Club do
   defp filter_honorary(query, "only"), do: where(query, [p], p.honorary_member == true)
   defp filter_honorary(query, "exclude"), do: where(query, [p], p.honorary_member == false)
   defp filter_honorary(query, _all), do: query
+
+  ## Admin CRUD
+
+  def list_all_people do
+    Repo.all(from p in Person, order_by: [asc: p.sort_order, asc: p.name])
+  end
+
+  def count_people, do: Repo.aggregate(Person, :count, :id)
+  def get_person!(id), do: Repo.get!(Person, id)
+  def create_person(attrs), do: %Person{} |> Person.changeset(attrs) |> Repo.insert()
+  def update_person(%Person{} = p, attrs), do: p |> Person.changeset(attrs) |> Repo.update()
+  def delete_person(%Person{} = p), do: Repo.delete(p)
+  def change_person(%Person{} = p, attrs \\ %{}), do: Person.changeset(p, attrs)
+
+  @doc "Role options as {label, value} tuples for a form select."
+  def role_options, do: Enum.map(Person.roles(), &{Person.role_label(&1), &1})
 end
