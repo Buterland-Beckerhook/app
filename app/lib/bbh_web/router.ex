@@ -88,6 +88,8 @@ defmodule BbhWeb.Router do
       live "/personen", PersonLive.Index, :index
       live "/personen/neu", PersonLive.Form, :new
       live "/personen/:id/bearbeiten", PersonLive.Form, :edit
+
+      live "/medien", MediaLive.Index, :index
     end
   end
 

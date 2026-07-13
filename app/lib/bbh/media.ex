@@ -6,6 +6,7 @@ defmodule Bbh.Media do
   produces a cached WebP variant under `:media_cache_dir` (regenerable, so it is
   excluded from backups). Replaces Directus asset transforms.
   """
+  import Ecto.Query
   alias Bbh.Repo
   alias Bbh.Media.Upload
 
@@ -23,6 +24,20 @@ defmodule Bbh.Media do
   def cache_dir, do: Application.fetch_env!(:bbh, :media_cache_dir)
 
   def get_by_key(key), do: Repo.get_by(Upload, storage_key: key)
+
+  def list_uploads, do: Repo.all(from u in Upload, order_by: [desc: u.inserted_at])
+  def get_upload!(id), do: Repo.get!(Upload, id)
+
+  def change_upload(%Upload{} = upload, attrs \\ %{}), do: Upload.changeset(upload, attrs)
+
+  def update_upload(%Upload{} = upload, attrs),
+    do: upload |> Upload.changeset(attrs) |> Repo.update()
+
+  @doc "Delete an upload record and its original file (variant cache is regenerable)."
+  def delete_upload(%Upload{} = upload) do
+    File.rm(Path.join(uploads_dir(), upload.storage_key))
+    Repo.delete(upload)
+  end
 
   @doc """
   Resolve a media request to a servable file. Returns `{:ok, path, content_type}`
@@ -44,7 +59,14 @@ defmodule Bbh.Media do
   media library and the one-time import). Extra `attrs` (title, copyright, …) are merged.
   """
   def store_file(source_path, attrs \\ %{}) do
-    ext = source_path |> Path.extname() |> String.downcase()
+    filename = attrs[:filename] || attrs["filename"] || Path.basename(source_path)
+    # Prefer the logical filename's extension (LiveView temp files have none).
+    ext =
+      case Path.extname(filename) do
+        "" -> source_path |> Path.extname() |> String.downcase()
+        e -> String.downcase(e)
+      end
+
     key = "#{Date.utc_today().year}/#{Ecto.UUID.generate()}#{ext}"
     dest = Path.join(uploads_dir(), key)
     File.mkdir_p!(Path.dirname(dest))
