@@ -105,6 +105,96 @@ defmodule Bbh.Content do
 
   def change_article(%Article{} = article, attrs \\ %{}), do: Article.changeset(article, attrs)
 
+  ## Admin CRUD — pages
+
+  def list_pages, do: Repo.all(from p in Page, order_by: [asc: p.sort_order, asc: p.title])
+  def count_pages, do: Repo.aggregate(Page, :count, :id)
+  def get_page!(id), do: Repo.get!(Page, id)
+  def create_page(attrs), do: %Page{} |> Page.changeset(attrs) |> Repo.insert()
+  def update_page(%Page{} = page, attrs), do: page |> Page.changeset(attrs) |> Repo.update()
+  def change_page(%Page{} = page, attrs \\ %{}), do: Page.changeset(page, attrs)
+
+  @doc "Delete a page along with its page_blocks and the concrete (polymorphic) block rows."
+  def delete_page(%Page{} = page) do
+    blocks = load_blocks(page)
+
+    Repo.transaction(fn ->
+      Enum.each(blocks, fn {pb, _} -> delete_block!(pb) end)
+      Repo.delete!(page)
+    end)
+  end
+
+  ## Admin — page blocks
+
+  @block_defaults %{
+    "richtext" => %{body: "<p></p>"},
+    "alert" => %{icon: "info", body: "<p></p>"},
+    "media_card" => %{image_position: "right"},
+    "image_gallery" => %{layout: "grid", lightbox: true},
+    "person_list" => %{display_style: "table", filter_honorary: "all", filter_roles: []}
+  }
+
+  @doc "Append a new, empty block of the given type to a page."
+  def add_block(%Page{} = page, type) when is_map_key(@block_defaults, type) do
+    schema = Blocks.schema_for(type)
+
+    Repo.transaction(fn ->
+      block = Repo.insert!(struct(schema, Map.fetch!(@block_defaults, type)))
+
+      Repo.insert!(%PageBlock{
+        page_id: page.id,
+        position: next_position(page.id),
+        block_type: type,
+        block_id: block.id
+      })
+    end)
+  end
+
+  @doc "Update the concrete block referenced by a page_block."
+  def update_block(%PageBlock{} = pb, attrs) do
+    schema = Blocks.schema_for(pb.block_type)
+    block = Repo.get!(schema, pb.block_id)
+    block |> schema.changeset(attrs) |> Repo.update()
+  end
+
+  @doc "Delete a page_block and its concrete block."
+  def delete_block(%PageBlock{} = pb) do
+    Repo.transaction(fn -> delete_block!(pb) end)
+  end
+
+  @doc "Swap a block with its neighbour in the given direction (:up | :down)."
+  def move_block(page_id, %PageBlock{} = pb, direction) do
+    blocks = Repo.all(from x in PageBlock, where: x.page_id == ^page_id, order_by: x.position)
+    idx = Enum.find_index(blocks, &(&1.id == pb.id))
+    swap = if direction == :up, do: idx - 1, else: idx + 1
+
+    if idx && swap >= 0 and swap < length(blocks) do
+      other = Enum.at(blocks, swap)
+
+      Repo.transaction(fn ->
+        set_position!(pb.id, other.position)
+        set_position!(other.id, pb.position)
+      end)
+    end
+
+    :ok
+  end
+
+  defp delete_block!(%PageBlock{} = pb) do
+    schema = Blocks.schema_for(pb.block_type)
+    if block = Repo.get(schema, pb.block_id), do: Repo.delete!(block)
+    Repo.delete!(pb)
+  end
+
+  defp next_position(page_id) do
+    (Repo.one(from pb in PageBlock, where: pb.page_id == ^page_id, select: max(pb.position)) || -1) +
+      1
+  end
+
+  defp set_position!(pb_id, position) do
+    Repo.update_all(from(x in PageBlock, where: x.id == ^pb_id), set: [position: position])
+  end
+
   # Minimal offset pagination returning a map the templates/Pagination component use.
   defp paginate(query, page, per_page, opts) do
     page = max(page, 1)

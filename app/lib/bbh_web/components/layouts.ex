@@ -196,6 +196,7 @@ defmodule BbhWeb.Layouts do
     {:events, "/admin/termine", "Termine"},
     {:locations, "/admin/orte", "Orte"},
     {:people, "/admin/personen", "Personen"},
+    {:pages, "/admin/seiten", "Seiten"},
     {:media, "/admin/medien", "Medien"}
   ]
 
