@@ -86,6 +86,25 @@ defmodule Bbh.Content do
   defp preload_block(query, "image_gallery"), do: preload(query, files: :media)
   defp preload_block(query, _), do: query
 
+  ## Admin CRUD — articles
+
+  def list_articles do
+    Repo.all(from a in Article, order_by: [desc: a.date_published])
+  end
+
+  def count_articles, do: Repo.aggregate(Article, :count, :id)
+
+  def get_article!(id), do: Article |> Repo.get!(id) |> Repo.preload([:throne, images: :media])
+
+  def create_article(attrs), do: %Article{} |> Article.changeset(attrs) |> Repo.insert()
+
+  def update_article(%Article{} = article, attrs),
+    do: article |> Article.changeset(attrs) |> Repo.update()
+
+  def delete_article(%Article{} = article), do: Repo.delete(article)
+
+  def change_article(%Article{} = article, attrs \\ %{}), do: Article.changeset(article, attrs)
+
   # Minimal offset pagination returning a map the templates/Pagination component use.
   defp paginate(query, page, per_page, opts) do
     page = max(page, 1)

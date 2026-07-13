@@ -66,6 +66,19 @@ defmodule BbhWeb.Router do
     end
   end
 
+  ## Admin area (staff only)
+
+  scope "/admin", BbhWeb.Admin do
+    pipe_through [:browser, :require_authenticated_user]
+
+    live_session :admin, on_mount: [{BbhWeb.UserAuth, :require_authenticated}] do
+      live "/", DashboardLive, :index
+      live "/artikel", ArticleLive.Index, :index
+      live "/artikel/neu", ArticleLive.Form, :new
+      live "/artikel/:id/bearbeiten", ArticleLive.Form, :edit
+    end
+  end
+
   ## Authentication routes
 
   scope "/", BbhWeb do

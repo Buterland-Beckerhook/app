@@ -230,6 +230,25 @@ defmodule BbhWeb.UserAuth do
     end
   end
 
+  def on_mount(:require_admin, params, session, socket) do
+    case on_mount(:require_authenticated, params, session, socket) do
+      {:cont, socket} ->
+        if Accounts.User.admin?(socket.assigns.current_scope.user) do
+          {:cont, socket}
+        else
+          socket =
+            socket
+            |> Phoenix.LiveView.put_flash(:error, "Nur für Administratoren.")
+            |> Phoenix.LiveView.redirect(to: ~p"/admin")
+
+          {:halt, socket}
+        end
+
+      halted ->
+        halted
+    end
+  end
+
   def on_mount(:require_sudo_mode, _params, session, socket) do
     socket = mount_current_scope(socket, session)
 
@@ -256,13 +275,8 @@ defmodule BbhWeb.UserAuth do
     end)
   end
 
-  @doc "Returns the path to redirect to after log in."
-  # the user was already logged in, redirect to settings
-  def signed_in_path(%Plug.Conn{assigns: %{current_scope: %Scope{user: %Accounts.User{}}}}) do
-    ~p"/users/settings"
-  end
-
-  def signed_in_path(_), do: ~p"/"
+  @doc "Returns the path to redirect to after log in. All accounts are staff → admin area."
+  def signed_in_path(_conn), do: ~p"/admin"
 
   @doc """
   Plug for routes that require the user to be authenticated.

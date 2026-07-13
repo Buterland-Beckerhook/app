@@ -189,6 +189,63 @@ defmodule BbhWeb.Layouts do
   defp child_active?(path, href, parent_href) when href == parent_href, do: path == href
   defp child_active?(path, href, _parent), do: path == href or String.starts_with?(path, href <> "/")
 
+  # Sections are added here as their CRUD is built.
+  @admin_nav [
+    {:dashboard, "/admin", "Übersicht"},
+    {:articles, "/admin/artikel", "Artikel"}
+  ]
+
+  @doc "Admin area layout: mobile-first drawer nav + content."
+  attr :flash, :map, required: true
+  attr :current_scope, :map, required: true
+  attr :active, :atom, default: nil, doc: "the active nav section"
+  slot :inner_block, required: true
+
+  def admin(assigns) do
+    assigns = assign(assigns, :nav, @admin_nav)
+
+    ~H"""
+    <div class="drawer lg:drawer-open">
+      <input id="admin-drawer" type="checkbox" class="drawer-toggle" />
+      <div class="drawer-content flex min-h-screen flex-col bg-base-100">
+        <header class="navbar border-b border-base-300 bg-base-100 lg:hidden">
+          <label for="admin-drawer" class="btn btn-square btn-ghost" aria-label="Menü">
+            <.icon name="hero-bars-3" class="size-6" />
+          </label>
+          <span class="font-logo px-2 text-lg text-primary">Verwaltung</span>
+        </header>
+        <main class="flex-1 p-4 sm:p-6">
+          <.flash_group flash={@flash} />
+          {render_slot(@inner_block)}
+        </main>
+      </div>
+
+      <div class="drawer-side z-40">
+        <label for="admin-drawer" class="drawer-overlay" aria-label="Menü schließen"></label>
+        <aside class="flex min-h-full w-64 flex-col bg-base-200">
+          <a href={~p"/admin"} class="font-logo block px-4 py-4 text-xl text-primary">
+            Buterland-Beckerhook
+          </a>
+          <ul class="menu flex-1 px-2">
+            <li :for={{key, href, label} <- @nav}>
+              <.link navigate={href} class={@active == key && "menu-active font-semibold"}>
+                {label}
+              </.link>
+            </li>
+          </ul>
+          <div class="border-t border-base-300 p-4 text-sm">
+            <p class="truncate text-base-content/70">{@current_scope.user.email}</p>
+            <div class="mt-2 flex items-center justify-between">
+              <a href={~p"/"} class="link link-hover">Zur Website</a>
+              <.link href={~p"/users/log-out"} method="delete" class="link link-hover">Abmelden</.link>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+    """
+  end
+
   @doc """
   Shows the flash group with standard titles and content.
 
