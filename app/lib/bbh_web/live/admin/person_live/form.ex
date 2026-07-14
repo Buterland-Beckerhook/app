@@ -84,7 +84,7 @@ defmodule BbhWeb.Admin.PersonLive.Form do
           <.input field={@form[:death_date]} label="Gestorben" />
         </div>
         <.input field={@form[:sort_order]} type="number" label="Sortierung" />
-        <.input field={@form[:biography]} type="textarea" label="Biografie (HTML)" rows="6" />
+        <.rich_text field={@form[:biography]} label="Biografie" />
 
         <div class="flex gap-2">
           <.button variant="primary" phx-disable-with="Speichern…">Speichern</.button>

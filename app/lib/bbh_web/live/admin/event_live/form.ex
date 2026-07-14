@@ -127,7 +127,7 @@ defmodule BbhWeb.Admin.EventLive.Form do
         <.input field={@form[:announce]} type="checkbox" label="Öffentlich ankündigen" />
         <.input field={@form[:enable_ical]} type="checkbox" label="iCal-Export aktivieren" />
         <.input field={@form[:cancel_reason]} label="Grund bei Absage" />
-        <.input field={@form[:body]} type="textarea" label="Beschreibung (HTML)" rows="8" />
+        <.rich_text field={@form[:body]} label="Beschreibung" />
 
         <div class="flex gap-2">
           <.button variant="primary" phx-disable-with="Speichern…">Speichern</.button>

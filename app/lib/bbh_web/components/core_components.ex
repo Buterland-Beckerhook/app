@@ -302,6 +302,33 @@ defmodule BbhWeb.CoreComponents do
     """
   end
 
+  @doc """
+  Renders a Trix rich text editor bound to a form field. The field value is HTML.
+
+  Trix keeps the hidden input in sync; the `TrixEditor` hook notifies LiveView on change.
+  """
+  attr :field, Phoenix.HTML.FormField, required: true
+  attr :label, :string, default: nil
+
+  def rich_text(assigns) do
+    ~H"""
+    <div class="fieldset mb-2">
+      <span :if={@label} class="label mb-1">{@label}</span>
+      <div id={"#{@field.id}-rt"} phx-hook="TrixEditor" phx-update="ignore">
+        <input
+          type="hidden"
+          name={@field.name}
+          id={@field.id}
+          value={Phoenix.HTML.Form.normalize_value("hidden", @field.value)}
+        />
+        <trix-editor input={@field.id} class="trix-content rounded border border-base-300 bg-base-100">
+        </trix-editor>
+      </div>
+      <.error :for={msg <- Enum.map(@field.errors, &translate_error/1)}>{msg}</.error>
+    </div>
+    """
+  end
+
   # Helper used by inputs to generate form errors
   defp error(assigns) do
     ~H"""

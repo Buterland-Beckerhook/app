@@ -173,7 +173,7 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
           label="Tags (kommagetrennt)"
         />
         <.input field={@form[:no_article]} type="checkbox" label="Nur Thron-Anzeige (kein Artikel)" />
-        <.input field={@form[:body]} type="textarea" label="Text (HTML)" rows="12" />
+        <.rich_text field={@form[:body]} label="Text" />
 
         <div class="flex gap-2">
           <.button variant="primary" phx-disable-with="Speichern…">Speichern</.button>

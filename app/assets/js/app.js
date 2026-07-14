@@ -24,12 +24,29 @@ import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/bbh"
 import topbar from "../vendor/topbar"
+// Trix rich text editor (self-hosted; registers the <trix-editor> element).
+import "../vendor/trix/trix.umd.min.js"
+
+// Sync a Trix editor's content into its hidden input and notify LiveView.
+const Hooks = {
+  TrixEditor: {
+    mounted() {
+      const editor = this.el.querySelector("trix-editor")
+      const input = this.el.querySelector("input[type=hidden]")
+      // We don't support file attachments in the club editor.
+      editor.addEventListener("trix-file-accept", (e) => e.preventDefault())
+      editor.addEventListener("trix-change", () => {
+        input.dispatchEvent(new Event("input", {bubbles: true}))
+      })
+    },
+  },
+}
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks},
+  hooks: {...colocatedHooks, ...Hooks},
 })
 
 // Show progress bar on live navigation and form submits

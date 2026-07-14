@@ -182,14 +182,14 @@ defmodule BbhWeb.Admin.PageLive.Form do
 
   defp block_fields(%{type: "richtext"} = assigns) do
     ~H"""
-    <.input field={@f[:body]} type="textarea" label="Text (HTML)" rows="6" />
+    <.rich_text field={@f[:body]} label="Text" />
     """
   end
 
   defp block_fields(%{type: "alert"} = assigns) do
     ~H"""
     <.input field={@f[:icon]} type="select" label="Symbol" options={[{"Info", "info"}, {"Warnung", "warning"}, {"Erfolg", "success"}, {"Gefahr", "danger"}]} />
-    <.input field={@f[:body]} type="textarea" label="Text (HTML)" rows="4" />
+    <.rich_text field={@f[:body]} label="Text" />
     """
   end
 
@@ -198,7 +198,7 @@ defmodule BbhWeb.Admin.PageLive.Form do
     <.input field={@f[:title]} label="Titel" />
     <.input field={@f[:subtitle]} label="Untertitel" />
     <.input field={@f[:image_position]} type="select" label="Bildposition" options={[{"Rechts", "right"}, {"Links", "left"}]} />
-    <.input field={@f[:body]} type="textarea" label="Text (HTML)" rows="4" />
+    <.rich_text field={@f[:body]} label="Text" />
     <p class="text-xs text-base-content/50">Bildauswahl folgt über die Medienbibliothek.</p>
     """
   end
@@ -223,7 +223,8 @@ defmodule BbhWeb.Admin.PageLive.Form do
   end
 
   defp block_form(pb, block) do
-    to_form(Blocks.schema_for(pb.block_type).changeset(block, %{}), as: "block")
+    # Namespace field ids per block so multiple Trix editors don't collide.
+    to_form(Blocks.schema_for(pb.block_type).changeset(block, %{}), as: "block", id: "block-#{pb.id}")
   end
 
   defp block_label("richtext"), do: "Text"

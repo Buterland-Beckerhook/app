@@ -102,9 +102,17 @@
 /* Make LiveView wrapper divs transparent for layout */
 [data-phx-session], [data-phx-teleported-src] { display: contents }
 
+/* Trix rich text editor styles (self-hosted). */
+@import "../vendor/trix/trix.css";
+
 /* Club logo font (Oranienbaum, self-hosted later; serif fallback for now). */
 @theme {
   --font-logo: "Oranienbaum", ui-serif, Georgia, serif;
+}
+
+/* Give the Trix editor a sensible min height in the admin. */
+trix-editor {
+  min-height: 8rem;
 }
 
 /* This file is for your main application CSS */
