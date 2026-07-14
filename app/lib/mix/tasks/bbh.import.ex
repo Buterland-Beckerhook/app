@@ -93,7 +93,12 @@ defmodule Mix.Tasks.Bbh.Import do
 
   defp import_person(role_key, %{} = val, default, i) do
     safe("person", fn ->
-      role = Map.get(@role_map, String.downcase(role_key), if(default == "offiziere", do: "offizier", else: "vorstand"))
+      role =
+        Map.get(
+          @role_map,
+          String.downcase(role_key),
+          if(default == "offiziere", do: "offizier", else: "vorstand")
+        )
 
       %Person{}
       |> Person.changeset(%{
@@ -127,7 +132,11 @@ defmodule Mix.Tasks.Bbh.Import do
         |> Event.changeset(%{
           "title" => fm["title"],
           "slug" => Path.basename(file, ".md") |> slugify(),
-          "status" => if(truthy(fm["canceled"]), do: "canceled", else: if(truthy(fm["draft"]), do: "draft", else: "published")),
+          "status" =>
+            if(truthy(fm["canceled"]),
+              do: "canceled",
+              else: if(truthy(fm["draft"]), do: "draft", else: "published")
+            ),
           "starts_at" => start,
           "ends_at" => parse_dt(fm["end"]),
           "location_id" => location_id,
@@ -233,7 +242,9 @@ defmodule Mix.Tasks.Bbh.Import do
             "copyright" => get_in(res, ["params", "copy"]) || "Buterland-Beckerhook e.V.",
             "sort" => i,
             "use_as_throne_picture" => String.starts_with?(name, "thron"),
-            "use_as_article_image" => String.starts_with?(name, "bild") or (i == 0 and not String.starts_with?(name, "thron"))
+            "use_as_article_image" =>
+              String.starts_with?(name, "bild") or
+                (i == 0 and not String.starts_with?(name, "thron"))
           })
           |> Repo.insert!()
         end
@@ -243,7 +254,10 @@ defmodule Mix.Tasks.Bbh.Import do
 
   ## Pages
 
-  @page_map %{"impressum" => {"impressum", "Impressum"}, "datenschutzerklaerung" => {"datenschutz", "Datenschutz"}}
+  @page_map %{
+    "impressum" => {"impressum", "Impressum"},
+    "datenschutzerklaerung" => {"datenschutz", "Datenschutz"}
+  }
 
   defp import_pages(src) do
     ["impressum.md", "datenschutzerklaerung.md"]
@@ -266,7 +280,12 @@ defmodule Mix.Tasks.Bbh.Import do
 
           block = Repo.insert!(%Blocks.RichText{body: to_html(body)})
 
-          Repo.insert!(%PageBlock{page_id: page.id, position: 0, block_type: "richtext", block_id: block.id})
+          Repo.insert!(%PageBlock{
+            page_id: page.id,
+            position: 0,
+            block_type: "richtext",
+            block_id: block.id
+          })
         end)
       end
     end)
@@ -310,7 +329,9 @@ defmodule Mix.Tasks.Bbh.Import do
 
   defp parse_years(y) when is_binary(y) do
     case Regex.run(~r/(\d{4})\s*[\/\-]\s*(\d{4})/, y) do
-      [_, a, b] -> {String.to_integer(a), String.to_integer(b)}
+      [_, a, b] ->
+        {String.to_integer(a), String.to_integer(b)}
+
       _ ->
         case Regex.run(~r/(\d{4})/, y) do
           [_, a] -> {String.to_integer(a), nil}
@@ -325,7 +346,9 @@ defmodule Mix.Tasks.Bbh.Import do
   defp slugify(s) do
     s
     |> String.downcase()
-    |> String.replace(~r/[äöüß]/u, fn c -> %{"ä" => "ae", "ö" => "oe", "ü" => "ue", "ß" => "ss"}[c] end)
+    |> String.replace(~r/[äöüß]/u, fn c ->
+      %{"ä" => "ae", "ö" => "oe", "ü" => "ue", "ß" => "ss"}[c]
+    end)
     |> String.replace(~r/[^a-z0-9]+/, "-")
     |> String.trim("-")
   end

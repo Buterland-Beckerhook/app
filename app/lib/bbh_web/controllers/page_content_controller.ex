@@ -53,7 +53,11 @@ defmodule BbhWeb.PageContentController do
   defp render_static(conn, slug, title) do
     case Bbh.Content.get_published_page(slug) do
       {page, blocks} ->
-        render(conn, :page, page_title: page.title || title, title: page.title || title, blocks: blocks)
+        render(conn, :page,
+          page_title: page.title || title,
+          title: page.title || title,
+          blocks: blocks
+        )
 
       nil ->
         not_found(conn)

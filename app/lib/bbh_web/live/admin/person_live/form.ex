@@ -52,7 +52,9 @@ defmodule BbhWeb.Admin.PersonLive.Form do
     case Club.update_person(socket.assigns.person, params) do
       {:ok, _} ->
         {:noreply,
-         socket |> put_flash(:info, "Person gespeichert.") |> push_navigate(to: ~p"/admin/personen")}
+         socket
+         |> put_flash(:info, "Person gespeichert.")
+         |> push_navigate(to: ~p"/admin/personen")}
 
       {:error, changeset} ->
         {:noreply, assign_form(socket, changeset)}
@@ -67,7 +69,13 @@ defmodule BbhWeb.Admin.PersonLive.Form do
     <Layouts.admin flash={@flash} current_scope={@current_scope} active={:people}>
       <.header>{@page_title}</.header>
 
-      <.form for={@form} id="person-form" phx-change="validate" phx-submit="save" class="mt-6 space-y-4">
+      <.form
+        for={@form}
+        id="person-form"
+        phx-change="validate"
+        phx-submit="save"
+        class="mt-6 space-y-4"
+      >
         <.input field={@form[:name]} label="Name" required />
         <.input field={@form[:role]} type="select" label="Rolle" options={Club.role_options()} />
         <.input field={@form[:honorary_member]} type="checkbox" label="Ehrenmitglied" />

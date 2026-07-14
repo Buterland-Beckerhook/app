@@ -108,7 +108,12 @@ defmodule Bbh.Content do
   ## Admin — article images
 
   def list_article_images(article_id) do
-    Repo.all(from i in ArticleImage, where: i.article_id == ^article_id, order_by: i.sort, preload: :media)
+    Repo.all(
+      from i in ArticleImage,
+        where: i.article_id == ^article_id,
+        order_by: i.sort,
+        preload: :media
+    )
   end
 
   def get_article_image!(id), do: ArticleImage |> Repo.get!(id) |> Repo.preload(:media)
@@ -130,7 +135,8 @@ defmodule Bbh.Content do
   def delete_article_image(%ArticleImage{} = image), do: Repo.delete(image)
 
   defp next_image_sort(article_id) do
-    (Repo.one(from i in ArticleImage, where: i.article_id == ^article_id, select: max(i.sort)) || -1) +
+    (Repo.one(from i in ArticleImage, where: i.article_id == ^article_id, select: max(i.sort)) ||
+       -1) +
       1
   end
 
@@ -204,7 +210,7 @@ defmodule Bbh.Content do
     idx = Enum.find_index(blocks, &(&1.id == pb.id))
     swap = if direction == :up, do: idx - 1, else: idx + 1
 
-    if idx && swap >= 0 and swap < length(blocks) do
+    if (idx && swap >= 0) and swap < length(blocks) do
       other = Enum.at(blocks, swap)
 
       Repo.transaction(fn ->

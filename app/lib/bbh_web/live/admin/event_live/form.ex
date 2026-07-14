@@ -40,7 +40,9 @@ defmodule BbhWeb.Admin.EventLive.Form do
   @impl true
   def handle_event("validate", %{"event" => params}, socket) do
     changeset =
-      socket.assigns.event |> Calendar.change_event(normalize(params)) |> Map.put(:action, :validate)
+      socket.assigns.event
+      |> Calendar.change_event(normalize(params))
+      |> Map.put(:action, :validate)
 
     {:noreply, assign_form(socket, changeset)}
   end
@@ -70,7 +72,9 @@ defmodule BbhWeb.Admin.EventLive.Form do
         maybe_notify(old_status, event)
 
         {:noreply,
-         socket |> put_flash(:info, "Termin gespeichert.") |> push_navigate(to: ~p"/admin/termine")}
+         socket
+         |> put_flash(:info, "Termin gespeichert.")
+         |> push_navigate(to: ~p"/admin/termine")}
 
       {:error, changeset} ->
         {:noreply, assign_form(socket, changeset)}
@@ -78,10 +82,16 @@ defmodule BbhWeb.Admin.EventLive.Form do
   end
 
   # Notify subscribers the first time a public event becomes published.
-  defp maybe_notify(old_status, %Event{status: "published", announce: true, calendar: nil} = event)
+  defp maybe_notify(
+         old_status,
+         %Event{status: "published", announce: true, calendar: nil} = event
+       )
        when old_status != "published" do
     url = url(~p"/termine/#{event.year}/#{event.slug}")
-    Task.start(fn -> Bbh.Notifications.notify("termine", %{title: "Neuer Termin", body: event.title, url: url}) end)
+
+    Task.start(fn ->
+      Bbh.Notifications.notify("termine", %{title: "Neuer Termin", body: event.title, url: url})
+    end)
   end
 
   defp maybe_notify(_old_status, _event), do: :ok
@@ -117,7 +127,13 @@ defmodule BbhWeb.Admin.EventLive.Form do
     <Layouts.admin flash={@flash} current_scope={@current_scope} active={:events}>
       <.header>{@page_title}</.header>
 
-      <.form for={@form} id="event-form" phx-change="validate" phx-submit="save" class="mt-6 space-y-4">
+      <.form
+        for={@form}
+        id="event-form"
+        phx-change="validate"
+        phx-submit="save"
+        class="mt-6 space-y-4"
+      >
         <.input field={@form[:title]} label="Titel" required />
         <.input field={@form[:slug]} label="Slug" required />
         <.input field={@form[:status]} type="select" label="Status" options={statuses()} />

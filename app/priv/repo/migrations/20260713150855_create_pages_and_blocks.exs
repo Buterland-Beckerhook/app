@@ -49,7 +49,10 @@ defmodule Bbh.Repo.Migrations.CreatePagesAndBlocks do
 
     create table(:block_gallery_files, primary_key: false) do
       add :id, :binary_id, primary_key: true
-      add :gallery_id, references(:block_image_gallery, type: :binary_id, on_delete: :delete_all), null: false
+
+      add :gallery_id, references(:block_image_gallery, type: :binary_id, on_delete: :delete_all),
+        null: false
+
       add :media_id, references(:media, type: :binary_id, on_delete: :delete_all), null: false
       add :title, :string
       add :copyright, :string

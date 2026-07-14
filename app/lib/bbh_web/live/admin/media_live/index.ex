@@ -40,8 +40,7 @@ defmodule BbhWeb.Admin.MediaLive.Index do
       {:ok, entry.uuid}
     end)
 
-    {:noreply,
-     socket |> put_flash(:info, "Bilder hochgeladen.") |> reload_items()}
+    {:noreply, socket |> put_flash(:info, "Bilder hochgeladen.") |> reload_items()}
   end
 
   def handle_event("delete", %{"id" => id}, socket) do
@@ -51,7 +50,12 @@ defmodule BbhWeb.Admin.MediaLive.Index do
   end
 
   defp reload_items(socket),
-    do: assign(socket, :items, Media.list_uploads(search: socket.assigns.search, sort: socket.assigns.sort))
+    do:
+      assign(
+        socket,
+        :items,
+        Media.list_uploads(search: socket.assigns.search, sort: socket.assigns.sort)
+      )
 
   @impl true
   def render(assigns) do

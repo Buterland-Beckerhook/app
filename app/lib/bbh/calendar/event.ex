@@ -61,7 +61,10 @@ defmodule Bbh.Calendar.Event do
     |> unique_constraint([:slug, :year], name: :events_slug_year_unique)
     |> foreign_key_constraint(:location_id)
     |> foreign_key_constraint(:parent_id)
-    |> check_constraint(:ends_at, name: :events_end_after_start, message: "muss nach dem Beginn liegen")
+    |> check_constraint(:ends_at,
+      name: :events_end_after_start,
+      message: "muss nach dem Beginn liegen"
+    )
   end
 
   defp put_year(changeset) do

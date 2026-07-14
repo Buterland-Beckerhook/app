@@ -22,7 +22,12 @@ defmodule BbhWeb.UserLive.Totp do
       )
     else
       secret = Accounts.generate_totp_secret()
-      qr = secret |> then(&Accounts.totp_uri(user, &1)) |> EQRCode.encode() |> EQRCode.svg(width: 200)
+
+      qr =
+        secret
+        |> then(&Accounts.totp_uri(user, &1))
+        |> EQRCode.encode()
+        |> EQRCode.svg(width: 200)
 
       assign(socket,
         page_title: "Zwei-Faktor",

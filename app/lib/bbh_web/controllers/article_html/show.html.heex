@@ -33,7 +33,10 @@
       {Phoenix.HTML.raw(@article.body)}
     </div>
 
-    <section :if={@article.throne} class="mt-8 rounded-lg border border-gray-200 p-4 dark:border-zinc-700">
+    <section
+      :if={@article.throne}
+      class="mt-8 rounded-lg border border-gray-200 p-4 dark:border-zinc-700"
+    >
       <.throne_table throne={@article.throne} />
     </section>
 

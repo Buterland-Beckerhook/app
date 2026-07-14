@@ -23,7 +23,10 @@ defmodule BbhWeb.Admin.DashboardLive do
       </.header>
 
       <div class="mt-6 grid grid-cols-2 gap-4 md:grid-cols-4">
-        <.link navigate={~p"/admin/artikel"} class="rounded-box border border-base-300 bg-base-200 p-4 hover:border-primary">
+        <.link
+          navigate={~p"/admin/artikel"}
+          class="rounded-box border border-base-300 bg-base-200 p-4 hover:border-primary"
+        >
           <div class="text-3xl font-semibold text-primary">{@stats.articles}</div>
           <div class="text-sm text-base-content/70">Artikel</div>
         </.link>

@@ -38,7 +38,8 @@ defmodule BbhWeb.Admin.LocationLive.Form do
   defp save(socket, :new, params) do
     case Calendar.create_location(params) do
       {:ok, _} ->
-        {:noreply, socket |> put_flash(:info, "Ort erstellt.") |> push_navigate(to: ~p"/admin/orte")}
+        {:noreply,
+         socket |> put_flash(:info, "Ort erstellt.") |> push_navigate(to: ~p"/admin/orte")}
 
       {:error, changeset} ->
         {:noreply, assign_form(socket, changeset)}
@@ -48,14 +49,16 @@ defmodule BbhWeb.Admin.LocationLive.Form do
   defp save(socket, :edit, params) do
     case Calendar.update_location(socket.assigns.location, params) do
       {:ok, _} ->
-        {:noreply, socket |> put_flash(:info, "Ort gespeichert.") |> push_navigate(to: ~p"/admin/orte")}
+        {:noreply,
+         socket |> put_flash(:info, "Ort gespeichert.") |> push_navigate(to: ~p"/admin/orte")}
 
       {:error, changeset} ->
         {:noreply, assign_form(socket, changeset)}
     end
   end
 
-  defp assign_form(socket, changeset), do: assign(socket, :form, to_form(changeset, as: "location"))
+  defp assign_form(socket, changeset),
+    do: assign(socket, :form, to_form(changeset, as: "location"))
 
   @impl true
   def render(assigns) do
@@ -63,7 +66,13 @@ defmodule BbhWeb.Admin.LocationLive.Form do
     <Layouts.admin flash={@flash} current_scope={@current_scope} active={:locations}>
       <.header>{@page_title}</.header>
 
-      <.form for={@form} id="location-form" phx-change="validate" phx-submit="save" class="mt-6 space-y-4">
+      <.form
+        for={@form}
+        id="location-form"
+        phx-change="validate"
+        phx-submit="save"
+        class="mt-6 space-y-4"
+      >
         <.input field={@form[:key]} label="Schlüssel" required />
         <.input field={@form[:name]} label="Name" required />
         <.input field={@form[:street]} label="Straße" />

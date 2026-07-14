@@ -27,7 +27,12 @@ defmodule BbhWeb.Admin.UserLive.Index do
          |> load_users()}
 
       {:error, _changeset} ->
-        {:noreply, put_flash(socket, :error, "Einladung fehlgeschlagen (E-Mail ungültig oder bereits vergeben).")}
+        {:noreply,
+         put_flash(
+           socket,
+           :error,
+           "Einladung fehlgeschlagen (E-Mail ungültig oder bereits vergeben)."
+         )}
     end
   end
 
@@ -56,7 +61,12 @@ defmodule BbhWeb.Admin.UserLive.Index do
         <:subtitle>Zugänge einladen und verwalten (nur Administratoren).</:subtitle>
       </.header>
 
-      <.form for={@invite_form} id="invite-form" phx-submit="invite" class="mt-6 flex flex-wrap items-end gap-2">
+      <.form
+        for={@invite_form}
+        id="invite-form"
+        phx-submit="invite"
+        class="mt-6 flex flex-wrap items-end gap-2"
+      >
         <.input field={@invite_form[:email]} type="email" label="E-Mail einladen" required />
         <.input field={@invite_form[:role]} type="select" label="Rolle" options={@roles} />
         <.button variant="primary" phx-disable-with="Sende…">Einladen</.button>
@@ -68,7 +78,9 @@ defmodule BbhWeb.Admin.UserLive.Index do
           <form phx-change="set_role">
             <input type="hidden" name="user_id" value={u.id} />
             <select name="role" class="select select-bordered select-sm">
-              <option :for={{label, value} <- @roles} value={value} selected={u.role == value}>{label}</option>
+              <option :for={{label, value} <- @roles} value={value} selected={u.role == value}>
+                {label}
+              </option>
             </select>
           </form>
         </:col>

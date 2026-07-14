@@ -67,7 +67,9 @@ defmodule Bbh.Accounts do
 
   @doc "otpauth:// URI for authenticator apps (QR code)."
   def totp_uri(%User{email: email}, secret) do
-    NimbleTOTP.otpauth_uri("Buterland-Beckerhook:#{email}", secret, issuer: "Buterland-Beckerhook")
+    NimbleTOTP.otpauth_uri("Buterland-Beckerhook:#{email}", secret,
+      issuer: "Buterland-Beckerhook"
+    )
   end
 
   @doc "Validate a TOTP code against a raw secret."

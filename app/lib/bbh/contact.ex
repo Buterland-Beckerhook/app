@@ -18,7 +18,11 @@ defmodule Bbh.Contact do
     errors =
       %{}
       |> put_if(name == "", :name, "Bitte geben Sie Ihren Namen an.")
-      |> put_if(not valid_email?(email), :email, "Bitte geben Sie eine gültige E-Mail-Adresse an.")
+      |> put_if(
+        not valid_email?(email),
+        :email,
+        "Bitte geben Sie eine gültige E-Mail-Adresse an."
+      )
       |> put_if(message == "", :message, "Bitte geben Sie eine Nachricht ein.")
       |> put_if(not consent, :privacy, "Bitte stimmen Sie der Datenschutzerklärung zu.")
 
@@ -43,6 +47,8 @@ defmodule Bbh.Contact do
   defp put_if(map, true, key, msg), do: Map.put(map, key, msg)
   defp put_if(map, false, _key, _msg), do: map
 
-  defp recipient, do: Application.get_env(:bbh, :contact_recipient, "info@buterland-beckerhook.de")
+  defp recipient,
+    do: Application.get_env(:bbh, :contact_recipient, "info@buterland-beckerhook.de")
+
   defp sender, do: Application.get_env(:bbh, :contact_sender, "noreply@buterland-beckerhook.de")
 end

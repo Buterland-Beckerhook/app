@@ -18,7 +18,10 @@ defmodule BbhWeb.EventHTML do
           )
       }
       |> maybe_put("endDate", event.ends_at && DateTime.to_iso8601(event.ends_at))
-      |> maybe_put("location", event.location && %{"@type" => "Place", "name" => event.location.name})
+      |> maybe_put(
+        "location",
+        event.location && %{"@type" => "Place", "name" => event.location.name}
+      )
       |> Jason.encode!()
 
     Phoenix.HTML.raw(~s(<script type="application/ld+json">) <> json <> "</script>")

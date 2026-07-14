@@ -52,8 +52,11 @@ defmodule BbhWeb.Admin.PageLive.Form do
     pb = find_pb(socket, pb_id)
 
     case Content.update_block(pb, normalize_block(pb.block_type, params)) do
-      {:ok, _} -> {:noreply, socket |> put_flash(:info, "Block gespeichert.") |> reload_blocks()}
-      {:error, _} -> {:noreply, put_flash(socket, :error, "Block konnte nicht gespeichert werden.")}
+      {:ok, _} ->
+        {:noreply, socket |> put_flash(:info, "Block gespeichert.") |> reload_blocks()}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Block konnte nicht gespeichert werden.")}
     end
   end
 
@@ -100,7 +103,8 @@ defmodule BbhWeb.Admin.PageLive.Form do
     Enum.find_value(socket.assigns.blocks, fn {pb, _} -> pb.id == pb_id && pb end)
   end
 
-  defp assign_meta_form(socket, changeset), do: assign(socket, :form, to_form(changeset, as: "page"))
+  defp assign_meta_form(socket, changeset),
+    do: assign(socket, :form, to_form(changeset, as: "page"))
 
   # Per-type param massaging before the block changeset.
   defp normalize_block("person_list", params) do
@@ -126,7 +130,13 @@ defmodule BbhWeb.Admin.PageLive.Form do
         </:actions>
       </.header>
 
-      <.form for={@form} id="page-form" phx-change="validate_page" phx-submit="save_page" class="mt-6 space-y-4">
+      <.form
+        for={@form}
+        id="page-form"
+        phx-change="validate_page"
+        phx-submit="save_page"
+        class="mt-6 space-y-4"
+      >
         <.input field={@form[:title]} label="Titel" required />
         <.input field={@form[:slug]} label="Slug" required />
         <.input field={@form[:status]} type="select" label="Status" options={@statuses} />
@@ -145,9 +155,29 @@ defmodule BbhWeb.Admin.PageLive.Form do
             <div class="mb-3 flex items-center justify-between">
               <span class="badge badge-neutral">{block_label(pb.block_type)}</span>
               <div class="flex gap-1">
-                <button type="button" class="btn btn-ghost btn-xs" phx-click="move" phx-value-pb_id={pb.id} phx-value-dir="up" disabled={i == 0}>↑</button>
-                <button type="button" class="btn btn-ghost btn-xs" phx-click="move" phx-value-pb_id={pb.id} phx-value-dir="down" disabled={i == length(@blocks) - 1}>↓</button>
-                <button type="button" class="btn btn-ghost btn-xs text-error" phx-click="delete_block" phx-value-pb_id={pb.id} data-confirm="Block löschen?">✕</button>
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-xs"
+                  phx-click="move"
+                  phx-value-pb_id={pb.id}
+                  phx-value-dir="up"
+                  disabled={i == 0}
+                >↑</button>
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-xs"
+                  phx-click="move"
+                  phx-value-pb_id={pb.id}
+                  phx-value-dir="down"
+                  disabled={i == length(@blocks) - 1}
+                >↓</button>
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-xs text-error"
+                  phx-click="delete_block"
+                  phx-value-pb_id={pb.id}
+                  data-confirm="Block löschen?"
+                >✕</button>
               </div>
             </div>
 
@@ -188,7 +218,12 @@ defmodule BbhWeb.Admin.PageLive.Form do
 
   defp block_fields(%{type: "alert"} = assigns) do
     ~H"""
-    <.input field={@f[:icon]} type="select" label="Symbol" options={[{"Info", "info"}, {"Warnung", "warning"}, {"Erfolg", "success"}, {"Gefahr", "danger"}]} />
+    <.input
+      field={@f[:icon]}
+      type="select"
+      label="Symbol"
+      options={[{"Info", "info"}, {"Warnung", "warning"}, {"Erfolg", "success"}, {"Gefahr", "danger"}]}
+    />
     <.rich_text field={@f[:body]} label="Text" />
     """
   end
@@ -197,7 +232,12 @@ defmodule BbhWeb.Admin.PageLive.Form do
     ~H"""
     <.input field={@f[:title]} label="Titel" />
     <.input field={@f[:subtitle]} label="Untertitel" />
-    <.input field={@f[:image_position]} type="select" label="Bildposition" options={[{"Rechts", "right"}, {"Links", "left"}]} />
+    <.input
+      field={@f[:image_position]}
+      type="select"
+      label="Bildposition"
+      options={[{"Rechts", "right"}, {"Links", "left"}]}
+    />
     <.rich_text field={@f[:body]} label="Text" />
     <p class="text-xs text-base-content/50">Bildauswahl folgt über die Medienbibliothek.</p>
     """
@@ -206,7 +246,12 @@ defmodule BbhWeb.Admin.PageLive.Form do
   defp block_fields(%{type: "image_gallery"} = assigns) do
     ~H"""
     <.input field={@f[:title]} label="Titel" />
-    <.input field={@f[:layout]} type="select" label="Layout" options={[{"Raster", "grid"}, {"Diashow", "slideshow"}]} />
+    <.input
+      field={@f[:layout]}
+      type="select"
+      label="Layout"
+      options={[{"Raster", "grid"}, {"Diashow", "slideshow"}]}
+    />
     <.input field={@f[:lightbox]} type="checkbox" label="Lightbox aktivieren" />
     <p class="text-xs text-base-content/50">Bilderverwaltung folgt über die Medienbibliothek.</p>
     """
@@ -215,16 +260,34 @@ defmodule BbhWeb.Admin.PageLive.Form do
   defp block_fields(%{type: "person_list"} = assigns) do
     ~H"""
     <.input field={@f[:title]} label="Titel" />
-    <.input field={@f[:display_style]} type="select" label="Darstellung" options={[{"Tabelle", "table"}, {"Karten", "cards"}, {"Kompakt", "compact"}]} />
-    <.input field={@f[:filter_honorary]} type="select" label="Ehrenmitglieder" options={[{"Alle", "all"}, {"Nur Ehrenmitglieder", "only"}, {"Ohne Ehrenmitglieder", "exclude"}]} />
+    <.input
+      field={@f[:display_style]}
+      type="select"
+      label="Darstellung"
+      options={[{"Tabelle", "table"}, {"Karten", "cards"}, {"Kompakt", "compact"}]}
+    />
+    <.input
+      field={@f[:filter_honorary]}
+      type="select"
+      label="Ehrenmitglieder"
+      options={[{"Alle", "all"}, {"Nur Ehrenmitglieder", "only"}, {"Ohne Ehrenmitglieder", "exclude"}]}
+    />
     <.input field={@f[:show_address]} type="checkbox" label="Adresse anzeigen" />
-    <.input name="block[filter_roles]" id={"roles-#{@block.id}"} value={Enum.join(@block.filter_roles, ", ")} label="Rollen (kommagetrennt, z. B. praesident, oberst)" />
+    <.input
+      name="block[filter_roles]"
+      id={"roles-#{@block.id}"}
+      value={Enum.join(@block.filter_roles, ", ")}
+      label="Rollen (kommagetrennt, z. B. praesident, oberst)"
+    />
     """
   end
 
   defp block_form(pb, block) do
     # Namespace field ids per block so multiple Trix editors don't collide.
-    to_form(Blocks.schema_for(pb.block_type).changeset(block, %{}), as: "block", id: "block-#{pb.id}")
+    to_form(Blocks.schema_for(pb.block_type).changeset(block, %{}),
+      as: "block",
+      id: "block-#{pb.id}"
+    )
   end
 
   defp block_label("richtext"), do: "Text"

@@ -48,7 +48,10 @@ defmodule Bbh.Content.Throne do
     |> validate_end_after_begin()
     |> unique_constraint(:article_id)
     |> foreign_key_constraint(:article_id)
-    |> check_constraint(:end_year, name: :thrones_end_after_begin, message: "muss nach dem Beginn liegen")
+    |> check_constraint(:end_year,
+      name: :thrones_end_after_begin,
+      message: "muss nach dem Beginn liegen"
+    )
   end
 
   defp validate_end_after_begin(changeset) do

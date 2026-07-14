@@ -136,7 +136,9 @@ defmodule Bbh.Media do
 
   defp thumbnail(img, width, nil), do: Image.thumbnail(img, width)
   defp thumbnail(img, nil, height), do: Image.thumbnail(img, "x#{height}")
-  defp thumbnail(img, width, height), do: Image.thumbnail(img, width, height: height, crop: :center)
+
+  defp thumbnail(img, width, height),
+    do: Image.thumbnail(img, width, height: height, crop: :center)
 
   defp dimensions(path) do
     case Image.open(path) do
@@ -151,5 +153,10 @@ defmodule Bbh.Media do
   end
 
   defp content_type(path),
-    do: Map.get(@content_types, path |> Path.extname() |> String.downcase(), "application/octet-stream")
+    do:
+      Map.get(
+        @content_types,
+        path |> Path.extname() |> String.downcase(),
+        "application/octet-stream"
+      )
 end

@@ -12,7 +12,8 @@ defmodule BbhWeb.Admin.PageLive.Index do
   def handle_event("delete", %{"id" => id}, socket) do
     id |> Content.get_page!() |> Content.delete_page()
 
-    {:noreply, socket |> put_flash(:info, "Seite gelöscht.") |> assign(:pages, Content.list_pages())}
+    {:noreply,
+     socket |> put_flash(:info, "Seite gelöscht.") |> assign(:pages, Content.list_pages())}
   end
 
   @impl true
@@ -29,7 +30,9 @@ defmodule BbhWeb.Admin.PageLive.Index do
       <.table id="pages" rows={@pages}>
         <:col :let={p} label="Titel"><span class="font-medium">{p.title}</span></:col>
         <:col :let={p} label="Slug">{p.slug}</:col>
-        <:col :let={p} label="Status">{if p.status == "published", do: "Veröffentlicht", else: "Entwurf"}</:col>
+        <:col :let={p} label="Status">
+          {if p.status == "published", do: "Veröffentlicht", else: "Entwurf"}
+        </:col>
         <:action :let={p}>
           <.link navigate={~p"/admin/seiten/#{p.id}/bearbeiten"} class="link link-primary">Bearbeiten</.link>
         </:action>

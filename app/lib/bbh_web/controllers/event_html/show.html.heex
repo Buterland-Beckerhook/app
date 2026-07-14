@@ -21,7 +21,10 @@
       </p>
     </header>
 
-    <div :if={@event.location} class="mt-4 rounded-lg border border-gray-200 p-4 dark:border-zinc-700">
+    <div
+      :if={@event.location}
+      class="mt-4 rounded-lg border border-gray-200 p-4 dark:border-zinc-700"
+    >
       <p class="font-medium">{@event.location.name}</p>
       <p :if={@event.location.street} class="text-sm text-gray-500 dark:text-gray-400">
         {@event.location.street}

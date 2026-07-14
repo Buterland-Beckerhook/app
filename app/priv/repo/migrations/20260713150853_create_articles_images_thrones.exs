@@ -31,7 +31,10 @@ defmodule Bbh.Repo.Migrations.CreateArticlesImagesThrones do
     # Per-article images (join to media, ordered, with hero/throne flags).
     create table(:images, primary_key: false) do
       add :id, :binary_id, primary_key: true
-      add :article_id, references(:articles, type: :binary_id, on_delete: :delete_all), null: false
+
+      add :article_id, references(:articles, type: :binary_id, on_delete: :delete_all),
+        null: false
+
       add :media_id, references(:media, type: :binary_id, on_delete: :delete_all), null: false
       add :logical_name, :string
       add :title, :string
@@ -49,7 +52,10 @@ defmodule Bbh.Repo.Migrations.CreateArticlesImagesThrones do
     # König/Kaiser records; one per article (has_one).
     create table(:thrones, primary_key: false) do
       add :id, :binary_id, primary_key: true
-      add :article_id, references(:articles, type: :binary_id, on_delete: :nilify_all), null: false
+
+      add :article_id, references(:articles, type: :binary_id, on_delete: :nilify_all),
+        null: false
+
       add :type, :string, null: false
       add :begin, :integer, null: false
       add :end, :integer
@@ -68,7 +74,11 @@ defmodule Bbh.Repo.Migrations.CreateArticlesImagesThrones do
 
     create unique_index(:thrones, [:article_id])
     create index(:thrones, [:type, :begin])
-    create constraint(:thrones, :thrones_end_after_begin, check: ~s{"end" IS NULL OR "end" >= "begin"})
+
+    create constraint(:thrones, :thrones_end_after_begin,
+             check: ~s{"end" IS NULL OR "end" >= "begin"}
+           )
+
     create constraint(:thrones, :thrones_begin_positive, check: ~s{"begin" > 0})
   end
 end

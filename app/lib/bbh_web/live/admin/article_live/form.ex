@@ -26,7 +26,11 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
     socket
     |> assign(page_title: "Artikel bearbeiten", article: article, throne: article.throne)
     |> assign(show_throne: not is_nil(article.throne))
-    |> assign(images: Content.list_article_images(id), media_library: Bbh.Media.list_uploads(), picker_search: "")
+    |> assign(
+      images: Content.list_article_images(id),
+      media_library: Bbh.Media.list_uploads(),
+      picker_search: ""
+    )
     |> assign_throne_form(Content.change_throne(throne_or_new(article)))
     |> assign_form(Content.change_article(article))
   end
@@ -51,7 +55,8 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
   end
 
   def handle_event("search_media", %{"search" => search}, socket) do
-    {:noreply, assign(socket, picker_search: search, media_library: Bbh.Media.list_uploads(search: search))}
+    {:noreply,
+     assign(socket, picker_search: search, media_library: Bbh.Media.list_uploads(search: search))}
   end
 
   def handle_event("add_throne_section", _params, socket) do
@@ -128,7 +133,9 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
         maybe_notify(old_status, article)
 
         {:noreply,
-         socket |> put_flash(:info, "Artikel gespeichert.") |> push_navigate(to: ~p"/admin/artikel")}
+         socket
+         |> put_flash(:info, "Artikel gespeichert.")
+         |> push_navigate(to: ~p"/admin/artikel")}
 
       {:error, changeset} ->
         {:noreply, assign_form(socket, changeset)}
@@ -139,12 +146,16 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
   defp maybe_notify(old_status, %Article{status: "published", no_article: false} = article)
        when old_status != "published" do
     url = url(~p"/aktuell/#{article.year}/#{article.slug}")
-    Task.start(fn -> Bbh.Notifications.notify("news", %{title: "Neuer Artikel", body: article.title, url: url}) end)
+
+    Task.start(fn ->
+      Bbh.Notifications.notify("news", %{title: "Neuer Artikel", body: article.title, url: url})
+    end)
   end
 
   defp maybe_notify(_old_status, _article), do: :ok
 
-  defp assign_form(socket, changeset), do: assign(socket, :form, to_form(changeset, as: "article"))
+  defp assign_form(socket, changeset),
+    do: assign(socket, :form, to_form(changeset, as: "article"))
 
   # Convert the datetime-local string and comma-separated tags into what the changeset expects.
   defp normalize(params) do
@@ -174,7 +185,13 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
     <Layouts.admin flash={@flash} current_scope={@current_scope} active={:articles}>
       <.header>{@page_title}</.header>
 
-      <.form for={@form} id="article-form" phx-change="validate" phx-submit="save" class="mt-6 space-y-4">
+      <.form
+        for={@form}
+        id="article-form"
+        phx-change="validate"
+        phx-submit="save"
+        class="mt-6 space-y-4"
+      >
         <.input field={@form[:title]} label="Titel" required />
         <.input field={@form[:subtitle]} label="Untertitel" />
         <.input field={@form[:slug]} label="Slug" required />
@@ -268,7 +285,8 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
             </p>
           </div>
           <p class="mt-1 text-xs text-base-content/50">
-            Bilder zuerst in der <.link navigate={~p"/admin/medien"} class="link">Mediathek</.link> hochladen.
+            Bilder zuerst in der <.link navigate={~p"/admin/medien"} class="link">Mediathek</.link>
+            hochladen.
           </p>
         </div>
       </section>
@@ -282,7 +300,14 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
           </button>
         </p>
 
-        <.form :if={@show_throne} :let={t} for={@throne_form} id="throne-form" phx-submit="save_throne" class="mt-4 space-y-3">
+        <.form
+          :let={t}
+          :if={@show_throne}
+          for={@throne_form}
+          id="throne-form"
+          phx-submit="save_throne"
+          class="mt-4 space-y-3"
+        >
           <.input
             field={t[:type]}
             type="select"
@@ -328,7 +353,8 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
     """
   end
 
-  defp image_form(%ArticleImage{} = img), do: to_form(ArticleImage.changeset(img, %{}), as: "image")
+  defp image_form(%ArticleImage{} = img),
+    do: to_form(ArticleImage.changeset(img, %{}), as: "image")
 
   defp tags_value(tags) when is_list(tags), do: Enum.join(tags, ", ")
   defp tags_value(str) when is_binary(str), do: str

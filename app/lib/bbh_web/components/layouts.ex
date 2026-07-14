@@ -69,14 +69,20 @@ defmodule BbhWeb.Layouts do
       <header class="border-b border-gray-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
         <nav class="mx-auto flex max-w-6xl items-center justify-between px-4 py-2">
           <a href="/" class="flex items-center gap-3">
-            <img src={~p"/images/logo.svg"} alt="" width="48" height="48" class="h-12 w-12 md:h-20 md:w-20" />
+            <img
+              src={~p"/images/logo.svg"}
+              alt=""
+              width="48"
+              height="48"
+              class="h-12 w-12 md:h-20 md:w-20"
+            />
             <div class="font-logo leading-tight">
               <span class="block text-sm text-gray-600 md:text-xl dark:text-gray-400">Schützenverein</span>
               <span class="block text-xl text-primary md:text-3xl">Buterland-Beckerhook e.V.</span>
             </div>
           </a>
 
-    <!-- Desktop nav -->
+          <!-- Desktop nav -->
           <div class="hidden items-center gap-6 md:flex">
             <%= for link <- @nav do %>
               <%= if link[:children] do %>
@@ -128,12 +134,19 @@ defmodule BbhWeb.Layouts do
             <.theme_toggle />
           </div>
 
-    <!-- Mobile menu (daisyUI dropdown, no custom JS) -->
+          <!-- Mobile menu (daisyUI dropdown, no custom JS) -->
           <div class="dropdown dropdown-end md:hidden">
-            <button tabindex="0" class="flex items-center text-gray-600 dark:text-gray-300" aria-label="Menü öffnen">
+            <button
+              tabindex="0"
+              class="flex items-center text-gray-600 dark:text-gray-300"
+              aria-label="Menü öffnen"
+            >
               <.icon name="hero-bars-3" class="size-6" />
             </button>
-            <ul tabindex="0" class="dropdown-content menu z-50 mt-2 w-64 rounded-box border border-gray-200 bg-white p-2 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
+            <ul
+              tabindex="0"
+              class="dropdown-content menu z-50 mt-2 w-64 rounded-box border border-gray-200 bg-white p-2 shadow-lg dark:border-zinc-700 dark:bg-zinc-800"
+            >
               <%= for link <- @nav do %>
                 <li>
                   <a href={link.href} class="font-medium">{link.label}</a>
@@ -190,7 +203,9 @@ defmodule BbhWeb.Layouts do
 
   # A "Über uns"-style child whose href equals its parent matches exactly only.
   defp child_active?(path, href, parent_href) when href == parent_href, do: path == href
-  defp child_active?(path, href, _parent), do: path == href or String.starts_with?(path, href <> "/")
+
+  defp child_active?(path, href, _parent),
+    do: path == href or String.starts_with?(path, href <> "/")
 
   # Sections are added here as their CRUD is built.
   @admin_nav [
@@ -241,7 +256,10 @@ defmodule BbhWeb.Layouts do
               </.link>
             </li>
             <li :if={admin_user?(@current_scope)}>
-              <.link navigate={~p"/admin/benutzer"} class={@active == :users && "menu-active font-semibold"}>
+              <.link
+                navigate={~p"/admin/benutzer"}
+                class={@active == :users && "menu-active font-semibold"}
+              >
                 Benutzer
               </.link>
             </li>

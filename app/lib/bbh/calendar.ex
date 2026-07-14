@@ -68,7 +68,9 @@ defmodule Bbh.Calendar do
 
   ## Admin CRUD — events
 
-  def list_events, do: Repo.all(from e in Event, order_by: [desc: e.starts_at], preload: [:location])
+  def list_events,
+    do: Repo.all(from e in Event, order_by: [desc: e.starts_at], preload: [:location])
+
   def count_events, do: Repo.aggregate(Event, :count, :id)
   def get_event!(id), do: Event |> Repo.get!(id) |> Repo.preload([:location])
   def create_event(attrs), do: %Event{} |> Event.changeset(attrs) |> Repo.insert()

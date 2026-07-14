@@ -58,7 +58,10 @@ defmodule BbhWeb.SiteComponents do
     >
       <div class="flex items-center gap-2">
         <h3 class="font-semibold text-gray-900 dark:text-gray-100">{@event.title}</h3>
-        <span :if={@event.status == "canceled"} class="rounded bg-error/10 px-2 py-0.5 text-xs font-medium text-error">
+        <span
+          :if={@event.status == "canceled"}
+          class="rounded bg-error/10 px-2 py-0.5 text-xs font-medium text-error"
+        >
           Abgesagt
         </span>
       </div>
@@ -84,7 +87,9 @@ defmodule BbhWeb.SiteComponents do
       <tbody class="divide-y divide-gray-200 dark:divide-zinc-700">
         <tr>
           <th class="py-2 pr-4 font-medium text-gray-600 dark:text-gray-300">König</th>
-          <td class="py-2">{[@throne.king_title, @throne.king] |> Enum.reject(&is_nil/1) |> Enum.join(" – ")}</td>
+          <td class="py-2">
+            {[@throne.king_title, @throne.king] |> Enum.reject(&is_nil/1) |> Enum.join(" – ")}
+          </td>
         </tr>
         <tr>
           <th class="py-2 pr-4 font-medium text-gray-600 dark:text-gray-300">Königin</th>
@@ -92,11 +97,15 @@ defmodule BbhWeb.SiteComponents do
         </tr>
         <tr :if={@throne.moh1 || @throne.moh2}>
           <th class="py-2 pr-4 font-medium text-gray-600 dark:text-gray-300">Ehrendamen</th>
-          <td class="py-2">{[@throne.moh1, @throne.moh2] |> Enum.reject(&is_nil/1) |> Enum.join(", ")}</td>
+          <td class="py-2">
+            {[@throne.moh1, @throne.moh2] |> Enum.reject(&is_nil/1) |> Enum.join(", ")}
+          </td>
         </tr>
         <tr :if={@throne.loh1 || @throne.loh2}>
           <th class="py-2 pr-4 font-medium text-gray-600 dark:text-gray-300">Ehrenherren</th>
-          <td class="py-2">{[@throne.loh1, @throne.loh2] |> Enum.reject(&is_nil/1) |> Enum.join(", ")}</td>
+          <td class="py-2">
+            {[@throne.loh1, @throne.loh2] |> Enum.reject(&is_nil/1) |> Enum.join(", ")}
+          </td>
         </tr>
         <tr :if={@throne.cupbearer}>
           <th class="py-2 pr-4 font-medium text-gray-600 dark:text-gray-300">Mundschenk</th>
@@ -119,7 +128,11 @@ defmodule BbhWeb.SiteComponents do
         _ -> "König"
       end
 
-    years = if t.end_year && t.end_year != t.begin_year, do: "#{t.begin_year}–#{t.end_year}", else: "#{t.begin_year}"
+    years =
+      if t.end_year && t.end_year != t.begin_year,
+        do: "#{t.begin_year}–#{t.end_year}",
+        else: "#{t.begin_year}"
+
     "#{kind} #{years}"
   end
 
@@ -132,10 +145,15 @@ defmodule BbhWeb.SiteComponents do
     <table class="w-full text-left text-sm">
       <tbody class="divide-y divide-gray-200 dark:divide-zinc-700">
         <tr :for={p <- @people}>
-          <th class="py-2 pr-4 font-medium text-gray-600 dark:text-gray-300">{Person.role_label(p.role)}</th>
+          <th class="py-2 pr-4 font-medium text-gray-600 dark:text-gray-300">
+            {Person.role_label(p.role)}
+          </th>
           <td class="py-2">
             {p.name}
-            <span :if={@show_address && (p.street || p.city)} class="block text-gray-500 dark:text-gray-400">
+            <span
+              :if={@show_address && (p.street || p.city)}
+              class="block text-gray-500 dark:text-gray-400"
+            >
               {[p.street, p.city] |> Enum.reject(&is_nil/1) |> Enum.join(", ")}
             </span>
           </td>
@@ -189,7 +207,9 @@ defmodule BbhWeb.SiteComponents do
       />
       <div class="md:w-1/2">
         <h3 :if={@block.title} class="text-lg font-semibold">{@block.title}</h3>
-        <p :if={@block.subtitle} class="text-sm text-gray-500 dark:text-gray-400">{@block.subtitle}</p>
+        <p :if={@block.subtitle} class="text-sm text-gray-500 dark:text-gray-400">
+          {@block.subtitle}
+        </p>
         <div :if={@block.body} class="prose prose-sm mt-2 max-w-none dark:prose-invert">
           {Phoenix.HTML.raw(@block.body)}
         </div>
@@ -217,7 +237,11 @@ defmodule BbhWeb.SiteComponents do
 
   def block(%{type: "person_list"} = assigns) do
     assigns =
-      assign(assigns, :people, Bbh.Club.list_people(assigns.block.filter_roles, assigns.block.filter_honorary))
+      assign(
+        assigns,
+        :people,
+        Bbh.Club.list_people(assigns.block.filter_roles, assigns.block.filter_honorary)
+      )
 
     ~H"""
     <div>
