@@ -51,7 +51,9 @@ defmodule BbhWeb.Admin.EventLive.Form do
 
   defp save(socket, :new, params) do
     case Calendar.create_event(params) do
-      {:ok, _} ->
+      {:ok, event} ->
+        maybe_notify(nil, event)
+
         {:noreply,
          socket |> put_flash(:info, "Termin erstellt.") |> push_navigate(to: ~p"/admin/termine")}
 
@@ -61,8 +63,12 @@ defmodule BbhWeb.Admin.EventLive.Form do
   end
 
   defp save(socket, :edit, params) do
+    old_status = socket.assigns.event.status
+
     case Calendar.update_event(socket.assigns.event, params) do
-      {:ok, _} ->
+      {:ok, event} ->
+        maybe_notify(old_status, event)
+
         {:noreply,
          socket |> put_flash(:info, "Termin gespeichert.") |> push_navigate(to: ~p"/admin/termine")}
 
@@ -70,6 +76,15 @@ defmodule BbhWeb.Admin.EventLive.Form do
         {:noreply, assign_form(socket, changeset)}
     end
   end
+
+  # Notify subscribers the first time a public event becomes published.
+  defp maybe_notify(old_status, %Event{status: "published", announce: true, calendar: nil} = event)
+       when old_status != "published" do
+    url = url(~p"/termine/#{event.year}/#{event.slug}")
+    Task.start(fn -> Bbh.Notifications.notify("termine", %{title: "Neuer Termin", body: event.title, url: url}) end)
+  end
+
+  defp maybe_notify(_old_status, _event), do: :ok
 
   defp assign_form(socket, changeset), do: assign(socket, :form, to_form(changeset, as: "event"))
 

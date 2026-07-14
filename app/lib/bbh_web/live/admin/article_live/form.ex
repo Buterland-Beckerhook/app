@@ -109,7 +109,9 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
 
   defp save(socket, :new, params) do
     case Content.create_article(params) do
-      {:ok, _article} ->
+      {:ok, article} ->
+        maybe_notify(nil, article)
+
         {:noreply,
          socket |> put_flash(:info, "Artikel erstellt.") |> push_navigate(to: ~p"/admin/artikel")}
 
@@ -119,8 +121,12 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
   end
 
   defp save(socket, :edit, params) do
+    old_status = socket.assigns.article.status
+
     case Content.update_article(socket.assigns.article, params) do
-      {:ok, _article} ->
+      {:ok, article} ->
+        maybe_notify(old_status, article)
+
         {:noreply,
          socket |> put_flash(:info, "Artikel gespeichert.") |> push_navigate(to: ~p"/admin/artikel")}
 
@@ -128,6 +134,15 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
         {:noreply, assign_form(socket, changeset)}
     end
   end
+
+  # Push a notification the first time an article becomes published (skip throne-only entries).
+  defp maybe_notify(old_status, %Article{status: "published", no_article: false} = article)
+       when old_status != "published" do
+    url = url(~p"/aktuell/#{article.year}/#{article.slug}")
+    Task.start(fn -> Bbh.Notifications.notify("news", %{title: "Neuer Artikel", body: article.title, url: url}) end)
+  end
+
+  defp maybe_notify(_old_status, _article), do: :ok
 
   defp assign_form(socket, changeset), do: assign(socket, :form, to_form(changeset, as: "article"))
 

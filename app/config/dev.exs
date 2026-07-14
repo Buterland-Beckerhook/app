@@ -75,3 +75,10 @@ config :phoenix_live_view,
 
 # Disable swoosh api client as it is only required for production adapters.
 config :swoosh, :api_client, false
+
+# Web Push (VAPID) — dev-only throwaway keys. Production keys come from env in runtime.exs.
+config :web_push_elixir,
+  vapid_public_key:
+    "BArwAvEF2mI2sWmQ7W3fCY3uhudtn2kjkKYgEVS4athcH2b2eAp3FnDYEDMia6mwOxAdEEt-7B9Na30CgG4FiEM",
+  vapid_private_key: "1WFfXtnl0TTqYBhzfTW3FogSgHsjz5uagutBR2AlPck",
+  vapid_subject: "mailto:admin@buterland-beckerhook.de"

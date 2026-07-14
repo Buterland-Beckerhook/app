@@ -159,7 +159,10 @@ defmodule BbhWeb.Layouts do
       <footer class="border-t border-gray-200 bg-gray-50 text-sm text-gray-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-gray-400">
         <div class="mx-auto flex max-w-6xl flex-col items-center gap-2 px-4 py-6 md:flex-row md:justify-between">
           <p>&copy; {Date.utc_today().year} Schützenverein Buterland-Beckerhook e.V.</p>
-          <div class="flex gap-4">
+          <div class="flex flex-wrap items-center gap-4">
+            <button id="push-optin" type="button" class="hover:text-primary">
+              Benachrichtigungen aktivieren
+            </button>
             <a href="/impressum" class="hover:text-primary">Impressum</a>
             <a href="/datenschutz" class="hover:text-primary">Datenschutz</a>
           </div>

@@ -63,6 +63,42 @@ liveSocket.connect()
 // >> liveSocket.disableLatencySim()
 window.liveSocket = liveSocket
 
+// --- Web Push opt-in (public pages, plain JS — no LiveView required) ---
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4)
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/")
+  const raw = atob(base64)
+  return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)))
+}
+
+async function subscribePush(btn) {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+    alert("Push-Benachrichtigungen werden von diesem Browser nicht unterstützt.")
+    return
+  }
+  const key = document.querySelector("meta[name='vapid-public-key']")?.getAttribute("content")
+  if (!key) return
+  try {
+    const reg = await navigator.serviceWorker.register("/sw.js")
+    if ((await Notification.requestPermission()) !== "granted") return
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(key),
+    })
+    await fetch("/api/push/subscribe", {
+      method: "POST",
+      headers: {"content-type": "application/json"},
+      body: JSON.stringify({...sub.toJSON(), categories: ["termine", "news"]}),
+    })
+    if (btn) { btn.textContent = "Benachrichtigungen aktiv ✓"; btn.disabled = true }
+  } catch (e) {
+    console.error("Push subscription failed", e)
+  }
+}
+
+const pushBtn = document.getElementById("push-optin")
+if (pushBtn) pushBtn.addEventListener("click", () => subscribePush(pushBtn))
+
 // The lines below enable quality of life phoenix_live_reload
 // development features:
 //

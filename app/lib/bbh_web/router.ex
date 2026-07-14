@@ -17,6 +17,13 @@ defmodule BbhWeb.Router do
     plug :accepts, ["json"]
   end
 
+  scope "/api", BbhWeb.Api do
+    pipe_through :api
+
+    post "/push/subscribe", PushController, :subscribe
+    post "/push/unsubscribe", PushController, :unsubscribe
+  end
+
   scope "/", BbhWeb do
     pipe_through :browser
 
