@@ -1,0 +1,8 @@
+buterland-beckerhook.de {
+	encode zstd gzip
+	reverse_proxy phoenix:4000
+}
+
+www.buterland-beckerhook.de {
+	redir https://buterland-beckerhook.de{uri} permanent
+}

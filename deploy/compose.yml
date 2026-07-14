@@ -1,0 +1,67 @@
+# Production stack for the Phoenix rewrite: Postgres + Phoenix (release) + Caddy.
+# Replaces the old Directus/SvelteKit stack. Run: docker compose --env-file .env up -d --build
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: bbh
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  phoenix:
+    build:
+      context: ../app
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Run migrations, then start the server.
+    command: ["/bin/sh", "-c", "/app/bin/migrate && /app/bin/server"]
+    environment:
+      DATABASE_URL: ecto://${DB_USER}:${DB_PASSWORD}@postgres/bbh
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE}
+      PHX_HOST: ${PHX_HOST}
+      PHX_SERVER: "true"
+      UPLOADS_DIR: /data/uploads
+      MEDIA_CACHE_DIR: /data/uploads_cache
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
+      VAPID_SUBJECT: ${VAPID_SUBJECT}
+      ALTCHA_HMAC_KEY: ${ALTCHA_HMAC_KEY}
+      SMTP_RELAY: ${SMTP_RELAY}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USERNAME: ${SMTP_USERNAME}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      CONTACT_RECIPIENT: ${CONTACT_RECIPIENT}
+      CONTACT_SENDER: ${CONTACT_SENDER}
+      MATOMO_URL: ${MATOMO_URL}
+      MATOMO_SITE_ID: ${MATOMO_SITE_ID}
+    volumes:
+      - uploads:/data
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on: [phoenix]
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  postgres_data:
+  uploads:
+  caddy_data:
+  caddy_config:

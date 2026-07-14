@@ -1,4 +1,5 @@
 <Layouts.app flash={@flash} current_path={@conn.request_path}>
+  {event_jsonld(@event)}
   <article class="mx-auto max-w-3xl">
     <a href={~p"/termine"} class="text-sm text-primary hover:underline">&larr; Zurück zu Termine</a>
 

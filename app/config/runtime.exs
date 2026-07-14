@@ -116,21 +116,35 @@ if config_env() == :prod do
   #
   # Check `Plug.SSL` for all available options in `force_ssl`.
 
-  # ## Configuring the mailer
-  #
-  # In production you need to configure the mailer to use a different adapter.
-  # Here is an example configuration for Mailgun:
-  #
-  #     config :bbh, Bbh.Mailer,
-  #       adapter: Swoosh.Adapters.Mailgun,
-  #       api_key: System.get_env("MAILGUN_API_KEY"),
-  #       domain: System.get_env("MAILGUN_DOMAIN")
-  #
-  # Most non-SMTP adapters require an API client. Swoosh supports Req, Hackney,
-  # and Finch out-of-the-box. This configuration is typically done at
-  # compile-time in your config/prod.exs:
-  #
-  #     config :swoosh, :api_client, Swoosh.ApiClient.Req
-  #
-  # See https://swoosh.hexdocs.pm/Swoosh.html#module-installation for details.
+  # Media storage (mounted volume) + site settings.
+  config :bbh,
+    uploads_dir: System.get_env("UPLOADS_DIR") || "/data/uploads",
+    media_cache_dir: System.get_env("MEDIA_CACHE_DIR") || "/data/uploads_cache",
+    site_url: "https://#{host}",
+    contact_recipient: System.get_env("CONTACT_RECIPIENT") || "info@buterland-beckerhook.de",
+    contact_sender: System.get_env("CONTACT_SENDER") || "noreply@buterland-beckerhook.de",
+    altcha_hmac_key: System.get_env("ALTCHA_HMAC_KEY")
+
+  # Contact form email via the club's own SMTP server.
+  config :bbh, Bbh.Mailer,
+    adapter: Swoosh.Adapters.SMTP,
+    relay: System.get_env("SMTP_RELAY"),
+    port: String.to_integer(System.get_env("SMTP_PORT") || "587"),
+    username: System.get_env("SMTP_USERNAME"),
+    password: System.get_env("SMTP_PASSWORD"),
+    tls: :always,
+    auth: :always
+
+  config :swoosh, :api_client, false
+
+  # Web Push (VAPID).
+  config :web_push_elixir,
+    vapid_public_key: System.get_env("VAPID_PUBLIC_KEY"),
+    vapid_private_key: System.get_env("VAPID_PRIVATE_KEY"),
+    vapid_subject: System.get_env("VAPID_SUBJECT") || "mailto:admin@buterland-beckerhook.de"
+
+  # Matomo analytics (cookieless, optional).
+  config :bbh, :matomo,
+    url: System.get_env("MATOMO_URL"),
+    site_id: System.get_env("MATOMO_SITE_ID")
 end

@@ -7,6 +7,14 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#0b8d36" />
     <meta name="vapid-public-key" content={Bbh.Notifications.vapid_public_key()} />
+    <meta
+      name="description"
+      content={assigns[:meta_description] || "Schützenverein Buterland-Beckerhook e.V. – Neuigkeiten, Termine und die Geschichte unserer Throne."}
+    />
+    <meta property="og:title" content={assigns[:page_title] || "Buterland-Beckerhook e.V."} />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content={~p"/images/logo.svg"} />
+    <.matomo />
     <.live_title default="Buterland-Beckerhook e.V." suffix=" · Buterland-Beckerhook e.V." phx-no-format>{assigns[:page_title]}</.live_title>
     <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
     <script defer phx-track-static type="text/javascript" src={~p"/assets/js/app.js"}>

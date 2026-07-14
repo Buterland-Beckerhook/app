@@ -50,6 +50,7 @@ defmodule BbhWeb.Router do
     post "/kontakt", ContactController, :create
 
     get "/media/*path", MediaController, :show
+    get "/sitemap.xml", SitemapController, :index
   end
 
   # Other scopes may use custom stacks.
