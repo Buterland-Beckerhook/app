@@ -217,9 +217,10 @@ defmodule Bbh.Content do
         set_position!(pb.id, other.position)
         set_position!(other.id, pb.position)
       end)
+    else
+      # Already at the top/bottom edge — nothing to do.
+      {:ok, :noop}
     end
-
-    :ok
   end
 
   defp delete_block!(%PageBlock{} = pb) do

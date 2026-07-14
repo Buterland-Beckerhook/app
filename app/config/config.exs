@@ -87,6 +87,12 @@ config :logger, :default_formatter,
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 
+# Rate limiting (Hammer, ETS backend). Disabled in test.exs.
+config :bbh, BbhWeb.RateLimit, enabled: true
+
+# Content-Security-Policy. Disabled in dev.exs so LiveReload keeps working.
+config :bbh, BbhWeb.Plugs.CSP, enabled: true
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{config_env()}.exs"

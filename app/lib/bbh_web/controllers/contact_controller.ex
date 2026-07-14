@@ -1,6 +1,8 @@
 defmodule BbhWeb.ContactController do
   use BbhWeb, :controller
 
+  require Logger
+
   def new(conn, _params) do
     render_form(conn, %{}, %{})
   end
@@ -15,11 +17,22 @@ defmodule BbhWeb.ContactController do
       true ->
         case Bbh.Contact.validate(params) do
           {:ok, data} ->
-            _ = Bbh.Contact.deliver(data)
+            case Bbh.Contact.deliver(data) do
+              {:ok, _} ->
+                conn
+                |> put_flash(:info, "Vielen Dank! Ihre Nachricht wurde gesendet.")
+                |> redirect(to: ~p"/kontakt")
 
-            conn
-            |> put_flash(:info, "Vielen Dank! Ihre Nachricht wurde gesendet.")
-            |> redirect(to: ~p"/kontakt")
+              {:error, reason} ->
+                Logger.error("Contact form delivery failed: #{inspect(reason)}")
+
+                conn
+                |> put_flash(
+                  :error,
+                  "Ihre Nachricht konnte nicht gesendet werden. Bitte versuchen Sie es später erneut."
+                )
+                |> render_form(params, %{})
+            end
 
           {:error, errors} ->
             render_form(conn, params, errors)

@@ -23,6 +23,9 @@ config :bbh, BbhWeb.Endpoint,
   secret_key_base: "d5tc7Dn6tuztJq1qgdkbyfwRKOTTPN3fmPplqz9jPd8VW4AzEY8kBn8HaWxrsjU7",
   server: false
 
+# Disable rate limiting in tests so it doesn't interfere
+config :bbh, BbhWeb.RateLimit, enabled: false
+
 # In test we don't send emails
 config :bbh, Bbh.Mailer, adapter: Swoosh.Adapters.Test
 

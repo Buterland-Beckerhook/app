@@ -21,6 +21,7 @@ defmodule Bbh.Repo.Migrations.CreatePeople do
     end
 
     create index(:people, [:role, :sort_order])
+    create index(:people, [:portrait_id])
     create constraint(:people, :people_sort_order_nonneg, check: "sort_order >= 0")
   end
 end

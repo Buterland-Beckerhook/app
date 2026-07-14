@@ -99,7 +99,7 @@ defmodule BbhWeb.UserLive.Login do
 
     form = to_form(%{"email" => email}, as: "user")
 
-    {:ok, assign(socket, form: form, trigger_submit: false)}
+    {:ok, assign(socket, form: form, trigger_submit: false, client_ip: connect_client_ip(socket))}
   end
 
   @impl true
@@ -108,23 +108,57 @@ defmodule BbhWeb.UserLive.Login do
   end
 
   def handle_event("submit_magic", %{"user" => %{"email" => email}}, socket) do
-    if user = Accounts.get_user_by_email(email) do
-      Accounts.deliver_login_instructions(
-        user,
-        &url(~p"/users/log-in/#{&1}")
-      )
+    case BbhWeb.RateLimit.check("magic_send", socket.assigns.client_ip, 5, :timer.minutes(15)) do
+      :ok ->
+        if user = Accounts.get_user_by_email(email) do
+          Accounts.deliver_login_instructions(
+            user,
+            &url(~p"/users/log-in/#{&1}")
+          )
+        end
+
+        info =
+          "If your email is in our system, you will receive instructions for logging in shortly."
+
+        {:noreply,
+         socket
+         |> put_flash(:info, info)
+         |> push_navigate(to: ~p"/users/log-in")}
+
+      {:error, _retry_after} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "Zu viele Anfragen. Bitte später erneut versuchen.")
+         |> push_navigate(to: ~p"/users/log-in")}
     end
-
-    info =
-      "If your email is in our system, you will receive instructions for logging in shortly."
-
-    {:noreply,
-     socket
-     |> put_flash(:info, info)
-     |> push_navigate(to: ~p"/users/log-in")}
   end
 
   defp local_mail_adapter? do
     Application.get_env(:bbh, Bbh.Mailer)[:adapter] == Swoosh.Adapters.Local
+  end
+
+  # Best-effort client IP from the socket connect info (trusted proxy sets
+  # x-forwarded-for). Falls back to the peer address, then "unknown" on the
+  # disconnected mount.
+  defp connect_client_ip(socket) do
+    forwarded =
+      socket
+      |> get_connect_info(:x_headers)
+      |> List.wrap()
+      |> Enum.find_value(fn
+        {"x-forwarded-for", value} -> value |> String.split(",") |> List.first() |> String.trim()
+        _ -> nil
+      end)
+
+    cond do
+      is_binary(forwarded) ->
+        forwarded
+
+      true ->
+        case get_connect_info(socket, :peer_data) do
+          %{address: address} -> address |> :inet.ntoa() |> to_string()
+          _ -> "unknown"
+        end
+    end
   end
 end

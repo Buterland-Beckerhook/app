@@ -1,5 +1,8 @@
 import Config
 
+# CSP would block Phoenix LiveReload's injected frame/script in dev.
+config :bbh, BbhWeb.Plugs.CSP, enabled: false
+
 # Configure your database
 config :bbh, Bbh.Repo,
   username: "postgres",

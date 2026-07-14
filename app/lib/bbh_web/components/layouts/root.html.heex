@@ -17,16 +17,22 @@
     <meta property="og:title" content={assigns[:page_title] || "Buterland-Beckerhook e.V."} />
     <meta property="og:type" content="website" />
     <meta property="og:image" content={~p"/images/logo.svg"} />
-    <.matomo />
+    <.matomo nonce={assigns[:csp_nonce]} />
     <.live_title
       default="Buterland-Beckerhook e.V."
       suffix=" · Buterland-Beckerhook e.V."
       phx-no-format
     >{assigns[:page_title]}</.live_title>
     <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
-    <script defer phx-track-static type="text/javascript" src={~p"/assets/js/app.js"}>
+    <script
+      defer
+      phx-track-static
+      type="text/javascript"
+      src={~p"/assets/js/app.js"}
+      nonce={assigns[:csp_nonce]}
+    >
     </script>
-    <script>
+    <script nonce={assigns[:csp_nonce]}>
       (() => {
         const systemTheme = () => matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 

@@ -41,6 +41,8 @@ defmodule Bbh.MixProject do
   defp deps do
     [
       {:argon2_elixir, "~> 4.0"},
+      {:hammer, "~> 7.0"},
+      {:html_sanitize_ex, "~> 1.4"},
       {:phoenix, "~> 1.8.9"},
       {:phoenix_ecto, "~> 4.5"},
       {:ecto_sql, "~> 3.13"},

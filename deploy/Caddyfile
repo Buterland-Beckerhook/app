@@ -1,6 +1,12 @@
 buterland-beckerhook.de {
 	encode zstd gzip
-	reverse_proxy phoenix:4000
+	reverse_proxy phoenix:4000 {
+		# Active health checks against the app's liveness probe.
+		# health_port is omitted — the upstream already listens on :4000.
+		health_uri /health/liveness
+		health_interval 15s
+		health_timeout 5s
+	}
 }
 
 www.buterland-beckerhook.de {

@@ -30,6 +30,8 @@ defmodule Bbh.Repo.Migrations.CreateEvents do
     create index(:events, [:status, :announce, :start])
     create index(:events, [:status, :slug, :year])
     create index(:events, [:parent_id])
+    create index(:events, [:location_id])
+    create index(:events, [:image_id])
 
     create constraint(:events, :events_end_after_start,
              check: ~s{"end" IS NULL OR "end" >= "start"}

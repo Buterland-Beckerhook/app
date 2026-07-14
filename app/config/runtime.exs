@@ -50,7 +50,10 @@ if config_env() == :prod do
   maybe_ipv6 = if System.get_env("ECTO_IPV6") in ~w(true 1), do: [:inet6], else: []
 
   config :bbh, Bbh.Repo,
-    # ssl: true,
+    # DB SSL is intentionally OFF: Postgres is only reachable over the internal
+    # Docker Compose network (not exposed publicly), so TLS to the DB adds no
+    # meaningful protection here. Accepted risk — enable `ssl: true` if the DB
+    # is ever moved to a shared/remote host.
     url: database_url,
     pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10"),
     # For machines with several cores, consider starting multiple pools of `pool_size`
@@ -69,7 +72,9 @@ if config_env() == :prod do
       You can generate one by calling: mix phx.gen.secret
       """
 
-  host = System.get_env("PHX_HOST") || "example.com"
+  host =
+    System.get_env("PHX_HOST") ||
+      raise "environment variable PHX_HOST is required (e.g. buterland-beckerhook.de)"
 
   config :bbh, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
@@ -80,7 +85,10 @@ if config_env() == :prod do
       # Set it to  {0, 0, 0, 0, 0, 0, 0, 1} for local network only access.
       # See the documentation on https://bandit.hexdocs.pm/Bandit.html#t:options/0
       # for details about using IPv6 vs IPv4 and loopback vs public addresses.
-      ip: {0, 0, 0, 0, 0, 0, 0, 0}
+      ip: {0, 0, 0, 0, 0, 0, 0, 0},
+      # Bandit drains connections on shutdown; give in-flight requests up to
+      # 55s to finish (kept under the container's 60s stop_grace_period).
+      thousand_island_options: [shutdown_timeout: 55_000]
     ],
     secret_key_base: secret_key_base
 

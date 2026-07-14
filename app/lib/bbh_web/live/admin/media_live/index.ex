@@ -8,7 +8,7 @@ defmodule BbhWeb.Admin.MediaLive.Index do
     socket =
       socket
       |> assign(page_title: "Medien", search: "", sort: "newest")
-      |> assign(items: Media.list_uploads())
+      |> stream(:items, Media.list_uploads())
       |> allow_upload(:files,
         accept: ~w(.jpg .jpeg .png .webp .gif),
         max_entries: 10,
@@ -25,7 +25,7 @@ defmodule BbhWeb.Admin.MediaLive.Index do
     {:noreply,
      socket
      |> assign(search: search, sort: sort)
-     |> assign(items: Media.list_uploads(search: search, sort: sort))}
+     |> stream(:items, Media.list_uploads(search: search, sort: sort), reset: true)}
   end
 
   def handle_event("cancel", %{"ref" => ref}, socket) do
@@ -33,28 +33,46 @@ defmodule BbhWeb.Admin.MediaLive.Index do
   end
 
   def handle_event("save", _params, socket) do
-    consume_uploaded_entries(socket, :files, fn %{path: path}, entry ->
-      {:ok, _upload} =
-        Media.store_file(path, %{filename: entry.client_name, content_type: entry.client_type})
+    results =
+      consume_uploaded_entries(socket, :files, fn %{path: path}, entry ->
+        case Media.store_file(path, %{
+               filename: entry.client_name,
+               content_type: entry.client_type
+             }) do
+          {:ok, upload} -> {:ok, {:stored, upload}}
+          # Magic-byte validation rejected the file (e.g. spoofed extension).
+          {:error, _reason} -> {:ok, :rejected}
+        end
+      end)
 
-      {:ok, entry.uuid}
-    end)
+    stored = for {:stored, upload} <- results, do: upload
+    rejected = Enum.count(results, &(&1 == :rejected))
 
-    {:noreply, socket |> put_flash(:info, "Bilder hochgeladen.") |> reload_items()}
+    socket =
+      Enum.reduce(stored, socket, fn upload, acc -> stream_insert(acc, :items, upload, at: 0) end)
+
+    {:noreply, put_upload_flash(socket, length(stored), rejected)}
   end
 
   def handle_event("delete", %{"id" => id}, socket) do
-    id |> Media.get_upload!() |> Media.delete_upload()
+    upload = Media.get_upload!(id)
+    Media.delete_upload(upload)
 
-    {:noreply, socket |> put_flash(:info, "Bild gelöscht.") |> reload_items()}
+    {:noreply, socket |> put_flash(:info, "Bild gelöscht.") |> stream_delete(:items, upload)}
   end
 
-  defp reload_items(socket),
+  defp put_upload_flash(socket, stored, 0),
+    do: put_flash(socket, :info, "#{stored} Bild(er) hochgeladen.")
+
+  defp put_upload_flash(socket, 0, _rejected),
+    do: put_flash(socket, :error, "Datei wurde nicht als gültiges Bild erkannt.")
+
+  defp put_upload_flash(socket, stored, rejected),
     do:
-      assign(
+      put_flash(
         socket,
-        :items,
-        Media.list_uploads(search: socket.assigns.search, sort: socket.assigns.sort)
+        :warning,
+        "#{stored} hochgeladen, #{rejected} abgelehnt (kein gültiges Bild)."
       )
 
   @impl true
@@ -104,7 +122,7 @@ defmodule BbhWeb.Admin.MediaLive.Index do
         </div>
       </form>
 
-      <form phx-change="filter" class="mt-8 flex flex-wrap items-end gap-3">
+      <form phx-change="filter" id="media-filter" class="mt-8 flex flex-wrap items-end gap-3">
         <label class="fieldset">
           <span class="label mb-1">Suche</span>
           <input
@@ -126,8 +144,16 @@ defmodule BbhWeb.Admin.MediaLive.Index do
         </label>
       </form>
 
-      <div class="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-        <figure :for={item <- @items} class="rounded-box border border-base-300 p-2">
+      <div
+        id="media-grid"
+        phx-update="stream"
+        class="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4"
+      >
+        <figure
+          :for={{dom_id, item} <- @streams.items}
+          id={dom_id}
+          class="rounded-box border border-base-300 p-2"
+        >
           <img
             src={media_url(item, width: 300, height: 300)}
             alt={item.title || item.filename}

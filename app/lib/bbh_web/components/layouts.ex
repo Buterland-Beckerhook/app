@@ -281,15 +281,17 @@ defmodule BbhWeb.Layouts do
   defp admin_user?(%{user: user}), do: Bbh.Accounts.User.admin?(user)
   defp admin_user?(_), do: false
 
+  attr :nonce, :string, default: nil
+
   @doc "Cookieless Matomo analytics snippet (only rendered when configured)."
   def matomo(assigns) do
     cfg = Application.get_env(:bbh, :matomo, [])
-    assigns = assign(assigns, :script, matomo_script(cfg[:url], cfg[:site_id]))
+    assigns = assign(assigns, :script, matomo_script(cfg[:url], cfg[:site_id], assigns[:nonce]))
 
     ~H"{@script}"
   end
 
-  defp matomo_script(url, site_id)
+  defp matomo_script(url, site_id, nonce)
        when is_binary(url) and (is_binary(site_id) or is_integer(site_id)) do
     u = if String.ends_with?(url, "/"), do: url, else: url <> "/"
 
@@ -301,10 +303,13 @@ defmodule BbhWeb.Layouts do
         "s=d.getElementsByTagName('script')[0];g.async=true;g.src=u+'matomo.js';" <>
         "s.parentNode.insertBefore(g,s);})();"
 
-    Phoenix.HTML.raw("<script>#{js}</script>")
+    Phoenix.HTML.raw(~s(<script#{nonce_attr(nonce)}>#{js}</script>))
   end
 
-  defp matomo_script(_url, _site_id), do: nil
+  defp matomo_script(_url, _site_id, _nonce), do: nil
+
+  defp nonce_attr(nonce) when is_binary(nonce) and nonce != "", do: ~s( nonce="#{nonce}")
+  defp nonce_attr(_), do: ""
 
   @doc """
   Shows the flash group with standard titles and content.

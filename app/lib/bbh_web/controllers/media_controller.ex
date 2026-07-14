@@ -11,12 +11,19 @@ defmodule BbhWeb.MediaController do
         conn
         |> put_resp_content_type(content_type, nil)
         |> put_resp_header("cache-control", "public, max-age=604800")
+        |> maybe_force_download(content_type)
         |> send_file(200, path)
 
       :error ->
         conn |> put_status(:not_found) |> text("Not found")
     end
   end
+
+  # SVG can carry scripts; never let the browser render it inline in our origin.
+  defp maybe_force_download(conn, "image/svg+xml"),
+    do: put_resp_header(conn, "content-disposition", "attachment")
+
+  defp maybe_force_download(conn, _content_type), do: conn
 
   defp dim(nil), do: nil
 

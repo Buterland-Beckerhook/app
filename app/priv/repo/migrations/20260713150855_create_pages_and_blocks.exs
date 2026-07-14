@@ -61,6 +61,8 @@ defmodule Bbh.Repo.Migrations.CreatePagesAndBlocks do
     end
 
     create index(:block_gallery_files, [:gallery_id])
+    create index(:block_gallery_files, [:media_id])
+    create index(:block_media_card, [:image_id])
 
     create table(:block_person_list, primary_key: false) do
       add :id, :binary_id, primary_key: true

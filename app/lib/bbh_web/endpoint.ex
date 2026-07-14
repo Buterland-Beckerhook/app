@@ -12,8 +12,8 @@ defmodule BbhWeb.Endpoint do
   ]
 
   socket "/live", Phoenix.LiveView.Socket,
-    websocket: [connect_info: [session: @session_options]],
-    longpoll: [connect_info: [session: @session_options]]
+    websocket: [connect_info: [:peer_data, :x_headers, session: @session_options]],
+    longpoll: [connect_info: [:peer_data, :x_headers, session: @session_options]]
 
   # Serve at "/" the static files from "priv/static" directory.
   #
@@ -42,6 +42,10 @@ defmodule BbhWeb.Endpoint do
 
   plug Plug.RequestId
   plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
+
+  # Health probes for the container/reverse-proxy — mounted before the router
+  # so they skip session/parsing and stay cheap.
+  plug BbhWeb.Plugs.Health
 
   plug Plug.Parsers,
     parsers: [:urlencoded, :multipart, :json],

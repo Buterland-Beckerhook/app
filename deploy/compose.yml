@@ -26,6 +26,14 @@ services:
         condition: service_healthy
     # Run migrations, then start the server.
     command: ["/bin/sh", "-c", "/app/bin/migrate && /app/bin/server"]
+    # Give Bandit time to drain in-flight requests before SIGKILL.
+    stop_grace_period: 60s
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:4000/health/liveness"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     environment:
       DATABASE_URL: ecto://${DB_USER}:${DB_PASSWORD}@postgres/bbh
       SECRET_KEY_BASE: ${SECRET_KEY_BASE}

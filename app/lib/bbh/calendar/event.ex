@@ -52,6 +52,7 @@ defmodule Bbh.Calendar.Event do
       :parent_id,
       :image_id
     ])
+    |> update_change(:body, &Bbh.Html.sanitize/1)
     |> validate_required([:status, :title, :slug, :starts_at])
     |> validate_inclusion(:status, @statuses)
     |> validate_inclusion(:calendar, @calendars, message: "ist kein gültiger Kalender")
@@ -61,9 +62,14 @@ defmodule Bbh.Calendar.Event do
     |> unique_constraint([:slug, :year], name: :events_slug_year_unique)
     |> foreign_key_constraint(:location_id)
     |> foreign_key_constraint(:parent_id)
+    |> foreign_key_constraint(:image_id)
     |> check_constraint(:ends_at,
       name: :events_end_after_start,
       message: "muss nach dem Beginn liegen"
+    )
+    |> check_constraint(:year,
+      name: :events_year_range,
+      message: "muss ab 1900 liegen"
     )
   end
 

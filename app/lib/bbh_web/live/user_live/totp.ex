@@ -2,6 +2,10 @@ defmodule BbhWeb.UserLive.Totp do
   @moduledoc "Set up or remove the TOTP second factor for the current user."
   use BbhWeb, :live_view
 
+  # Enabling/disabling a second factor is a sensitive account action — require a
+  # recent re-authentication (sudo mode) on top of the live_session's auth check.
+  on_mount {BbhWeb.UserAuth, :require_sudo_mode}
+
   alias Bbh.Accounts
   alias Bbh.Accounts.User
 
@@ -84,7 +88,8 @@ defmodule BbhWeb.UserLive.Totp do
           </p>
           <div class="w-fit rounded bg-white p-4">{Phoenix.HTML.raw(@qr)}</div>
           <p class="text-xs break-all text-base-content/60">
-            Manuell: <span class="font-mono">{Base.encode32(@secret, padding: false)}</span>
+            Manuell:
+            <span id="totp-secret" class="font-mono">{Base.encode32(@secret, padding: false)}</span>
           </p>
           <form phx-submit="enable" class="space-y-2">
             <input

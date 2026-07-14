@@ -3,14 +3,23 @@ defmodule BbhWeb.Admin.DashboardLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    stats = %{
-      articles: Bbh.Content.count_articles(),
-      events: Bbh.Repo.aggregate(Bbh.Calendar.Event, :count, :id),
-      people: Bbh.Repo.aggregate(Bbh.Club.Person, :count, :id),
-      pages: Bbh.Repo.aggregate(Bbh.Content.Page, :count, :id)
-    }
+    {:ok,
+     socket
+     |> assign(page_title: "Übersicht")
+     |> assign_async(:stats, &load_stats/0)}
+  end
 
-    {:ok, assign(socket, page_title: "Übersicht", stats: stats)}
+  # Runs off the connected mount so the page shell renders without blocking on the DB.
+  defp load_stats do
+    {:ok,
+     %{
+       stats: %{
+         articles: Bbh.Content.count_articles(),
+         events: Bbh.Repo.aggregate(Bbh.Calendar.Event, :count, :id),
+         people: Bbh.Repo.aggregate(Bbh.Club.Person, :count, :id),
+         pages: Bbh.Repo.aggregate(Bbh.Content.Page, :count, :id)
+       }
+     }}
   end
 
   @impl true
@@ -22,12 +31,23 @@ defmodule BbhWeb.Admin.DashboardLive do
         <:subtitle>Willkommen im Verwaltungsbereich.</:subtitle>
       </.header>
 
-      <div class="mt-6 grid grid-cols-2 gap-4 md:grid-cols-4">
-        <.stat_card label="Artikel" value={@stats.articles} navigate={~p"/admin/artikel"} />
-        <.stat_card label="Termine" value={@stats.events} navigate={~p"/admin/termine"} />
-        <.stat_card label="Personen" value={@stats.people} navigate={~p"/admin/personen"} />
-        <.stat_card label="Seiten" value={@stats.pages} navigate={~p"/admin/seiten"} />
-      </div>
+      <.async_result :let={stats} assign={@stats}>
+        <:loading>
+          <div class="mt-6 grid grid-cols-2 gap-4 md:grid-cols-4">
+            <div :for={_ <- 1..4} class="h-20 animate-pulse rounded-box bg-base-200"></div>
+          </div>
+        </:loading>
+        <:failed :let={_reason}>
+          <p class="mt-6 text-error">Statistik konnte nicht geladen werden.</p>
+        </:failed>
+
+        <div class="mt-6 grid grid-cols-2 gap-4 md:grid-cols-4">
+          <.stat_card label="Artikel" value={stats.articles} navigate={~p"/admin/artikel"} />
+          <.stat_card label="Termine" value={stats.events} navigate={~p"/admin/termine"} />
+          <.stat_card label="Personen" value={stats.people} navigate={~p"/admin/personen"} />
+          <.stat_card label="Seiten" value={stats.pages} navigate={~p"/admin/seiten"} />
+        </div>
+      </.async_result>
     </Layouts.admin>
     """
   end

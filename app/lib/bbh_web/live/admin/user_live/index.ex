@@ -37,8 +37,23 @@ defmodule BbhWeb.Admin.UserLive.Index do
   end
 
   def handle_event("set_role", %{"user_id" => id, "role" => role}, socket) do
-    id |> Accounts.get_user!() |> Accounts.update_user_role(role)
-    {:noreply, load_users(socket)}
+    cond do
+      id == socket.assigns.current_scope.user.id ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "Die eigene Rolle kann nicht geändert werden.")
+         |> load_users()}
+
+      demoting_last_admin?(id, role) ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "Der letzte Administrator kann nicht herabgestuft werden.")
+         |> load_users()}
+
+      true ->
+        id |> Accounts.get_user!() |> Accounts.update_user_role(role)
+        {:noreply, load_users(socket)}
+    end
   end
 
   def handle_event("delete", %{"id" => id}, socket) do
@@ -48,6 +63,12 @@ defmodule BbhWeb.Admin.UserLive.Index do
       id |> Accounts.get_user!() |> Accounts.delete_user()
       {:noreply, socket |> put_flash(:info, "Benutzer gelöscht.") |> load_users()}
     end
+  end
+
+  # An admin being changed to a non-admin role while they are the only admin left.
+  defp demoting_last_admin?(id, role) do
+    user = Accounts.get_user!(id)
+    user.role == "admin" and role != "admin" and Accounts.count_admins() <= 1
   end
 
   defp load_users(socket), do: assign(socket, :users, Accounts.list_users())
@@ -75,7 +96,7 @@ defmodule BbhWeb.Admin.UserLive.Index do
       <.table id="users" rows={@users}>
         <:col :let={u} label="E-Mail"><span class="font-medium">{u.email}</span></:col>
         <:col :let={u} label="Rolle">
-          <form phx-change="set_role">
+          <form phx-change="set_role" id={"role-#{u.id}"}>
             <input type="hidden" name="user_id" value={u.id} />
             <select name="role" class="select select-bordered select-sm">
               <option :for={{label, value} <- @roles} value={value} selected={u.role == value}>

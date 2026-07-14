@@ -3,6 +3,7 @@ defmodule BbhWeb.TotpController do
   use BbhWeb, :controller
 
   alias Bbh.Accounts
+  alias BbhWeb.RateLimit
   alias BbhWeb.UserAuth
 
   plug :require_pending_user
@@ -12,7 +13,8 @@ defmodule BbhWeb.TotpController do
   def create(conn, %{"totp" => %{"code" => code}}) do
     user = conn.assigns.pending_user
 
-    if Accounts.valid_user_totp?(user, code) do
+    with :ok <- RateLimit.check("totp", RateLimit.client_ip(conn), 10, :timer.minutes(5)),
+         true <- Accounts.valid_user_totp?(user, code) do
       remember = get_session(conn, :totp_pending_remember)
 
       conn
@@ -21,7 +23,11 @@ defmodule BbhWeb.TotpController do
       |> put_flash(:info, "Willkommen zurück!")
       |> UserAuth.log_in_user(user, %{"remember_me" => to_string(remember)})
     else
-      render(conn, :new, error: "Ungültiger Code. Bitte erneut versuchen.")
+      {:error, _retry_after} ->
+        render(conn, :new, error: "Zu viele Versuche. Bitte später erneut versuchen.")
+
+      false ->
+        render(conn, :new, error: "Ungültiger Code. Bitte erneut versuchen.")
     end
   end
 

@@ -48,12 +48,13 @@ defmodule Bbh.Repo.Migrations.CreateArticlesImagesThrones do
     end
 
     create index(:images, [:article_id])
+    create index(:images, [:media_id])
 
     # König/Kaiser records; one per article (has_one).
     create table(:thrones, primary_key: false) do
       add :id, :binary_id, primary_key: true
 
-      add :article_id, references(:articles, type: :binary_id, on_delete: :nilify_all),
+      add :article_id, references(:articles, type: :binary_id, on_delete: :delete_all),
         null: false
 
       add :type, :string, null: false

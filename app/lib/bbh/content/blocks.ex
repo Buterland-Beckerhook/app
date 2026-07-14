@@ -29,6 +29,7 @@ defmodule Bbh.Content.Blocks do
     def changeset(block, attrs) do
       block
       |> cast(attrs, [:body])
+      |> update_change(:body, &Bbh.Html.sanitize/1)
       |> validate_required([:body])
     end
   end
@@ -48,6 +49,7 @@ defmodule Bbh.Content.Blocks do
     def changeset(block, attrs) do
       block
       |> cast(attrs, [:icon, :body])
+      |> update_change(:body, &Bbh.Html.sanitize/1)
       |> validate_required([:icon, :body])
       |> validate_inclusion(:icon, @icons)
     end
@@ -71,7 +73,9 @@ defmodule Bbh.Content.Blocks do
     def changeset(block, attrs) do
       block
       |> cast(attrs, [:title, :subtitle, :body, :image_position, :image_id])
+      |> update_change(:body, &Bbh.Html.sanitize/1)
       |> validate_inclusion(:image_position, @positions)
+      |> foreign_key_constraint(:image_id)
     end
   end
 
@@ -112,6 +116,8 @@ defmodule Bbh.Content.Blocks do
       file
       |> cast(attrs, [:title, :copyright, :sort, :gallery_id, :media_id])
       |> validate_required([:gallery_id, :media_id])
+      |> foreign_key_constraint(:gallery_id)
+      |> foreign_key_constraint(:media_id)
     end
   end
 

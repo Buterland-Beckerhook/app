@@ -3,6 +3,7 @@ defmodule BbhWeb.UserSessionController do
 
   alias Bbh.Accounts
   alias Bbh.Accounts.User
+  alias BbhWeb.RateLimit
   alias BbhWeb.UserAuth
 
   def create(conn, %{"_action" => "confirmed"} = params) do
@@ -15,10 +16,15 @@ defmodule BbhWeb.UserSessionController do
 
   # magic link login
   defp create(conn, %{"user" => %{"token" => token} = user_params}, info) do
-    case Accounts.login_user_by_magic_link(token) do
-      {:ok, {user, tokens_to_disconnect}} ->
-        UserAuth.disconnect_sessions(tokens_to_disconnect)
-        maybe_require_totp(conn, user, user_params, info)
+    with :ok <- RateLimit.check("magic_login", RateLimit.client_ip(conn), 10, :timer.minutes(5)),
+         {:ok, {user, tokens_to_disconnect}} <- Accounts.login_user_by_magic_link(token) do
+      UserAuth.disconnect_sessions(tokens_to_disconnect)
+      maybe_require_totp(conn, user, user_params, info)
+    else
+      {:error, retry_after} when is_integer(retry_after) ->
+        conn
+        |> put_flash(:error, "Zu viele Versuche. Bitte später erneut versuchen.")
+        |> redirect(to: ~p"/users/log-in")
 
       _ ->
         conn
@@ -31,14 +37,23 @@ defmodule BbhWeb.UserSessionController do
   defp create(conn, %{"user" => user_params}, info) do
     %{"email" => email, "password" => password} = user_params
 
-    if user = Accounts.get_user_by_email_and_password(email, password) do
-      maybe_require_totp(conn, user, user_params, info)
-    else
-      # In order to prevent user enumeration attacks, don't disclose whether the email is registered.
-      conn
-      |> put_flash(:error, "Invalid email or password")
-      |> put_flash(:email, String.slice(email, 0, 160))
-      |> redirect(to: ~p"/users/log-in")
+    case RateLimit.check("login", RateLimit.client_ip(conn), 10, :timer.minutes(5)) do
+      :ok ->
+        if user = Accounts.get_user_by_email_and_password(email, password) do
+          maybe_require_totp(conn, user, user_params, info)
+        else
+          # In order to prevent user enumeration attacks, don't disclose whether the email is registered.
+          conn
+          |> put_flash(:error, "Invalid email or password")
+          |> put_flash(:email, String.slice(email, 0, 160))
+          |> redirect(to: ~p"/users/log-in")
+        end
+
+      {:error, _retry_after} ->
+        conn
+        |> put_flash(:error, "Zu viele Anmeldeversuche. Bitte später erneut versuchen.")
+        |> put_flash(:email, String.slice(email, 0, 160))
+        |> redirect(to: ~p"/users/log-in")
     end
   end
 

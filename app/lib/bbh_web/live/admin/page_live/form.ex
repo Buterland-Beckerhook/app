@@ -67,8 +67,14 @@ defmodule BbhWeb.Admin.PageLive.Form do
 
   def handle_event("move", %{"pb_id" => pb_id, "dir" => dir}, socket) do
     direction = if dir == "up", do: :up, else: :down
-    Content.move_block(socket.assigns.page.id, find_pb(socket, pb_id), direction)
-    {:noreply, reload_blocks(socket)}
+
+    case Content.move_block(socket.assigns.page.id, find_pb(socket, pb_id), direction) do
+      {:ok, _} ->
+        {:noreply, reload_blocks(socket)}
+
+      {:error, _reason} ->
+        {:noreply, put_flash(socket, :error, "Block konnte nicht verschoben werden.")}
+    end
   end
 
   defp save_page(socket, :new, params) do

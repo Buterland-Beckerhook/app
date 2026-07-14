@@ -20,6 +20,17 @@ defmodule Bbh.Media do
     ".svg" => "image/svg+xml"
   }
 
+  # Canonical extension per detected (magic-byte) type. The storage key and stored
+  # content_type are derived from the *actual* bytes, never the client-supplied type.
+  @ext_for_type %{
+    "image/jpeg" => ".jpg",
+    "image/png" => ".png",
+    "image/gif" => ".gif",
+    "image/webp" => ".webp",
+    "image/avif" => ".avif",
+    "image/svg+xml" => ".svg"
+  }
+
   def uploads_dir, do: Application.fetch_env!(:bbh, :uploads_dir)
   def cache_dir, do: Application.fetch_env!(:bbh, :media_cache_dir)
 
@@ -74,15 +85,21 @@ defmodule Bbh.Media do
   @doc """
   Copy a file into the uploads dir and create an `Upload` row (used by the admin
   media library and the one-time import). Extra `attrs` (title, copyright, …) are merged.
+
+  The file's real type is sniffed from its magic bytes; anything that isn't a
+  supported image is rejected with `{:error, :unsupported_media_type}`. The stored
+  content type and storage-key extension come from the detected type, never from
+  the client-supplied filename/content type.
   """
   def store_file(source_path, attrs \\ %{}) do
-    filename = attrs[:filename] || attrs["filename"] || Path.basename(source_path)
-    # Prefer the logical filename's extension (LiveView temp files have none).
-    ext =
-      case Path.extname(filename) do
-        "" -> source_path |> Path.extname() |> String.downcase()
-        e -> String.downcase(e)
-      end
+    case detect_image_type(source_path) do
+      nil -> {:error, :unsupported_media_type}
+      detected_type -> do_store_file(source_path, attrs, detected_type)
+    end
+  end
+
+  defp do_store_file(source_path, attrs, detected_type) do
+    ext = Map.fetch!(@ext_for_type, detected_type)
 
     key = "#{Date.utc_today().year}/#{Ecto.UUID.generate()}#{ext}"
     dest = Path.join(uploads_dir(), key)
@@ -96,13 +113,43 @@ defmodule Bbh.Media do
     |> Map.merge(%{
       "storage_key" => key,
       "filename" => attrs[:filename] || attrs["filename"] || Path.basename(source_path),
-      "content_type" => content_type(dest),
+      "content_type" => detected_type,
       "byte_size" => File.stat!(dest).size,
       "width" => width,
       "height" => height
     })
     |> then(&Upload.changeset(%Upload{}, &1))
     |> Repo.insert()
+  end
+
+  # Sniff the real image type from the leading bytes. Returns a MIME string for
+  # supported image types, or nil for anything unrecognized.
+  defp detect_image_type(path) do
+    case File.open(path, [:read, :binary], &IO.binread(&1, 512)) do
+      {:ok, data} when is_binary(data) -> magic_type(data)
+      _ -> nil
+    end
+  end
+
+  defp magic_type(<<0xFF, 0xD8, 0xFF, _::binary>>), do: "image/jpeg"
+  defp magic_type(<<0x89, "PNG\r\n", 0x1A, 0x0A, _::binary>>), do: "image/png"
+  defp magic_type(<<"GIF87a", _::binary>>), do: "image/gif"
+  defp magic_type(<<"GIF89a", _::binary>>), do: "image/gif"
+  defp magic_type(<<"RIFF", _::binary-size(4), "WEBP", _::binary>>), do: "image/webp"
+
+  defp magic_type(<<_::binary-size(4), "ftyp", brand::binary-size(4), _::binary>>)
+       when brand in ["avif", "avis"],
+       do: "image/avif"
+
+  defp magic_type(data) when is_binary(data) do
+    # SVG is text — accept only if the (whitespace-trimmed) start looks like SVG/XML.
+    if String.valid?(data) do
+      trimmed = data |> String.trim_leading() |> String.downcase()
+
+      if String.starts_with?(trimmed, "<?xml") or String.starts_with?(trimmed, "<svg"),
+        do: "image/svg+xml",
+        else: nil
+    end
   end
 
   defp variant(source, key, width, height) do

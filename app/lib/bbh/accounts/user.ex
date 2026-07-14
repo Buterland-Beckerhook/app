@@ -34,6 +34,7 @@ defmodule Bbh.Accounts.User do
     |> cast(attrs, [:role])
     |> validate_required([:role])
     |> validate_inclusion(:role, @roles)
+    |> check_constraint(:role, name: :users_role_valid, message: "ist keine gültige Rolle")
   end
 
   @doc """

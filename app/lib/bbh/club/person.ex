@@ -66,5 +66,10 @@ defmodule Bbh.Club.Person do
     |> validate_required([:name, :role])
     |> validate_inclusion(:role, @roles)
     |> validate_number(:sort_order, greater_than_or_equal_to: 0)
+    |> foreign_key_constraint(:portrait_id)
+    |> check_constraint(:sort_order,
+      name: :people_sort_order_nonneg,
+      message: "darf nicht negativ sein"
+    )
   end
 end

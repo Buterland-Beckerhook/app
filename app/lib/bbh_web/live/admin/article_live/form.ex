@@ -16,7 +16,7 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
 
     socket
     |> assign(page_title: "Neuer Artikel", article: article)
-    |> assign(images: [], media_library: [], picker_search: "", show_throne: false)
+    |> assign(images: [], picker_search: "", show_throne: false)
     |> assign_form(Content.change_article(article))
   end
 
@@ -26,11 +26,8 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
     socket
     |> assign(page_title: "Artikel bearbeiten", article: article, throne: article.throne)
     |> assign(show_throne: not is_nil(article.throne))
-    |> assign(
-      images: Content.list_article_images(id),
-      media_library: Bbh.Media.list_uploads(),
-      picker_search: ""
-    )
+    |> assign(images: Content.list_article_images(id), picker_search: "")
+    |> assign_async(:media_library, fn -> {:ok, %{media_library: Bbh.Media.list_uploads()}} end)
     |> assign_throne_form(Content.change_throne(throne_or_new(article)))
     |> assign_form(Content.change_article(article))
   end
@@ -56,7 +53,11 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
 
   def handle_event("search_media", %{"search" => search}, socket) do
     {:noreply,
-     assign(socket, picker_search: search, media_library: Bbh.Media.list_uploads(search: search))}
+     socket
+     |> assign(:picker_search, search)
+     |> assign_async(:media_library, fn ->
+       {:ok, %{media_library: Bbh.Media.list_uploads(search: search)}}
+     end)}
   end
 
   def handle_event("add_throne_section", _params, socket) do
@@ -147,7 +148,7 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
        when old_status != "published" do
     url = url(~p"/aktuell/#{article.year}/#{article.slug}")
 
-    Task.start(fn ->
+    Task.Supervisor.start_child(Bbh.TaskSupervisor, fn ->
       Bbh.Notifications.notify("news", %{title: "Neuer Artikel", body: article.title, url: url})
     end)
   end
@@ -263,26 +264,37 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
             />
           </form>
           <div class="grid max-h-72 grid-cols-3 gap-2 overflow-y-auto rounded-box border border-base-300 p-2 sm:grid-cols-4 md:grid-cols-6">
-            <button
-              :for={m <- @media_library}
-              type="button"
-              phx-click="add_image"
-              phx-value-media_id={m.id}
-              title={m.filename}
-              class="group relative"
-            >
-              <img
-                src={media_url(m, width: 120, height: 120)}
-                alt={m.filename}
-                class="aspect-square w-full rounded object-cover"
-              />
-              <span class="absolute inset-0 flex items-center justify-center rounded bg-black/50 text-xs text-white opacity-0 group-hover:opacity-100">
-                + hinzufügen
-              </span>
-            </button>
-            <p :if={@media_library == []} class="col-span-full p-2 text-sm text-base-content/60">
-              Keine Bilder gefunden.
-            </p>
+            <.async_result :let={media_library} assign={@media_library}>
+              <:loading>
+                <p class="col-span-full p-2 text-sm text-base-content/60">Lädt…</p>
+              </:loading>
+              <:failed :let={_reason}>
+                <p class="col-span-full p-2 text-sm text-error">
+                  Mediathek konnte nicht geladen werden.
+                </p>
+              </:failed>
+
+              <button
+                :for={m <- media_library}
+                type="button"
+                phx-click="add_image"
+                phx-value-media_id={m.id}
+                title={m.filename}
+                class="group relative"
+              >
+                <img
+                  src={media_url(m, width: 120, height: 120)}
+                  alt={m.filename}
+                  class="aspect-square w-full rounded object-cover"
+                />
+                <span class="absolute inset-0 flex items-center justify-center rounded bg-black/50 text-xs text-white opacity-0 group-hover:opacity-100">
+                  + hinzufügen
+                </span>
+              </button>
+              <p :if={media_library == []} class="col-span-full p-2 text-sm text-base-content/60">
+                Keine Bilder gefunden.
+              </p>
+            </.async_result>
           </div>
           <p class="mt-1 text-xs text-base-content/50">
             Bilder zuerst in der <.link navigate={~p"/admin/medien"} class="link">Mediathek</.link>

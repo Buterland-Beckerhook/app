@@ -41,11 +41,16 @@ defmodule Bbh.Content.Article do
       :no_article,
       :aliases
     ])
+    |> update_change(:body, &Bbh.Html.sanitize/1)
     |> validate_required([:status, :title, :slug, :date_published])
     |> validate_inclusion(:status, @statuses)
     |> put_year()
     |> validate_number(:year, greater_than_or_equal_to: 1900)
     |> unique_constraint([:slug, :year], name: :articles_slug_year_unique)
+    |> check_constraint(:year,
+      name: :articles_year_range,
+      message: "muss ab 1900 liegen"
+    )
   end
 
   defp put_year(changeset) do

@@ -7,25 +7,67 @@ defmodule Bbh.Notifications do
 
   @categories ~w(termine news)
 
+  # Upper bound on stored subscriptions — subscribe is public, so cap the table
+  # to keep an attacker from flooding it. Updates to existing rows still work.
+  @max_subscriptions 10_000
+
+  # Only real push-service origins are accepted as endpoints. `notify/2` POSTs to
+  # these URLs, so an unrestricted endpoint is an SSRF vector (internal metadata,
+  # localhost, …). Match known hosts exactly plus per-provider subdomain suffixes.
+  @allowed_push_hosts ~w(fcm.googleapis.com web.push.apple.com updates.push.services.mozilla.com)
+  @allowed_push_host_suffixes ~w(.notify.windows.com .push.services.mozilla.com)
+
   @doc "The VAPID public key the browser needs to subscribe."
   def vapid_public_key, do: Application.get_env(:web_push_elixir, :vapid_public_key)
 
+  @doc """
+  Whether `endpoint` is an `https` URL pointing at a known push service.
+  Used both when accepting a subscription and again before sending (SSRF guard).
+  """
+  def valid_push_endpoint?(endpoint) when is_binary(endpoint) do
+    case URI.parse(endpoint) do
+      %URI{scheme: "https", host: host} when is_binary(host) ->
+        host in @allowed_push_hosts or
+          Enum.any?(@allowed_push_host_suffixes, &String.ends_with?(host, &1))
+
+      _ ->
+        false
+    end
+  end
+
+  def valid_push_endpoint?(_), do: false
+
   @doc "Create or update a subscription (keyed by endpoint)."
   def subscribe(%{"endpoint" => endpoint} = params) do
-    attrs = %{
-      "endpoint" => endpoint,
-      "keys_p256dh" => get_in(params, ["keys", "p256dh"]),
-      "keys_auth" => get_in(params, ["keys", "auth"]),
-      "categories" => normalize_categories(params["categories"])
-    }
+    existing = Repo.get_by(PushSubscription, endpoint: endpoint)
 
-    case Repo.get_by(PushSubscription, endpoint: endpoint) do
-      nil -> %PushSubscription{}
-      existing -> existing
+    with true <- valid_push_endpoint?(endpoint),
+         :ok <- within_capacity(existing) do
+      attrs = %{
+        "endpoint" => endpoint,
+        "keys_p256dh" => get_in(params, ["keys", "p256dh"]),
+        "keys_auth" => get_in(params, ["keys", "auth"]),
+        "categories" => normalize_categories(params["categories"])
+      }
+
+      (existing || %PushSubscription{})
+      |> PushSubscription.changeset(attrs)
+      |> Repo.insert_or_update()
+    else
+      false -> {:error, :invalid_endpoint}
+      {:error, :capacity} -> {:error, :capacity}
     end
-    |> PushSubscription.changeset(attrs)
-    |> Repo.insert_or_update()
   end
+
+  def subscribe(_params), do: {:error, :invalid_endpoint}
+
+  defp within_capacity(nil) do
+    if Repo.aggregate(PushSubscription, :count) < @max_subscriptions,
+      do: :ok,
+      else: {:error, :capacity}
+  end
+
+  defp within_capacity(_existing), do: :ok
 
   @doc "Remove a subscription by endpoint."
   def unsubscribe(endpoint) do
@@ -48,6 +90,16 @@ defmodule Bbh.Notifications do
   end
 
   defp send_one(sub, message) do
+    if valid_push_endpoint?(sub.endpoint) do
+      do_send(sub, message)
+    else
+      # Reject/prune any stored endpoint that isn't a known push service (SSRF guard).
+      Logger.warning("Dropping push subscription with untrusted endpoint: #{sub.endpoint}")
+      Repo.delete(sub)
+    end
+  end
+
+  defp do_send(sub, message) do
     json =
       Jason.encode!(%{
         "endpoint" => sub.endpoint,

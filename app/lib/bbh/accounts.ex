@@ -121,6 +121,9 @@ defmodule Bbh.Accounts do
 
   def list_users, do: Repo.all(from u in User, order_by: u.email)
 
+  @doc "How many users currently hold the admin role."
+  def count_admins, do: Repo.aggregate(from(u in User, where: u.role == "admin"), :count)
+
   def delete_user(%User{} = user), do: Repo.delete(user)
 
   def update_user_role(%User{} = user, role),
