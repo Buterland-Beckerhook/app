@@ -4,6 +4,7 @@ defmodule BbhWeb.Router do
   import BbhWeb.UserAuth
 
   pipeline :browser do
+    plug BbhWeb.Plugs.TrailingSlash
     plug :accepts, ["html"]
     plug :fetch_session
     plug :fetch_live_flash
