@@ -47,4 +47,20 @@ defmodule BbhWeb.Admin.ArticleLiveTest do
       assert html =~ "Neuer Bericht"
     end
   end
+
+  describe "preview image (edit)" do
+    test "setting a preview image is exclusive", %{conn: conn} do
+      article = article_fixture()
+      {:ok, a} = Content.add_article_image(article, upload_fixture().id)
+      {:ok, b} = Content.add_article_image(article, upload_fixture().id)
+
+      {:ok, lv, _html} = live(conn, ~p"/admin/artikel/#{article.id}/bearbeiten")
+
+      html = render_click(lv, "set_preview_image", %{"img_id" => b.id})
+
+      assert html =~ "Vorschaubild festgelegt"
+      assert Content.get_article_image!(b.id).use_as_article_image
+      refute Content.get_article_image!(a.id).use_as_article_image
+    end
+  end
 end

@@ -132,6 +132,23 @@ defmodule Bbh.Content do
   def update_article_image(%ArticleImage{} = image, attrs),
     do: image |> ArticleImage.changeset(attrs) |> Repo.update()
 
+  @doc """
+  Make `image_id` the article's preview (hero) image, clearing the flag on all
+  its sibling images so exactly one image is ever the preview.
+  """
+  def set_article_preview_image(%Article{id: article_id}, image_id) do
+    Repo.transact(fn ->
+      from(i in ArticleImage, where: i.article_id == ^article_id)
+      |> Repo.update_all(set: [use_as_article_image: false])
+
+      {count, _} =
+        from(i in ArticleImage, where: i.id == ^image_id and i.article_id == ^article_id)
+        |> Repo.update_all(set: [use_as_article_image: true])
+
+      if count == 1, do: {:ok, image_id}, else: {:error, :not_found}
+    end)
+  end
+
   def delete_article_image(%ArticleImage{} = image), do: Repo.delete(image)
 
   defp next_image_sort(article_id) do

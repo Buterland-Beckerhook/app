@@ -63,6 +63,38 @@ liveSocket.connect()
 // >> liveSocket.disableLatencySim()
 window.liveSocket = liveSocket
 
+// --- Image lightbox for public galleries (plain JS — no LiveView required) ---
+// Any element carrying `data-lightbox-src` opens the referenced image in a
+// native <dialog>. Delegated so it works on server-rendered pages too.
+;(function initLightbox() {
+  let dialog
+  function ensureDialog() {
+    if (dialog) return dialog
+    const style = document.createElement("style")
+    style.textContent =
+      "dialog.lightbox{padding:0;border:0;background:transparent;max-width:96vw;max-height:96vh}" +
+      "dialog.lightbox::backdrop{background:rgba(0,0,0,.85)}" +
+      "dialog.lightbox img{max-width:96vw;max-height:96vh;object-fit:contain;border-radius:.5rem;cursor:zoom-out}"
+    document.head.appendChild(style)
+    dialog = document.createElement("dialog")
+    dialog.className = "lightbox"
+    dialog.innerHTML = '<img alt="">'
+    dialog.addEventListener("click", () => dialog.close())
+    document.body.appendChild(dialog)
+    return dialog
+  }
+  document.addEventListener("click", (e) => {
+    const trigger = e.target.closest("[data-lightbox-src]")
+    if (!trigger) return
+    e.preventDefault()
+    const d = ensureDialog()
+    const img = d.querySelector("img")
+    img.src = trigger.getAttribute("data-lightbox-src")
+    img.alt = trigger.getAttribute("data-lightbox-alt") || ""
+    d.showModal()
+  })
+})()
+
 // --- Web Push opt-in (public pages, plain JS — no LiveView required) ---
 function urlBase64ToUint8Array(base64String) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4)

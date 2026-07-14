@@ -74,6 +74,16 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
     {:noreply, reload_images(socket)}
   end
 
+  def handle_event("set_preview_image", %{"img_id" => id}, socket) do
+    case Content.set_article_preview_image(socket.assigns.article, id) do
+      {:ok, _} ->
+        {:noreply, socket |> put_flash(:info, "Vorschaubild festgelegt.") |> reload_images()}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Bild konnte nicht gesetzt werden.")}
+    end
+  end
+
   def handle_event("save_throne", %{"throne" => params}, socket) do
     article = socket.assigns.article
     params = Map.put(params, "article_id", article.id)
@@ -224,14 +234,23 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
               alt={img.title || ""}
               class="mb-2 aspect-video w-full rounded object-cover"
             />
+            <button
+              type="button"
+              phx-click="set_preview_image"
+              phx-value-img_id={img.id}
+              disabled={img.use_as_article_image}
+              class={[
+                "btn btn-sm mb-2 w-full",
+                (img.use_as_article_image && "btn-primary") || "btn-outline"
+              ]}
+            >
+              {(img.use_as_article_image && "★ Vorschaubild") || "Als Vorschaubild festlegen"}
+            </button>
             <.form :let={f} for={image_form(img)} id={"image-#{img.id}"} phx-submit="save_image">
               <input type="hidden" name="img_id" value={img.id} />
               <.input field={f[:title]} label="Bildunterschrift" />
               <.input field={f[:copyright]} label="Copyright" />
-              <div class="grid grid-cols-2 gap-2">
-                <.input field={f[:use_as_article_image]} type="checkbox" label="Titelbild" />
-                <.input field={f[:use_as_throne_picture]} type="checkbox" label="Thronbild" />
-              </div>
+              <.input field={f[:use_as_throne_picture]} type="checkbox" label="Thronbild" />
               <.input field={f[:sort]} type="number" label="Sortierung" />
               <div class="mt-2 flex gap-2">
                 <.button variant="primary" class="btn btn-primary btn-sm" phx-disable-with="…">Speichern</.button>
@@ -253,7 +272,7 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
 
         <div class="mt-4">
           <p class="mb-2 text-sm font-medium">Bild aus Mediathek hinzufügen</p>
-          <form phx-change="search_media" class="mb-2">
+          <form phx-change="search_media" id="media-picker-search" class="mb-2">
             <input
               type="text"
               name="search"

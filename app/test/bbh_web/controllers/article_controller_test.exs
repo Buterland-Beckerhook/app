@@ -30,5 +30,29 @@ defmodule BbhWeb.ArticleControllerTest do
       conn = get(conn, ~p"/aktuell/abcd/irgendwas")
       assert response(conn, 404)
     end
+
+    test "falls back to the club logo when the article has no images", %{conn: conn} do
+      article = article_fixture()
+      html = conn |> get(~p"/aktuell/#{article.year}/#{article.slug}") |> html_response(200)
+      assert html =~ "/images/logo.svg"
+    end
+
+    test "renders gallery images as lightbox triggers", %{conn: conn} do
+      article = article_fixture()
+      {:ok, _} = Bbh.Content.add_article_image(article, upload_fixture().id)
+      {:ok, _} = Bbh.Content.add_article_image(article, upload_fixture().id)
+
+      html = conn |> get(~p"/aktuell/#{article.year}/#{article.slug}") |> html_response(200)
+      # The hero is excluded, leaving at least one gallery image with a lightbox trigger.
+      assert html =~ "data-lightbox-src"
+    end
+  end
+
+  describe "GET /aktuell (listing)" do
+    test "uses the logo fallback on cards for image-less articles", %{conn: conn} do
+      article_fixture(title: "Ohne Bild")
+      html = conn |> get(~p"/aktuell") |> html_response(200)
+      assert html =~ "/images/logo.svg"
+    end
   end
 end

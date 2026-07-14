@@ -118,5 +118,26 @@ defmodule Bbh.ContentTest do
       {:ok, _} = Content.delete_article_image(image)
       assert Content.list_article_images(article.id) == []
     end
+
+    test "set_article_preview_image/2 is exclusive — only one image is the preview" do
+      article = article_fixture()
+      {:ok, a} = Content.add_article_image(article, upload_fixture().id)
+      {:ok, b} = Content.add_article_image(article, upload_fixture().id)
+
+      assert {:ok, _} = Content.set_article_preview_image(article, a.id)
+      assert Content.get_article_image!(a.id).use_as_article_image
+      refute Content.get_article_image!(b.id).use_as_article_image
+
+      # Switching to b clears a.
+      assert {:ok, _} = Content.set_article_preview_image(article, b.id)
+      refute Content.get_article_image!(a.id).use_as_article_image
+      assert Content.get_article_image!(b.id).use_as_article_image
+    end
+
+    test "set_article_preview_image/2 rejects an image that isn't the article's" do
+      article = article_fixture()
+      other_image_id = Ecto.UUID.generate()
+      assert {:error, :not_found} = Content.set_article_preview_image(article, other_image_id)
+    end
   end
 end

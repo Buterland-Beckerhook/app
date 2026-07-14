@@ -22,12 +22,7 @@
     </header>
 
     <% hero = article_hero(@article) %>
-    <img
-      :if={hero}
-      src={media_url(hero.media, width: 1024)}
-      alt={image_alt(hero)}
-      class="mt-6 w-full rounded-lg object-cover"
-    />
+    <.hero_image article={@article} width={1024} class="mt-6 w-full rounded-lg" />
 
     <div :if={@article.body} class="prose mt-6 max-w-none dark:prose-invert">
       {Phoenix.HTML.raw(@article.body)}
@@ -44,13 +39,21 @@
     <section :if={gallery != []} class="mt-8">
       <h2 class="mb-3 text-xl font-semibold">Bilder</h2>
       <div class="grid grid-cols-2 gap-2 md:grid-cols-3">
-        <img
+        <button
           :for={img <- gallery}
-          src={media_url(img.media, width: 400, height: 400)}
-          alt={image_alt(img)}
-          loading="lazy"
-          class="aspect-square w-full rounded object-cover"
-        />
+          type="button"
+          data-lightbox-src={media_url(img.media, width: 1600)}
+          data-lightbox-alt={image_alt(img)}
+          class="group block cursor-zoom-in"
+          aria-label="Bild vergrößern"
+        >
+          <img
+            src={media_url(img.media, width: 400, height: 400)}
+            alt={image_alt(img)}
+            loading="lazy"
+            class="aspect-square w-full rounded object-cover transition group-hover:opacity-90"
+          />
+        </button>
       </div>
     </section>
   </article>

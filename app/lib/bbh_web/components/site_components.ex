@@ -7,23 +7,51 @@ defmodule BbhWeb.SiteComponents do
   alias Bbh.Club.Person
   alias Bbh.Content.Throne
 
+  @doc """
+  An article's hero image, sized as requested. Falls back to the club logo
+  (contained, not cropped) when the article has no images.
+  """
+  attr :article, :map, required: true
+  attr :width, :integer, default: nil
+  attr :height, :integer, default: nil
+  attr :class, :string, default: ""
+
+  def hero_image(assigns) do
+    assigns = assign(assigns, :hero, article_hero(assigns.article))
+
+    ~H"""
+    <img
+      :if={@hero}
+      src={media_url(@hero.media, width: @width, height: @height)}
+      alt={image_alt(@hero)}
+      loading="lazy"
+      class={["object-cover", @class]}
+    />
+    <img
+      :if={!@hero}
+      src={~p"/images/logo.svg"}
+      alt="Buterland-Beckerhook"
+      loading="lazy"
+      class={["bg-white object-contain p-6 dark:bg-zinc-700", @class]}
+    />
+    """
+  end
+
   @doc "Preview card for an article in a listing."
   attr :article, :map, required: true
 
   def article_card(assigns) do
-    assigns = assign(assigns, :hero, article_hero(assigns.article))
-
     ~H"""
     <a
       href={~p"/aktuell/#{@article.year}/#{@article.slug}"}
       class="group flex flex-col overflow-hidden rounded-lg border border-gray-200 bg-white transition-shadow hover:shadow-md dark:border-zinc-700 dark:bg-zinc-800"
     >
-      <div :if={@hero} class="aspect-video overflow-hidden bg-gray-100 dark:bg-zinc-700">
-        <img
-          src={media_url(@hero.media, width: 640, height: 360)}
-          alt={image_alt(@hero)}
-          loading="lazy"
-          class="h-full w-full object-cover transition-transform group-hover:scale-105"
+      <div class="aspect-video overflow-hidden bg-gray-100 dark:bg-zinc-700">
+        <.hero_image
+          article={@article}
+          width={640}
+          height={360}
+          class="h-full w-full transition-transform group-hover:scale-105"
         />
       </div>
       <div class="flex flex-1 flex-col p-4">
