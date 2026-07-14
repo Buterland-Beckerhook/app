@@ -1,5 +1,5 @@
 defmodule Bbh.AccountsTest do
-  use Bbh.DataCase
+  use Bbh.DataCase, async: true
 
   alias Bbh.Accounts
 

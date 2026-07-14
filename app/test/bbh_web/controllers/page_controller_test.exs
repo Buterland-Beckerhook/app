@@ -1,5 +1,5 @@
 defmodule BbhWeb.PageControllerTest do
-  use BbhWeb.ConnCase
+  use BbhWeb.ConnCase, async: true
 
   test "GET /", %{conn: conn} do
     conn = get(conn, ~p"/")

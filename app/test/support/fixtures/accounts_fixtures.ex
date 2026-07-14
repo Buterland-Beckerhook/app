@@ -41,6 +41,12 @@ defmodule Bbh.AccountsFixtures do
     user
   end
 
+  def admin_user_fixture(attrs \\ %{}) do
+    user = user_fixture(attrs)
+    {:ok, user} = Accounts.update_user_role(user, "admin")
+    user
+  end
+
   def user_scope_fixture do
     user = user_fixture()
     user_scope_fixture(user)

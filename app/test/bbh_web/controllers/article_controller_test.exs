@@ -1,0 +1,34 @@
+defmodule BbhWeb.ArticleControllerTest do
+  use BbhWeb.ConnCase, async: true
+
+  import Bbh.ContentFixtures
+
+  describe "GET /aktuell" do
+    test "lists published articles and hides throne-only entries", %{conn: conn} do
+      shown = article_fixture(title: "Öffentlicher Bericht")
+      hidden = article_fixture(title: "Nur Thron", no_article: true)
+
+      html = conn |> get(~p"/aktuell") |> html_response(200)
+      assert html =~ shown.title
+      refute html =~ hidden.title
+    end
+  end
+
+  describe "GET /aktuell/:year/:slug" do
+    test "renders a published article", %{conn: conn} do
+      article = article_fixture(title: "Jubiläum")
+      html = conn |> get(~p"/aktuell/#{article.year}/#{article.slug}") |> html_response(200)
+      assert html =~ "Jubiläum"
+    end
+
+    test "returns 404 for an unknown article", %{conn: conn} do
+      conn = get(conn, ~p"/aktuell/2026/gibt-es-nicht")
+      assert response(conn, 404)
+    end
+
+    test "returns 404 for a non-numeric year", %{conn: conn} do
+      conn = get(conn, ~p"/aktuell/abcd/irgendwas")
+      assert response(conn, 404)
+    end
+  end
+end
