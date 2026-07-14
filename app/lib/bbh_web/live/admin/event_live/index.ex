@@ -33,15 +33,24 @@ defmodule BbhWeb.Admin.EventLive.Index do
         <:col :let={e} label="Ort">{e.location && e.location.name}</:col>
         <:col :let={e} label="Status">{status_label(e.status)}</:col>
         <:action :let={e}>
-          <.link navigate={~p"/admin/termine/#{e.id}/bearbeiten"} class="link link-primary">Bearbeiten</.link>
+          <.link
+            navigate={~p"/admin/termine/#{e.id}/bearbeiten"}
+            class="link link-primary"
+            title="Bearbeiten"
+            aria-label="Bearbeiten"
+          >
+            <.icon name="hero-pencil-square" class="size-5" />
+          </.link>
         </:action>
         <:action :let={e}>
           <.link
             phx-click={JS.push("delete", value: %{id: e.id})}
             data-confirm="Diesen Termin wirklich löschen?"
             class="link link-error"
+            title="Löschen"
+            aria-label="Löschen"
           >
-            Löschen
+            <.icon name="hero-trash" class="size-5" />
           </.link>
         </:action>
       </.table>

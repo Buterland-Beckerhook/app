@@ -92,8 +92,10 @@ defmodule BbhWeb.Admin.UserLive.Index do
             phx-click={JS.push("delete", value: %{id: u.id})}
             data-confirm="Diesen Benutzer wirklich löschen?"
             class="link link-error"
+            title="Löschen"
+            aria-label="Löschen"
           >
-            Löschen
+            <.icon name="hero-trash" class="size-5" />
           </.link>
         </:action>
       </.table>

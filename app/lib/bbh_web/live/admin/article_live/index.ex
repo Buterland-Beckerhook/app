@@ -38,15 +38,24 @@ defmodule BbhWeb.Admin.ArticleLive.Index do
           <span class={["badge", status_class(a.status)]}>{status_label(a.status)}</span>
         </:col>
         <:action :let={a}>
-          <.link navigate={~p"/admin/artikel/#{a.id}/bearbeiten"} class="link link-primary">Bearbeiten</.link>
+          <.link
+            navigate={~p"/admin/artikel/#{a.id}/bearbeiten"}
+            class="link link-primary"
+            title="Bearbeiten"
+            aria-label="Bearbeiten"
+          >
+            <.icon name="hero-pencil-square" class="size-5" />
+          </.link>
         </:action>
         <:action :let={a}>
           <.link
             phx-click={JS.push("delete", value: %{id: a.id})}
             data-confirm="Diesen Artikel wirklich löschen?"
             class="link link-error"
+            title="Löschen"
+            aria-label="Löschen"
           >
-            Löschen
+            <.icon name="hero-trash" class="size-5" />
           </.link>
         </:action>
       </.table>

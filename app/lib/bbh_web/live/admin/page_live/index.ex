@@ -34,15 +34,24 @@ defmodule BbhWeb.Admin.PageLive.Index do
           {if p.status == "published", do: "Veröffentlicht", else: "Entwurf"}
         </:col>
         <:action :let={p}>
-          <.link navigate={~p"/admin/seiten/#{p.id}/bearbeiten"} class="link link-primary">Bearbeiten</.link>
+          <.link
+            navigate={~p"/admin/seiten/#{p.id}/bearbeiten"}
+            class="link link-primary"
+            title="Bearbeiten"
+            aria-label="Bearbeiten"
+          >
+            <.icon name="hero-pencil-square" class="size-5" />
+          </.link>
         </:action>
         <:action :let={p}>
           <.link
             phx-click={JS.push("delete", value: %{id: p.id})}
             data-confirm="Diese Seite mit allen Blöcken wirklich löschen?"
             class="link link-error"
+            title="Löschen"
+            aria-label="Löschen"
           >
-            Löschen
+            <.icon name="hero-trash" class="size-5" />
           </.link>
         </:action>
       </.table>

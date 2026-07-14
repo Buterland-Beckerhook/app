@@ -139,8 +139,10 @@ defmodule BbhWeb.Admin.MediaLive.Index do
               phx-click={JS.push("delete", value: %{id: item.id})}
               data-confirm="Dieses Bild wirklich löschen?"
               class="link link-error text-xs"
+              title="Löschen"
+              aria-label="Löschen"
             >
-              Löschen
+              <.icon name="hero-trash" class="size-4" />
             </.link>
           </figcaption>
         </figure>

@@ -31,15 +31,24 @@ defmodule BbhWeb.Admin.LocationLive.Index do
         <:col :let={l} label="Name"><span class="font-medium">{l.name}</span></:col>
         <:col :let={l} label="Ort">{l.city}</:col>
         <:action :let={l}>
-          <.link navigate={~p"/admin/orte/#{l.id}/bearbeiten"} class="link link-primary">Bearbeiten</.link>
+          <.link
+            navigate={~p"/admin/orte/#{l.id}/bearbeiten"}
+            class="link link-primary"
+            title="Bearbeiten"
+            aria-label="Bearbeiten"
+          >
+            <.icon name="hero-pencil-square" class="size-5" />
+          </.link>
         </:action>
         <:action :let={l}>
           <.link
             phx-click={JS.push("delete", value: %{id: l.id})}
             data-confirm="Diesen Ort wirklich löschen?"
             class="link link-error"
+            title="Löschen"
+            aria-label="Löschen"
           >
-            Löschen
+            <.icon name="hero-trash" class="size-5" />
           </.link>
         </:action>
       </.table>
