@@ -8,8 +8,8 @@ defmodule BbhWeb.UserLive.LoginTest do
     test "renders login page", %{conn: conn} do
       {:ok, _lv, html} = live(conn, ~p"/users/log-in")
 
-      assert html =~ "Log in"
-      assert html =~ "Sign up"
+      assert html =~ "Anmelden"
+      assert html =~ "Interner Bereich für Redakteure des Vereins."
       assert html =~ "Log in with email"
     end
   end
@@ -56,7 +56,7 @@ defmodule BbhWeb.UserLive.LoginTest do
 
       conn = submit_form(form, conn)
 
-      assert redirected_to(conn) == ~p"/"
+      assert redirected_to(conn) == ~p"/admin"
     end
 
     test "redirects to login page with a flash error if credentials are invalid", %{
@@ -75,20 +75,6 @@ defmodule BbhWeb.UserLive.LoginTest do
     end
   end
 
-  describe "login navigation" do
-    test "redirects to registration page when the Register button is clicked", %{conn: conn} do
-      {:ok, lv, _html} = live(conn, ~p"/users/log-in")
-
-      {:ok, _login_live, login_html} =
-        lv
-        |> element("main a", "Sign up")
-        |> render_click()
-        |> follow_redirect(conn, ~p"/users/register")
-
-      assert login_html =~ "Register"
-    end
-  end
-
   describe "re-authentication (sudo mode)" do
     setup %{conn: conn} do
       user = user_fixture()
@@ -98,7 +84,7 @@ defmodule BbhWeb.UserLive.LoginTest do
     test "shows login page with email filled in", %{conn: conn, user: user} do
       {:ok, _lv, html} = live(conn, ~p"/users/log-in")
 
-      assert html =~ "You need to reauthenticate"
+      assert html =~ "Bitte erneut anmelden, um sensible Aktionen durchzuführen."
       refute html =~ "Register"
       assert html =~ "Log in with email"
 

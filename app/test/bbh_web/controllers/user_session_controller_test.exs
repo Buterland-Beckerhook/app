@@ -18,13 +18,12 @@ defmodule BbhWeb.UserSessionControllerTest do
         })
 
       assert get_session(conn, :user_token)
-      assert redirected_to(conn) == ~p"/"
+      assert redirected_to(conn) == ~p"/admin"
 
-      # Now do a logged in request and assert on the menu
-      conn = get(conn, ~p"/")
+      # Now do a logged in request and assert on the admin menu
+      conn = get(conn, ~p"/admin")
       response = html_response(conn, 200)
       assert response =~ user.email
-      assert response =~ ~p"/users/settings"
       assert response =~ ~p"/users/log-out"
     end
 
@@ -41,7 +40,7 @@ defmodule BbhWeb.UserSessionControllerTest do
         })
 
       assert conn.resp_cookies["_bbh_web_user_remember_me"]
-      assert redirected_to(conn) == ~p"/"
+      assert redirected_to(conn) == ~p"/admin"
     end
 
     test "logs the user in with return to", %{conn: conn, user: user} do
@@ -82,13 +81,12 @@ defmodule BbhWeb.UserSessionControllerTest do
         })
 
       assert get_session(conn, :user_token)
-      assert redirected_to(conn) == ~p"/"
+      assert redirected_to(conn) == ~p"/admin"
 
-      # Now do a logged in request and assert on the menu
-      conn = get(conn, ~p"/")
+      # Now do a logged in request and assert on the admin menu
+      conn = get(conn, ~p"/admin")
       response = html_response(conn, 200)
       assert response =~ user.email
-      assert response =~ ~p"/users/settings"
       assert response =~ ~p"/users/log-out"
     end
 
@@ -103,16 +101,15 @@ defmodule BbhWeb.UserSessionControllerTest do
         })
 
       assert get_session(conn, :user_token)
-      assert redirected_to(conn) == ~p"/"
+      assert redirected_to(conn) == ~p"/admin"
       assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "User confirmed successfully."
 
       assert Accounts.get_user!(user.id).confirmed_at
 
-      # Now do a logged in request and assert on the menu
-      conn = get(conn, ~p"/")
+      # Now do a logged in request and assert on the admin menu
+      conn = get(conn, ~p"/admin")
       response = html_response(conn, 200)
       assert response =~ user.email
-      assert response =~ ~p"/users/settings"
       assert response =~ ~p"/users/log-out"
     end
 
