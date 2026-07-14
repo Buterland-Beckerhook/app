@@ -23,16 +23,10 @@ defmodule BbhWeb.Admin.DashboardLive do
       </.header>
 
       <div class="mt-6 grid grid-cols-2 gap-4 md:grid-cols-4">
-        <.link
-          navigate={~p"/admin/artikel"}
-          class="rounded-box border border-base-300 bg-base-200 p-4 hover:border-primary"
-        >
-          <div class="text-3xl font-semibold text-primary">{@stats.articles}</div>
-          <div class="text-sm text-base-content/70">Artikel</div>
-        </.link>
-        <.stat_card label="Termine" value={@stats.events} />
-        <.stat_card label="Personen" value={@stats.people} />
-        <.stat_card label="Seiten" value={@stats.pages} />
+        <.stat_card label="Artikel" value={@stats.articles} navigate={~p"/admin/artikel"} />
+        <.stat_card label="Termine" value={@stats.events} navigate={~p"/admin/termine"} />
+        <.stat_card label="Personen" value={@stats.people} navigate={~p"/admin/personen"} />
+        <.stat_card label="Seiten" value={@stats.pages} navigate={~p"/admin/seiten"} />
       </div>
     </Layouts.admin>
     """
@@ -40,13 +34,17 @@ defmodule BbhWeb.Admin.DashboardLive do
 
   attr :label, :string, required: true
   attr :value, :integer, required: true
+  attr :navigate, :string, required: true
 
   defp stat_card(assigns) do
     ~H"""
-    <div class="rounded-box border border-base-300 bg-base-200 p-4">
+    <.link
+      navigate={@navigate}
+      class="rounded-box border border-base-300 bg-base-200 p-4 hover:border-primary"
+    >
       <div class="text-3xl font-semibold text-primary">{@value}</div>
       <div class="text-sm text-base-content/70">{@label}</div>
-    </div>
+    </.link>
     """
   end
 end
