@@ -1,7 +1,0 @@
-# security.txt according to RFC 9116
-# https://securitytxt.org/
-
-Contact: mailto:admin@buterland-beckerhook.de
-Preferred-Languages: de, en
-Canonical: https://buterland-beckerhook.de/.well-known/security.txt
-Expires: 2027-03-03T00:00:00.000Z

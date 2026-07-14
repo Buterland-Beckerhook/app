@@ -1,56 +1,39 @@
 MAKEFLAGS += --always-make
 
+# All mix commands run inside the Phoenix app directory.
+APP := app
+DEV_PG := bbh-dev-pg
+
 # Default target
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
 
-dev: backend frontend ## Start full dev environment (backend + frontend)
+dev: db ## Start the Phoenix dev server (localhost:4000)
+	cd $(APP) && mix phx.server
 
-backend: ## Start Directus + PostgreSQL (Docker)
-	docker compose -f compose.yml -f compose.dev.yml up -d
+deps: ## Fetch Elixir dependencies
+	cd $(APP) && mix deps.get
 
-frontend: ## Start SvelteKit dev server (Vite HMR)
-	cd frontend && npm run dev
+db: ## Start the dev PostgreSQL container
+	docker start $(DEV_PG)
 
-stop: ## Stop Docker services
-	docker compose -f compose.yml -f compose.dev.yml down
+setup: deps ## First-time setup: deps + create/migrate/seed the dev DB
+	cd $(APP) && mix ecto.setup
 
-build: ## Build frontend for production
-	cd frontend && npm run build
+migrate: ## Run pending Ecto migrations
+	cd $(APP) && mix ecto.migrate
 
-lint: ## Run ESLint + Prettier check
-	cd frontend && npm run lint
+reset-db: ## Drop, recreate, migrate and seed the dev DB
+	cd $(APP) && mix ecto.reset
 
-lint-fix: ## Run ESLint + Prettier check
-	cd frontend && npm run lint:fix
+test: ## Run the test suite
+	cd $(APP) && mix test
 
-check: ## Run svelte-check (type checking)
-	cd frontend && npm run check
+format: ## Auto-format code with mix format
+	cd $(APP) && mix format
 
-format: ## Auto-format code with Prettier
-	cd frontend && npm run format
+precommit: ## Format check + compile (warnings as errors) + tests
+	cd $(APP) && mix precommit
 
-setup-schema: ## Create Directus collections, fields, and relations
-	cd setup && npm run setup:schema
-
-setup-db-index: ## Create composite DB indexes (slug + year)
-	cd setup && npm run setup:db-index
-
-setup-permissions: ## Set up static token, public permissions, and calendar role
-	cd setup && npm run setup:permissions
-
-setup-branding: ## Configure Directus branding (logo, favicon, colors)
-	cd setup && npm run setup:branding
-
-setup-all: setup-schema setup-db-index setup-permissions setup-branding ## Run all Directus setup scripts
-
-migrate-hugo: ## Run all Hugo migration import scripts
-	cd migration-hugo && npm run import:all
-
-clean: ## Remove build artifacts and node_modules
-	rm -rf frontend/build frontend/.svelte-kit frontend/node_modules setup/node_modules migration-hugo/node_modules
-
-install: ## Install all dependencies (frontend + setup + migration-hugo)
-	cd frontend && npm install
-	cd setup && npm install
-	cd migration-hugo && npm install
+import: ## One-time Hugo content import (mix bbh.import)
+	cd $(APP) && mix bbh.import

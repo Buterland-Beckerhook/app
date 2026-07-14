@@ -1,9 +1,0 @@
-buterland-beckerhook.de {
-	encode gzip zstd
-
-	reverse_proxy frontend:3000
-}
-
-cms.buterland-beckerhook.de {
-	reverse_proxy directus:8055
-}
