@@ -261,6 +261,9 @@ dist
 # temporary files which can be created if a process still has a handle open of a deleted file
 .fuse_hidden*
 
+# Dev seed snapshot artifacts (DB dump + uploads tarball; produced by make dump)
+/seed/
+
 # KDE directory preferences
 .directory
 

@@ -7,7 +7,8 @@ config :bbh, BbhWeb.Plugs.CSP, enabled: false
 config :bbh, Bbh.Repo,
   username: "postgres",
   password: "postgres",
-  hostname: "localhost",
+  # "localhost" for bare-metal; the compose dev stack sets DB_HOST=postgres.
+  hostname: System.get_env("DB_HOST", "localhost"),
   database: "bbh_dev",
   stacktrace: true,
   show_sensitive_data_on_connection_error: true,
@@ -20,9 +21,10 @@ config :bbh, Bbh.Repo,
 # watchers to your application. For example, we can use it
 # to bundle .js and .css sources.
 config :bbh, BbhWeb.Endpoint,
-  # Binding to loopback ipv4 address prevents access from other machines.
-  # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
-  http: [ip: {127, 0, 0, 1}],
+  # Bind all interfaces so Caddy (a separate container in the dev stack) can
+  # reach the server. In the containerized dev stack this is isolated to the
+  # compose network; only Caddy publishes ports to the host.
+  http: [ip: {0, 0, 0, 0}],
   check_origin: false,
   code_reloader: true,
   debug_errors: true,

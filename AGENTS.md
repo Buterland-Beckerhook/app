@@ -43,11 +43,23 @@ npx eslint src/routes/aktuell/+page.server.ts   # Lint a single file
 npx prettier --write src/lib/components/Foo.svelte  # Format a single file
 
 # Docker (from repo root)
-docker compose -f compose.yml -f compose.dev.yml up -d   # Dev backend (Directus + PostgreSQL)
-docker compose up --build                                 # Full production stack
+docker compose up --build       # Full dev stack (compose.yml): db + phoenix + caddy
 ```
 
-There is also a `Makefile` in the repo root with shortcuts: `make dev`, `make backend`, `make frontend`, `make lint`, `make check`, `make build`, `make format`, `make clean`, `make install`, `make setup-schema`, `make setup-db-index`, `make setup-permissions`, `make setup-branding`, `make setup-all`.
+> **Note:** the site is being rewritten to Elixir/Phoenix (the app now lives in
+> `app/`); the SvelteKit/Directus notes above are historical. Dev runs fully
+> containerized. Use the repo-root `Makefile`:
+>
+> - `make dev` — start the dev stack (Postgres + Phoenix + Caddy) at `https://localhost`
+> - `make down` / `make logs` — stop / tail the stack
+> - `make dump` — snapshot the dev DB + uploads into `./seed` (DB dump + tarball)
+> - `make seed` — restore a `./seed` snapshot into the dev DB + uploads
+> - `make test`, `make format`, `make precommit`, `make migrate`, `make reset-db` —
+>   run the corresponding `mix` task inside the running phoenix container
+>
+> First run trusts Caddy's local CA for a clean HTTPS lock: extract
+> `/data/caddy/pki/authorities/local/root.crt` from the `caddy_data` volume and
+> add it to your system trust store.
 
 ### Tests
 

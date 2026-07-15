@@ -1,0 +1,64 @@
+# Development stack: Postgres + Phoenix (mix, source mounted) + Caddy (local HTTPS).
+# Start with: make dev  (== docker compose up --build)
+#
+# This is the DEV stack. The production stack lives in deploy/compose.yml and is
+# a separate compose project, so their named volumes never collide.
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: bbh_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  phoenix:
+    build:
+      context: ./app
+      dockerfile: Dockerfile.dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      MIX_ENV: dev
+      PORT: "4000"
+    ports:
+      # Published for direct access / `make test`; Caddy proxies this internally.
+      - "4000:4000"
+    volumes:
+      - ./app:/app
+      # Named volumes shadow host (macOS) artifacts that are ABI-incompatible
+      # with this Linux container. priv/uploads(+_cache) arrive via ./app.
+      - deps:/app/deps
+      - build:/app/_build
+    tty: true
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - phoenix
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile.dev:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  pg_data:
+  deps:
+  build:
+  caddy_data:
+  caddy_config:

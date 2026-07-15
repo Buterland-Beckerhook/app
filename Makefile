@@ -1,39 +1,48 @@
 MAKEFLAGS += --always-make
 
-# All mix commands run inside the Phoenix app directory.
-APP := app
-DEV_PG := bbh-dev-pg
+# Development runs fully containerized (see compose.yml): Postgres + Phoenix
+# (source mounted, code reload) + Caddy (local HTTPS at https://localhost).
+# The mix wrappers below exec into the running phoenix container, so bring the
+# stack up with `make dev` first.
+COMPOSE := docker compose
+MIX := $(COMPOSE) exec phoenix mix
 
 # Default target
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
 
-dev: db ## Start the Phoenix dev server (localhost:4000)
-	cd $(APP) && mix phx.server
+dev: ## Start the full dev stack (db + phoenix + caddy) at https://localhost
+	$(COMPOSE) up --build
 
-deps: ## Fetch Elixir dependencies
-	cd $(APP) && mix deps.get
+down: ## Stop the dev stack (data persists in volumes)
+	$(COMPOSE) down
 
-db: ## Start the dev PostgreSQL container
-	docker start $(DEV_PG)
+logs: ## Tail logs from the running dev stack
+	$(COMPOSE) logs -f
 
-setup: deps ## First-time setup: deps + create/migrate/seed the dev DB
-	cd $(APP) && mix ecto.setup
+dump: ## Snapshot dev DB + uploads into ./seed (stack must be running)
+	./scripts/dump.sh
 
-migrate: ## Run pending Ecto migrations
-	cd $(APP) && mix ecto.migrate
+seed: ## Restore ./seed snapshot into the dev DB + uploads (stack must be running)
+	./scripts/seed.sh
 
-reset-db: ## Drop, recreate, migrate and seed the dev DB
-	cd $(APP) && mix ecto.reset
+deps: ## Fetch Elixir dependencies (in the phoenix container)
+	$(MIX) deps.get
 
-test: ## Run the test suite
-	cd $(APP) && mix test
+migrate: ## Run pending Ecto migrations (in the phoenix container)
+	$(MIX) ecto.migrate
 
-format: ## Auto-format code with mix format
-	cd $(APP) && mix format
+reset-db: ## Drop, recreate and migrate the dev DB (in the phoenix container)
+	$(MIX) ecto.reset
 
-precommit: ## Format check + compile (warnings as errors) + tests
-	cd $(APP) && mix precommit
+test: ## Run the test suite (in the phoenix container)
+	$(MIX) test
 
-import: ## One-time Hugo content import (mix bbh.import)
-	cd $(APP) && mix bbh.import
+format: ## Auto-format code with mix format (in the phoenix container)
+	$(MIX) format
+
+precommit: ## Format check + compile (warnings as errors) + tests (in the phoenix container)
+	$(MIX) precommit
+
+import: ## One-time Hugo content import (mix bbh.import) (in the phoenix container)
+	$(MIX) bbh.import

@@ -1,0 +1,34 @@
+# Development image for the Phoenix app.
+#
+# Unlike the production Dockerfile (multi-stage `mix release`), this is a single
+# stage that runs `mix phx.server` with the source bind-mounted from the host.
+# deps/ and _build/ live in named volumes (see the root compose.yml) so that
+# host-compiled (macOS) artifacts never leak into this Linux container.
+#
+# Keep the Elixir/OTP/Debian versions in sync with the production Dockerfile.
+
+ARG ELIXIR_VERSION=1.20.2
+ARG OTP_VERSION=29.0.3
+ARG DEBIAN_VERSION=trixie-20260713-slim
+
+FROM docker.io/hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-debian-${DEBIAN_VERSION}
+
+# build-essential/git for compiling deps; inotify-tools for live code reload;
+# postgresql-client for ad-hoc psql; curl for health checks.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends \
+       build-essential git inotify-tools postgresql-client curl \
+  && rm -rf /var/lib/apt/lists/*
+
+RUN mix local.hex --force && mix local.rebar --force
+
+ENV MIX_ENV=dev
+
+WORKDIR /app
+
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+EXPOSE 4000
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
