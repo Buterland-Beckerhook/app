@@ -1,0 +1,11 @@
+## Requirements Coverage (from conversation, user request 2026-07-14)
+
+| # | Requirement | Status | Evidence |
+|---|-------------|--------|----------|
+| 1 | Articles without images use logo.svg as preview/hero, on both listing and article page | MET | `lib/bbh_web/components/site_components.ex:19-36` `hero_image/1` renders `~p"/images/logo.svg"` (contained, `object-contain`) when `article_hero/1` returns nil; used by `article_card/1` (site_components.ex:50) for listing and directly in `controllers/article_html/show.html.heex:24` for the article page. Fallback selection logic in `lib/bbh_web/format.ex:60-64` `article_hero/1` picks the flagged image (`use_as_article_image`) or `List.first(images)` when present, only falling back to logo when `images` is empty — real image still wins. |
+| 2 | Preview image switchable in admin, exclusive (exactly one preview) | MET | `lib/bbh/content.ex:135-150` `set_article_preview_image/2` runs in `Repo.transact`, first clears `use_as_article_image` on all sibling images (`Repo.update_all(set: [use_as_article_image: false])`), then sets it true only on the target id, guaranteeing exclusivity. Admin UI: `lib/bbh_web/live/admin/article_live/form.ex:77-81` `set_preview_image` handler + button at lines 239-247 shows "★ Vorschaubild" / disables when already set. Public consumption confirmed: `format.ex:61` `article_hero/1` reads `&1.use_as_article_image` directly, and `hero_image/1` (site_components.ex:20) calls `article_hero(assigns.article)` — so the flag set in admin flows straight to the public hero. |
+| 3 | Image gallery on article page offers lightbox to view images large | MET (JS interaction unverified by tests — browser-only) | Gallery buttons with `data-lightbox-src`/`data-lightbox-alt` triggers in `controllers/article_html/show.html.heex:38-54`. `assets/js/app.js:66-93` implements a delegated, dependency-free `<dialog class="lightbox">` that opens on click of any `[data-lightbox-src]` element and closes on click (native `<dialog>`, works on server-rendered/non-LiveView pages per commit message). No JS/browser test exercises the actual open/close interaction — this is a legitimate testing gap for browser JS, not a code gap. |
+
+**Summary**: 3 MET (req 3's underlying JS behavior is unverified by automated tests, noted above) · 0 PARTIAL · 0 UNMET · 0 UNCLEAR
+
+**One-line verdict**: 3 MET
