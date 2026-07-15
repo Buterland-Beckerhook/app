@@ -2,7 +2,7 @@ defmodule Bbh.Content.ArticleImage do
   @moduledoc "Join between an article and an uploaded image, with hero/throne flags."
   use Bbh.Schema
 
-  schema "images" do
+  schema "article_images" do
     field :logical_name, :string
     field :title, :string
     field :description, :string
@@ -34,5 +34,9 @@ defmodule Bbh.Content.ArticleImage do
     |> validate_required([:article_id, :media_id])
     |> foreign_key_constraint(:article_id)
     |> foreign_key_constraint(:media_id)
+    |> unique_constraint(:use_as_article_image,
+      name: :article_images_one_preview,
+      message: "es ist bereits ein Vorschaubild gesetzt"
+    )
   end
 end

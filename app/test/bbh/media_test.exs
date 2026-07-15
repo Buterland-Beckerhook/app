@@ -2,15 +2,18 @@ defmodule Bbh.MediaTest do
   # async: false — overrides the global :bbh, :uploads_dir and writes real files.
   use Bbh.DataCase
 
+  alias Bbh.Content
   alias Bbh.Media
-  alias Bbh.Media.Upload
+  alias Bbh.Media.{Folder, Upload}
 
-  import Bbh.ContentFixtures, only: [upload_fixture: 1]
+  import Bbh.ContentFixtures, only: [upload_fixture: 1, article_fixture: 1]
 
   # 1×1 transparent PNG.
   @png Base.decode64!(
          "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
        )
+
+  @pdf "%PDF-1.4\n%\xE2\xE3\xCF\xD3\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF"
 
   setup do
     tmp = Path.join(System.tmp_dir!(), "bbh_media_test_#{System.unique_integer([:positive])}")
@@ -101,6 +104,74 @@ defmodule Bbh.MediaTest do
     test "rejects a non-image whose extension is spoofed" do
       src = write_tmp("this is definitely not an image")
       assert {:error, :unsupported_media_type} = Media.store_file(src, %{filename: "fake.png"})
+    end
+
+    test "stores a PDF as a document (no image variant, no dimensions)" do
+      src = write_tmp(@pdf)
+
+      assert {:ok, upload} = Media.store_file(src, %{filename: "satzung.pdf"})
+      assert upload.content_type == "application/pdf"
+      assert String.ends_with?(upload.storage_key, ".pdf")
+      assert is_nil(upload.width) and is_nil(upload.height)
+      refute Media.image?(upload)
+    end
+  end
+
+  describe "delete_upload/1 with references" do
+    test "refuses to delete media that is still used by an article" do
+      upload = upload_fixture(%{})
+      article = article_fixture(%{})
+      {:ok, _} = Content.add_article_image(article, upload.id)
+
+      assert Media.in_use?(upload)
+      assert [{:articles, 1}] = Media.usages(upload)
+      assert {:error, :in_use} = Media.delete_upload(upload)
+      assert Media.get_upload!(upload.id)
+    end
+  end
+
+  describe "folders" do
+    test "creates two levels but rejects a third" do
+      {:ok, root} = Media.create_folder(%{"name" => "Dokumente"})
+      assert is_nil(root.parent_id)
+
+      {:ok, sub} = Media.create_folder(%{"name" => "2026", "parent_id" => root.id})
+      assert sub.parent_id == root.id
+
+      assert {:error, changeset} =
+               Media.create_folder(%{"name" => "zu-tief", "parent_id" => sub.id})
+
+      assert %{parent_id: [_]} = errors_on(changeset)
+    end
+
+    test "rejects duplicate names within the same parent" do
+      {:ok, _} = Media.create_folder(%{"name" => "Bilder"})
+      assert {:error, changeset} = Media.create_folder(%{"name" => "Bilder"})
+      assert %{name: [_]} = errors_on(changeset)
+    end
+
+    test "filters uploads by folder and moves them between folders" do
+      {:ok, folder} = Media.create_folder(%{"name" => "Presse"})
+      filed = upload_fixture(folder_id: folder.id)
+      _unfiled = upload_fixture(%{})
+
+      assert [%{id: id}] = Media.list_uploads(folder: folder.id)
+      assert id == filed.id
+      assert [_only_root] = Media.list_uploads(folder: :root)
+
+      {:ok, moved} = Media.move_upload(filed, nil)
+      assert is_nil(moved.folder_id)
+      assert Media.list_uploads(folder: folder.id) == []
+    end
+
+    test "deleting a folder unfiles its media" do
+      {:ok, folder} = Media.create_folder(%{"name" => "Alt"})
+      upload = upload_fixture(folder_id: folder.id)
+
+      {:ok, _} = Media.delete_folder(folder)
+
+      assert Repo.get!(Upload, upload.id).folder_id == nil
+      refute Repo.get(Folder, folder.id)
     end
   end
 

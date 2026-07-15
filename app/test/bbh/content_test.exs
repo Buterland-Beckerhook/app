@@ -139,5 +139,38 @@ defmodule Bbh.ContentTest do
       other_image_id = Ecto.UUID.generate()
       assert {:error, :not_found} = Content.set_article_preview_image(article, other_image_id)
     end
+
+    test "a second preview image is rejected at the database level" do
+      article = article_fixture()
+      {:ok, a} = Content.add_article_image(article, upload_fixture().id)
+      {:ok, b} = Content.add_article_image(article, upload_fixture().id)
+
+      assert {:ok, _} = Content.set_article_preview_image(article, a.id)
+
+      # Flipping the flag directly (bypassing the exclusive setter) must fail.
+      assert {:error, changeset} = Content.update_article_image(b, %{use_as_article_image: true})
+      assert %{use_as_article_image: [_]} = errors_on(changeset)
+    end
+  end
+
+  describe "article date fields" do
+    test "editing bumps date_modified but leaves date_published untouched" do
+      published = days_ago(30)
+      article = article_fixture(date_published: published)
+      assert is_nil(article.date_modified)
+
+      {:ok, updated} = Content.update_article(article, %{title: "Neuer Titel"})
+
+      assert updated.date_published == published
+      assert %DateTime{} = updated.date_modified
+    end
+
+    test "date_modified stays nil on create and when nothing changes" do
+      article = article_fixture()
+      assert is_nil(article.date_modified)
+
+      {:ok, unchanged} = Content.update_article(article, %{})
+      assert is_nil(unchanged.date_modified)
+    end
   end
 end

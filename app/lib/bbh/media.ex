@@ -8,7 +8,7 @@ defmodule Bbh.Media do
   """
   import Ecto.Query
   alias Bbh.Repo
-  alias Bbh.Media.Upload
+  alias Bbh.Media.{Folder, Upload}
 
   @content_types %{
     ".jpg" => "image/jpeg",
@@ -17,7 +17,8 @@ defmodule Bbh.Media do
     ".webp" => "image/webp",
     ".gif" => "image/gif",
     ".avif" => "image/avif",
-    ".svg" => "image/svg+xml"
+    ".svg" => "image/svg+xml",
+    ".pdf" => "application/pdf"
   }
 
   # Canonical extension per detected (magic-byte) type. The storage key and stored
@@ -28,18 +29,34 @@ defmodule Bbh.Media do
     "image/gif" => ".gif",
     "image/webp" => ".webp",
     "image/avif" => ".avif",
-    "image/svg+xml" => ".svg"
+    "image/svg+xml" => ".svg",
+    "application/pdf" => ".pdf"
   }
+
+  # Raster/vector image types we can derive responsive variants and dimensions from.
+  # PDFs are stored as-is (documents), so they are excluded here.
+  @image_types ~w(image/jpeg image/png image/gif image/webp image/avif image/svg+xml)
+
+  @doc "True for a stored content type we treat as a displayable image (not a PDF/document)."
+  def image_type?(type), do: type in @image_types
+
+  @doc "True if the upload is a displayable image (has an image thumbnail)."
+  def image?(%Upload{content_type: type}), do: image_type?(type)
 
   def uploads_dir, do: Application.fetch_env!(:bbh, :uploads_dir)
   def cache_dir, do: Application.fetch_env!(:bbh, :media_cache_dir)
 
   def get_by_key(key), do: Repo.get_by(Upload, storage_key: key)
 
-  @doc "List uploads, optionally filtered by `:search` (filename/title) and `:sort`."
+  @doc """
+  List uploads, optionally filtered by `:search` (filename/title), `:folder`
+  (`:root` = unfiled, a folder id, or absent = all), `:images_only`, and `:sort`.
+  """
   def list_uploads(opts \\ []) do
     from(u in Upload)
     |> filter_search(opts[:search])
+    |> filter_folder(Keyword.get(opts, :folder, :all))
+    |> filter_images_only(opts[:images_only])
     |> sort_uploads(opts[:sort] || "newest")
     |> Repo.all()
   end
@@ -51,6 +68,16 @@ defmodule Bbh.Media do
 
   defp filter_search(query, _), do: query
 
+  defp filter_folder(query, :all), do: query
+
+  defp filter_folder(query, root) when root in [:root, nil, ""],
+    do: where(query, [u], is_nil(u.folder_id))
+
+  defp filter_folder(query, folder_id), do: where(query, [u], u.folder_id == ^folder_id)
+
+  defp filter_images_only(query, true), do: where(query, [u], u.content_type in ^@image_types)
+  defp filter_images_only(query, _), do: query
+
   defp sort_uploads(query, "oldest"), do: from(u in query, order_by: [asc: u.inserted_at])
   defp sort_uploads(query, "name"), do: from(u in query, order_by: [asc: u.filename])
   defp sort_uploads(query, _newest), do: from(u in query, order_by: [desc: u.inserted_at])
@@ -61,10 +88,84 @@ defmodule Bbh.Media do
   def update_upload(%Upload{} = upload, attrs),
     do: upload |> Upload.changeset(attrs) |> Repo.update()
 
-  @doc "Delete an upload record and its original file (variant cache is regenerable)."
+  @doc "Move an upload into a folder (`nil` moves it back to the unfiled/root level)."
+  def move_upload(%Upload{} = upload, folder_id),
+    do: upload |> Upload.changeset(%{folder_id: folder_id}) |> Repo.update()
+
+  ## Folders
+
+  @doc "Top-level folders (parent_id nil), alphabetical, with their sub-folders preloaded."
+  def list_root_folders do
+    children = from(c in Folder, order_by: [asc: c.name])
+
+    Repo.all(
+      from f in Folder,
+        where: is_nil(f.parent_id),
+        order_by: [asc: f.name],
+        preload: [children: ^children]
+    )
+  end
+
+  @doc "Direct sub-folders of `parent_id` (nil = top level), alphabetical."
+  def list_subfolders(nil),
+    do: Repo.all(from f in Folder, where: is_nil(f.parent_id), order_by: [asc: f.name])
+
+  def list_subfolders(parent_id),
+    do: Repo.all(from f in Folder, where: f.parent_id == ^parent_id, order_by: [asc: f.name])
+
+  def get_folder(nil), do: nil
+  def get_folder(id), do: Repo.get(Folder, id) |> Repo.preload(:parent)
+
+  def get_folder!(id), do: Repo.get!(Folder, id)
+
+  def change_folder(%Folder{} = folder \\ %Folder{}, attrs \\ %{}),
+    do: Folder.changeset(folder, attrs)
+
+  @doc "Create a folder. `parent_id` nil = top level; nesting under a sub-folder is rejected."
+  def create_folder(attrs) do
+    parent = get_folder(attrs["parent_id"] || attrs[:parent_id])
+    %Folder{} |> Folder.changeset(attrs, parent) |> Repo.insert()
+  end
+
+  def rename_folder(%Folder{} = folder, name),
+    do: folder |> Folder.changeset(%{name: name}) |> Repo.update()
+
+  @doc "Delete a folder. Its media move back to unfiled; sub-folders are removed (cascade)."
+  def delete_folder(%Folder{} = folder), do: Repo.delete(folder)
+
+  @doc """
+  Where a media item is referenced. Returns a keyword list of `{place, count}` for
+  every place with at least one reference; an empty list means it is safe to delete.
+  """
+  def usages(%Upload{id: id}) do
+    counts = [
+      articles: count_refs(Bbh.Content.ArticleImage, :media_id, id),
+      media_cards: count_refs(Bbh.Content.Blocks.MediaCard, :image_id, id),
+      galleries: count_refs(Bbh.Content.Blocks.GalleryFile, :media_id, id)
+    ]
+
+    Enum.filter(counts, fn {_place, n} -> n > 0 end)
+  end
+
+  @doc "True when the media item is still referenced somewhere and must not be deleted."
+  def in_use?(%Upload{} = upload), do: usages(upload) != []
+
+  defp count_refs(schema, field, id) do
+    Repo.aggregate(from(x in schema, where: field(x, ^field) == ^id), :count, :id)
+  end
+
+  @doc """
+  Delete an upload record and its original file (variant cache is regenerable).
+  Refuses with `{:error, :in_use}` while the media is still referenced by an article,
+  media card, or gallery.
+  """
   def delete_upload(%Upload{} = upload) do
-    File.rm(Path.join(uploads_dir(), upload.storage_key))
-    Repo.delete(upload)
+    if in_use?(upload) do
+      {:error, :in_use}
+    else
+      File.rm(Path.join(uploads_dir(), upload.storage_key))
+      Repo.delete(upload)
+    end
   end
 
   @doc """
@@ -74,8 +175,11 @@ defmodule Bbh.Media do
   """
   def resolve_variant(key, width, height) do
     with {:ok, source} <- safe_source(key), true <- File.regular?(source) do
-      if is_nil(width) and is_nil(height),
-        do: {:ok, source, content_type(source)},
+      type = content_type(source)
+
+      # Non-images (PDFs, …) have no responsive variants — always serve the original.
+      if (is_nil(width) and is_nil(height)) or not image_type?(type),
+        do: {:ok, source, type},
         else: variant(source, key, width, height)
     else
       _ -> :error
@@ -106,7 +210,7 @@ defmodule Bbh.Media do
     File.mkdir_p!(Path.dirname(dest))
     File.cp!(source_path, dest)
 
-    {width, height} = dimensions(dest)
+    {width, height} = if image_type?(detected_type), do: dimensions(dest), else: {nil, nil}
 
     attrs
     |> Map.new(fn {k, v} -> {to_string(k), v} end)
@@ -136,6 +240,7 @@ defmodule Bbh.Media do
   defp magic_type(<<"GIF87a", _::binary>>), do: "image/gif"
   defp magic_type(<<"GIF89a", _::binary>>), do: "image/gif"
   defp magic_type(<<"RIFF", _::binary-size(4), "WEBP", _::binary>>), do: "image/webp"
+  defp magic_type(<<"%PDF-", _::binary>>), do: "application/pdf"
 
   defp magic_type(<<_::binary-size(4), "ftyp", brand::binary-size(4), _::binary>>)
        when brand in ["avif", "avis"],

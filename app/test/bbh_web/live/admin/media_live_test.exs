@@ -84,8 +84,57 @@ defmodule BbhWeb.Admin.MediaLiveTest do
       render_upload(file, "fake.png")
       html = lv |> element("#upload-form") |> render_submit()
 
-      assert html =~ "nicht als gültiges Bild erkannt"
+      assert html =~ "nicht als gültiges Bild/PDF erkannt"
       assert Media.list_uploads() == []
     end
+  end
+
+  describe "folders" do
+    test "creates a folder and navigates into it", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, ~p"/admin/medien")
+
+      render_click(lv, "toggle_new_folder", %{})
+      render_submit(lv, "create_folder", %{"name" => "Satzungen"})
+
+      assert [folder] = Media.list_subfolders(nil)
+      assert folder.name == "Satzungen"
+
+      {:ok, _lv, html} = live(conn, ~p"/admin/medien?#{[folder: folder.id]}")
+      assert html =~ "Satzungen"
+    end
+
+    test "editing an item saves metadata and moves it to a folder", %{conn: conn} do
+      {:ok, folder} = Media.create_folder(%{"name" => "Presse"})
+      upload = upload_fixture(%{})
+      {:ok, lv, _html} = live(conn, ~p"/admin/medien")
+
+      render_click(lv, "edit", %{"id" => upload.id})
+
+      render_submit(lv, "save_meta", %{
+        "upload" => %{
+          "title" => "Neuer Titel",
+          "description" => "Beschreibung",
+          "copyright" => "BBH",
+          "folder_id" => folder.id
+        }
+      })
+
+      updated = Media.get_upload!(upload.id)
+      assert updated.title == "Neuer Titel"
+      assert updated.copyright == "BBH"
+      assert updated.folder_id == folder.id
+    end
+  end
+
+  test "refuses to delete media that is still in use", %{conn: conn} do
+    upload = upload_fixture(%{})
+    article = article_fixture(%{})
+    {:ok, _} = Bbh.Content.add_article_image(article, upload.id)
+
+    {:ok, lv, _html} = live(conn, ~p"/admin/medien")
+    html = render_click(lv, "delete", %{"id" => upload.id})
+
+    assert html =~ "wird noch verwendet"
+    assert Media.get_upload!(upload.id)
   end
 end

@@ -46,4 +46,27 @@ defmodule BbhWeb.Admin.PageLiveTest do
       assert Bbh.Repo.get_by(Content.Page, slug: "geschichte")
     end
   end
+
+  describe "media_card block image" do
+    test "selecting an image from the library sets it on the block", %{conn: conn} do
+      page = page_fixture()
+      {:ok, _} = Content.add_block(page, "media_card")
+      upload = upload_fixture(filename: "karte.webp")
+
+      {:ok, lv, _html} = live(conn, ~p"/admin/seiten/#{page.id}/bearbeiten")
+
+      [{pb, _block}] = Content.load_blocks(Content.get_page!(page.id))
+
+      render_click(lv, "open_image_picker", %{"pb_id" => pb.id})
+      render_click(lv, "set_block_image", %{"pb_id" => pb.id, "media_id" => upload.id})
+
+      [{_pb, block}] = Content.load_blocks(Content.get_page!(page.id))
+      assert block.image_id == upload.id
+
+      # And it can be cleared again.
+      render_click(lv, "clear_block_image", %{"pb_id" => pb.id})
+      [{_pb, block}] = Content.load_blocks(Content.get_page!(page.id))
+      assert is_nil(block.image_id)
+    end
+  end
 end

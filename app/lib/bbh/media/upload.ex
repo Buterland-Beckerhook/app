@@ -15,6 +15,8 @@ defmodule Bbh.Media.Upload do
     field :description, :string
     field :copyright, :string
 
+    belongs_to :folder, Bbh.Media.Folder
+
     timestamps()
   end
 
@@ -32,9 +34,11 @@ defmodule Bbh.Media.Upload do
       :focal_point_y,
       :title,
       :description,
-      :copyright
+      :copyright,
+      :folder_id
     ])
     |> validate_required([:storage_key, :filename])
+    |> foreign_key_constraint(:folder_id)
     |> unique_constraint(:storage_key)
   end
 end

@@ -34,7 +34,6 @@ defmodule Bbh.Content.Article do
       :subtitle,
       :slug,
       :date_published,
-      :date_modified,
       :author,
       :tags,
       :body,
@@ -45,6 +44,7 @@ defmodule Bbh.Content.Article do
     |> validate_required([:status, :title, :slug, :date_published])
     |> validate_inclusion(:status, @statuses)
     |> put_year()
+    |> put_date_modified()
     |> validate_number(:year, greater_than_or_equal_to: 1900)
     |> unique_constraint([:slug, :year], name: :articles_slug_year_unique)
     |> check_constraint(:year,
@@ -57,6 +57,16 @@ defmodule Bbh.Content.Article do
     case get_field(changeset, :date_published) do
       %DateTime{year: year} -> put_change(changeset, :year, year)
       _ -> changeset
+    end
+  end
+
+  # Bump "Geändert am" whenever an already-persisted article is actually changed.
+  # `date_published` ("Veröffentlicht am") is left untouched — it stays user-owned.
+  defp put_date_modified(changeset) do
+    if changeset.data.__meta__.state == :loaded and map_size(changeset.changes) > 0 do
+      put_change(changeset, :date_modified, DateTime.utc_now(:second))
+    else
+      changeset
     end
   end
 end

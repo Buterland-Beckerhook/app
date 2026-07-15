@@ -27,7 +27,9 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
     |> assign(page_title: "Artikel bearbeiten", article: article, throne: article.throne)
     |> assign(show_throne: not is_nil(article.throne))
     |> assign(images: Content.list_article_images(id), picker_search: "")
-    |> assign_async(:media_library, fn -> {:ok, %{media_library: Bbh.Media.list_uploads()}} end)
+    |> assign_async(:media_library, fn ->
+      {:ok, %{media_library: Bbh.Media.list_uploads(images_only: true)}}
+    end)
     |> assign_throne_form(Content.change_throne(throne_or_new(article)))
     |> assign_form(Content.change_article(article))
   end
@@ -74,7 +76,7 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
      socket
      |> assign(:picker_search, search)
      |> assign_async(:media_library, fn ->
-       {:ok, %{media_library: Bbh.Media.list_uploads(search: search)}}
+       {:ok, %{media_library: Bbh.Media.list_uploads(images_only: true, search: search)}}
      end)}
   end
 
@@ -226,6 +228,9 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
         <.input field={@form[:slug]} label="Slug" required />
         <.input field={@form[:status]} type="select" label="Status" options={statuses()} />
         <.input field={@form[:date_published]} type="datetime-local" label="Veröffentlicht am" />
+        <p :if={@article.date_modified} class="-mt-1 text-xs text-base-content/50">
+          Zuletzt geändert: {de_datetime(@article.date_modified)}
+        </p>
         <.input field={@form[:author]} label="Autor" />
         <.input
           name="article[tags]"
