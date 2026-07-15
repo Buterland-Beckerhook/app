@@ -36,6 +36,8 @@ defmodule BbhWeb.Router do
 
     get "/termine", EventController, :index
     get "/termine/abo.ics", EventController, :feed
+    # Legacy feed URL — keep so existing calendar subscriptions don't break.
+    get "/termine/index.ics", EventController, :feed
     get "/termine/:year/:slug", EventController, :show
     get "/termine/:year/:slug/event.ics", EventController, :ics
 
@@ -81,15 +83,20 @@ defmodule BbhWeb.Router do
   scope "/admin", BbhWeb.Admin do
     pipe_through [:browser, :require_authenticated_user]
 
-    live_session :admin, on_mount: [{BbhWeb.UserAuth, :require_authenticated}] do
+    # Dashboard + Termine: open to any staff (admin, editor, calendar_editor).
+    live_session :admin_staff, on_mount: [{BbhWeb.UserAuth, :require_staff}] do
       live "/", DashboardLive, :index
-      live "/artikel", ArticleLive.Index, :index
-      live "/artikel/neu", ArticleLive.Form, :new
-      live "/artikel/:id/bearbeiten", ArticleLive.Form, :edit
 
       live "/termine", EventLive.Index, :index
       live "/termine/neu", EventLive.Form, :new
       live "/termine/:id/bearbeiten", EventLive.Form, :edit
+    end
+
+    # Content sections: admins and content editors only (not calendar editors).
+    live_session :admin_content, on_mount: [{BbhWeb.UserAuth, :require_content_editor}] do
+      live "/artikel", ArticleLive.Index, :index
+      live "/artikel/neu", ArticleLive.Form, :new
+      live "/artikel/:id/bearbeiten", ArticleLive.Form, :edit
 
       live "/orte", LocationLive.Index, :index
       live "/orte/neu", LocationLive.Form, :new

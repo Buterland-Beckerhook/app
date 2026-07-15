@@ -22,7 +22,18 @@
     </header>
 
     <% hero = article_hero(@article) %>
-    <.hero_image article={@article} width={1024} class="mt-6 w-full rounded-lg" />
+    <button
+      :if={hero}
+      type="button"
+      data-lightbox-src={media_url(hero.media, width: 1600)}
+      data-lightbox-alt={image_alt(hero)}
+      data-lightbox-group={"article-#{@article.id}"}
+      class="mt-6 block w-full cursor-zoom-in"
+      aria-label="Bild vergrößern"
+    >
+      <.hero_image article={@article} width={1024} class="w-full rounded-lg" />
+    </button>
+    <.hero_image :if={!hero} article={@article} width={1024} class="mt-6 w-full rounded-lg" />
 
     <div :if={@article.body} class="prose mt-6 max-w-none dark:prose-invert">
       {Phoenix.HTML.raw(@article.body)}
@@ -44,6 +55,7 @@
           type="button"
           data-lightbox-src={media_url(img.media, width: 1600)}
           data-lightbox-alt={image_alt(img)}
+          data-lightbox-group={"article-#{@article.id}"}
           class="group block cursor-zoom-in"
           aria-label="Bild vergrößern"
         >

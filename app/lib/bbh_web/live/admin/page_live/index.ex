@@ -9,14 +9,6 @@ defmodule BbhWeb.Admin.PageLive.Index do
   end
 
   @impl true
-  def handle_event("delete", %{"id" => id}, socket) do
-    id |> Content.get_page!() |> Content.delete_page()
-
-    {:noreply,
-     socket |> put_flash(:info, "Seite gelöscht.") |> assign(:pages, Content.list_pages())}
-  end
-
-  @impl true
   def render(assigns) do
     ~H"""
     <Layouts.admin flash={@flash} current_scope={@current_scope} active={:pages}>
@@ -41,17 +33,6 @@ defmodule BbhWeb.Admin.PageLive.Index do
             aria-label="Bearbeiten"
           >
             <.icon name="hero-pencil-square" class="size-5" />
-          </.link>
-        </:action>
-        <:action :let={p}>
-          <.link
-            phx-click={JS.push("delete", value: %{id: p.id})}
-            data-confirm="Diese Seite mit allen Blöcken wirklich löschen?"
-            class="link link-error"
-            title="Löschen"
-            aria-label="Löschen"
-          >
-            <.icon name="hero-trash" class="size-5" />
           </.link>
         </:action>
       </.table>

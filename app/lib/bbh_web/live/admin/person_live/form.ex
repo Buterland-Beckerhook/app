@@ -37,6 +37,24 @@ defmodule BbhWeb.Admin.PersonLive.Form do
     save(socket, socket.assigns.live_action, params)
   end
 
+  def handle_event("delete", %{"confirm" => confirm}, socket) do
+    person = socket.assigns.person
+
+    cond do
+      not BbhWeb.Authz.can_delete?(socket.assigns.current_scope.user, person) ->
+        {:noreply, put_flash(socket, :error, "Keine Berechtigung zum Löschen.")}
+
+      confirm == person.name ->
+        {:ok, _} = Club.delete_person(person)
+
+        {:noreply,
+         socket |> put_flash(:info, "Person gelöscht.") |> push_navigate(to: ~p"/admin/personen")}
+
+      true ->
+        {:noreply, put_flash(socket, :error, "Der eingegebene Wert stimmt nicht überein.")}
+    end
+  end
+
   defp save(socket, :new, params) do
     case Club.create_person(params) do
       {:ok, _} ->
@@ -99,6 +117,13 @@ defmodule BbhWeb.Admin.PersonLive.Form do
           <.button navigate={~p"/admin/personen"}>Abbrechen</.button>
         </div>
       </.form>
+
+      <.danger_zone
+        :if={@live_action == :edit and BbhWeb.Authz.can_delete?(@current_scope.user, @person)}
+        confirm_value={@person.name}
+      >
+        Die Person „{@person.name}" wird dauerhaft gelöscht.
+      </.danger_zone>
     </Layouts.admin>
     """
   end

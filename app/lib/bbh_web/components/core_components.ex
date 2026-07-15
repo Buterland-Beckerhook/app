@@ -479,6 +479,44 @@ defmodule BbhWeb.CoreComponents do
     """
   end
 
+  @doc """
+  A de-emphasized "danger zone" with a type-to-confirm delete.
+
+  The user must type `confirm_value` (e.g. the record's slug or name) to enable deletion.
+  Submits a `delete` event with the typed `confirm` param; the LiveView verifies it
+  server-side before deleting.
+  """
+  attr :confirm_value, :string, required: true, doc: "the value the user must type to confirm"
+  attr :label, :string, default: "Löschen"
+  slot :inner_block, doc: "optional description of what will be deleted"
+
+  def danger_zone(assigns) do
+    ~H"""
+    <section class="mt-12 rounded-box border border-error/40 p-4">
+      <h2 class="text-sm font-semibold text-error">Gefahrenzone</h2>
+      <p class="mt-1 text-sm text-base-content/70">
+        {render_slot(@inner_block)}
+      </p>
+      <form phx-submit="delete" class="mt-3 flex flex-wrap items-end gap-2">
+        <label class="fieldset">
+          <span class="label mb-1 text-xs">
+            Zum Bestätigen <span class="font-mono font-semibold">{@confirm_value}</span> eingeben
+          </span>
+          <input
+            name="confirm"
+            type="text"
+            autocomplete="off"
+            class="input input-bordered input-sm"
+          />
+        </label>
+        <button type="submit" class="btn btn-error btn-sm" phx-disable-with="Löschen…">
+          {@label}
+        </button>
+      </form>
+    </section>
+    """
+  end
+
   ## JS Commands
 
   def show(js \\ %JS{}, selector) do

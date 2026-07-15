@@ -17,12 +17,17 @@ defmodule BbhWeb.Admin.ArticleLiveTest do
       assert html =~ article.title
     end
 
-    test "deletes an article", %{conn: conn} do
+    test "deletes an article from the edit page with slug confirmation", %{conn: conn} do
       article = article_fixture()
-      {:ok, lv, _html} = live(conn, ~p"/admin/artikel")
+      {:ok, lv, _html} = live(conn, ~p"/admin/artikel/#{article.id}/bearbeiten")
 
-      render_click(lv, "delete", %{"id" => article.id})
+      {:ok, _lv, html} =
+        lv
+        |> form("form[phx-submit=delete]", confirm: article.slug)
+        |> render_submit()
+        |> follow_redirect(conn, ~p"/admin/artikel")
 
+      assert html =~ "Artikel gelöscht"
       assert_raise Ecto.NoResultsError, fn -> Content.get_article!(article.id) end
     end
   end

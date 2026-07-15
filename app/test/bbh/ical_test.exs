@@ -33,8 +33,12 @@ defmodule Bbh.ICalTest do
       assert ics =~ "END:VEVENT"
       assert ics =~ "END:VCALENDAR"
 
-      assert ics =~ "DTSTART:20270601T180000Z"
-      assert ics =~ "DTEND:20270601T220000Z"
+      # Times are emitted in Europe/Berlin (with a VTIMEZONE), not UTC.
+      assert ics =~ "BEGIN:VTIMEZONE"
+      assert ics =~ "TZID:Europe/Berlin"
+      assert ics =~ "DTSTART;TZID=Europe/Berlin:20270601T180000"
+      assert ics =~ "DTEND;TZID=Europe/Berlin:20270601T220000"
+      refute ics =~ "DTSTART:20270601T180000Z"
       assert ics =~ "URL:https://example.de/termine/2027/fest"
       # comma is escaped per RFC 5545
       assert ics =~ "SUMMARY:Fest\\, mit Komma"

@@ -225,7 +225,7 @@ defmodule BbhWeb.Layouts do
   slot :inner_block, required: true
 
   def admin(assigns) do
-    assigns = assign(assigns, :nav, @admin_nav)
+    assigns = assign(assigns, :nav, visible_nav(assigns.current_scope))
 
     ~H"""
     <div class="drawer lg:drawer-open">
@@ -280,6 +280,15 @@ defmodule BbhWeb.Layouts do
 
   defp admin_user?(%{user: user}), do: Bbh.Accounts.User.admin?(user)
   defp admin_user?(_), do: false
+
+  # Only show sections the current user may actually open.
+  defp visible_nav(%{user: user}),
+    do:
+      Enum.filter(@admin_nav, fn {key, _href, _label} ->
+        BbhWeb.Authz.can_access_section?(user, key)
+      end)
+
+  defp visible_nav(_), do: []
 
   attr :nonce, :string, default: nil
 

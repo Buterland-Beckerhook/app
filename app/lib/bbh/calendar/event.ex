@@ -5,8 +5,16 @@ defmodule Bbh.Calendar.Event do
   @statuses ~w(draft published canceled)
   @calendars ~w(vorstand offiziere jungschuetzen kinderfest)
 
+  @calendar_labels %{
+    "vorstand" => "Vorstand",
+    "offiziere" => "Offiziere",
+    "jungschuetzen" => "Jungschützen",
+    "kinderfest" => "Kinderfest"
+  }
+
   def statuses, do: @statuses
   def calendars, do: @calendars
+  def calendar_label(calendar), do: Map.get(@calendar_labels, calendar, calendar)
 
   schema "events" do
     field :status, :string, default: "draft"

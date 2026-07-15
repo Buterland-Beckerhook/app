@@ -2,7 +2,7 @@ defmodule Bbh.Accounts.User do
   use Ecto.Schema
   import Ecto.Changeset
 
-  @roles ~w(admin editor)
+  @roles ~w(admin editor calendar_editor)
   def roles, do: @roles
 
   @primary_key {:id, :binary_id, autogenerate: true}
@@ -14,6 +14,7 @@ defmodule Bbh.Accounts.User do
     field :confirmed_at, :utc_datetime
     field :authenticated_at, :utc_datetime, virtual: true
     field :role, :string, default: "editor"
+    field :calendars, {:array, :string}, default: []
     field :totp_secret, :binary, redact: true
     field :totp_confirmed_at, :utc_datetime
 
@@ -23,6 +24,16 @@ defmodule Bbh.Accounts.User do
   @doc "Whether the user is an administrator."
   def admin?(%__MODULE__{role: "admin"}), do: true
   def admin?(_), do: false
+
+  @doc "Whether the user is a calendar-only editor."
+  def calendar_editor?(%__MODULE__{role: "calendar_editor"}), do: true
+  def calendar_editor?(_), do: false
+
+  @doc "Whether the user has been granted a specific (non-public) calendar."
+  def manages_calendar?(%__MODULE__{calendars: cals}, calendar) when is_binary(calendar),
+    do: calendar in (cals || [])
+
+  def manages_calendar?(_, _), do: false
 
   @doc "Whether the user has enabled a TOTP second factor."
   def totp_enabled?(%__MODULE__{totp_confirmed_at: nil}), do: false
@@ -35,6 +46,24 @@ defmodule Bbh.Accounts.User do
     |> validate_required([:role])
     |> validate_inclusion(:role, @roles)
     |> check_constraint(:role, name: :users_role_valid, message: "ist keine gültige Rolle")
+  end
+
+  @doc "Changeset for an admin to assign which (non-public) calendars a user may manage."
+  def calendars_changeset(user, attrs) do
+    user
+    |> cast(attrs, [:calendars])
+    |> update_change(:calendars, fn cals -> Enum.reject(cals || [], &(&1 in [nil, ""])) end)
+    |> validate_calendars()
+  end
+
+  defp validate_calendars(changeset) do
+    valid = Bbh.Calendar.Event.calendars()
+
+    validate_change(changeset, :calendars, fn :calendars, cals ->
+      if Enum.all?(cals, &(&1 in valid)),
+        do: [],
+        else: [calendars: "enthält einen ungültigen Kalender"]
+    end)
   end
 
   @doc """

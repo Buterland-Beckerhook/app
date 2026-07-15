@@ -41,11 +41,27 @@ defmodule BbhWeb.Admin.DashboardLive do
           <p class="mt-6 text-error">Statistik konnte nicht geladen werden.</p>
         </:failed>
 
+        <% user = @current_scope.user %>
         <div class="mt-6 grid grid-cols-2 gap-4 md:grid-cols-4">
-          <.stat_card label="Artikel" value={stats.articles} navigate={~p"/admin/artikel"} />
+          <.stat_card
+            :if={BbhWeb.Authz.can_access_section?(user, :articles)}
+            label="Artikel"
+            value={stats.articles}
+            navigate={~p"/admin/artikel"}
+          />
           <.stat_card label="Termine" value={stats.events} navigate={~p"/admin/termine"} />
-          <.stat_card label="Personen" value={stats.people} navigate={~p"/admin/personen"} />
-          <.stat_card label="Seiten" value={stats.pages} navigate={~p"/admin/seiten"} />
+          <.stat_card
+            :if={BbhWeb.Authz.can_access_section?(user, :people)}
+            label="Personen"
+            value={stats.people}
+            navigate={~p"/admin/personen"}
+          />
+          <.stat_card
+            :if={BbhWeb.Authz.can_access_section?(user, :pages)}
+            label="Seiten"
+            value={stats.pages}
+            navigate={~p"/admin/seiten"}
+          />
         </div>
       </.async_result>
     </Layouts.admin>

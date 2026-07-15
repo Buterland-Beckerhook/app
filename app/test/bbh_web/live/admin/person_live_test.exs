@@ -17,11 +17,17 @@ defmodule BbhWeb.Admin.PersonLiveTest do
       assert html =~ person.name
     end
 
-    test "deletes a person", %{conn: conn} do
+    test "deletes a person from the edit page with name confirmation", %{conn: conn} do
       person = person_fixture()
-      {:ok, lv, _html} = live(conn, ~p"/admin/personen")
+      {:ok, lv, _html} = live(conn, ~p"/admin/personen/#{person.id}/bearbeiten")
 
-      render_click(lv, "delete", %{"id" => person.id})
+      {:ok, _lv, html} =
+        lv
+        |> form("form[phx-submit=delete]", confirm: person.name)
+        |> render_submit()
+        |> follow_redirect(conn, ~p"/admin/personen")
+
+      assert html =~ "Person gelöscht"
       assert_raise Ecto.NoResultsError, fn -> Club.get_person!(person.id) end
     end
   end

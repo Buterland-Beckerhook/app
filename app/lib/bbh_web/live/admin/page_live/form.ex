@@ -43,6 +43,24 @@ defmodule BbhWeb.Admin.PageLive.Form do
     save_page(socket, socket.assigns.live_action, params)
   end
 
+  def handle_event("delete", %{"confirm" => confirm}, socket) do
+    page = socket.assigns.page
+
+    cond do
+      not BbhWeb.Authz.can_delete?(socket.assigns.current_scope.user, page) ->
+        {:noreply, put_flash(socket, :error, "Keine Berechtigung zum Löschen.")}
+
+      confirm == page.slug ->
+        {:ok, _} = Content.delete_page(page)
+
+        {:noreply,
+         socket |> put_flash(:info, "Seite gelöscht.") |> push_navigate(to: ~p"/admin/seiten")}
+
+      true ->
+        {:noreply, put_flash(socket, :error, "Der eingegebene Wert stimmt nicht überein.")}
+    end
+  end
+
   def handle_event("add_block", %{"type" => type}, socket) do
     {:ok, _} = Content.add_block(socket.assigns.page, type)
     {:noreply, reload_blocks(socket)}
@@ -115,11 +133,8 @@ defmodule BbhWeb.Admin.PageLive.Form do
   # Per-type param massaging before the block changeset.
   defp normalize_block("person_list", params) do
     Map.update(params, "filter_roles", [], fn
-      roles when is_binary(roles) ->
-        roles |> String.split(",") |> Enum.map(&String.trim/1) |> Enum.reject(&(&1 == ""))
-
-      roles ->
-        roles
+      roles when is_list(roles) -> Enum.reject(roles, &(&1 == ""))
+      _ -> []
     end)
   end
 
@@ -207,6 +222,13 @@ defmodule BbhWeb.Admin.PageLive.Form do
           <.button variant="primary">Hinzufügen</.button>
         </form>
       </section>
+
+      <.danger_zone
+        :if={@live_action == :edit and BbhWeb.Authz.can_delete?(@current_scope.user, @page)}
+        confirm_value={@page.slug}
+      >
+        Die Seite „{@page.title}" und alle ihre Blöcke werden dauerhaft gelöscht.
+      </.danger_zone>
     </Layouts.admin>
     """
   end
@@ -279,12 +301,22 @@ defmodule BbhWeb.Admin.PageLive.Form do
       options={[{"Alle", "all"}, {"Nur Ehrenmitglieder", "only"}, {"Ohne Ehrenmitglieder", "exclude"}]}
     />
     <.input field={@f[:show_address]} type="checkbox" label="Adresse anzeigen" />
-    <.input
-      name="block[filter_roles]"
-      id={"roles-#{@block.id}"}
-      value={Enum.join(@block.filter_roles, ", ")}
-      label="Rollen (kommagetrennt, z. B. praesident, oberst)"
-    />
+    <fieldset class="fieldset">
+      <legend class="label mb-1">Rollen (leer = alle)</legend>
+      <input type="hidden" name="block[filter_roles][]" value="" />
+      <div class="grid grid-cols-2 gap-1 sm:grid-cols-3">
+        <label :for={role <- Bbh.Club.Person.roles()} class="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            name="block[filter_roles][]"
+            value={role}
+            checked={role in @block.filter_roles}
+            class="checkbox checkbox-sm"
+          />
+          {Bbh.Club.Person.role_label(role)}
+        </label>
+      </div>
+    </fieldset>
     """
   end
 

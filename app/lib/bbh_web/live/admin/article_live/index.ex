@@ -9,16 +9,6 @@ defmodule BbhWeb.Admin.ArticleLive.Index do
   end
 
   @impl true
-  def handle_event("delete", %{"id" => id}, socket) do
-    id |> Content.get_article!() |> Content.delete_article()
-
-    {:noreply,
-     socket
-     |> put_flash(:info, "Artikel gelöscht.")
-     |> assign(:articles, Content.list_articles())}
-  end
-
-  @impl true
   def render(assigns) do
     ~H"""
     <Layouts.admin flash={@flash} current_scope={@current_scope} active={:articles}>
@@ -45,17 +35,6 @@ defmodule BbhWeb.Admin.ArticleLive.Index do
             aria-label="Bearbeiten"
           >
             <.icon name="hero-pencil-square" class="size-5" />
-          </.link>
-        </:action>
-        <:action :let={a}>
-          <.link
-            phx-click={JS.push("delete", value: %{id: a.id})}
-            data-confirm="Diesen Artikel wirklich löschen?"
-            class="link link-error"
-            title="Löschen"
-            aria-label="Löschen"
-          >
-            <.icon name="hero-trash" class="size-5" />
           </.link>
         </:action>
       </.table>

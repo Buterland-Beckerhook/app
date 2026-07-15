@@ -3,26 +3,34 @@ defmodule BbhWeb.Admin.EventLive.Form do
 
   alias Bbh.Calendar
   alias Bbh.Calendar.Event
+  alias BbhWeb.Authz
 
   @statuses [{"Entwurf", "draft"}, {"Veröffentlicht", "published"}, {"Abgesagt", "canceled"}]
-  @calendars [
-    {"Öffentlich", ""},
-    {"Vorstand", "vorstand"},
-    {"Offiziere", "offiziere"},
-    {"Jungschützen", "jungschuetzen"},
-    {"Kinderfest", "kinderfest"}
-  ]
 
   @impl true
   def mount(params, _session, socket) do
+    user = socket.assigns.current_scope.user
+
     {:ok,
      socket
      |> assign(:location_options, Calendar.location_options())
+     |> assign(:calendar_options, Authz.assignable_calendar_options(user))
      |> apply_action(socket.assigns.live_action, params)}
   end
 
   defp apply_action(socket, :new, _params) do
-    event = %Event{status: "draft", announce: true, enable_ical: true, all_day: false}
+    user = socket.assigns.current_scope.user
+
+    default_cal =
+      if Authz.can_manage_calendar?(user, nil), do: nil, else: List.first(user.calendars)
+
+    event = %Event{
+      status: "draft",
+      announce: true,
+      enable_ical: true,
+      all_day: false,
+      calendar: default_cal
+    }
 
     socket
     |> assign(page_title: "Neuer Termin", event: event)
@@ -32,9 +40,15 @@ defmodule BbhWeb.Admin.EventLive.Form do
   defp apply_action(socket, :edit, %{"id" => id}) do
     event = Calendar.get_event!(id)
 
-    socket
-    |> assign(page_title: "Termin bearbeiten", event: event)
-    |> assign_form(Calendar.change_event(event))
+    if Authz.can_edit_event?(socket.assigns.current_scope.user, event) do
+      socket
+      |> assign(page_title: "Termin bearbeiten", event: event)
+      |> assign_form(Calendar.change_event(event))
+    else
+      socket
+      |> put_flash(:error, "Kein Zugriff auf diesen Termin.")
+      |> push_navigate(to: ~p"/admin/termine")
+    end
   end
 
   @impl true
@@ -48,7 +62,32 @@ defmodule BbhWeb.Admin.EventLive.Form do
   end
 
   def handle_event("save", %{"event" => params}, socket) do
-    save(socket, socket.assigns.live_action, normalize(params))
+    params = normalize(params)
+    user = socket.assigns.current_scope.user
+
+    if Authz.can_manage_calendar?(user, params["calendar"]) do
+      save(socket, socket.assigns.live_action, params)
+    else
+      {:noreply, put_flash(socket, :error, "Für diesen Kalender fehlt die Berechtigung.")}
+    end
+  end
+
+  def handle_event("delete", %{"confirm" => confirm}, socket) do
+    event = socket.assigns.event
+
+    cond do
+      not Authz.can_delete_event?(socket.assigns.current_scope.user, event) ->
+        {:noreply, put_flash(socket, :error, "Keine Berechtigung zum Löschen.")}
+
+      confirm == event.slug ->
+        {:ok, _} = Calendar.delete_event(event)
+
+        {:noreply,
+         socket |> put_flash(:info, "Termin gelöscht.") |> push_navigate(to: ~p"/admin/termine")}
+
+      true ->
+        {:noreply, put_flash(socket, :error, "Der eingegebene Wert stimmt nicht überein.")}
+    end
   end
 
   defp save(socket, :new, params) do
@@ -113,6 +152,8 @@ defmodule BbhWeb.Admin.EventLive.Form do
     cond do
       Regex.match?(~r/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, v) -> v <> ":00Z"
       Regex.match?(~r/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/, v) -> v <> "Z"
+      # Date-only (all-day picker) → midnight.
+      Regex.match?(~r/^\d{4}-\d{2}-\d{2}$/, v) -> v <> "T00:00:00Z"
       true -> v
     end
   end
@@ -138,8 +179,8 @@ defmodule BbhWeb.Admin.EventLive.Form do
         <.input field={@form[:slug]} label="Slug" required />
         <.input field={@form[:status]} type="select" label="Status" options={statuses()} />
         <div class="grid gap-4 sm:grid-cols-2">
-          <.input field={@form[:starts_at]} type="datetime-local" label="Beginn" required />
-          <.input field={@form[:ends_at]} type="datetime-local" label="Ende" />
+          <.datetime_field field={@form[:starts_at]} label="Beginn" required />
+          <.datetime_field field={@form[:ends_at]} label="Ende" />
         </div>
         <.input field={@form[:all_day]} type="checkbox" label="Ganztägig" />
         <.input
@@ -153,7 +194,7 @@ defmodule BbhWeb.Admin.EventLive.Form do
           field={@form[:calendar]}
           type="select"
           label="Kalender"
-          options={calendars()}
+          options={@calendar_options}
         />
         <.input field={@form[:announce]} type="checkbox" label="Öffentlich ankündigen" />
         <.input field={@form[:enable_ical]} type="checkbox" label="iCal-Export aktivieren" />
@@ -165,10 +206,60 @@ defmodule BbhWeb.Admin.EventLive.Form do
           <.button navigate={~p"/admin/termine"}>Abbrechen</.button>
         </div>
       </.form>
+
+      <.danger_zone
+        :if={@live_action == :edit and Authz.can_delete_event?(@current_scope.user, @event)}
+        confirm_value={@event.slug}
+      >
+        Der Termin „{@event.title}" wird dauerhaft gelöscht. Dies kann nicht rückgängig gemacht werden.
+      </.danger_zone>
     </Layouts.admin>
     """
   end
 
   defp statuses, do: @statuses
-  defp calendars, do: @calendars
+
+  # A German-formatted date/time field backed by flatpickr (see the DatePicker JS hook).
+  # The picker's injected DOM is protected with phx-update="ignore"; validation errors
+  # render outside that wrapper so LiveView can still update them.
+  attr :field, Phoenix.HTML.FormField, required: true
+  attr :label, :string, required: true
+  attr :required, :boolean, default: false
+
+  defp datetime_field(assigns) do
+    ~H"""
+    <div>
+      <label class="label mb-1" for={@field.id}>{@label}</label>
+      <div id={"dp-#{@field.id}"} phx-update="ignore">
+        <input
+          type="text"
+          id={@field.id}
+          name={@field.name}
+          value={dt_value(@field.value)}
+          required={@required}
+          autocomplete="off"
+          phx-hook="DatePicker"
+          data-all-day-selector="[name='event[all_day]']"
+          class="input input-bordered w-full"
+        />
+      </div>
+      <p
+        :for={error <- @field.errors}
+        class="mt-1.5 flex items-center gap-2 text-sm text-error"
+      >
+        <.icon name="hero-exclamation-circle" class="size-5" />
+        {translate_error(error)}
+      </p>
+    </div>
+    """
+  end
+
+  # Render a stored datetime as the "YYYY-MM-DDTHH:MM" flatpickr parses on init.
+  defp dt_value(%{year: y, month: mo, day: d, hour: h, minute: mi}),
+    do: "#{y}-#{pad(mo)}-#{pad(d)}T#{pad(h)}:#{pad(mi)}"
+
+  defp dt_value(v) when is_binary(v), do: v
+  defp dt_value(_), do: ""
+
+  defp pad(n), do: String.pad_leading(Integer.to_string(n), 2, "0")
 end

@@ -17,11 +17,17 @@ defmodule BbhWeb.Admin.PageLiveTest do
       assert html =~ page.title
     end
 
-    test "deletes a page", %{conn: conn} do
+    test "deletes a page from the edit page with slug confirmation", %{conn: conn} do
       page = page_fixture()
-      {:ok, lv, _html} = live(conn, ~p"/admin/seiten")
+      {:ok, lv, _html} = live(conn, ~p"/admin/seiten/#{page.id}/bearbeiten")
 
-      render_click(lv, "delete", %{"id" => page.id})
+      {:ok, _lv, html} =
+        lv
+        |> form("form[phx-submit=delete]", confirm: page.slug)
+        |> render_submit()
+        |> follow_redirect(conn, ~p"/admin/seiten")
+
+      assert html =~ "Seite gelöscht"
       assert_raise Ecto.NoResultsError, fn -> Content.get_page!(page.id) end
     end
   end

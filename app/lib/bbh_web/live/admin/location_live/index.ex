@@ -9,14 +9,6 @@ defmodule BbhWeb.Admin.LocationLive.Index do
   end
 
   @impl true
-  def handle_event("delete", %{"id" => id}, socket) do
-    id |> Calendar.get_location!() |> Calendar.delete_location()
-
-    {:noreply,
-     socket |> put_flash(:info, "Ort gelöscht.") |> assign(:locations, Calendar.list_locations())}
-  end
-
-  @impl true
   def render(assigns) do
     ~H"""
     <Layouts.admin flash={@flash} current_scope={@current_scope} active={:locations}>
@@ -38,17 +30,6 @@ defmodule BbhWeb.Admin.LocationLive.Index do
             aria-label="Bearbeiten"
           >
             <.icon name="hero-pencil-square" class="size-5" />
-          </.link>
-        </:action>
-        <:action :let={l}>
-          <.link
-            phx-click={JS.push("delete", value: %{id: l.id})}
-            data-confirm="Diesen Ort wirklich löschen?"
-            class="link link-error"
-            title="Löschen"
-            aria-label="Löschen"
-          >
-            <.icon name="hero-trash" class="size-5" />
           </.link>
         </:action>
       </.table>

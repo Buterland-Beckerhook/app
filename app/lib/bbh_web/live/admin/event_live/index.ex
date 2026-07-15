@@ -5,15 +5,8 @@ defmodule BbhWeb.Admin.EventLive.Index do
 
   @impl true
   def mount(_params, _session, socket) do
-    {:ok, assign(socket, page_title: "Termine", events: Calendar.list_events())}
-  end
-
-  @impl true
-  def handle_event("delete", %{"id" => id}, socket) do
-    id |> Calendar.get_event!() |> Calendar.delete_event()
-
-    {:noreply,
-     socket |> put_flash(:info, "Termin gelöscht.") |> assign(:events, Calendar.list_events())}
+    events = Calendar.list_events_for(socket.assigns.current_scope.user)
+    {:ok, assign(socket, page_title: "Termine", events: events)}
   end
 
   @impl true
@@ -40,17 +33,6 @@ defmodule BbhWeb.Admin.EventLive.Index do
             aria-label="Bearbeiten"
           >
             <.icon name="hero-pencil-square" class="size-5" />
-          </.link>
-        </:action>
-        <:action :let={e}>
-          <.link
-            phx-click={JS.push("delete", value: %{id: e.id})}
-            data-confirm="Diesen Termin wirklich löschen?"
-            class="link link-error"
-            title="Löschen"
-            aria-label="Löschen"
-          >
-            <.icon name="hero-trash" class="size-5" />
           </.link>
         </:action>
       </.table>

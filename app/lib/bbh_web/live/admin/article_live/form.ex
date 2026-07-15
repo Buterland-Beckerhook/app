@@ -46,6 +46,24 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
     save(socket, socket.assigns.live_action, normalize(params))
   end
 
+  def handle_event("delete", %{"confirm" => confirm}, socket) do
+    article = socket.assigns.article
+
+    cond do
+      not BbhWeb.Authz.can_delete?(socket.assigns.current_scope.user, article) ->
+        {:noreply, put_flash(socket, :error, "Keine Berechtigung zum Löschen.")}
+
+      confirm == article.slug ->
+        {:ok, _} = Content.delete_article(article)
+
+        {:noreply,
+         socket |> put_flash(:info, "Artikel gelöscht.") |> push_navigate(to: ~p"/admin/artikel")}
+
+      true ->
+        {:noreply, put_flash(socket, :error, "Der eingegebene Wert stimmt nicht überein.")}
+    end
+  end
+
   def handle_event("add_image", %{"media_id" => media_id}, socket) do
     {:ok, _} = Content.add_article_image(socket.assigns.article, media_id)
     {:noreply, reload_images(socket)}
@@ -380,6 +398,13 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
           </div>
         </.form>
       </section>
+
+      <.danger_zone
+        :if={@live_action == :edit and BbhWeb.Authz.can_delete?(@current_scope.user, @article)}
+        confirm_value={@article.slug}
+      >
+        Der Artikel „{@article.title}" wird mit allen Bildern dauerhaft gelöscht.
+      </.danger_zone>
     </Layouts.admin>
     """
   end

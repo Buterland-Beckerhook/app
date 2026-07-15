@@ -17,11 +17,17 @@ defmodule BbhWeb.Admin.LocationLiveTest do
       assert html =~ "Rheine"
     end
 
-    test "deletes a location", %{conn: conn} do
+    test "deletes a location from the edit page with key confirmation", %{conn: conn} do
       location = location_fixture()
-      {:ok, lv, _html} = live(conn, ~p"/admin/orte")
+      {:ok, lv, _html} = live(conn, ~p"/admin/orte/#{location.id}/bearbeiten")
 
-      render_click(lv, "delete", %{"id" => location.id})
+      {:ok, _lv, html} =
+        lv
+        |> form("form[phx-submit=delete]", confirm: location.key)
+        |> render_submit()
+        |> follow_redirect(conn, ~p"/admin/orte")
+
+      assert html =~ "Ort gelöscht"
       assert_raise Ecto.NoResultsError, fn -> Calendar.get_location!(location.id) end
     end
   end

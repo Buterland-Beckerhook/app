@@ -71,6 +71,24 @@ defmodule Bbh.Calendar do
   def list_events,
     do: Repo.all(from e in Event, order_by: [desc: e.starts_at], preload: [:location])
 
+  @doc """
+  Events a staff user may manage: admins see all; editors see public events plus any
+  calendars granted to them; everyone else (calendar editors) sees only granted calendars.
+  """
+  def list_events_for(user) do
+    from(e in Event, order_by: [desc: e.starts_at], preload: [:location])
+    |> scope_events(user)
+    |> Repo.all()
+  end
+
+  defp scope_events(query, %{role: "admin"}), do: query
+
+  defp scope_events(query, %{role: "editor", calendars: cals}),
+    do: from(e in query, where: is_nil(e.calendar) or e.calendar in ^(cals || []))
+
+  defp scope_events(query, %{calendars: cals}),
+    do: from(e in query, where: e.calendar in ^(cals || []))
+
   def count_events, do: Repo.aggregate(Event, :count, :id)
   def get_event!(id), do: Event |> Repo.get!(id) |> Repo.preload([:location])
   def create_event(attrs), do: %Event{} |> Event.changeset(attrs) |> Repo.insert()

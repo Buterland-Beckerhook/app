@@ -251,13 +251,31 @@ defmodule BbhWeb.SiteComponents do
     <figure>
       <figcaption :if={@block.title} class="mb-2 font-semibold">{@block.title}</figcaption>
       <div class="grid grid-cols-2 gap-2 md:grid-cols-3">
-        <img
-          :for={f <- @block.files}
-          src={media_url(f.media, width: 400, height: 400)}
-          alt={f.title || ""}
-          loading="lazy"
-          class="aspect-square w-full rounded object-cover"
-        />
+        <%= for f <- @block.files do %>
+          <button
+            :if={@block.lightbox}
+            type="button"
+            data-lightbox-src={media_url(f.media, width: 1600)}
+            data-lightbox-alt={f.title || ""}
+            data-lightbox-group={"gallery-#{@block.id}"}
+            class="block cursor-zoom-in"
+            aria-label="Bild vergrößern"
+          >
+            <img
+              src={media_url(f.media, width: 400, height: 400)}
+              alt={f.title || ""}
+              loading="lazy"
+              class="aspect-square w-full rounded object-cover"
+            />
+          </button>
+          <img
+            :if={!@block.lightbox}
+            src={media_url(f.media, width: 400, height: 400)}
+            alt={f.title || ""}
+            loading="lazy"
+            class="aspect-square w-full rounded object-cover"
+          />
+        <% end %>
       </div>
     </figure>
     """

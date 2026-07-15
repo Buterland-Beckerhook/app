@@ -10,14 +10,6 @@ defmodule BbhWeb.Admin.PersonLive.Index do
   end
 
   @impl true
-  def handle_event("delete", %{"id" => id}, socket) do
-    id |> Club.get_person!() |> Club.delete_person()
-
-    {:noreply,
-     socket |> put_flash(:info, "Person gelöscht.") |> assign(:people, Club.list_all_people())}
-  end
-
-  @impl true
   def render(assigns) do
     ~H"""
     <Layouts.admin flash={@flash} current_scope={@current_scope} active={:people}>
@@ -40,17 +32,6 @@ defmodule BbhWeb.Admin.PersonLive.Index do
             aria-label="Bearbeiten"
           >
             <.icon name="hero-pencil-square" class="size-5" />
-          </.link>
-        </:action>
-        <:action :let={p}>
-          <.link
-            phx-click={JS.push("delete", value: %{id: p.id})}
-            data-confirm="Diese Person wirklich löschen?"
-            class="link link-error"
-            title="Löschen"
-            aria-label="Löschen"
-          >
-            <.icon name="hero-trash" class="size-5" />
           </.link>
         </:action>
       </.table>

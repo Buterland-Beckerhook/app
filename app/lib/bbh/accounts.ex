@@ -129,6 +129,9 @@ defmodule Bbh.Accounts do
   def update_user_role(%User{} = user, role),
     do: user |> User.role_changeset(%{role: role}) |> Repo.update()
 
+  def update_user_calendars(%User{} = user, calendars),
+    do: user |> User.calendars_changeset(%{calendars: calendars}) |> Repo.update()
+
   @doc "Invite a new user: create the account with a role and email login instructions."
   def invite_user(attrs, magic_link_url_fun) do
     with {:ok, user} <- register_user(attrs),

@@ -105,6 +105,9 @@
 /* Trix rich text editor styles (self-hosted). */
 @import "../vendor/trix/trix.css";
 
+/* flatpickr date/time picker styles (self-hosted). */
+@import "../vendor/flatpickr/flatpickr.min.css";
+
 /* Club logo font (Oranienbaum, self-hosted later; serif fallback for now). */
 @theme {
   --font-logo: "Oranienbaum", ui-serif, Georgia, serif;

@@ -4,8 +4,13 @@ defmodule BbhWeb.Admin.UserLive.Index do
 
   alias Bbh.Accounts
   alias Bbh.Accounts.User
+  alias Bbh.Calendar.Event
 
-  @roles [{"Redakteur", "editor"}, {"Administrator", "admin"}]
+  @roles [
+    {"Redakteur", "editor"},
+    {"Kalender", "calendar_editor"},
+    {"Administrator", "admin"}
+  ]
 
   @impl true
   def mount(_params, _session, socket) do
@@ -56,6 +61,12 @@ defmodule BbhWeb.Admin.UserLive.Index do
     end
   end
 
+  def handle_event("set_calendars", %{"user_id" => id} = params, socket) do
+    calendars = params |> Map.get("calendars", []) |> Enum.reject(&(&1 == ""))
+    id |> Accounts.get_user!() |> Accounts.update_user_calendars(calendars)
+    {:noreply, load_users(socket)}
+  end
+
   def handle_event("delete", %{"id" => id}, socket) do
     if id == socket.assigns.current_scope.user.id do
       {:noreply, put_flash(socket, :error, "Das eigene Konto kann nicht gelöscht werden.")}
@@ -104,6 +115,30 @@ defmodule BbhWeb.Admin.UserLive.Index do
               </option>
             </select>
           </form>
+        </:col>
+        <:col :let={u} label="Kalender">
+          <form
+            :if={u.role in ["editor", "calendar_editor"]}
+            phx-change="set_calendars"
+            id={"cals-#{u.id}"}
+            class="flex flex-wrap gap-x-3 gap-y-1"
+          >
+            <input type="hidden" name="user_id" value={u.id} />
+            <input type="hidden" name="calendars[]" value="" />
+            <label :for={cal <- Event.calendars()} class="flex items-center gap-1 text-sm">
+              <input
+                type="checkbox"
+                name="calendars[]"
+                value={cal}
+                checked={cal in u.calendars}
+                class="checkbox checkbox-xs"
+              />
+              {Event.calendar_label(cal)}
+            </label>
+          </form>
+          <span :if={u.role not in ["editor", "calendar_editor"]} class="text-base-content/40">
+            –
+          </span>
         </:col>
         <:col :let={u} label="2FA">{if User.totp_enabled?(u), do: "ja", else: "–"}</:col>
         <:col :let={u} label="Status">{if u.confirmed_at, do: "Bestätigt", else: "Ausstehend"}</:col>

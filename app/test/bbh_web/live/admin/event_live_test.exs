@@ -18,12 +18,31 @@ defmodule BbhWeb.Admin.EventLiveTest do
       assert html =~ "Vereinsheim"
     end
 
-    test "deletes an event", %{conn: conn} do
+    test "deletes an event from the edit page with slug confirmation", %{conn: conn} do
       event = event_fixture()
-      {:ok, lv, _html} = live(conn, ~p"/admin/termine")
+      {:ok, lv, _html} = live(conn, ~p"/admin/termine/#{event.id}/bearbeiten")
 
-      render_click(lv, "delete", %{"id" => event.id})
+      {:ok, _lv, html} =
+        lv
+        |> form("form[phx-submit=delete]", confirm: event.slug)
+        |> render_submit()
+        |> follow_redirect(conn, ~p"/admin/termine")
+
+      assert html =~ "Termin gelöscht"
       assert_raise Ecto.NoResultsError, fn -> Calendar.get_event!(event.id) end
+    end
+
+    test "rejects deletion when the confirmation slug does not match", %{conn: conn} do
+      event = event_fixture()
+      {:ok, lv, _html} = live(conn, ~p"/admin/termine/#{event.id}/bearbeiten")
+
+      html =
+        lv
+        |> form("form[phx-submit=delete]", confirm: "falsch")
+        |> render_submit()
+
+      assert html =~ "stimmt nicht überein"
+      assert Calendar.get_event!(event.id)
     end
   end
 

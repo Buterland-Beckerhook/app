@@ -68,6 +68,36 @@ defmodule Bbh.CalendarTest do
     end
   end
 
+  describe "list_events_for/1" do
+    alias Bbh.Accounts.User
+
+    setup do
+      public = event_fixture(slug: "oeffentlich", calendar: nil)
+      vorstand = event_fixture(slug: "vorstand-sitzung", calendar: "vorstand")
+      offiziere = event_fixture(slug: "offiziere-treffen", calendar: "offiziere")
+      %{public: public, vorstand: vorstand, offiziere: offiziere}
+    end
+
+    defp ids(events), do: events |> Enum.map(& &1.id) |> Enum.sort()
+
+    test "admin sees every event", ctx do
+      admin = %User{role: "admin", calendars: []}
+
+      assert ids(Calendar.list_events_for(admin)) ==
+               ids([ctx.public, ctx.vorstand, ctx.offiziere])
+    end
+
+    test "editor sees public plus granted calendars", ctx do
+      editor = %User{role: "editor", calendars: ["vorstand"]}
+      assert ids(Calendar.list_events_for(editor)) == ids([ctx.public, ctx.vorstand])
+    end
+
+    test "calendar editor sees only granted calendars", ctx do
+      cal = %User{role: "calendar_editor", calendars: ["vorstand"]}
+      assert ids(Calendar.list_events_for(cal)) == ids([ctx.vorstand])
+    end
+  end
+
   describe "location_options/0" do
     test "returns {name, id} tuples sorted by name" do
       b = location_fixture(name: "Bürgerhaus")

@@ -249,6 +249,30 @@ defmodule BbhWeb.UserAuth do
     end
   end
 
+  # Any authenticated staff member (admin, editor, calendar_editor).
+  def on_mount(:require_staff, params, session, socket),
+    do: on_mount(:require_authenticated, params, session, socket)
+
+  # Content sections: admins and content editors, but not calendar-only editors.
+  def on_mount(:require_content_editor, params, session, socket) do
+    case on_mount(:require_authenticated, params, session, socket) do
+      {:cont, socket} ->
+        if BbhWeb.Authz.can_access_section?(socket.assigns.current_scope.user, :articles) do
+          {:cont, socket}
+        else
+          socket =
+            socket
+            |> Phoenix.LiveView.put_flash(:error, "Kein Zugriff auf diesen Bereich.")
+            |> Phoenix.LiveView.redirect(to: ~p"/admin/termine")
+
+          {:halt, socket}
+        end
+
+      halted ->
+        halted
+    end
+  end
+
   def on_mount(:require_sudo_mode, _params, session, socket) do
     socket = mount_current_scope(socket, session)
 

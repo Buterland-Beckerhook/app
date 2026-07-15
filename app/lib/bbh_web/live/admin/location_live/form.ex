@@ -35,6 +35,24 @@ defmodule BbhWeb.Admin.LocationLive.Form do
     save(socket, socket.assigns.live_action, params)
   end
 
+  def handle_event("delete", %{"confirm" => confirm}, socket) do
+    location = socket.assigns.location
+
+    cond do
+      not BbhWeb.Authz.can_delete?(socket.assigns.current_scope.user, location) ->
+        {:noreply, put_flash(socket, :error, "Keine Berechtigung zum Löschen.")}
+
+      confirm == location.key ->
+        {:ok, _} = Calendar.delete_location(location)
+
+        {:noreply,
+         socket |> put_flash(:info, "Ort gelöscht.") |> push_navigate(to: ~p"/admin/orte")}
+
+      true ->
+        {:noreply, put_flash(socket, :error, "Der eingegebene Wert stimmt nicht überein.")}
+    end
+  end
+
   defp save(socket, :new, params) do
     case Calendar.create_location(params) do
       {:ok, _} ->
@@ -92,6 +110,13 @@ defmodule BbhWeb.Admin.LocationLive.Form do
           <.button navigate={~p"/admin/orte"}>Abbrechen</.button>
         </div>
       </.form>
+
+      <.danger_zone
+        :if={@live_action == :edit and BbhWeb.Authz.can_delete?(@current_scope.user, @location)}
+        confirm_value={@location.key}
+      >
+        Der Ort „{@location.name}" wird dauerhaft gelöscht.
+      </.danger_zone>
     </Layouts.admin>
     """
   end
