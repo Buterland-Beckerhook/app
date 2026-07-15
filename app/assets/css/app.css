@@ -118,4 +118,10 @@ trix-editor {
   min-height: 8rem;
 }
 
+/* Hide Trix's built-in "Attach Files" button — direct uploads are disabled;
+   media comes from the library via the "Mediathek" button (see app.js). */
+trix-toolbar [data-trix-button-group="file-tools"] {
+  display: none;
+}
+
 /* This file is for your main application CSS */

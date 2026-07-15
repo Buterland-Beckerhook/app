@@ -72,12 +72,14 @@ defmodule BbhWeb.Admin.MediaPickerComponent do
       <div
         :if={@open}
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-        phx-click="close"
+        phx-window-keydown="close"
+        phx-key="Escape"
         phx-target={@myself}
       >
         <div
           class="max-h-[85vh] w-full max-w-3xl overflow-hidden rounded-lg bg-base-100 shadow-xl"
-          onclick="event.stopPropagation()"
+          phx-click-away="close"
+          phx-target={@myself}
         >
           <div class="flex items-center justify-between border-b border-base-300 p-4">
             <h2 class="text-lg font-semibold">Aus Mediathek einfügen</h2>
