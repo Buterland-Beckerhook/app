@@ -137,13 +137,17 @@ defmodule Bbh.Content do
   its sibling images so exactly one image is ever the preview.
   """
   def set_article_preview_image(%Article{id: article_id}, image_id) do
+    now = DateTime.utc_now(:second)
+
+    # Repo.transact rolls back on an {:error, _} return, so an unknown target
+    # leaves the sibling-clear un-committed (no article ends up with zero previews).
     Repo.transact(fn ->
       from(i in ArticleImage, where: i.article_id == ^article_id)
-      |> Repo.update_all(set: [use_as_article_image: false])
+      |> Repo.update_all(set: [use_as_article_image: false, updated_at: now])
 
       {count, _} =
         from(i in ArticleImage, where: i.id == ^image_id and i.article_id == ^article_id)
-        |> Repo.update_all(set: [use_as_article_image: true])
+        |> Repo.update_all(set: [use_as_article_image: true, updated_at: now])
 
       if count == 1, do: {:ok, image_id}, else: {:error, :not_found}
     end)

@@ -34,7 +34,18 @@ defmodule BbhWeb.ArticleControllerTest do
     test "falls back to the club logo when the article has no images", %{conn: conn} do
       article = article_fixture()
       html = conn |> get(~p"/aktuell/#{article.year}/#{article.slug}") |> html_response(200)
-      assert html =~ "/images/logo.svg"
+      # The logo URL is on every page (og:image + nav), so assert the hero
+      # fallback's distinctive alt instead (the nav logo uses alt="").
+      assert html =~ ~s(alt="Buterland-Beckerhook")
+    end
+
+    test "renders a real hero image, not the logo, when the article has one", %{conn: conn} do
+      article = article_fixture()
+      {:ok, _} = Bbh.Content.add_article_image(article, upload_fixture().id)
+
+      html = conn |> get(~p"/aktuell/#{article.year}/#{article.slug}") |> html_response(200)
+      assert html =~ "/media/"
+      refute html =~ ~s(alt="Buterland-Beckerhook")
     end
 
     test "renders gallery images as lightbox triggers", %{conn: conn} do
@@ -52,7 +63,8 @@ defmodule BbhWeb.ArticleControllerTest do
     test "uses the logo fallback on cards for image-less articles", %{conn: conn} do
       article_fixture(title: "Ohne Bild")
       html = conn |> get(~p"/aktuell") |> html_response(200)
-      assert html =~ "/images/logo.svg"
+      # Card fallback is the only element with this alt (nav logo uses alt="").
+      assert html =~ ~s(alt="Buterland-Beckerhook")
     end
   end
 end

@@ -56,9 +56,14 @@ defmodule BbhWeb.Admin.ArticleLiveTest do
 
       {:ok, lv, _html} = live(conn, ~p"/admin/artikel/#{article.id}/bearbeiten")
 
-      html = render_click(lv, "set_preview_image", %{"img_id" => b.id})
+      # Click the actual per-image button, not just the raw event.
+      html =
+        lv
+        |> element(~s(button[phx-click="set_preview_image"][phx-value-img_id="#{b.id}"]))
+        |> render_click()
 
       assert html =~ "Vorschaubild festgelegt"
+      assert html =~ "★ Vorschaubild"
       assert Content.get_article_image!(b.id).use_as_article_image
       refute Content.get_article_image!(a.id).use_as_article_image
     end
