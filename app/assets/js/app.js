@@ -36,11 +36,39 @@ const Hooks = {
     mounted() {
       const editor = this.el.querySelector("trix-editor")
       const input = this.el.querySelector("input[type=hidden]")
-      // We don't support file attachments in the club editor.
+      // No direct uploads — files come from the media library via the picker below.
       editor.addEventListener("trix-file-accept", (e) => e.preventDefault())
       editor.addEventListener("trix-change", () => {
         input.dispatchEvent(new Event("input", {bubbles: true}))
       })
+
+      // Add a "Aus Mediathek…" toolbar button that opens the shared media picker.
+      const addButton = () => this.addMediaButton(editor)
+      if (editor.toolbarElement) addButton()
+      else editor.addEventListener("trix-initialize", addButton, {once: true})
+
+      // The picker (a LiveComponent) pushes the chosen file back to this editor.
+      this.handleEvent("media_picker:insert", ({editor: id, html}) => {
+        if (id === this.el.id) editor.editor.insertHTML(html)
+      })
+    },
+    addMediaButton(editor) {
+      const toolbar = editor.toolbarElement
+      const row = toolbar && toolbar.querySelector(".trix-button-row")
+      if (!row || row.querySelector(".trix-button--media")) return
+
+      const group = document.createElement("span")
+      group.className = "trix-button-group"
+      const btn = document.createElement("button")
+      btn.type = "button"
+      btn.className = "trix-button trix-button--media"
+      btn.title = "Aus Mediathek einfügen"
+      btn.textContent = "Mediathek"
+      btn.addEventListener("click", () =>
+        this.pushEventTo("#media-picker", "open", {editor: this.el.id}),
+      )
+      group.appendChild(btn)
+      row.appendChild(group)
     },
   },
 
@@ -195,6 +223,12 @@ window.liveSocket = liveSocket
     dialog.showModal()
   })
 })()
+
+// --- Thron-Pager: per <select data-nav-select> zu einem Jahr springen ---
+document.addEventListener("change", (e) => {
+  const sel = e.target.closest("select[data-nav-select]")
+  if (sel && sel.value) location.assign(sel.value)
+})
 
 // --- Web Push opt-in (public pages, plain JS — no LiveView required) ---
 function urlBase64ToUint8Array(base64String) {

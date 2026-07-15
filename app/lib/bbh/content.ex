@@ -47,7 +47,16 @@ defmodule Bbh.Content do
   @doc "All thrones newest first, paginated (the /thron gallery), with article + images."
   def list_thrones(page \\ 1, per_page \\ 1) do
     base = from t in Throne, order_by: [desc: t.begin_year]
-    paginate(base, page, per_page, preload: [article: :images])
+    paginate(base, page, per_page, preload: [article: [images: :media]])
+  end
+
+  @doc "Schlanke Liste aller Throne (neueste zuerst) für den /thron-Pager."
+  def list_throne_nav do
+    Repo.all(
+      from t in Throne,
+        order_by: [desc: t.begin_year],
+        select: %{begin_year: t.begin_year, end_year: t.end_year, king: t.king, type: t.type}
+    )
   end
 
   @doc """

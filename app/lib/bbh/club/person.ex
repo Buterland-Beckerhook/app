@@ -31,6 +31,7 @@ defmodule Bbh.Club.Person do
   schema "people" do
     field :name, :string
     field :role, :string
+    field :email, :string
     field :honorary_member, :boolean, default: false
     field :street, :string
     field :city, :string
@@ -52,6 +53,7 @@ defmodule Bbh.Club.Person do
     |> cast(attrs, [
       :name,
       :role,
+      :email,
       :honorary_member,
       :street,
       :city,
@@ -65,6 +67,9 @@ defmodule Bbh.Club.Person do
     ])
     |> validate_required([:name, :role])
     |> validate_inclusion(:role, @roles)
+    |> validate_format(:email, ~r/^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+      message: "muss eine gültige E-Mail-Adresse sein"
+    )
     |> validate_number(:sort_order, greater_than_or_equal_to: 0)
     |> foreign_key_constraint(:portrait_id)
     |> check_constraint(:sort_order,

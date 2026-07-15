@@ -188,11 +188,20 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
   defp assign_form(socket, changeset),
     do: assign(socket, :form, to_form(changeset, as: "article"))
 
-  # Convert the datetime-local string and comma-separated tags into what the changeset expects.
+  # Convert the flatpickr datetime string and comma-separated tags into what the changeset
+  # expects. Only touch keys that are actually present — a missing "date_published" (e.g. a
+  # form event that doesn't carry every field) must not clobber the stored value with nil.
   defp normalize(params) do
     params
-    |> Map.update("date_published", nil, &parse_dt/1)
-    |> Map.update("tags", [], &parse_tags/1)
+    |> maybe_update("date_published", &parse_dt/1)
+    |> maybe_update("tags", &parse_tags/1)
+  end
+
+  defp maybe_update(params, key, fun) do
+    case params do
+      %{^key => value} -> Map.put(params, key, fun.(value))
+      _ -> params
+    end
   end
 
   defp parse_dt(v) when v in [nil, ""], do: nil
@@ -227,7 +236,7 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
         <.input field={@form[:subtitle]} label="Untertitel" />
         <.input field={@form[:slug]} label="Slug" required />
         <.input field={@form[:status]} type="select" label="Status" options={statuses()} />
-        <.input field={@form[:date_published]} type="datetime-local" label="Veröffentlicht am" />
+        <.datetime_field field={@form[:date_published]} label="Veröffentlicht am" />
         <p :if={@article.date_modified} class="-mt-1 text-xs text-base-content/50">
           Zuletzt geändert: {de_datetime(@article.date_modified)}
         </p>
@@ -410,6 +419,7 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
       >
         Der Artikel „{@article.title}" wird mit allen Bildern dauerhaft gelöscht.
       </.danger_zone>
+      <.live_component module={BbhWeb.Admin.MediaPickerComponent} id="media-picker" />
     </Layouts.admin>
     """
   end

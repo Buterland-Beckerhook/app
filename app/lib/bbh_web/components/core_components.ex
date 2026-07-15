@@ -329,6 +329,86 @@ defmodule BbhWeb.CoreComponents do
     """
   end
 
+  @doc """
+  A German-formatted date/time field backed by flatpickr (see the `DatePicker` JS hook).
+
+  The picker's injected DOM is protected with `phx-update="ignore"`; validation errors
+  render outside that wrapper so LiveView can still update them. Pass `all_day_selector`
+  (a CSS selector for a linked checkbox) to toggle the time picker off when that box is
+  checked — used by the event form. Without it the time picker is controlled by
+  `enable_time` (default `true`).
+  """
+  attr :field, Phoenix.HTML.FormField, required: true
+  attr :label, :string, required: true
+  attr :required, :boolean, default: false
+  attr :enable_time, :boolean, default: true
+  attr :all_day_selector, :string, default: nil
+
+  def datetime_field(assigns) do
+    ~H"""
+    <div>
+      <label class="label mb-1" for={@field.id}>{@label}</label>
+      <div id={"dp-#{@field.id}"} phx-update="ignore">
+        <input
+          type="text"
+          id={@field.id}
+          name={@field.name}
+          value={dt_value(@field.value)}
+          required={@required}
+          autocomplete="off"
+          phx-hook="DatePicker"
+          data-enable-time={to_string(@enable_time)}
+          data-all-day-selector={@all_day_selector}
+          class="input input-bordered w-full"
+        />
+      </div>
+      <.error :for={msg <- Enum.map(@field.errors, &translate_error/1)}>{msg}</.error>
+    </div>
+    """
+  end
+
+  # Render a stored datetime as the "YYYY-MM-DDTHH:MM" flatpickr parses on init.
+  defp dt_value(%{year: y, month: mo, day: d, hour: h, minute: mi}),
+    do: "#{y}-#{pad(mo)}-#{pad(d)}T#{pad(h)}:#{pad(mi)}"
+
+  defp dt_value(v) when is_binary(v), do: v
+  defp dt_value(_), do: ""
+
+  defp pad(n), do: String.pad_leading(Integer.to_string(n), 2, "0")
+
+  @doc """
+  A colored status badge, used across the admin listings for a consistent look.
+
+  `kind` selects the vocabulary:
+
+    * `:publish` — for `draft`/`published`/`archived`/`canceled` (articles, events, pages)
+    * `:user` — for account state: pass `"confirmed"` or `"pending"`
+  """
+  attr :status, :string, required: true
+  attr :kind, :atom, default: :publish
+
+  def status_badge(assigns) do
+    ~H"""
+    <span class={["badge", status_badge_class(@kind, @status)]}>
+      {status_badge_label(@kind, @status)}
+    </span>
+    """
+  end
+
+  defp status_badge_label(:publish, "published"), do: "Veröffentlicht"
+  defp status_badge_label(:publish, "archived"), do: "Archiviert"
+  defp status_badge_label(:publish, "canceled"), do: "Abgesagt"
+  defp status_badge_label(:publish, _), do: "Entwurf"
+  defp status_badge_label(:user, "confirmed"), do: "Bestätigt"
+  defp status_badge_label(:user, _), do: "Ausstehend"
+
+  defp status_badge_class(:publish, "published"), do: "badge-success"
+  defp status_badge_class(:publish, "archived"), do: "badge-neutral"
+  defp status_badge_class(:publish, "canceled"), do: "badge-warning"
+  defp status_badge_class(:publish, _), do: "badge-ghost"
+  defp status_badge_class(:user, "confirmed"), do: "badge-success"
+  defp status_badge_class(:user, _), do: "badge-ghost"
+
   # Helper used by inputs to generate form errors
   defp error(assigns) do
     ~H"""
@@ -381,8 +461,13 @@ defmodule BbhWeb.CoreComponents do
     default: &Function.identity/1,
     doc: "the function for mapping each row before calling the :col and :action slots"
 
+  attr :sort, :string, default: nil, doc: "currently active sort key (matches a col's :sort_key)"
+  attr :dir, :atom, default: :asc, doc: "current sort direction, :asc or :desc"
+  attr :sort_event, :string, default: "list-sort", doc: "phx-click event for sortable headers"
+
   slot :col, required: true do
     attr :label, :string
+    attr :sort_key, :string, doc: "when set, the header becomes a sort toggle for this key"
   end
 
   slot :action, doc: "the slot for showing user actions in the last table column"
@@ -397,7 +482,23 @@ defmodule BbhWeb.CoreComponents do
     <table class="table table-zebra">
       <thead>
         <tr>
-          <th :for={col <- @col}>{col[:label]}</th>
+          <th :for={col <- @col}>
+            <button
+              :if={col[:sort_key]}
+              type="button"
+              phx-click={@sort_event}
+              phx-value-key={col[:sort_key]}
+              class="inline-flex items-center gap-1 hover:text-primary"
+            >
+              {col[:label]}
+              <.icon
+                :if={@sort == col[:sort_key]}
+                name={if @dir == :asc, do: "hero-chevron-up-mini", else: "hero-chevron-down-mini"}
+                class="size-3.5"
+              />
+            </button>
+            <span :if={!col[:sort_key]}>{col[:label]}</span>
+          </th>
           <th :if={@action != []}>
             <span class="sr-only">{gettext("Actions")}</span>
           </th>
@@ -422,6 +523,78 @@ defmodule BbhWeb.CoreComponents do
         </tr>
       </tbody>
     </table>
+    """
+  end
+
+  @doc """
+  A search box for the admin listings. Emits `phx-change` (default `"list-filter"`) with `q`.
+  """
+  attr :id, :string, default: "list-search"
+  attr :q, :string, default: ""
+  attr :placeholder, :string, default: "Suchen…"
+  attr :event, :string, default: "list-filter"
+
+  def list_search(assigns) do
+    ~H"""
+    <form id={@id} phx-change={@event} class="mb-4 max-w-xs">
+      <label class="input input-bordered flex items-center gap-2">
+        <.icon name="hero-magnifying-glass" class="size-4 opacity-60" />
+        <input
+          type="search"
+          name="q"
+          value={@q}
+          placeholder={@placeholder}
+          phx-debounce="200"
+          autocomplete="off"
+          class="grow"
+        />
+      </label>
+    </form>
+    """
+  end
+
+  @doc """
+  Pagination controls for the admin listings, driven by LiveView events (default
+  `"list-page"`, sends `page`). Takes the meta map returned by `BbhWeb.AdminList.process/3`.
+  """
+  attr :meta, :map, required: true
+  attr :event, :string, default: "list-page"
+
+  def list_pagination(assigns) do
+    ~H"""
+    <nav
+      :if={@meta.total_pages > 1}
+      class="mt-4 flex items-center justify-center gap-1"
+      aria-label="Seiten"
+    >
+      <button
+        :if={@meta.page > 1}
+        type="button"
+        phx-click={@event}
+        phx-value-page={@meta.page - 1}
+        class="btn btn-sm btn-ghost"
+      >
+        Zurück
+      </button>
+      <button
+        :for={n <- 1..@meta.total_pages}
+        type="button"
+        phx-click={@event}
+        phx-value-page={n}
+        class={["btn btn-sm", if(n == @meta.page, do: "btn-primary", else: "btn-ghost")]}
+      >
+        {n}
+      </button>
+      <button
+        :if={@meta.page < @meta.total_pages}
+        type="button"
+        phx-click={@event}
+        phx-value-page={@meta.page + 1}
+        class="btn btn-sm btn-ghost"
+      >
+        Weiter
+      </button>
+    </nav>
     """
   end
 

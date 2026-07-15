@@ -96,6 +96,7 @@ defmodule BbhWeb.Admin.PersonLive.Form do
       >
         <.input field={@form[:name]} label="Name" required />
         <.input field={@form[:role]} type="select" label="Rolle" options={Club.role_options()} />
+        <.input field={@form[:email]} type="email" label="E-Mail" />
         <.input field={@form[:honorary_member]} type="checkbox" label="Ehrenmitglied" />
         <div class="grid grid-cols-2 gap-4">
           <.input field={@form[:street]} label="Straße" />
@@ -124,6 +125,7 @@ defmodule BbhWeb.Admin.PersonLive.Form do
       >
         Die Person „{@person.name}" wird dauerhaft gelöscht.
       </.danger_zone>
+      <.live_component module={BbhWeb.Admin.MediaPickerComponent} id="media-picker" />
     </Layouts.admin>
     """
   end

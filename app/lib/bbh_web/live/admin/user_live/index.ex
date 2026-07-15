@@ -5,6 +5,7 @@ defmodule BbhWeb.Admin.UserLive.Index do
   alias Bbh.Accounts
   alias Bbh.Accounts.User
   alias Bbh.Calendar.Event
+  alias BbhWeb.AdminList
 
   @roles [
     {"Redakteur", "editor"},
@@ -18,6 +19,7 @@ defmodule BbhWeb.Admin.UserLive.Index do
      socket
      |> assign(page_title: "Benutzer", roles: @roles)
      |> assign(invite_form: to_form(%{"email" => "", "role" => "editor"}, as: "user"))
+     |> assign(list_state: AdminList.init(sort: "email", dir: :asc))
      |> load_users()}
   end
 
@@ -76,13 +78,24 @@ defmodule BbhWeb.Admin.UserLive.Index do
     end
   end
 
+  def handle_event("list-" <> action, params, socket),
+    do: {:noreply, AdminList.handle(action, params, socket, &load_users/1)}
+
   # An admin being changed to a non-admin role while they are the only admin left.
   defp demoting_last_admin?(id, role) do
     user = Accounts.get_user!(id)
     user.role == "admin" and role != "admin" and Accounts.count_admins() <= 1
   end
 
-  defp load_users(socket), do: assign(socket, :users, Accounts.list_users())
+  defp load_users(socket) do
+    meta =
+      AdminList.process(Accounts.list_users(), socket.assigns.list_state,
+        search: [& &1.email],
+        sort: %{"email" => & &1.email, "role" => & &1.role}
+      )
+
+    assign(socket, users: meta.entries, list_meta: meta)
+  end
 
   @impl true
   def render(assigns) do
@@ -104,8 +117,12 @@ defmodule BbhWeb.Admin.UserLive.Index do
         <.button variant="primary" phx-disable-with="Sende…">Einladen</.button>
       </.form>
 
-      <.table id="users" rows={@users}>
-        <:col :let={u} label="E-Mail"><span class="font-medium">{u.email}</span></:col>
+      <.list_search q={@list_meta.q} placeholder="Nach E-Mail suchen…" />
+
+      <.table id="users" rows={@users} sort={@list_meta.sort} dir={@list_meta.dir}>
+        <:col :let={u} label="E-Mail" sort_key="email">
+          <span class="font-medium">{u.email}</span>
+        </:col>
         <:col :let={u} label="Rolle">
           <form phx-change="set_role" id={"role-#{u.id}"}>
             <input type="hidden" name="user_id" value={u.id} />
@@ -141,7 +158,9 @@ defmodule BbhWeb.Admin.UserLive.Index do
           </span>
         </:col>
         <:col :let={u} label="2FA">{if User.totp_enabled?(u), do: "ja", else: "–"}</:col>
-        <:col :let={u} label="Status">{if u.confirmed_at, do: "Bestätigt", else: "Ausstehend"}</:col>
+        <:col :let={u} label="Status">
+          <.status_badge kind={:user} status={if u.confirmed_at, do: "confirmed", else: "pending"} />
+        </:col>
         <:action :let={u}>
           <.link
             :if={u.id != @current_scope.user.id}
@@ -155,6 +174,8 @@ defmodule BbhWeb.Admin.UserLive.Index do
           </.link>
         </:action>
       </.table>
+
+      <.list_pagination meta={@list_meta} />
     </Layouts.admin>
     """
   end

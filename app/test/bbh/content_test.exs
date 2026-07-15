@@ -79,6 +79,35 @@ defmodule Bbh.ContentTest do
       assert only.id == b.id
       assert result.total == 2
     end
+
+    test "list_thrones preloads the throne picture's media" do
+      article = article_fixture(no_article: true, title: "Thron-Eintrag")
+      media = upload_fixture()
+
+      %Bbh.Content.ArticleImage{}
+      |> Bbh.Content.ArticleImage.changeset(%{
+        article_id: article.id,
+        media_id: media.id,
+        use_as_throne_picture: true
+      })
+      |> Repo.insert!()
+
+      throne_fixture(article: article, begin_year: 2023, end_year: 2024)
+
+      assert [entry] = Content.list_thrones(1, 1).entries
+      assert [image] = entry.article.images
+      assert image.media.id == media.id
+    end
+
+    test "list_throne_nav returns all thrones newest first with year/king" do
+      _older = throne_fixture(begin_year: 2018, end_year: 2019, king: "Gerd Lübbers")
+      _newer = throne_fixture(begin_year: 2023, end_year: 2024, king: "Jan-Bernd Droste")
+
+      assert [
+               %{begin_year: 2023, king: "Jan-Bernd Droste"},
+               %{begin_year: 2018, king: "Gerd Lübbers"}
+             ] = Content.list_throne_nav()
+    end
   end
 
   describe "get_published_page/1 and load_blocks/1" do

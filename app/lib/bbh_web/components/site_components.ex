@@ -208,14 +208,18 @@ defmodule BbhWeb.SiteComponents do
 
   def block(%{type: "richtext"} = assigns) do
     ~H"""
-    <div class="prose max-w-none dark:prose-invert">{Phoenix.HTML.raw(@block.body)}</div>
+    <div class="prose max-w-none dark:prose-invert">
+      {Phoenix.HTML.raw(Bbh.Placeholders.render(@block.body))}
+    </div>
     """
   end
 
   def block(%{type: "alert"} = assigns) do
     ~H"""
     <div class={["rounded-lg border-l-4 p-4", alert_classes(@block.icon)]}>
-      <div class="prose prose-sm max-w-none dark:prose-invert">{Phoenix.HTML.raw(@block.body)}</div>
+      <div class="prose prose-sm max-w-none dark:prose-invert">
+        {Phoenix.HTML.raw(Bbh.Placeholders.render(@block.body))}
+      </div>
     </div>
     """
   end
@@ -239,7 +243,7 @@ defmodule BbhWeb.SiteComponents do
           {@block.subtitle}
         </p>
         <div :if={@block.body} class="prose prose-sm mt-2 max-w-none dark:prose-invert">
-          {Phoenix.HTML.raw(@block.body)}
+          {Phoenix.HTML.raw(Bbh.Placeholders.render(@block.body))}
         </div>
       </div>
     </div>
@@ -340,4 +344,73 @@ defmodule BbhWeb.SiteComponents do
     </nav>
     """
   end
+
+  @doc "Kompakter Jahr–König-Pager für /thron (nur ?seite= Navigation)."
+  attr :page, :integer, required: true
+  attr :nav, :list, required: true
+  attr :base_path, :string, required: true
+
+  def throne_pager(assigns) do
+    total = length(assigns.nav)
+
+    assigns =
+      assign(assigns,
+        total: total,
+        newer: assigns.page > 1 && Enum.at(assigns.nav, assigns.page - 2),
+        older: assigns.page < total && Enum.at(assigns.nav, assigns.page)
+      )
+
+    ~H"""
+    <nav :if={@total > 1} class="mt-8 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+      <div class="justify-self-start">
+        <a
+          :if={@newer}
+          href={"#{@base_path}?seite=#{@page - 1}"}
+          class="text-sm hover:text-primary"
+        >
+          ‹ {throne_nav_label(@newer)}
+        </a>
+      </div>
+
+      <select
+        data-nav-select
+        class="select max-w-[16rem] justify-self-center"
+        aria-label="Thron auswählen"
+      >
+        <option
+          :for={{t, i} <- Enum.with_index(@nav)}
+          value={"#{@base_path}?seite=#{i + 1}"}
+          selected={i + 1 == @page}
+        >
+          {throne_nav_label(t)}
+        </option>
+      </select>
+
+      <div class="justify-self-end text-right">
+        <a
+          :if={@older}
+          href={"#{@base_path}?seite=#{@page + 1}"}
+          class="text-sm hover:text-primary"
+        >
+          {throne_nav_label(@older, :king_first)} ›
+        </a>
+      </div>
+    </nav>
+    """
+  end
+
+  defp throne_years(t) do
+    if t.end_year && t.end_year != t.begin_year,
+      do: "#{t.begin_year}–#{t.end_year}",
+      else: "#{t.begin_year}"
+  end
+
+  # Standard: „Jahr – König" (Select + linker Pfeil).
+  defp throne_nav_label(t), do: throne_nav_label(t, :year_first)
+
+  defp throne_nav_label(t, :king_first),
+    do: [t.king, throne_years(t)] |> Enum.reject(&(&1 in [nil, ""])) |> Enum.join(" – ")
+
+  defp throne_nav_label(t, :year_first),
+    do: [throne_years(t), t.king] |> Enum.reject(&(&1 in [nil, ""])) |> Enum.join(" – ")
 end

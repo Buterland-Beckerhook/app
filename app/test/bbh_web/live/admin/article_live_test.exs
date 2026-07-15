@@ -17,6 +17,21 @@ defmodule BbhWeb.Admin.ArticleLiveTest do
       assert html =~ article.title
     end
 
+    test "filters the list by title", %{conn: conn} do
+      article_fixture(title: "Sommerfest 2026")
+      article_fixture(title: "Winterball 2026")
+
+      {:ok, lv, _html} = live(conn, ~p"/admin/artikel")
+
+      html =
+        lv
+        |> form("#list-search", %{q: "winter"})
+        |> render_change()
+
+      assert html =~ "Winterball 2026"
+      refute html =~ "Sommerfest 2026"
+    end
+
     test "deletes an article from the edit page with slug confirmation", %{conn: conn} do
       article = article_fixture()
       {:ok, lv, _html} = live(conn, ~p"/admin/artikel/#{article.id}/bearbeiten")
@@ -50,6 +65,24 @@ defmodule BbhWeb.Admin.ArticleLiveTest do
 
       assert html =~ "Artikel erstellt"
       assert html =~ "Neuer Bericht"
+    end
+  end
+
+  describe "Form (edit)" do
+    test "editing the title does not reset the published date", %{conn: conn} do
+      published = ~U[2025-03-04 09:30:00Z]
+      article = article_fixture(date_published: published, title: "Alt")
+
+      {:ok, lv, _html} = live(conn, ~p"/admin/artikel/#{article.id}/bearbeiten")
+
+      # Submit a change that omits date_published from the params entirely.
+      lv
+      |> form("#article-form", article: %{title: "Neu"})
+      |> render_submit()
+
+      updated = Content.get_article!(article.id)
+      assert updated.title == "Neu"
+      assert updated.date_published == published
     end
   end
 

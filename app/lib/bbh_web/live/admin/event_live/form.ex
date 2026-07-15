@@ -179,8 +179,17 @@ defmodule BbhWeb.Admin.EventLive.Form do
         <.input field={@form[:slug]} label="Slug" required />
         <.input field={@form[:status]} type="select" label="Status" options={statuses()} />
         <div class="grid gap-4 sm:grid-cols-2">
-          <.datetime_field field={@form[:starts_at]} label="Beginn" required />
-          <.datetime_field field={@form[:ends_at]} label="Ende" />
+          <.datetime_field
+            field={@form[:starts_at]}
+            label="Beginn"
+            required
+            all_day_selector="[name='event[all_day]']"
+          />
+          <.datetime_field
+            field={@form[:ends_at]}
+            label="Ende"
+            all_day_selector="[name='event[all_day]']"
+          />
         </div>
         <.input field={@form[:all_day]} type="checkbox" label="Ganztägig" />
         <.input
@@ -213,53 +222,10 @@ defmodule BbhWeb.Admin.EventLive.Form do
       >
         Der Termin „{@event.title}" wird dauerhaft gelöscht. Dies kann nicht rückgängig gemacht werden.
       </.danger_zone>
+      <.live_component module={BbhWeb.Admin.MediaPickerComponent} id="media-picker" />
     </Layouts.admin>
     """
   end
 
   defp statuses, do: @statuses
-
-  # A German-formatted date/time field backed by flatpickr (see the DatePicker JS hook).
-  # The picker's injected DOM is protected with phx-update="ignore"; validation errors
-  # render outside that wrapper so LiveView can still update them.
-  attr :field, Phoenix.HTML.FormField, required: true
-  attr :label, :string, required: true
-  attr :required, :boolean, default: false
-
-  defp datetime_field(assigns) do
-    ~H"""
-    <div>
-      <label class="label mb-1" for={@field.id}>{@label}</label>
-      <div id={"dp-#{@field.id}"} phx-update="ignore">
-        <input
-          type="text"
-          id={@field.id}
-          name={@field.name}
-          value={dt_value(@field.value)}
-          required={@required}
-          autocomplete="off"
-          phx-hook="DatePicker"
-          data-all-day-selector="[name='event[all_day]']"
-          class="input input-bordered w-full"
-        />
-      </div>
-      <p
-        :for={error <- @field.errors}
-        class="mt-1.5 flex items-center gap-2 text-sm text-error"
-      >
-        <.icon name="hero-exclamation-circle" class="size-5" />
-        {translate_error(error)}
-      </p>
-    </div>
-    """
-  end
-
-  # Render a stored datetime as the "YYYY-MM-DDTHH:MM" flatpickr parses on init.
-  defp dt_value(%{year: y, month: mo, day: d, hour: h, minute: mi}),
-    do: "#{y}-#{pad(mo)}-#{pad(d)}T#{pad(h)}:#{pad(mi)}"
-
-  defp dt_value(v) when is_binary(v), do: v
-  defp dt_value(_), do: ""
-
-  defp pad(n), do: String.pad_leading(Integer.to_string(n), 2, "0")
 end

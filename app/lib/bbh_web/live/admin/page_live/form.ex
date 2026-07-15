@@ -267,6 +267,7 @@ defmodule BbhWeb.Admin.PageLive.Form do
       >
         Die Seite „{@page.title}" und alle ihre Blöcke werden dauerhaft gelöscht.
       </.danger_zone>
+      <.live_component module={BbhWeb.Admin.MediaPickerComponent} id="media-picker" />
     </Layouts.admin>
     """
   end

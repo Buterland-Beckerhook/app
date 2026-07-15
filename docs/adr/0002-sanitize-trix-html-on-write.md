@@ -30,5 +30,12 @@ Sanitize **on write** (store already-clean HTML), not on render.
   lists, links, bold/italic) while dropping `<script>` and `on*` handlers.
   If a future block needs richer markup, pick a wider scrubber
   deliberately rather than bypassing sanitization.
+- Media-library inserts (added 2026-07-15) rely on `basic_html` already
+  allowing `<img>`/`<a>` whose URL is scheme-less or `http`/`https`/`mailto`.
+  Our media picker emits scheme-less `/media/...` URLs, so images and
+  download links survive sanitization while `javascript:`/`data:` URLs and
+  inline handlers (e.g. `onerror`) are still stripped — verified by tests.
+  No custom scrubber was needed; the picker never inserts anything
+  `basic_html` would reject.
 - A deploy that already had dirty rows would need a one-time backfill.
   Moot here: the database is fresh and nothing is deployed yet.

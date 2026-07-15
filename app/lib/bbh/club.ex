@@ -12,6 +12,22 @@ defmodule Bbh.Club do
     |> Repo.all()
   end
 
+  @doc """
+  The current holder of a role — the last/currently serving person.
+
+  Ordered by "Amt bis" (`year_end`) descending with NULLs first, so a still-serving
+  person (no end year) wins, then the most recent end year; ties broken by `sort_order`
+  then `name`. Returns `nil` if no one holds the role.
+  """
+  def role_holder(role) when is_binary(role) do
+    Repo.one(
+      from p in Person,
+        where: p.role == ^role,
+        order_by: [desc_nulls_first: p.year_end, asc: p.sort_order, asc: p.name],
+        limit: 1
+    )
+  end
+
   @doc "Current board (Vorstand)."
   def list_vorstand, do: list_people(Person.vorstand_roles())
 

@@ -1,0 +1,14 @@
+- [x] 'Veroeffentlich am' nicht resetten bei Aenderung. 'Date Modified' bei Aenderung aktualisieren.
+- [x] 'use_as_article_image' sollte nur bei einem Bild pro artikel moeglich sein, z.b. biwak 2026.
+- [x] tabellenname 'images' ueberdenken, ist verknuepfung zu articles
+- [x] Block 'bildkarte' erlaubt kein Einfuegen von bildern (fehlt generell media -> seiten verknuepfung?)
+- [x] Bilder nur loeschen, wenn nicht in verwendung
+- [x] Auch pdf als medien zulassen
+- [x] Medien gallerie: Ordner erlauben (mit unterordnern, 2 ebenen), damit medien in ordnern einsortiert werden koennen
+- [x] Bild title, description, copyright in media-gallerie editierbar (passt zu DB design)
+- [x] Artikel: 'Veroeffentlicht am' Reset-Bug behoben; einheitlicher flatpickr-Picker/Format wie Termine
+- [x] Artikel- & Termin-Uebersicht (alle Admin-Listen): Paging, Namensfilter, Spalten-Sortierung
+- [x] 'Status'-Feld in Admin-Tabellen vereinheitlicht (gemeinsame <.status_badge> Komponente)
+- [x] Person: eMail-Feld ergaenzt
+- [x] Personendaten im Text referenzierbar: {{ rolle.feld }} (aktuell/letzter Amtsinhaber, nach 'Amt bis')
+- [x] Trix: Datei aus Mediathek einfuegbar (Bild -> <img>, sonst Datei-Link)

@@ -2,10 +2,29 @@ defmodule BbhWeb.Admin.LocationLive.Index do
   use BbhWeb, :live_view
 
   alias Bbh.Calendar
+  alias BbhWeb.AdminList
 
   @impl true
   def mount(_params, _session, socket) do
-    {:ok, assign(socket, page_title: "Orte", locations: Calendar.list_locations())}
+    {:ok,
+     socket
+     |> assign(:page_title, "Orte")
+     |> assign(:list_state, AdminList.init(sort: "name", dir: :asc))
+     |> load_list()}
+  end
+
+  @impl true
+  def handle_event("list-" <> action, params, socket),
+    do: {:noreply, AdminList.handle(action, params, socket, &load_list/1)}
+
+  defp load_list(socket) do
+    meta =
+      AdminList.process(Calendar.list_locations(), socket.assigns.list_state,
+        search: [& &1.name, & &1.city],
+        sort: %{"name" => & &1.name, "city" => & &1.city}
+      )
+
+    assign(socket, locations: meta.entries, list_meta: meta)
   end
 
   @impl true
@@ -19,9 +38,11 @@ defmodule BbhWeb.Admin.LocationLive.Index do
         </:actions>
       </.header>
 
-      <.table id="locations" rows={@locations}>
-        <:col :let={l} label="Name"><span class="font-medium">{l.name}</span></:col>
-        <:col :let={l} label="Ort">{l.city}</:col>
+      <.list_search q={@list_meta.q} placeholder="Nach Name suchen…" />
+
+      <.table id="locations" rows={@locations} sort={@list_meta.sort} dir={@list_meta.dir}>
+        <:col :let={l} label="Name" sort_key="name"><span class="font-medium">{l.name}</span></:col>
+        <:col :let={l} label="Ort" sort_key="city">{l.city}</:col>
         <:action :let={l}>
           <.link
             navigate={~p"/admin/orte/#{l.id}/bearbeiten"}
@@ -33,6 +54,8 @@ defmodule BbhWeb.Admin.LocationLive.Index do
           </.link>
         </:action>
       </.table>
+
+      <.list_pagination meta={@list_meta} />
     </Layouts.admin>
     """
   end
