@@ -6,6 +6,10 @@
   </p>
 
   <div :for={throne <- @result.entries} class="mx-auto max-w-3xl">
+    <h2 class="mb-6 text-3xl font-semibold">
+      {[throne.king_title] |> Enum.reject(&is_nil/1) |> Enum.join(" – ")}
+    </h2>
+
     <% pic = throne_picture(throne) %>
     <img
       :if={pic}

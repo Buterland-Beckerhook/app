@@ -124,15 +124,15 @@ defmodule BbhWeb.SiteComponents do
           <td class="py-2">{@throne.queen}</td>
         </tr>
         <tr :if={@throne.moh1 || @throne.moh2}>
-          <th class="py-2 pr-4 font-medium text-gray-600 dark:text-gray-300">Ehrendamen</th>
+          <th class="py-2 pr-4 font-medium text-gray-600 dark:text-gray-300">Ehrenpaare</th>
           <td class="py-2">
-            {[@throne.moh1, @throne.moh2] |> Enum.reject(&is_nil/1) |> Enum.join(", ")}
+            {[@throne.loh1, @throne.moh1] |> Enum.reject(&is_nil/1) |> Enum.join(" und ")}
           </td>
         </tr>
         <tr :if={@throne.loh1 || @throne.loh2}>
-          <th class="py-2 pr-4 font-medium text-gray-600 dark:text-gray-300">Ehrenherren</th>
+          <th class="py-2 pr-4 font-medium text-gray-600 dark:text-gray-300"></th>
           <td class="py-2">
-            {[@throne.loh1, @throne.loh2] |> Enum.reject(&is_nil/1) |> Enum.join(", ")}
+            {[@throne.loh2, @throne.moh2] |> Enum.reject(&is_nil/1) |> Enum.join(" und ")}
           </td>
         </tr>
         <tr :if={@throne.cupbearer}>
