@@ -2,188 +2,109 @@
 
 ## Project Overview
 
-Monorepo for **buterland-beckerhook.de** -- a German shooting club (Schützenverein) website.
-Stack: SvelteKit 5 (SSR, Node adapter) + Directus CMS (PostgreSQL) + TailwindCSS 4 + TypeScript.
-Deployed via Docker Compose with Caddy reverse proxy.
+Repository for **buterland-beckerhook.de** — a German shooting club
+(Schützenverein) website. The site is an **Elixir + Phoenix** application: the
+public site is server-rendered HEEx, the admin area is Phoenix LiveView, data
+lives in PostgreSQL, and uploaded media is stored on a local volume with
+libvips-generated responsive WebP variants. Deployed via Docker Compose behind a
+Caddy reverse proxy.
+
+> The site was rewritten from an earlier Directus CMS + SvelteKit stack; that
+> stack has been removed. All application code now lives under `app/`.
 
 ## Repository Structure
 
 ```
-frontend/           # SvelteKit app (main application)
-  src/lib/          # Components, server utilities, shared utils
-  src/lib/server/   # Server-only code (Directus client, queries)
-  src/lib/components/  # Svelte components (PascalCase)
-  src/lib/utils/    # Shared utility functions
-  src/lib/types.ts  # All Directus schema types + SDK Schema interface
-  src/routes/       # SvelteKit pages and API routes
-  static/           # Favicon, fonts, manifest, PWA icons
-setup/              # TypeScript setup scripts (schema, permissions, branding), run via tsx
-migration/          # TypeScript migration scripts (Hugo -> Directus), run via tsx
-docker/             # Caddy config, Directus extensions
+app/          # The Phoenix application (OTP app :bbh) — see app/AGENTS.md
+  lib/        # Contexts (Bbh.*) + web layer (BbhWeb.*: controllers, live, components)
+  config/     # config.exs, dev.exs, runtime.exs (prod env), test.exs
+  priv/       # repo/ (migrations, seeds.exs), static/, uploads/ (gitignored media)
+  test/       # ExUnit tests + support/ fixtures
+  Dockerfile      # Production release image (multi-stage mix release)
+  Dockerfile.dev  # Development image (single-stage mix, source mounted)
+deploy/       # Production stack: compose.yml, Caddyfile, backup.sh, .env.example
+scripts/      # dump.sh / seed.sh — DB + uploads snapshot/restore (dev & prod)
+docs/adr/     # Architecture decision records
+compose.yml   # Development stack: postgres + phoenix + caddy
+Makefile      # Dev workflow shortcuts (below)
 ```
 
-## Build / Dev / Lint Commands
+## Development
 
-All frontend commands run from the `frontend/` directory.
+Dev runs **fully containerized** (`compose.yml`): PostgreSQL + Phoenix (source
+bind-mounted with code reload) + Caddy (local HTTPS at `https://localhost`).
+Use the repo-root `Makefile`:
 
 ```bash
-npm install                # Install dependencies
-npm run dev                # Vite dev server on localhost:5173
-npm run build              # Production build
-npm run preview            # Preview production build
+make dev        # Start the dev stack at https://localhost (docker compose up --build)
+make down       # Stop the stack (data persists in volumes)
+make logs       # Tail the running stack
 
-# Type checking
-npm run check              # svelte-kit sync + svelte-check (strict mode)
-
-# Linting & formatting
-npm run lint               # ESLint + Prettier check
-npm run lint:fix           # Auto-fix lint + format
-npm run format             # Prettier --write only
-npx eslint src/routes/aktuell/+page.server.ts   # Lint a single file
-npx prettier --write src/lib/components/Foo.svelte  # Format a single file
-
-# Docker (from repo root)
-docker compose up --build       # Full dev stack (compose.yml): db + phoenix + caddy
+# The following exec `mix` inside the running phoenix container (stack must be up):
+make test       # mix test
+make format     # mix format
+make precommit  # compile --warnings-as-errors + deps.unlock --unused + format + test
+make migrate    # mix ecto.migrate
+make reset-db   # mix ecto.reset
 ```
 
-> **Note:** the site is being rewritten to Elixir/Phoenix (the app now lives in
-> `app/`); the SvelteKit/Directus notes above are historical. Dev runs fully
-> containerized. Use the repo-root `Makefile`:
->
-> - `make dev` — start the dev stack (Postgres + Phoenix + Caddy) at `https://localhost`
-> - `make down` / `make logs` — stop / tail the stack
-> - `make dump` — snapshot the dev DB + uploads into `./seed` (DB dump + tarball)
-> - `make seed` — restore a `./seed` snapshot into the dev DB + uploads
-> - `make test`, `make format`, `make precommit`, `make migrate`, `make reset-db` —
->   run the corresponding `mix` task inside the running phoenix container
->
-> First run trusts Caddy's local CA for a clean HTTPS lock: extract
-> `/data/caddy/pki/authorities/local/root.crt` from the `caddy_data` volume and
-> add it to your system trust store.
+For a clean HTTPS padlock, trust Caddy's local CA once: extract
+`/data/caddy/pki/authorities/local/root.crt` from the `caddy_data` volume and add
+it to your system trust store. Everything works over HTTPS regardless.
 
-### Tests
+Elixir/Phoenix conventions (contexts, LiveView, Ecto, HEEx, testing) are
+documented in **`app/AGENTS.md`**.
 
-No test framework is currently configured. There are no Vitest/Playwright configs or test files yet. When tests are added, they should use Vitest for unit tests (colocated `.test.ts` files) and Playwright for e2e tests.
+## Data snapshots — seeding & restore
 
-## Code Style Guidelines
+There is no hand-written sample seed; dev data is a **real snapshot**.
+`scripts/dump.sh` / `scripts/seed.sh` capture and restore a PostgreSQL dump
+(`pg_dump -Fc`) plus a tarball of the uploaded originals (the regenerable variant
+cache is excluded) into a gitignored `./seed` directory. `priv/repo/seeds.exs` is
+only a dev-admin fallback for an otherwise empty database.
 
-### Formatting (Prettier)
-
-- **Tabs** for indentation (not spaces)
-- **Single quotes**
-- **No trailing commas**
-- **100 character** print width
-- Svelte files parsed with `prettier-plugin-svelte`
-
-### ESLint
-
-- Flat config with `typescript-eslint` + `eslint-plugin-svelte` + `eslint-config-prettier`
-- `svelte/no-at-html-tags`: **off** (CMS content uses `{@html}`)
-- `svelte/no-navigation-without-resolve`: **off**
-- Ignores: `build/`, `.svelte-kit/`, `dist/`, `node_modules/`
-
-### TypeScript
-
-- **Strict mode** everywhere. No `any` unless unavoidable (add a comment explaining why).
-- `moduleResolution: "bundler"`, `esModuleInterop: true`
-- Always type function parameters and return values. Let TypeScript infer locals.
-- Use `interface` for object shapes, `type` for unions and computed types.
-- Prefer `unknown` over `any`. Validate and narrow before use.
-
-### File Naming
-
-- Svelte components: **PascalCase** -- `ArticleCard.svelte`, `ThroneTable.svelte`
-- TypeScript files: **kebab-case** -- `directus.ts`, `push-utils.ts`
-- SvelteKit routes: conventions -- `+page.svelte`, `+page.server.ts`, `+layout.svelte`, `+server.ts`
-
-### Naming Conventions
-
-- Variables/functions: **camelCase** -- `getArticles`, `datePublished`
-- Types/interfaces: **PascalCase** -- `Article`, `ThroneData`
-- Constants/env vars: **UPPER_SNAKE_CASE** -- `DIRECTUS_URL`, `ITEMS_PER_PAGE`
-- URL slugs/route params: **kebab-case** -- `/aktuell/mein-artikel`
-- German URL params: `?seite=` (page), `?jahr=` (year)
-
-### Imports
-
-- Use `$lib/` alias for imports from `src/lib/`.
-- Server-only code in `$lib/server/` -- only import from `+page.server.ts`, `+layout.server.ts`, or `+server.ts`.
-- Group imports: (1) svelte/sveltekit, (2) third-party, (3) `$lib/` local.
-- Named exports, not default exports (Svelte components are default by nature).
-
-```typescript
-import { error, redirect } from '@sveltejs/kit';
-import { readItems } from '@directus/sdk';
-import { directus } from '$lib/server/directus';
-import type { Article } from '$lib/types';
+```bash
+make dump   # Snapshot dev DB + uploads  -> ./seed/{bbh.dump,uploads.tar.gz}
+make seed   # Restore ./seed snapshot into the dev DB + uploads
 ```
 
-### Svelte Components
+The scripts are **role- and name-agnostic** (restore uses
+`--no-owner --no-privileges`), so the same artifacts seed dev *and* prod. Override
+via env vars — all default to the dev values:
 
-- **Svelte 5 runes** syntax: `$state`, `$derived`, `$effect`, `$props`.
-- Props via `$props()`, **not** `export let`.
-- Reactive declarations with `$derived`, **not** `$:`.
-- Snippets via `{#snippet}` / `{@render}`, **not** slots.
-- Semantic HTML elements. ARIA labels where needed.
-- TailwindCSS 4 utility classes only. No custom CSS files unless necessary.
+| Var | Default | Purpose |
+| --- | --- | --- |
+| `DB_NAME` | `bbh_dev` | Database to dump / (re)create + restore into |
+| `DB_USER` | `postgres` | Role to connect as |
+| `UPLOADS_VOLUME` | *(unset)* | Named Docker volume holding `/data/uploads` (prod); unset ⇒ the `app/priv/uploads` host bind dir (dev) |
+| `COMPOSE_FILE` | `compose.yml` | Which stack's `postgres` container to target |
 
-```svelte
-<script lang="ts">
-  import type { Article } from '$lib/types';
-  let { article, showImage = true }: { article: Article; showImage?: boolean } = $props();
-  let formattedDate = $derived(new Date(article.date_published).toLocaleDateString('de-DE'));
-</script>
+**Restore a dev snapshot into the prod stack** (from repo root):
+
+```bash
+# Stop the phoenix service first — this drops & recreates the DB.
+docker compose -f deploy/compose.yml stop phoenix
+
+COMPOSE_FILE=deploy/compose.yml DB_NAME=bbh DB_USER=bbh \
+  UPLOADS_VOLUME=bbh_uploads ./scripts/seed.sh
+
+docker compose -f deploy/compose.yml up -d phoenix   # variants regenerate on demand
 ```
 
-### Error Handling
+Notes:
+- The dump carries the full schema + `schema_migrations`, so restore into an
+  **empty** target DB (running `bin/migrate` afterwards is a harmless no-op since
+  the versions match).
+- The scripts resolve the container via `docker compose ps -q postgres` and use
+  `docker exec` (not `docker compose exec`, which segfaults on some Docker
+  versions). **Never** create a dump with `docker exec -t` — a TTY corrupts the
+  binary stream and `pg_restore` then segfaults.
+- Nightly production backups (dump + uploads, offsite via Borg) are handled
+  separately by `deploy/backup.sh`.
 
-- In `+page.server.ts` / `+server.ts`: use SvelteKit `error()` and `redirect()` helpers.
-- Wrap Directus SDK calls in try/catch. `error(404)` for missing content, `error(500)` for unexpected failures.
-- Never expose internal error details to the client. Log server-side with `console.error`.
+## Git & Workflow
 
-```typescript
-import { error } from '@sveltejs/kit';
-import type { HttpError } from '@sveltejs/kit';
-
-export const load = async ({ params }) => {
-  try {
-    const article = await getArticleBySlug(params.slug);
-    if (!article) throw error(404, 'Artikel nicht gefunden');
-    return { article };
-  } catch (err) {
-    if ((err as HttpError).status) throw err;
-    console.error('Failed to load article:', err);
-    throw error(500, 'Interner Fehler');
-  }
-};
-```
-
-### Directus Integration
-
-- Client in `$lib/server/directus.ts` (server-only). Uses `@directus/sdk` v21 with typed schema.
-- Auth via static token (`DIRECTUS_TOKEN` env var from `$env/dynamic/private`).
-- Always filter by `status: 'published'` for public-facing queries.
-- Fetch only needed fields (use `fields` parameter), never `*`.
-- Image URLs built via `$lib/utils/image.ts` using `PUBLIC_DIRECTUS_URL`.
-
-### Environment Variables
-
-- Secrets in `.env`, **never committed**. See `.env.example` for reference.
-- SvelteKit public env: prefix `PUBLIC_` -- `PUBLIC_SITE_URL`, `PUBLIC_DIRECTUS_URL`.
-- Private env: no prefix -- `DIRECTUS_URL`, `DIRECTUS_TOKEN`, `VAPID_PRIVATE_KEY`.
-
-### Internationalization
-
-- **German-language** site. UI strings are hardcoded German.
-- Date formatting: `de-DE` locale -- `toLocaleDateString('de-DE')`.
-
-### Accessibility & SEO
-
-- Semantic HTML (`<article>`, `<nav>`, `<main>`, `<section>`, `<time>`).
-- Every page sets `<title>` and `<meta name="description">` via `<svelte:head>`.
-- Images require `alt` text (use Directus `title` field).
-
-### Git & Workflow
-
-- Branches: `main` (production), `develop` (integration). Feature branches off `develop`.
-- Commit messages: conventional style -- `feat:`, `fix:`, `chore:`, `docs:`, `refactor:`.
+- Default branch: `main`. Feature branches off it (e.g. `feat/…`).
+- Conventional commit messages — `feat:`, `fix:`, `chore:`, `docs:`, `refactor:`.
+- The site is German-language; UI strings and `de-DE` date formatting are
+  hardcoded.
