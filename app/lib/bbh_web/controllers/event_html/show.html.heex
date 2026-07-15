@@ -13,7 +13,7 @@
           Abgesagt
         </span>
       </div>
-      <p class="mt-2 text-gray-600 dark:text-gray-300">
+      <p class="mt-2 text-muted">
         {de_range(@event.starts_at, @event.ends_at, @event.all_day)}
       </p>
       <p :if={@event.status == "canceled" && @event.cancel_reason} class="mt-1 text-sm text-error">
@@ -23,10 +23,10 @@
 
     <div
       :if={@event.location}
-      class="mt-4 rounded-lg border border-gray-200 p-4 dark:border-zinc-700"
+      class="mt-4 rounded-lg border border-base-300 p-4"
     >
       <p class="font-medium">{@event.location.name}</p>
-      <p :if={@event.location.street} class="text-sm text-gray-500 dark:text-gray-400">
+      <p :if={@event.location.street} class="text-sm text-muted">
         {@event.location.street}
         <span :if={@event.location.city}>, {@event.location.zip} {@event.location.city}</span>
       </p>

@@ -1,7 +1,7 @@
 <Layouts.app flash={@flash} current_path={@conn.request_path}>
   <h1 class="mb-6 text-3xl font-semibold">Throne seit 1909</h1>
 
-  <p :if={@result.entries == []} class="text-gray-500 dark:text-gray-400">
+  <p :if={@result.entries == []} class="text-muted">
     Es sind noch keine Throne erfasst.
   </p>
 
@@ -17,7 +17,7 @@
       alt={image_alt(pic)}
       class="mb-6 w-full rounded-lg object-cover"
     />
-    <div class="rounded-lg border border-gray-200 p-4 dark:border-zinc-700">
+    <div class="rounded-lg border border-base-300 p-4">
       <.throne_table throne={throne} />
       <a
         :if={throne.article && !throne.article.no_article}

@@ -4,10 +4,10 @@
 
     <header class="mt-4">
       <h1 class="text-3xl font-semibold">{@article.title}</h1>
-      <p :if={@article.subtitle} class="mt-1 text-lg text-gray-600 dark:text-gray-300">
+      <p :if={@article.subtitle} class="mt-1 text-lg text-muted">
         {@article.subtitle}
       </p>
-      <div class="mt-2 flex flex-wrap items-center gap-x-3 text-sm text-gray-500 dark:text-gray-400">
+      <div class="mt-2 flex flex-wrap items-center gap-x-3 text-sm text-muted">
         <time>{de_date(@article.date_published)}</time>
         <span :if={@article.author}>von {@article.author}</span>
       </div>
@@ -41,7 +41,7 @@
 
     <section
       :if={@article.throne}
-      class="mt-8 rounded-lg border border-gray-200 p-4 dark:border-zinc-700"
+      class="mt-8 rounded-lg border border-base-300 p-4"
     >
       <.throne_table throne={@article.throne} />
     </section>

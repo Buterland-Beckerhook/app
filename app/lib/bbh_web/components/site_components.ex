@@ -32,7 +32,7 @@ defmodule BbhWeb.SiteComponents do
       src={~p"/images/logo.svg"}
       alt="Buterland-Beckerhook"
       loading="lazy"
-      class={["bg-white object-contain p-6 dark:bg-zinc-700", @class]}
+      class={["bg-tag object-contain p-6", @class]}
     />
     """
   end
@@ -44,28 +44,29 @@ defmodule BbhWeb.SiteComponents do
     ~H"""
     <a
       href={~p"/aktuell/#{@article.year}/#{@article.slug}"}
-      class="group flex flex-col overflow-hidden rounded-lg border border-gray-200 bg-white transition-shadow hover:shadow-md dark:border-zinc-700 dark:bg-zinc-800"
+      class="group flex flex-col overflow-hidden rounded-[18px] border border-base-300 bg-card transition-shadow hover:shadow-md"
     >
-      <div class="aspect-video overflow-hidden bg-gray-100 dark:bg-zinc-700">
+      <div class="h-[190px] overflow-hidden bg-tag">
+        <%!-- 2× the 190px box for retina displays --%>
         <.hero_image
           article={@article}
           width={640}
-          height={360}
+          height={380}
           class="h-full w-full transition-transform group-hover:scale-105"
         />
       </div>
-      <div class="flex flex-1 flex-col p-4">
-        <time class="text-sm text-gray-500 dark:text-gray-400">{de_date(@article.date_published)}</time>
-        <h3 class="mt-1 font-semibold text-gray-900 group-hover:text-primary dark:text-gray-100">
+      <div class="flex flex-1 flex-col p-5.5">
+        <time class="text-[13px] font-medium text-muted">{de_date(@article.date_published)}</time>
+        <h3 class="font-logo mt-1.5 text-[22px] font-bold leading-snug group-hover:text-primary">
           {@article.title}
         </h3>
-        <p :if={@article.subtitle} class="mt-1 text-sm text-gray-600 dark:text-gray-300">
+        <p :if={@article.subtitle} class="mt-1.5 text-[15px] leading-relaxed text-muted">
           {@article.subtitle}
         </p>
-        <div :if={@article.tags != []} class="mt-3 flex flex-wrap gap-1">
+        <div :if={@article.tags != []} class="mt-4 flex flex-wrap gap-2">
           <span
             :for={tag <- @article.tags}
-            class="rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary"
+            class="rounded-full bg-tag px-2.75 py-1 text-xs font-semibold text-primary"
           >
             {tag}
           </span>
@@ -82,10 +83,10 @@ defmodule BbhWeb.SiteComponents do
     ~H"""
     <a
       href={~p"/termine/#{@event.year}/#{@event.slug}"}
-      class="flex flex-col rounded-lg border border-gray-200 bg-white p-4 transition-shadow hover:shadow-md dark:border-zinc-700 dark:bg-zinc-800"
+      class="flex flex-col rounded-lg border border-base-300 bg-card p-4 transition-shadow hover:shadow-md"
     >
       <div class="flex items-center gap-2">
-        <h3 class="font-semibold text-gray-900 dark:text-gray-100">{@event.title}</h3>
+        <h3 class="font-semibold text-base-content">{@event.title}</h3>
         <span
           :if={@event.status == "canceled"}
           class="rounded bg-error/10 px-2 py-0.5 text-xs font-medium text-error"
@@ -93,10 +94,10 @@ defmodule BbhWeb.SiteComponents do
           Abgesagt
         </span>
       </div>
-      <time class="mt-1 text-sm text-gray-600 dark:text-gray-300">
+      <time class="mt-1 text-sm text-muted">
         {de_range(@event.starts_at, @event.ends_at, @event.all_day)}
       </time>
-      <p :if={@event.location} class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+      <p :if={@event.location} class="mt-1 text-sm text-muted">
         {@event.location.name}
       </p>
     </a>
@@ -105,50 +106,52 @@ defmodule BbhWeb.SiteComponents do
 
   @doc "Throne detail table (König/Kaiser + court)."
   attr :throne, :map, required: true
+  attr :show_caption, :boolean, default: true, doc: "hide when the caption is shown elsewhere"
 
   def throne_table(assigns) do
     ~H"""
-    <table class="w-full text-left text-sm">
-      <caption class="mb-2 text-lg font-semibold text-primary">
+    <table class="w-full text-left text-[15px]">
+      <caption :if={@show_caption} class="font-logo mb-2 text-lg font-bold text-primary">
         {throne_caption(@throne)}
       </caption>
-      <tbody class="divide-y divide-gray-200 dark:divide-zinc-700">
+      <tbody class="divide-y divide-base-300">
         <tr>
-          <th class="py-2 pr-4 font-medium text-gray-600 dark:text-gray-300">König</th>
-          <td class="py-2">
+          <th class="py-3.5 pr-4 font-medium text-muted">König</th>
+          <td class="py-3.5 text-right font-semibold">
             {[@throne.king_title, @throne.king] |> Enum.reject(&is_nil/1) |> Enum.join(" – ")}
           </td>
         </tr>
         <tr>
-          <th class="py-2 pr-4 font-medium text-gray-600 dark:text-gray-300">Königin</th>
-          <td class="py-2">{@throne.queen}</td>
+          <th class="py-3.5 pr-4 font-medium text-muted">Königin</th>
+          <td class="py-3.5 text-right font-semibold">{@throne.queen}</td>
         </tr>
-        <tr :if={@throne.moh1 || @throne.moh2}>
-          <th class="py-2 pr-4 font-medium text-gray-600 dark:text-gray-300">Ehrenpaare</th>
-          <td class="py-2">
+        <tr :if={@throne.moh1 || @throne.loh1}>
+          <th class="py-3.5 pr-4 font-medium text-muted">Ehrenpaare</th>
+          <td class="py-3.5 text-right font-semibold">
             {[@throne.loh1, @throne.moh1] |> Enum.reject(&is_nil/1) |> Enum.join(" und ")}
           </td>
         </tr>
-        <tr :if={@throne.loh1 || @throne.loh2}>
-          <th class="py-2 pr-4 font-medium text-gray-600 dark:text-gray-300"></th>
-          <td class="py-2">
+        <tr :if={@throne.moh2 || @throne.loh2}>
+          <th class="py-3.5 pr-4 font-medium text-muted"></th>
+          <td class="py-3.5 text-right font-semibold">
             {[@throne.loh2, @throne.moh2] |> Enum.reject(&is_nil/1) |> Enum.join(" und ")}
           </td>
         </tr>
         <tr :if={@throne.cupbearer}>
-          <th class="py-2 pr-4 font-medium text-gray-600 dark:text-gray-300">Mundschenk</th>
-          <td class="py-2">{@throne.cupbearer}</td>
+          <th class="py-3.5 pr-4 font-medium text-muted">Mundschenk</th>
+          <td class="py-3.5 text-right font-semibold">{@throne.cupbearer}</td>
         </tr>
         <tr :if={@throne.courtmarshal}>
-          <th class="py-2 pr-4 font-medium text-gray-600 dark:text-gray-300">Oberhofmarschall</th>
-          <td class="py-2">{@throne.courtmarshal}</td>
+          <th class="py-3.5 pr-4 font-medium text-muted">Oberhofmarschall</th>
+          <td class="py-3.5 text-right font-semibold">{@throne.courtmarshal}</td>
         </tr>
       </tbody>
     </table>
     """
   end
 
-  defp throne_caption(%Throne{} = t) do
+  @doc "Caption line for a throne, e.g. \"König 2025–2026\" or \"Kaiser 2009\"."
+  def throne_caption(%Throne{} = t) do
     kind =
       case t.type do
         "kaiser" -> "Kaiser"
@@ -171,16 +174,16 @@ defmodule BbhWeb.SiteComponents do
   def person_table(assigns) do
     ~H"""
     <table class="w-full text-left text-sm">
-      <tbody class="divide-y divide-gray-200 dark:divide-zinc-700">
+      <tbody class="divide-y divide-base-300">
         <tr :for={p <- @people}>
-          <th class="py-2 pr-4 font-medium text-gray-600 dark:text-gray-300">
+          <th class="py-2 pr-4 font-medium text-muted">
             {Person.role_label(p.role)}
           </th>
           <td class="py-2">
             {p.name}
             <span
               :if={@show_address && (p.street || p.city)}
-              class="block text-gray-500 dark:text-gray-400"
+              class="block text-muted"
             >
               {[p.street, p.city] |> Enum.reject(&is_nil/1) |> Enum.join(", ")}
             </span>
@@ -239,7 +242,7 @@ defmodule BbhWeb.SiteComponents do
       />
       <div class="md:w-1/2">
         <h3 :if={@block.title} class="text-lg font-semibold">{@block.title}</h3>
-        <p :if={@block.subtitle} class="text-sm text-gray-500 dark:text-gray-400">
+        <p :if={@block.subtitle} class="text-sm text-muted">
           {@block.subtitle}
         </p>
         <div :if={@block.body} class="prose prose-sm mt-2 max-w-none dark:prose-invert">
@@ -319,7 +322,7 @@ defmodule BbhWeb.SiteComponents do
       <a
         :if={@page > 1}
         href={"#{@base_path}?seite=#{@page - 1}"}
-        class="rounded border border-gray-200 px-3 py-1 text-sm hover:border-primary hover:text-primary dark:border-zinc-700"
+        class="rounded border border-base-300 px-3 py-1 text-sm hover:border-primary hover:text-primary"
       >
         Zurück
       </a>
@@ -329,7 +332,7 @@ defmodule BbhWeb.SiteComponents do
         class={[
           "rounded border px-3 py-1 text-sm",
           n == @page && "border-primary bg-primary text-primary-content",
-          n != @page && "border-gray-200 hover:border-primary hover:text-primary dark:border-zinc-700"
+          n != @page && "border-base-300 hover:border-primary hover:text-primary"
         ]}
       >
         {n}
@@ -337,7 +340,7 @@ defmodule BbhWeb.SiteComponents do
       <a
         :if={@page < @total_pages}
         href={"#{@base_path}?seite=#{@page + 1}"}
-        class="rounded border border-gray-200 px-3 py-1 text-sm hover:border-primary hover:text-primary dark:border-zinc-700"
+        class="rounded border border-base-300 px-3 py-1 text-sm hover:border-primary hover:text-primary"
       >
         Weiter
       </a>

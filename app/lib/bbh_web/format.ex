@@ -63,6 +63,13 @@ defmodule BbhWeb.Format do
 
   def article_hero(_), do: nil
 
+  @doc "The throne picture for a throne (its article image flagged use_as_throne_picture)."
+  def throne_picture(%{article: %{images: images}}) when is_list(images) do
+    Enum.find(images, & &1.use_as_throne_picture) || List.first(images)
+  end
+
+  def throne_picture(_), do: nil
+
   @doc "Alt text for an article image (its title, falling back to a generic label)."
   def image_alt(%ArticleImage{title: title}) when is_binary(title) and title != "", do: title
   def image_alt(_), do: "Bild"

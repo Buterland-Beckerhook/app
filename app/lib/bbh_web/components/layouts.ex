@@ -65,24 +65,28 @@ defmodule BbhWeb.Layouts do
     assigns = assign(assigns, :nav, @nav)
 
     ~H"""
-    <div class="flex min-h-screen flex-col bg-white text-gray-900 dark:bg-zinc-900 dark:text-gray-200">
-      <header class="border-b border-gray-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
-        <nav class="mx-auto flex max-w-6xl items-center justify-between px-4 py-2">
-          <a href="/" class="flex items-center gap-3">
+    <div class="flex min-h-screen flex-col bg-base-100 text-base-content">
+      <header class="sticky top-0 z-40 border-b border-base-300 bg-(--bb-header-bg) backdrop-blur-md backdrop-saturate-150">
+        <nav class="mx-auto flex max-w-6xl items-center justify-between gap-6 px-4 py-3">
+          <a href="/" class="flex items-center gap-3.5">
             <img
               src={~p"/images/logo.svg"}
               alt=""
-              width="48"
-              height="48"
-              class="h-12 w-12 md:h-20 md:w-20"
+              width="52"
+              height="52"
+              class="h-13 w-13"
             />
-            <div class="font-logo leading-tight">
-              <span class="block text-sm text-gray-600 md:text-xl dark:text-gray-400">Schützenverein</span>
-              <span class="block text-xl text-primary md:text-3xl">Buterland-Beckerhook e.V.</span>
+            <div class="leading-tight">
+              <span class="block text-xs font-semibold tracking-[0.14em] text-muted uppercase">
+                Schützenverein
+              </span>
+              <span class="font-logo block text-lg font-bold text-primary md:text-[23px]">
+                Buterland-Beckerhook e.V.
+              </span>
             </div>
           </a>
 
-          <!-- Desktop nav -->
+          <%!-- Desktop nav --%>
           <div class="hidden items-center gap-6 md:flex">
             <%= for link <- @nav do %>
               <%= if link[:children] do %>
@@ -90,26 +94,26 @@ defmodule BbhWeb.Layouts do
                   <a
                     href={link.href}
                     class={[
-                      "flex items-center gap-1 transition-colors",
+                      "flex items-center gap-1 text-[15px] transition-colors",
                       nav_active?(@current_path, link) && "font-semibold text-primary",
                       !nav_active?(@current_path, link) &&
-                        "text-gray-600 hover:text-primary dark:text-gray-300 dark:hover:text-primary"
+                        "font-medium text-(--bb-nav-text) hover:text-primary"
                     ]}
                   >
                     {link.label}
                     <.icon name="hero-chevron-down-mini" class="size-4" />
                   </a>
                   <div class="invisible absolute top-full left-0 z-50 min-w-48 pt-2 opacity-0 transition-all group-hover:visible group-hover:opacity-100">
-                    <div class="rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
+                    <div class="rounded-xl border border-base-300 bg-card py-1 shadow-lg">
                       <a
                         :for={child <- link.children}
                         href={child.href}
                         class={[
                           "block px-4 py-2 text-sm transition-colors",
                           child_active?(@current_path, child.href, link.href) &&
-                            "bg-gray-50 font-medium text-primary dark:bg-zinc-700",
+                            "bg-base-200 font-medium text-primary",
                           !child_active?(@current_path, child.href, link.href) &&
-                            "text-gray-600 hover:bg-gray-50 hover:text-primary dark:text-gray-300 dark:hover:bg-zinc-700 dark:hover:text-primary"
+                            "text-muted hover:bg-base-200 hover:text-primary"
                         ]}
                       >
                         {child.label}
@@ -121,31 +125,36 @@ defmodule BbhWeb.Layouts do
                 <a
                   href={link.href}
                   class={[
-                    "transition-colors",
+                    "text-[15px] transition-colors",
                     nav_active?(@current_path, link) && "font-semibold text-primary",
                     !nav_active?(@current_path, link) &&
-                      "text-gray-600 hover:text-primary dark:text-gray-300 dark:hover:text-primary"
+                      "font-medium text-(--bb-nav-text) hover:text-primary"
                   ]}
                 >
                   {link.label}
                 </a>
               <% end %>
             <% end %>
-            <.theme_toggle />
+            <a
+              href={~p"/verein/mitglied-werden"}
+              class="rounded-full bg-accent px-4.5 py-2 text-[15px] font-semibold whitespace-nowrap text-accent-content transition-opacity hover:opacity-90"
+            >
+              Mitglied werden
+            </a>
           </div>
 
-          <!-- Mobile menu (daisyUI dropdown, no custom JS) -->
+          <%!-- Mobile menu (daisyUI dropdown, no custom JS) --%>
           <div class="dropdown dropdown-end md:hidden">
             <button
               tabindex="0"
-              class="flex items-center text-gray-600 dark:text-gray-300"
+              class="flex items-center text-(--bb-nav-text)"
               aria-label="Menü öffnen"
             >
               <.icon name="hero-bars-3" class="size-6" />
             </button>
             <ul
               tabindex="0"
-              class="dropdown-content menu z-50 mt-2 w-64 rounded-box border border-gray-200 bg-white p-2 shadow-lg dark:border-zinc-700 dark:bg-zinc-800"
+              class="dropdown-content menu z-50 mt-2 w-64 rounded-box border border-base-300 bg-card p-2 shadow-lg"
             >
               <%= for link <- @nav do %>
                 <li>
@@ -157,8 +166,13 @@ defmodule BbhWeb.Layouts do
                   </ul>
                 </li>
               <% end %>
-              <li class="mt-2 border-t border-gray-200 pt-2 dark:border-zinc-700">
-                <.theme_toggle />
+              <li class="mt-2">
+                <a
+                  href={~p"/verein/mitglied-werden"}
+                  class="rounded-full bg-accent text-center font-semibold text-accent-content"
+                >
+                  Mitglied werden
+                </a>
               </li>
             </ul>
           </div>
@@ -169,15 +183,52 @@ defmodule BbhWeb.Layouts do
         {render_slot(@inner_block)}
       </main>
 
-      <footer class="border-t border-gray-200 bg-gray-50 text-sm text-gray-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-gray-400">
-        <div class="mx-auto flex max-w-6xl flex-col items-center gap-2 px-4 py-6 md:flex-row md:justify-between">
-          <p>&copy; {Date.utc_today().year} Schützenverein Buterland-Beckerhook e.V.</p>
-          <div class="flex flex-wrap items-center gap-4">
-            <button id="push-optin" type="button" class="hover:text-primary">
-              Benachrichtigungen aktivieren
-            </button>
-            <a href="/impressum" class="hover:text-primary">Impressum</a>
-            <a href="/datenschutz" class="hover:text-primary">Datenschutz</a>
+      <%!-- Deliberately the same dark green in both themes (design handoff). --%>
+      <footer class="mt-16 bg-[#0d2617] text-[#cfe0d4]">
+        <div class="mx-auto grid max-w-6xl gap-10 px-4 py-12 md:grid-cols-[1.4fr_1fr_1fr]">
+          <div>
+            <div class="flex items-center gap-3">
+              <img src={~p"/images/logo.svg"} alt="" width="44" height="44" class="h-11 w-11" />
+              <span class="font-logo text-[19px] font-bold text-white">
+                Buterland-Beckerhook e.V.
+              </span>
+            </div>
+            <p class="mt-4 max-w-xs text-sm leading-relaxed text-[#9fb6a8]">
+              Schützenverein Buterland-Beckerhook e.V. von 1909 aus Gronau (Westf.).
+              Tradition, Kameradschaft und Schützenfest.
+            </p>
+          </div>
+          <div>
+            <h2 class="mb-3.5 text-[13px] tracking-[0.1em] text-white uppercase">Seiten</h2>
+            <div class="flex flex-col gap-2.5 text-[15px]">
+              <a href={~p"/aktuell"} class="text-[#cfe0d4] hover:text-white">Aktuelles</a>
+              <a href={~p"/termine"} class="text-[#cfe0d4] hover:text-white">Termine</a>
+              <a href={~p"/thron"} class="text-[#cfe0d4] hover:text-white">Thron</a>
+              <a href={~p"/verein"} class="text-[#cfe0d4] hover:text-white">Verein</a>
+            </div>
+          </div>
+          <div>
+            <h2 class="mb-3.5 text-[13px] tracking-[0.1em] text-white uppercase">Kontakt</h2>
+            <div class="flex flex-col items-start gap-2.5 text-[15px]">
+              <a href={~p"/kontakt"} class="text-[#cfe0d4] hover:text-white">Kontaktformular</a>
+              <a href={~p"/impressum"} class="text-[#cfe0d4] hover:text-white">Impressum</a>
+              <a href={~p"/datenschutz"} class="text-[#cfe0d4] hover:text-white">Datenschutz</a>
+              <button
+                id="push-optin"
+                type="button"
+                class="cursor-pointer text-left text-[#cfe0d4] hover:text-white"
+              >
+                Benachrichtigungen aktivieren
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="border-t border-white/10">
+          <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-4">
+            <p class="text-[13px] text-[#8ba597]">
+              &copy; {Date.utc_today().year} Schützenverein Buterland-Beckerhook e.V.
+            </p>
+            <.theme_toggle />
           </div>
         </div>
       </footer>
@@ -371,36 +422,43 @@ defmodule BbhWeb.Layouts do
 
   @doc """
   Provides dark vs light theme toggle based on themes defined in app.css.
+  Styled for the dark footer it lives in.
 
   See <head> in root.html.heex which applies the theme before page load.
   """
   def theme_toggle(assigns) do
     ~H"""
-    <div class="card relative flex flex-row items-center border-2 border-base-300 bg-base-300 rounded-full">
-      <div class="absolute w-1/3 h-full rounded-full border-1 border-base-200 bg-base-100 brightness-200 left-0 [[data-theme=light]_&]:left-1/3 [[data-theme=dark]_&]:left-2/3 [[data-theme-source=system]_&]:!left-0 transition-[left]" />
+    <div class="relative flex flex-row items-center rounded-full border border-white/20 bg-white/10">
+      <div class="absolute h-full w-1/3 rounded-full bg-white [[data-theme=dark]_&]:bg-[#1c7d47] left-0 [[data-theme=light]_&]:left-1/3 [[data-theme=dark]_&]:left-2/3 [[data-theme-source=system]_&]:!left-0 transition-[left]" />
 
       <button
-        class="flex p-2 cursor-pointer w-1/3"
+        class="relative flex w-1/3 cursor-pointer justify-center p-2 text-[#cfe0d4] [[data-theme-source=system]_&]:text-[#0f4d2c] [[data-theme-source=system][data-theme=dark]_&]:text-white"
         phx-click={JS.dispatch("phx:set-theme")}
         data-phx-theme="system"
+        aria-label="Systemeinstellung"
+        title="System"
       >
-        <.icon name="hero-computer-desktop-micro" class="size-4 opacity-75 hover:opacity-100" />
+        <.icon name="hero-computer-desktop-micro" class="size-4" />
       </button>
 
       <button
-        class="flex p-2 cursor-pointer w-1/3"
+        class="relative flex w-1/3 cursor-pointer justify-center p-2 text-[#cfe0d4] [[data-theme=light][data-theme-source=user]_&]:text-[#0f4d2c]"
         phx-click={JS.dispatch("phx:set-theme")}
         data-phx-theme="light"
+        aria-label="Helles Design"
+        title="Hell"
       >
-        <.icon name="hero-sun-micro" class="size-4 opacity-75 hover:opacity-100" />
+        <.icon name="hero-sun-micro" class="size-4" />
       </button>
 
       <button
-        class="flex p-2 cursor-pointer w-1/3"
+        class="relative flex w-1/3 cursor-pointer justify-center p-2 text-[#cfe0d4] [[data-theme=dark][data-theme-source=user]_&]:text-white"
         phx-click={JS.dispatch("phx:set-theme")}
         data-phx-theme="dark"
+        aria-label="Dunkles Design"
+        title="Dunkel"
       >
-        <.icon name="hero-moon-micro" class="size-4 opacity-75 hover:opacity-100" />
+        <.icon name="hero-moon-micro" class="size-4" />
       </button>
     </div>
     """

@@ -17,14 +17,14 @@
         "rounded border px-3 py-1 text-sm",
         y == @year && "border-primary bg-primary text-primary-content",
         y != @year &&
-          "border-gray-200 hover:border-primary hover:text-primary dark:border-zinc-700"
+          "border-base-300 hover:border-primary hover:text-primary"
       ]}
     >
       {y}
     </a>
   </div>
 
-  <p :if={@events == []} class="text-gray-500 dark:text-gray-400">
+  <p :if={@events == []} class="text-muted">
     Für {@year} sind keine Termine eingetragen.
   </p>
 

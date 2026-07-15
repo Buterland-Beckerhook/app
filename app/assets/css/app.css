@@ -19,23 +19,24 @@
 }
 
 /* daisyUI theme plugin.
-  We ship with two themes, a light one inspired on Phoenix colors and a dark one inspired
-  on Elixir colors. Build your own at: https://daisyui.com/theme-generator/ */
+  Two club themes from the homepage design handoff: green-tinted neutrals,
+  `primary` = accent text/link green, `accent` = solid CTA button background
+  (they differ in dark mode, where readable text green and button green diverge). */
 @plugin "daisyui/packages/bundle/daisyui-theme" {
   name: "dark";
   default: false;
   prefersdark: true;
   color-scheme: "dark";
-  --color-base-100: oklch(30.33% 0.016 252.42);
-  --color-base-200: oklch(25.26% 0.014 253.1);
-  --color-base-300: oklch(20.15% 0.012 254.09);
-  --color-base-content: oklch(97.807% 0.029 256.847);
-  --color-primary: #0b8d36;
-  --color-primary-content: #ffffff;
+  --color-base-100: #0f1512;
+  --color-base-200: #182019;
+  --color-base-300: #263229;
+  --color-base-content: #eef2ee;
+  --color-primary: #4fbd82;
+  --color-primary-content: #0f1512;
   --color-secondary: oklch(58% 0.233 277.117);
   --color-secondary-content: oklch(96% 0.018 272.314);
-  --color-accent: oklch(60% 0.25 292.717);
-  --color-accent-content: oklch(96% 0.016 293.756);
+  --color-accent: #1c7d47;
+  --color-accent-content: #ffffff;
   --color-neutral: oklch(37% 0.044 257.287);
   --color-neutral-content: oklch(98% 0.003 247.858);
   --color-info: oklch(58% 0.158 241.966);
@@ -61,16 +62,16 @@
   default: true;
   prefersdark: false;
   color-scheme: "light";
-  --color-base-100: oklch(98% 0 0);
-  --color-base-200: oklch(96% 0.001 286.375);
-  --color-base-300: oklch(92% 0.004 286.32);
-  --color-base-content: oklch(21% 0.006 285.885);
-  --color-primary: #0b8d36;
+  --color-base-100: #fbfcfb;
+  --color-base-200: #f3f8f4;
+  --color-base-300: #e6ece7;
+  --color-base-content: #1b241f;
+  --color-primary: #15693c;
   --color-primary-content: #ffffff;
   --color-secondary: oklch(55% 0.027 264.364);
   --color-secondary-content: oklch(98% 0.002 247.839);
-  --color-accent: oklch(0% 0 0);
-  --color-accent-content: oklch(100% 0 0);
+  --color-accent: #15693c;
+  --color-accent-content: #ffffff;
   --color-neutral: oklch(44% 0.017 285.786);
   --color-neutral-content: oklch(98% 0 0);
   --color-info: oklch(62% 0.214 259.815);
@@ -99,6 +100,43 @@
 /* Use the data attribute for dark mode  */
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 
+/* Design-handoff tokens daisyUI has no slot for. The @theme inline block
+   registers them as utilities (text-muted, bg-tag, bg-card, …) that resolve
+   per theme via the --bb-* custom properties. */
+:root,
+[data-theme="light"] {
+  --bb-text-muted: #556158;
+  --bb-tag-bg: #e3f0e7;
+  --bb-card-bg: #ffffff;
+  --bb-header-bg: rgba(251, 252, 251, 0.88);
+  --bb-nav-text: #2b352f;
+}
+[data-theme="dark"] {
+  --bb-text-muted: #a9b8ae;
+  --bb-tag-bg: #1d3326;
+  --bb-card-bg: #182019;
+  --bb-header-bg: rgba(15, 21, 18, 0.88);
+  --bb-nav-text: #dfe8e2;
+}
+
+/* Without JS nothing sets [data-theme], but the daisyUI dark theme still
+   applies via prefers-color-scheme — keep the --bb-* tokens in sync there. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --bb-text-muted: #a9b8ae;
+    --bb-tag-bg: #1d3326;
+    --bb-card-bg: #182019;
+    --bb-header-bg: rgba(15, 21, 18, 0.88);
+    --bb-nav-text: #dfe8e2;
+  }
+}
+
+@theme inline {
+  --color-muted: var(--bb-text-muted);
+  --color-tag: var(--bb-tag-bg);
+  --color-card: var(--bb-card-bg);
+}
+
 /* Make LiveView wrapper divs transparent for layout */
 [data-phx-session], [data-phx-teleported-src] { display: contents }
 
@@ -108,9 +146,28 @@
 /* flatpickr date/time picker styles (self-hosted). */
 @import "../vendor/flatpickr/flatpickr.min.css";
 
-/* Club logo font (Oranienbaum, self-hosted later; serif fallback for now). */
+/* Self-hosted webfonts (priv/static/fonts, GDPR — no font CDN).
+   Variable woff2 from Fontsource; latin subset covers German. */
+@font-face {
+  font-family: "Source Serif 4";
+  font-style: normal;
+  font-weight: 200 900;
+  font-display: swap;
+  src: url("/fonts/source-serif-4-latin-vf.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Public Sans";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/public-sans-latin-vf.woff2") format("woff2");
+}
+
+/* Public Sans for body text, Source Serif 4 for the wordmark and display
+   headings (the existing `font-logo` utility). */
 @theme {
-  --font-logo: "Oranienbaum", ui-serif, Georgia, serif;
+  --font-sans: "Public Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-logo: "Source Serif 4", ui-serif, Georgia, serif;
 }
 
 /* Give the Trix editor a sensible min height in the admin. */
@@ -122,16 +179,6 @@ trix-editor {
    media comes from the library via the "Mediathek" button (see app.js). */
 trix-toolbar [data-trix-button-group="file-tools"] {
   display: none;
-}
-
-/* Gentle float for the homepage hero crest. */
-@keyframes bb-float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
-}
-.bb-float { animation: bb-float 6s ease-in-out infinite; }
-@media (prefers-reduced-motion: reduce) {
-  .bb-float { animation: none; }
 }
 
 /* This file is for your main application CSS */

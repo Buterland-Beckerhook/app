@@ -14,6 +14,17 @@ defmodule BbhWeb.PageHTML do
   def month_abbr(%DateTime{month: month}), do: Enum.at(@month_abbr, month - 1)
 
   @doc """
+  Bottom line of the date badge: appends the end day for multi-day events
+  within one month ("–21 · 2026"); otherwise just the year. Cross-month
+  ranges fall back to the year — the banner shows the full range as prose.
+  """
+  def badge_suffix(%{starts_at: s, ends_at: %DateTime{} = e})
+      when e.day != s.day and e.month == s.month and e.year == s.year,
+      do: "–#{e.day} · #{s.year}"
+
+  def badge_suffix(%{starts_at: s}), do: "#{s.year}"
+
+  @doc """
   Naive ISO target for the JS countdown (no timezone), so the browser parses it
   as local time — matching how the rest of the site renders event times.
   """
