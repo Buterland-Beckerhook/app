@@ -10,7 +10,6 @@ defmodule Bbh.AccountsFixtures do
   alias Bbh.Accounts.Scope
 
   def unique_user_email, do: "user#{System.unique_integer()}@example.com"
-  def valid_user_password, do: "hello world!"
 
   def valid_user_attributes(attrs \\ %{}) do
     Enum.into(attrs, %{
@@ -56,11 +55,26 @@ defmodule Bbh.AccountsFixtures do
     Scope.for_user(user)
   end
 
-  def set_password(user) do
-    {:ok, {user, _expired_tokens}} =
-      Accounts.update_user_password(user, %{password: valid_user_password()})
+  @doc "Inserts a passkey credential for the given user."
+  def passkey_fixture(user, attrs \\ %{}) do
+    attrs =
+      Enum.into(attrs, %{
+        credential_id: :crypto.strong_rand_bytes(16),
+        public_key: %{
+          1 => 2,
+          3 => -7,
+          -1 => 1,
+          -2 => :crypto.strong_rand_bytes(32),
+          -3 => :crypto.strong_rand_bytes(32)
+        },
+        aaguid: <<0::128>>,
+        sign_count: 0,
+        nickname: "Test Passkey"
+      })
 
-    user
+    %Bbh.Accounts.UserPasskey{}
+    |> Bbh.Accounts.UserPasskey.changeset(Map.put(attrs, :user_id, user.id))
+    |> Bbh.Repo.insert!()
   end
 
   def extract_user_token(fun) do

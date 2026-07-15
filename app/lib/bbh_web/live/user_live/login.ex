@@ -2,12 +2,19 @@ defmodule BbhWeb.UserLive.Login do
   use BbhWeb, :live_view
 
   alias Bbh.Accounts
+  alias Bbh.Accounts.Passkeys
 
   @impl true
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope}>
-      <div class="mx-auto max-w-sm space-y-4">
+      <div
+        id="login"
+        phx-hook="Passkey"
+        data-passkey-ceremony="get"
+        data-passkey-options={@passkey_options}
+        class="mx-auto max-w-sm space-y-4"
+      >
         <div class="text-center">
           <.header>
             <p>Anmelden</p>
@@ -53,38 +60,21 @@ defmodule BbhWeb.UserLive.Login do
           </.button>
         </.form>
 
-        <div class="divider">or</div>
+        <div class="divider">oder</div>
+
+        <button type="button" data-passkey-trigger class="btn btn-soft w-full">
+          <.icon name="hero-key" class="size-5" /> Mit Passkey anmelden
+        </button>
 
         <.form
-          :let={f}
-          for={@form}
-          id="login_form_password"
+          for={@passkey_form}
+          id="passkey_login_form"
           action={~p"/users/log-in"}
-          phx-submit="submit_password"
-          phx-trigger-action={@trigger_submit}
+          phx-trigger-action={@trigger_passkey}
+          class="hidden"
         >
-          <.input
-            readonly={!!@current_scope}
-            field={f[:email]}
-            type="email"
-            label="Email"
-            autocomplete="username"
-            spellcheck="false"
-            required
-          />
-          <.input
-            field={@form[:password]}
-            type="password"
-            label="Password"
-            autocomplete="current-password"
-            spellcheck="false"
-          />
-          <.button class="btn btn-primary w-full" name={@form[:remember_me].name} value="true">
-            Log in and stay logged in <span aria-hidden="true">→</span>
-          </.button>
-          <.button class="btn btn-primary btn-soft w-full mt-2">
-            Log in only this time
-          </.button>
+          <input type="hidden" name="user[passkey_token]" value={@passkey_token} />
+          <input type="hidden" name="user[remember_me]" value="true" />
         </.form>
       </div>
     </Layouts.app>
@@ -99,14 +89,25 @@ defmodule BbhWeb.UserLive.Login do
 
     form = to_form(%{"email" => email}, as: "user")
 
-    {:ok, assign(socket, form: form, trigger_submit: false, client_ip: connect_client_ip(socket))}
+    socket =
+      assign(socket,
+        form: form,
+        passkey_form: to_form(%{}, as: "user"),
+        passkey_challenge: nil,
+        passkey_options: nil,
+        passkey_token: nil,
+        trigger_passkey: false,
+        client_ip: connect_client_ip(socket)
+      )
+
+    # The passkey challenge is minted only on the connected mount and rendered
+    # into the hook's data attribute, so the click handler can call WebAuthn
+    # synchronously (see the Passkey hook in app.js). WebAuthn needs the live
+    # socket anyway, so the button is inert in the dead render.
+    {:ok, if(connected?(socket), do: assign_passkey_challenge(socket), else: socket)}
   end
 
   @impl true
-  def handle_event("submit_password", _params, socket) do
-    {:noreply, assign(socket, :trigger_submit, true)}
-  end
-
   def handle_event("submit_magic", %{"user" => %{"email" => email}}, socket) do
     case BbhWeb.RateLimit.check("magic_send", socket.assigns.client_ip, 5, :timer.minutes(15)) do
       :ok ->
@@ -132,6 +133,80 @@ defmodule BbhWeb.UserLive.Login do
          |> push_navigate(to: ~p"/users/log-in")}
     end
   end
+
+  def handle_event(
+        "passkey_login_assertion",
+        _params,
+        %{assigns: %{passkey_challenge: nil}} = socket
+      ) do
+    # No challenge in flight — the client pushed an assertion without one in the
+    # assigns. Don't call into the ceremony with a nil challenge.
+    {:noreply, put_flash(socket, :error, "Passkey-Anmeldung fehlgeschlagen.")}
+  end
+
+  def handle_event("passkey_login_assertion", params, socket) do
+    # Rate-limit the actual verification attempt (the challenge itself is cheap
+    # in-memory random bytes minted per connect, so gating it buys nothing).
+    case BbhWeb.RateLimit.check("passkey_login", socket.assigns.client_ip, 10, :timer.minutes(5)) do
+      :ok ->
+        with {:ok, user} <-
+               Passkeys.complete_authentication(socket.assigns.passkey_challenge, params),
+             :ok <- same_user_on_reauth(socket, user) do
+          token = Phoenix.Token.sign(BbhWeb.Endpoint, "passkey_session", user.id)
+
+          {:noreply,
+           assign(socket, passkey_challenge: nil, passkey_token: token, trigger_passkey: true)}
+        else
+          {:error, :wrong_user} ->
+            {:noreply,
+             socket
+             |> assign_passkey_challenge()
+             |> put_flash(:error, "Dieser Passkey gehört zu einem anderen Konto.")}
+
+          {:error, _reason} ->
+            {:noreply,
+             socket
+             |> assign_passkey_challenge()
+             |> put_flash(:error, "Passkey-Anmeldung fehlgeschlagen.")}
+        end
+
+      {:error, _retry_after} ->
+        {:noreply, put_flash(socket, :error, "Zu viele Versuche. Bitte später erneut versuchen.")}
+    end
+  end
+
+  def handle_event("passkey_error", %{"message" => message}, socket) do
+    {:noreply,
+     socket
+     |> assign_passkey_challenge()
+     |> put_flash(:error, "Passkey abgebrochen: #{message}")}
+  end
+
+  # Mint a fresh authentication challenge and render it (plus the client options)
+  # into the hook's data attribute. Called on connected mount and after every
+  # failed/aborted attempt so a retry always has a live, single-use challenge.
+  defp assign_passkey_challenge(socket) do
+    challenge = Passkeys.new_authentication_challenge()
+
+    assign(socket,
+      passkey_challenge: challenge,
+      passkey_options:
+        Jason.encode!(%{
+          challenge: Base.url_encode64(challenge.bytes, padding: false),
+          rpId: BbhWeb.Endpoint.host(),
+          userVerification: "required"
+        })
+    )
+  end
+
+  # This page doubles as the sudo re-auth page. When a user is already signed in,
+  # a discoverable passkey could belong to a different account on the device —
+  # refuse to silently swap the session to someone else.
+  defp same_user_on_reauth(%{assigns: %{current_scope: %{user: %{id: id}}}}, %{id: user_id})
+       when id != user_id,
+       do: {:error, :wrong_user}
+
+  defp same_user_on_reauth(_socket, _user), do: :ok
 
   defp local_mail_adapter? do
     Application.get_env(:bbh, Bbh.Mailer)[:adapter] == Swoosh.Adapters.Local

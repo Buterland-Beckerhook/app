@@ -32,8 +32,123 @@ import "../vendor/flatpickr/l10n/de.js"
 // Homepage "Nächster Termin" live countdown (progressive enhancement, no LiveView).
 import "./countdown.js"
 
+// base64url <-> ArrayBuffer helpers for the WebAuthn ceremony (credential ids,
+// challenges and signatures cross the wire as pad-less base64url strings).
+function b64urlToBuf(value) {
+  const pad = "=".repeat((4 - (value.length % 4)) % 4)
+  const base64 = (value + pad).replace(/-/g, "+").replace(/_/g, "/")
+  return Uint8Array.from(atob(base64), c => c.charCodeAt(0)).buffer
+}
+
+function bufToB64url(buffer) {
+  let binary = ""
+  for (const byte of new Uint8Array(buffer)) binary += String.fromCharCode(byte)
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
+}
+
 // Sync a Trix editor's content into its hidden input and notify LiveView.
 const Hooks = {
+  // WebAuthn passkeys: runs the credential ceremony synchronously inside the
+  // user's gesture. Safari only delegates WebAuthn to a browser-extension
+  // credential provider (Bitwarden/1Password) while transient user activation is
+  // live; a server round-trip between the click and navigator.credentials would
+  // close that window and force Safari's own platform sheet. So the LiveView
+  // renders the challenge/options into `data-passkey-options` up front, and the
+  // click/submit handler calls navigator.credentials with no round-trip in between.
+  Passkey: {
+    mounted() {
+      this.trigger = this.el.querySelector("[data-passkey-trigger]")
+      if (!this.trigger) return
+      // A <form> trigger fires on submit (covers the Enter key and carries
+      // activation); a button trigger fires on click.
+      this.eventName = this.trigger.tagName === "FORM" ? "submit" : "click"
+      this._onTrigger = e => this.startCeremony(e)
+      this.trigger.addEventListener(this.eventName, this._onTrigger)
+    },
+    destroyed() {
+      if (this.trigger) this.trigger.removeEventListener(this.eventName, this._onTrigger)
+    },
+    startCeremony(e) {
+      e.preventDefault()
+      if (this._busy) return
+      const opts = JSON.parse(this.el.dataset.passkeyOptions || "null")
+      if (!opts) return
+      if (this.el.dataset.passkeyCeremony === "create") this.create(opts)
+      else this.get(opts)
+    },
+    async create(opts) {
+      // Validate the nickname before touching WebAuthn — a blank name shouldn't
+      // open the authenticator UI for nothing.
+      const nickname = (this.el.querySelector("input[name='nickname']")?.value || "").trim()
+      if (!nickname) {
+        this.pushEvent("nickname_blank", {})
+        return
+      }
+      this._busy = true
+      try {
+        const cred = await navigator.credentials.create({
+          publicKey: {
+            challenge: b64urlToBuf(opts.challenge),
+            rp: opts.rp,
+            user: {
+              id: b64urlToBuf(opts.user.id),
+              name: opts.user.name,
+              displayName: opts.user.displayName,
+            },
+            pubKeyCredParams: [
+              {type: "public-key", alg: -7},
+              {type: "public-key", alg: -257},
+            ],
+            authenticatorSelection: {
+              residentKey: opts.residentKey,
+              userVerification: opts.userVerification,
+            },
+            excludeCredentials: (opts.excludeCredentials || []).map(id => ({
+              type: "public-key",
+              id: b64urlToBuf(id),
+            })),
+            attestation: "none",
+          },
+        })
+
+        this.pushEvent("register_credential", {
+          nickname,
+          rawId: bufToB64url(cred.rawId),
+          attestationObject: bufToB64url(cred.response.attestationObject),
+          clientDataJSON: bufToB64url(cred.response.clientDataJSON),
+        })
+      } catch (err) {
+        this.pushEvent("passkey_error", {message: String(err && err.message ? err.message : err)})
+      } finally {
+        this._busy = false
+      }
+    },
+    async get(opts) {
+      this._busy = true
+      try {
+        const cred = await navigator.credentials.get({
+          publicKey: {
+            challenge: b64urlToBuf(opts.challenge),
+            rpId: opts.rpId,
+            userVerification: opts.userVerification,
+            allowCredentials: [],
+          },
+        })
+
+        this.pushEvent("passkey_login_assertion", {
+          rawId: bufToB64url(cred.rawId),
+          authenticatorData: bufToB64url(cred.response.authenticatorData),
+          clientDataJSON: bufToB64url(cred.response.clientDataJSON),
+          signature: bufToB64url(cred.response.signature),
+          userHandle: cred.response.userHandle ? bufToB64url(cred.response.userHandle) : null,
+        })
+      } catch (err) {
+        this.pushEvent("passkey_error", {message: String(err && err.message ? err.message : err)})
+      } finally {
+        this._busy = false
+      }
+    },
+  },
   TrixEditor: {
     mounted() {
       const editor = this.el.querySelector("trix-editor")

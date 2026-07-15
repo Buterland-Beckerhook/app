@@ -2,6 +2,11 @@
 
 **Status:** Accepted (2026-07-14)
 
+> **Amendment (2026-07-15):** Password login was removed in favour of WebAuthn
+> passkeys. The former "password login" bucket is gone; the passkey login
+> ceremony (`passkey_login`) is rate-limited at the same 10 / 5 min. The table
+> below reflects the current surfaces.
+
 ## Context
 
 The authentication and public write surfaces of the Phoenix rewrite were
@@ -28,7 +33,7 @@ Applied limits:
 
 | Surface | Limit |
 |---|---|
-| Password login / magic-link login | 10 / 5 min |
+| Magic-link login / passkey login | 10 / 5 min |
 | Magic-link email send | 5 / 15 min |
 | TOTP verify | 10 / 5 min |
 | Push subscribe | 20 / min |

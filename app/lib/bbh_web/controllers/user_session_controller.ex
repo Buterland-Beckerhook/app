@@ -14,6 +14,23 @@ defmodule BbhWeb.UserSessionController do
     create(conn, params, "Welcome back!")
   end
 
+  # passkey login handoff: the assertion was already verified in the login
+  # LiveView, which signs a short-lived token naming the authenticated user. A
+  # passkey (with user-verification required) is inherently multi-factor, so we
+  # skip the TOTP second-factor step here.
+  defp create(conn, %{"user" => %{"passkey_token" => token} = user_params}, info) do
+    case Phoenix.Token.verify(BbhWeb.Endpoint, "passkey_session", token, max_age: 60) do
+      {:ok, user_id} ->
+        user = Accounts.get_user!(user_id)
+        conn |> put_flash(:info, info) |> UserAuth.log_in_user(user, user_params)
+
+      _ ->
+        conn
+        |> put_flash(:error, "Anmeldung abgelaufen. Bitte erneut versuchen.")
+        |> redirect(to: ~p"/users/log-in")
+    end
+  end
+
   # magic link login
   defp create(conn, %{"user" => %{"token" => token} = user_params}, info) do
     with :ok <- RateLimit.check("magic_login", RateLimit.client_ip(conn), 10, :timer.minutes(5)),
@@ -33,41 +50,13 @@ defmodule BbhWeb.UserSessionController do
     end
   end
 
-  # email + password login
-  defp create(conn, %{"user" => user_params}, info) do
-    %{"email" => email, "password" => password} = user_params
-
-    case RateLimit.check("login", RateLimit.client_ip(conn), 10, :timer.minutes(5)) do
-      :ok ->
-        if user = Accounts.get_user_by_email_and_password(email, password) do
-          maybe_require_totp(conn, user, user_params, info)
-        else
-          # In order to prevent user enumeration attacks, don't disclose whether the email is registered.
-          conn
-          |> put_flash(:error, "Invalid email or password")
-          |> put_flash(:email, String.slice(email, 0, 160))
-          |> redirect(to: ~p"/users/log-in")
-        end
-
-      {:error, _retry_after} ->
-        conn
-        |> put_flash(:error, "Zu viele Anmeldeversuche. Bitte später erneut versuchen.")
-        |> put_flash(:email, String.slice(email, 0, 160))
-        |> redirect(to: ~p"/users/log-in")
-    end
-  end
-
-  def update_password(conn, %{"user" => user_params} = params) do
-    user = conn.assigns.current_scope.user
-    true = Accounts.sudo_mode?(user)
-    {:ok, {_user, expired_tokens}} = Accounts.update_user_password(user, user_params)
-
-    # disconnect all existing LiveViews with old sessions
-    UserAuth.disconnect_sessions(expired_tokens)
-
+  # No recognized credential in the params — e.g. a no-JS magic-link form POST that
+  # only carries the email (LiveView normally intercepts it via phx-submit). Fail
+  # closed with a friendly redirect instead of a FunctionClauseError / 500.
+  defp create(conn, _params, _info) do
     conn
-    |> put_session(:user_return_to, ~p"/users/settings")
-    |> create(params, "Password updated successfully!")
+    |> put_flash(:error, "Anmeldung fehlgeschlagen. Bitte erneut versuchen.")
+    |> redirect(to: ~p"/users/log-in")
   end
 
   def delete(conn, _params) do
@@ -84,7 +73,10 @@ defmodule BbhWeb.UserSessionController do
       |> put_session(:totp_pending_remember, params["remember_me"] == "true")
       |> redirect(to: ~p"/users/totp")
     else
-      conn |> put_flash(:info, info) |> UserAuth.log_in_user(user, params)
+      conn
+      |> put_flash(:info, info)
+      |> UserAuth.maybe_put_enrollment_return_to(user)
+      |> UserAuth.log_in_user(user, params)
     end
   end
 end

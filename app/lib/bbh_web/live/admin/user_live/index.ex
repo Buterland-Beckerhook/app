@@ -3,6 +3,7 @@ defmodule BbhWeb.Admin.UserLive.Index do
   use BbhWeb, :live_view
 
   alias Bbh.Accounts
+  alias Bbh.Accounts.Passkeys
   alias Bbh.Accounts.User
   alias Bbh.Calendar.Event
   alias BbhWeb.AdminList
@@ -94,7 +95,11 @@ defmodule BbhWeb.Admin.UserLive.Index do
         sort: %{"email" => & &1.email, "role" => & &1.role}
       )
 
-    assign(socket, users: meta.entries, list_meta: meta)
+    assign(socket,
+      users: meta.entries,
+      list_meta: meta,
+      passkey_user_ids: Passkeys.user_ids_with_passkeys()
+    )
   end
 
   @impl true
@@ -156,6 +161,9 @@ defmodule BbhWeb.Admin.UserLive.Index do
           <span :if={u.role not in ["editor", "calendar_editor"]} class="text-base-content/40">
             –
           </span>
+        </:col>
+        <:col :let={u} label="Passkey">
+          {if MapSet.member?(@passkey_user_ids, u.id), do: "ja", else: "–"}
         </:col>
         <:col :let={u} label="2FA">{if User.totp_enabled?(u), do: "ja", else: "–"}</:col>
         <:col :let={u} label="Status">

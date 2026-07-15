@@ -11,6 +11,34 @@ defmodule BbhWeb.UserLive.LoginTest do
       assert html =~ "Anmelden"
       assert html =~ "Interner Bereich für Redakteure des Vereins."
       assert html =~ "Log in with email"
+      assert html =~ "Mit Passkey anmelden"
+    end
+  end
+
+  describe "user login - passkey" do
+    test "embeds the get options for the hook and wires the button to it", %{conn: conn} do
+      {:ok, _lv, html} = live(conn, ~p"/users/log-in")
+
+      # The challenge is embedded up front so the click handler can call WebAuthn
+      # with no server round-trip (Safari needs the user-activation window); the
+      # button is driven by the hook, not phx-click.
+      assert html =~ "data-passkey-trigger"
+      assert html =~ ~s(data-passkey-ceremony="get")
+      assert html =~ "&quot;challenge&quot;"
+    end
+
+    test "a malformed assertion is rejected without crashing", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, ~p"/users/log-in")
+
+      html =
+        render_hook(lv, "passkey_login_assertion", %{
+          "rawId" => "x",
+          "authenticatorData" => "x",
+          "signature" => "x",
+          "clientDataJSON" => "x"
+        })
+
+      assert html =~ "Passkey-Anmeldung fehlgeschlagen"
     end
   end
 
@@ -40,38 +68,6 @@ defmodule BbhWeb.UserLive.LoginTest do
         |> follow_redirect(conn, ~p"/users/log-in")
 
       assert html =~ "If your email is in our system"
-    end
-  end
-
-  describe "user login - password" do
-    test "redirects if user logs in with valid credentials", %{conn: conn} do
-      user = user_fixture() |> set_password()
-
-      {:ok, lv, _html} = live(conn, ~p"/users/log-in")
-
-      form =
-        form(lv, "#login_form_password",
-          user: %{email: user.email, password: valid_user_password(), remember_me: true}
-        )
-
-      conn = submit_form(form, conn)
-
-      assert redirected_to(conn) == ~p"/admin"
-    end
-
-    test "redirects to login page with a flash error if credentials are invalid", %{
-      conn: conn
-    } do
-      {:ok, lv, _html} = live(conn, ~p"/users/log-in")
-
-      form =
-        form(lv, "#login_form_password", user: %{email: "test@email.com", password: "123456"})
-
-      render_submit(form, %{user: %{remember_me: true}})
-
-      conn = follow_trigger_action(form, conn)
-      assert Phoenix.Flash.get(conn.assigns.flash, :error) == "Invalid email or password"
-      assert redirected_to(conn) == ~p"/users/log-in"
     end
   end
 

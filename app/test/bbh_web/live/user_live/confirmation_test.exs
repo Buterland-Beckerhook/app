@@ -62,9 +62,9 @@ defmodule BbhWeb.UserLive.ConfirmationTest do
                "User confirmed successfully"
 
       assert Accounts.get_user!(user.id).confirmed_at
-      # we are logged in now
+      # we are logged in now (and nudged to set up a passkey/2FA)
       assert get_session(conn, :user_token)
-      assert redirected_to(conn) == ~p"/admin"
+      assert redirected_to(conn) == ~p"/users/security"
 
       # log out, new conn
       conn = build_conn()

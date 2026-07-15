@@ -31,6 +31,20 @@ defmodule BbhWeb.TotpControllerTest do
       code = NimbleTOTP.verification_code(secret)
       conn = conn |> pending(user) |> post(~p"/users/totp", %{"totp" => %{"code" => code}})
 
+      # TOTP is set but this user has no passkey yet → nudged to enrollment.
+      assert redirected_to(conn) == ~p"/users/security"
+      assert get_session(conn, :user_token)
+    end
+
+    test "sends a user who already has a passkey to the admin area", %{
+      conn: conn,
+      user: user,
+      secret: secret
+    } do
+      passkey_fixture(user)
+      code = NimbleTOTP.verification_code(secret)
+      conn = conn |> pending(user) |> post(~p"/users/totp", %{"totp" => %{"code" => code}})
+
       assert redirected_to(conn) == ~p"/admin"
       assert get_session(conn, :user_token)
     end

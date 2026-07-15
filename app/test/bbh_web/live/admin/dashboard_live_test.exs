@@ -26,4 +26,12 @@ defmodule BbhWeb.Admin.DashboardLiveTest do
     assert html =~ ~p"/admin/personen"
     assert html =~ ~p"/admin/seiten"
   end
+
+  test "the account nav links to the settings hub for sign-in methods", %{conn: conn} do
+    {:ok, _lv, html} = live(conn, ~p"/admin")
+
+    # Passkey and 2FA enrollment live under the settings page ("Sign-in methods"),
+    # which the account footer links to.
+    assert html =~ ~p"/users/settings"
+  end
 end

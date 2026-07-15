@@ -36,8 +36,35 @@ defmodule BbhWeb.UserAuth do
     user_return_to = get_session(conn, :user_return_to)
 
     conn
+    # Consume it so it can't linger (the same-user renew path doesn't clear the
+    # session), which would otherwise re-fire the same redirect on a later login.
+    |> delete_session(:user_return_to)
     |> create_or_extend_session(user, params)
     |> redirect(to: user_return_to || signed_in_path(conn))
+  end
+
+  @doc """
+  Routes a magic-link login through the `/users/security` enrollment nudge when
+  the user still lacks a passkey and/or a second factor.
+
+  Call this *before* `log_in_user/3` on the magic-link paths only (never for
+  passkey logins, which are already strongly authenticated). It leaves an
+  existing `:user_return_to` untouched so a deep-link destination still wins.
+
+  This guards the *automatic* nudge only. A user can still reach `/users/security`
+  by navigating there explicitly (which stores it as a return path); that's fine —
+  `SecuritySetup` redirects to the admin area when nothing is missing.
+  """
+  def maybe_put_enrollment_return_to(conn, user) do
+    if get_session(conn, :user_return_to) == nil and needs_security_enrollment?(user) do
+      put_session(conn, :user_return_to, ~p"/users/security")
+    else
+      conn
+    end
+  end
+
+  defp needs_security_enrollment?(user) do
+    not Accounts.Passkeys.has_passkey?(user) or not Accounts.User.totp_enabled?(user)
   end
 
   @doc """

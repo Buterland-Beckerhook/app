@@ -25,6 +25,11 @@ config :bbh, BbhWeb.Endpoint,
   # reach the server. In the containerized dev stack this is isolated to the
   # compose network; only Caddy publishes ports to the host.
   http: [ip: {0, 0, 0, 0}],
+  # Advertise the Caddy HTTPS front door (https://localhost) as the canonical
+  # URL. WebAuthn verifies the browser's origin against Endpoint.url(), and
+  # passkey providers (Bitwarden etc.) only engage on a secure context — so
+  # passkeys in dev work via https://localhost, not http://localhost:4000.
+  url: [host: "localhost", port: 443, scheme: "https"],
   check_origin: false,
   code_reloader: true,
   debug_errors: true,

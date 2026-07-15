@@ -129,9 +129,9 @@ defmodule BbhWeb.Router do
       live "/users/settings", UserLive.Settings, :edit
       live "/users/settings/confirm-email/:token", UserLive.Settings, :confirm_email
       live "/users/2fa", UserLive.Totp, :edit
+      live "/users/passkeys", UserLive.Passkeys, :edit
+      live "/users/security", UserLive.SecuritySetup, :index
     end
-
-    post "/users/update-password", UserSessionController, :update_password
   end
 
   scope "/", BbhWeb do

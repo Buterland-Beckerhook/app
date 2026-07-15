@@ -16,6 +16,23 @@ defmodule BbhWeb.Admin.UserLiveTest do
     assert html =~ other.email
   end
 
+  test "shows a passkey column reflecting enrollment", %{conn: conn} do
+    enrolled = user_fixture()
+    _without = user_fixture()
+
+    # Scope the check to the users table (`#users` tbody) so page chrome like the
+    # base64 session token can't produce a false "ja". 2FA is off for everyone,
+    # so within the table a "ja" can only come from the passkey column.
+    {:ok, lv, _html} = live(conn, ~p"/admin/benutzer")
+    assert render(lv) =~ "Passkey"
+    refute has_element?(lv, "#users", "ja")
+
+    # Enrolling a passkey flips the column to "ja".
+    passkey_fixture(enrolled)
+    {:ok, lv, _html} = live(conn, ~p"/admin/benutzer")
+    assert has_element?(lv, "#users", "ja")
+  end
+
   test "invites a new user", %{conn: conn} do
     {:ok, lv, _html} = live(conn, ~p"/admin/benutzer")
     email = "neu#{System.unique_integer([:positive])}@example.com"
