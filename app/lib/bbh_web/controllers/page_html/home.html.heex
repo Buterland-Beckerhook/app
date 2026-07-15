@@ -1,36 +1,172 @@
 <Layouts.app flash={@flash} current_path={@conn.request_path}>
-  <section class="mb-12 text-center">
-    <h1 class="font-logo text-3xl text-primary md:text-5xl">Willkommen</h1>
-    <p class="mx-auto mt-3 max-w-2xl text-gray-600 dark:text-gray-300">
-      Schützenverein Buterland-Beckerhook e.V. – Neuigkeiten, Termine und die Geschichte
-      unserer Throne.
-    </p>
+  <%!-- ===== HERO ===== --%>
+  <section class="relative -mt-8 mb-4 overflow-hidden rounded-3xl border border-gray-200 bg-gradient-to-b from-primary/5 to-transparent px-6 py-12 md:px-12 md:py-16 dark:border-zinc-700 dark:from-zinc-800/60">
+    <div class="grid items-center gap-10 md:grid-cols-[1.15fr_0.85fr]">
+      <div>
+        <span class="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3.5 py-1.5 text-xs font-semibold tracking-wide text-primary uppercase">
+          Gegründet 1909 · Gronau (Westf.)
+        </span>
+        <h1 class="font-logo mt-5 text-4xl leading-tight text-gray-900 md:text-6xl dark:text-gray-100">
+          Willkommen im Buterland-Beckerhook
+        </h1>
+        <p class="mt-5 max-w-xl text-lg leading-relaxed text-gray-600 dark:text-gray-300">
+          Neuigkeiten, Termine und die Geschichte unserer Throne — Kameradschaft, Tradition
+          und Schützenfest im Herzen von Gronau.
+        </p>
+        <div class="mt-8 flex flex-wrap gap-3.5">
+          <a
+            href={~p"/termine"}
+            class="rounded-full bg-primary px-6 py-3.5 font-semibold text-primary-content transition-shadow hover:shadow-md"
+          >
+            Nächste Termine
+          </a>
+          <a
+            href={~p"/aktuell"}
+            class="rounded-full border border-gray-200 bg-white px-6 py-3.5 font-semibold text-primary transition-colors hover:border-primary dark:border-zinc-700 dark:bg-zinc-800"
+          >
+            Aktuelles lesen
+          </a>
+        </div>
+      </div>
+      <div class="order-first flex justify-center md:order-none">
+        <div class="relative flex size-64 items-center justify-center md:size-80">
+          <div class="absolute inset-0 rounded-full bg-[radial-gradient(circle_at_50%_45%,theme(colors.primary/15%)_0%,transparent_68%)]">
+          </div>
+          <img
+            src={~p"/images/logo.svg"}
+            alt="Wappen des Schützenvereins Buterland-Beckerhook"
+            width="240"
+            height="240"
+            class="bb-float relative w-52 drop-shadow-xl md:w-60"
+          />
+        </div>
+      </div>
+    </div>
   </section>
 
-  <section :if={@articles != []} class="mb-12">
-    <div class="mb-4 flex items-baseline justify-between">
-      <h2 class="text-2xl font-semibold">Aktuelles</h2>
-      <a href={~p"/aktuell"} class="text-sm text-primary hover:underline">Alle Nachrichten</a>
+  <%!-- ===== NÄCHSTER TERMIN (highlight banner) ===== --%>
+  <section :if={@next_event} id="termine" class="mt-14">
+    <div class="relative overflow-hidden rounded-3xl bg-[linear-gradient(120deg,#0f4d2c_0%,#15693c_58%,#1c7d47_100%)] text-white shadow-xl">
+      <img
+        src={~p"/images/logo.svg"}
+        alt=""
+        aria-hidden="true"
+        class="pointer-events-none absolute top-1/2 -right-10 hidden h-80 -translate-y-1/2 opacity-10 md:block"
+      />
+      <div class="relative grid items-center gap-8 p-8 md:grid-cols-[auto_1fr_auto] md:p-11">
+        <%!-- date badge --%>
+        <div class="mx-auto flex size-32 flex-col items-center justify-center rounded-2xl border border-white/25 bg-white/10 md:mx-0">
+          <span class="text-xs font-bold tracking-widest uppercase opacity-85">
+            {month_abbr(@next_event.starts_at)}
+          </span>
+          <span class="font-logo text-5xl leading-none font-bold">
+            {@next_event.starts_at.day}
+          </span>
+          <span class="text-xs font-semibold opacity-85">{@next_event.starts_at.year}</span>
+        </div>
+        <%!-- text --%>
+        <div class="text-center md:text-left">
+          <span class="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-bold tracking-wider uppercase">
+            ★ Nächster Termin
+          </span>
+          <h2 class="font-logo mt-3.5 text-3xl font-bold md:text-4xl">{@next_event.title}</h2>
+          <p class="mt-1.5 text-base leading-relaxed opacity-90">
+            {de_range(@next_event.starts_at, @next_event.ends_at, @next_event.all_day)}
+            <span :if={@next_event.location}>· {@next_event.location.name}</span>
+          </p>
+          <div class="mt-5 flex flex-wrap justify-center gap-3.5 md:justify-start">
+            <a
+              href={~p"/termine/#{@next_event.year}/#{@next_event.slug}"}
+              class="rounded-full bg-white px-5 py-2.5 font-bold text-[#0f4d2c] transition-shadow hover:shadow-md"
+            >
+              Zum Termin
+            </a>
+            <a
+              href={~p"/termine"}
+              class="rounded-full border border-white/30 bg-white/10 px-5 py-2.5 font-semibold text-white transition-colors hover:bg-white/20"
+            >
+              Alle Termine
+            </a>
+          </div>
+        </div>
+        <%!-- countdown --%>
+        <div class="flex flex-col items-center gap-3">
+          <span class="text-xs font-bold tracking-widest uppercase opacity-80">Es beginnt in</span>
+          <div
+            id="bb-countdown"
+            class="flex gap-2.5"
+            data-countdown-to={countdown_target(@next_event.starts_at)}
+          >
+            <div
+              :for={
+                {label, unit} <- [
+                  {"Tage", "days"},
+                  {"Std", "hours"},
+                  {"Min", "minutes"},
+                  {"Sek", "seconds"}
+                ]
+              }
+              class="flex min-w-14 flex-col items-center rounded-xl border border-white/20 bg-white/10 px-1.5 py-3"
+            >
+              <span class="font-logo text-3xl leading-none font-bold tabular-nums" data-cd={unit}>
+                –
+              </span>
+              <span class="mt-1.5 text-[11px] font-semibold tracking-wide uppercase opacity-80">
+                {label}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <%!-- ===== AKTUELLES ===== --%>
+  <section :if={@articles != []} id="aktuelles" class="mt-16">
+    <div class="mb-7 flex items-baseline justify-between gap-5">
+      <div>
+        <span class="text-xs font-semibold tracking-wider text-primary uppercase">Vom Verein</span>
+        <h2 class="font-logo text-3xl font-bold text-gray-900 dark:text-gray-100">Aktuelles</h2>
+      </div>
+      <a href={~p"/aktuell"} class="text-sm font-semibold text-primary hover:underline">
+        Alle Nachrichten →
+      </a>
     </div>
     <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
       <.article_card :for={article <- @articles} article={article} />
     </div>
   </section>
 
-  <div class="grid gap-8 md:grid-cols-2">
-    <section :if={@next_event}>
-      <h2 class="mb-4 text-2xl font-semibold">Nächster Termin</h2>
-      <.event_card event={@next_event} />
-    </section>
-
-    <section :if={@throne}>
-      <div class="mb-4 flex items-baseline justify-between">
-        <h2 class="text-2xl font-semibold">Aktueller Thron</h2>
-        <a href={~p"/thron"} class="text-sm text-primary hover:underline">Alle Throne</a>
+  <%!-- ===== THRON ===== --%>
+  <section :if={@throne} id="thron" class="mt-16">
+    <div class="grid gap-11 md:grid-cols-[0.9fr_1.1fr]">
+      <div>
+        <span class="text-xs font-semibold tracking-wider text-primary uppercase">Seit 1909</span>
+        <h2 class="font-logo mt-1.5 text-3xl font-bold text-gray-900 dark:text-gray-100">
+          Aktueller Thron
+        </h2>
+        <p class="mt-3.5 text-base leading-relaxed text-gray-600 dark:text-gray-300">
+          Das amtierende Königspaar regiert im Buterland-Beckerhook. Entdecken Sie unsere
+          Throne und ihre Geschichte bis zurück ins Gründungsjahr.
+        </p>
+        <a
+          href={~p"/thron"}
+          class="mt-5 inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-5 py-3 font-semibold text-primary transition-colors hover:border-primary dark:border-zinc-700 dark:bg-zinc-800"
+        >
+          Alle Throne seit 1909 →
+        </a>
       </div>
-      <div class="rounded-lg border border-gray-200 p-4 dark:border-zinc-700">
-        <.throne_table throne={@throne} />
+      <div class="overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-zinc-700 dark:bg-zinc-800">
+        <div class="flex flex-wrap items-center justify-between gap-2.5 bg-[linear-gradient(120deg,#0f4d2c,#1c7d47)] px-7 py-5">
+          <span class="font-logo text-xl font-bold text-white">Amtierendes Königspaar</span>
+          <span class="rounded-full bg-white/15 px-3 py-1.5 text-xs font-bold tracking-wider text-green-50 uppercase">
+            Amtierend
+          </span>
+        </div>
+        <div class="px-7 pt-2 pb-4">
+          <.throne_table throne={@throne} />
+        </div>
       </div>
-    </section>
-  </div>
+    </div>
+  </section>
 </Layouts.app>

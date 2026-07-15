@@ -29,6 +29,8 @@ import "../vendor/trix/trix.umd.min.js"
 // flatpickr date/time picker (self-hosted; sets window.flatpickr + German locale).
 import "../vendor/flatpickr/flatpickr.min.js"
 import "../vendor/flatpickr/l10n/de.js"
+// Homepage "Nächster Termin" live countdown (progressive enhancement, no LiveView).
+import "./countdown.js"
 
 // Sync a Trix editor's content into its hidden input and notify LiveView.
 const Hooks = {

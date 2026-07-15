@@ -124,4 +124,14 @@ trix-toolbar [data-trix-button-group="file-tools"] {
   display: none;
 }
 
+/* Gentle float for the homepage hero crest. */
+@keyframes bb-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+.bb-float { animation: bb-float 6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .bb-float { animation: none; }
+}
+
 /* This file is for your main application CSS */
