@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="csrf-token" content={get_csrf_token()} />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#15693c" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0f1512" media="(prefers-color-scheme: dark)" />
+    <meta name="vapid-public-key" content={Bbh.Notifications.vapid_public_key()} />
+    <meta
+      name="description"
+      content={
+        assigns[:meta_description] ||
+          "Schützenverein Buterland-Beckerhook e.V. – Neuigkeiten, Termine und die Geschichte unserer Throne."
+      }
+    />
+    <meta property="og:title" content={assigns[:page_title] || "Buterland-Beckerhook e.V."} />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content={~p"/images/logo.svg"} />
+    <.matomo nonce={assigns[:csp_nonce]} />
+    <.live_title
+      default="Buterland-Beckerhook e.V."
+      suffix=" · Buterland-Beckerhook e.V."
+      phx-no-format
+    >{assigns[:page_title]}</.live_title>
+    <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
+    <script
+      defer
+      phx-track-static
+      type="text/javascript"
+      src={~p"/assets/js/app.js"}
+      nonce={assigns[:csp_nonce]}
+    >
+    </script>
+    <script nonce={assigns[:csp_nonce]}>
+      (() => {
+        const systemTheme = () => matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+
+        const setTheme = (theme) => {
+          if (theme === "system") {
+            localStorage.removeItem("phx:theme");
+            document.documentElement.setAttribute("data-theme", systemTheme());
+            document.documentElement.setAttribute("data-theme-source", "system");
+          } else {
+            localStorage.setItem("phx:theme", theme);
+            document.documentElement.setAttribute("data-theme", theme);
+            document.documentElement.setAttribute("data-theme-source", "user");
+          }
+        };
+        if (!document.documentElement.hasAttribute("data-theme")) {
+          setTheme(localStorage.getItem("phx:theme") || "system");
+        }
+        window.addEventListener("storage", (e) => e.key === "phx:theme" && setTheme(e.newValue || "system"));
+        window.addEventListener("phx:set-theme", (e) => setTheme(e.target.dataset.phxTheme));
+
+        matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
+          if (document.documentElement.getAttribute("data-theme-source") === "system") {
+            document.documentElement.setAttribute("data-theme", systemTheme());
+          }
+        });
+      })();
+    </script>
+  </head>
+  <body>
+    {@inner_content}
+  </body>
+</html>

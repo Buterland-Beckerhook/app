@@ -1,0 +1,33 @@
+<Layouts.app flash={@flash} current_path={@conn.request_path}>
+  <h1 class="mb-6 text-3xl font-semibold">Throne seit 1909</h1>
+
+  <p :if={@result.entries == []} class="text-muted">
+    Es sind noch keine Throne erfasst.
+  </p>
+
+  <div :for={throne <- @result.entries} class="mx-auto max-w-3xl">
+    <h2 class="mb-6 text-3xl font-semibold">
+      {[throne.king_title] |> Enum.reject(&is_nil/1) |> Enum.join(" – ")}
+    </h2>
+
+    <% pic = throne_picture(throne) %>
+    <img
+      :if={pic}
+      src={media_url(pic.media, width: 1024)}
+      alt={image_alt(pic)}
+      class="mb-6 w-full rounded-lg object-cover"
+    />
+    <div class="rounded-lg border border-base-300 p-4">
+      <.throne_table throne={throne} />
+      <a
+        :if={throne.article && !throne.article.no_article}
+        href={~p"/aktuell/#{throne.article.year}/#{throne.article.slug}"}
+        class="mt-4 inline-block text-sm text-primary hover:underline"
+      >
+        Zum Artikel
+      </a>
+    </div>
+  </div>
+
+  <.throne_pager page={@result.page} nav={@nav} base_path={~p"/thron"} />
+</Layouts.app>

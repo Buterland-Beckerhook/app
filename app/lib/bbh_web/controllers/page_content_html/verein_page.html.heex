@@ -1,0 +1,28 @@
+<Layouts.app flash={@flash} current_path={@conn.request_path}>
+  <div class="md:grid md:grid-cols-[220px_1fr] md:gap-10">
+    <%!-- Desktop: section sidebar --%>
+    <aside class="hidden md:block">
+      <.page_sidebar links={@section_links} current_path={@current_path} />
+    </aside>
+
+    <div class="min-w-0">
+      <.breadcrumbs ancestors={@ancestors} />
+
+      <%!-- Mobile: section select (reuses the data-nav-select hook) --%>
+      <div :if={length(@section_links) > 1} class="mb-6 md:hidden">
+        <.page_submenu_select links={@section_links} current_path={@current_path} />
+      </div>
+
+      <h1 class="mb-6 text-3xl font-semibold">{@page.title}</h1>
+
+      <div
+        :if={@people not in [nil, []]}
+        class="mb-8 rounded-lg border border-base-300 p-4"
+      >
+        <.person_table people={@people} show_address={false} />
+      </div>
+
+      <.blocks blocks={@blocks} />
+    </div>
+  </div>
+</Layouts.app>

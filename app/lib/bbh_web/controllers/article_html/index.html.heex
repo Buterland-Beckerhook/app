@@ -1,0 +1,13 @@
+<Layouts.app flash={@flash} current_path={@conn.request_path}>
+  <h1 class="mb-6 text-3xl font-semibold">Aktuelles</h1>
+
+  <p :if={@result.entries == []} class="text-muted">
+    Zurzeit sind keine Nachrichten vorhanden.
+  </p>
+
+  <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+    <.article_card :for={article <- @result.entries} article={article} />
+  </div>
+
+  <.pagination page={@result.page} total_pages={@result.total_pages} base_path={~p"/aktuell"} />
+</Layouts.app>

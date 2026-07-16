@@ -1,0 +1,268 @@
+/* See the Tailwind configuration guide for advanced usage
+   https://tailwindcss.com/docs/configuration */
+
+@import "tailwindcss" source(none);
+@import "phoenix-colocated/bbh/colocated.css";
+@source "../css";
+@source "../js";
+@source "../../lib/bbh_web";
+/* Required for Tailwind to automatically pick up changes in colocated CSS files in dev */
+@source "../../_build/dev/phoenix-colocated/bbh/*/";
+
+/* A Tailwind plugin that makes "hero-#{ICON}" classes available.
+   The heroicons installation itself is managed by your mix.exs */
+@plugin "../vendor/heroicons";
+
+/* daisyUI Tailwind Plugin. */
+@plugin "daisyui/packages/bundle/daisyui" {
+  themes: false;
+}
+
+/* daisyUI theme plugin.
+  Two club themes from the homepage design handoff: green-tinted neutrals,
+  `primary` = accent text/link green, `accent` = solid CTA button background
+  (they differ in dark mode, where readable text green and button green diverge). */
+@plugin "daisyui/packages/bundle/daisyui-theme" {
+  name: "dark";
+  default: false;
+  prefersdark: true;
+  color-scheme: "dark";
+  --color-base-100: #0f1512;
+  --color-base-200: #182019;
+  --color-base-300: #263229;
+  --color-base-content: #eef2ee;
+  --color-primary: #4fbd82;
+  --color-primary-content: #0f1512;
+  --color-secondary: oklch(58% 0.233 277.117);
+  --color-secondary-content: oklch(96% 0.018 272.314);
+  --color-accent: #1c7d47;
+  --color-accent-content: #ffffff;
+  --color-neutral: oklch(37% 0.044 257.287);
+  --color-neutral-content: oklch(98% 0.003 247.858);
+  --color-info: oklch(58% 0.158 241.966);
+  --color-info-content: oklch(97% 0.013 236.62);
+  --color-success: oklch(60% 0.118 184.704);
+  --color-success-content: oklch(98% 0.014 180.72);
+  --color-warning: oklch(66% 0.179 58.318);
+  --color-warning-content: oklch(98% 0.022 95.277);
+  --color-error: oklch(58% 0.253 17.585);
+  --color-error-content: oklch(96% 0.015 12.422);
+  --radius-selector: 0.25rem;
+  --radius-field: 0.25rem;
+  --radius-box: 0.5rem;
+  --size-selector: 0.21875rem;
+  --size-field: 0.21875rem;
+  --border: 1.5px;
+  --depth: 1;
+  --noise: 0;
+}
+
+@plugin "daisyui/packages/bundle/daisyui-theme" {
+  name: "light";
+  default: true;
+  prefersdark: false;
+  color-scheme: "light";
+  --color-base-100: #fbfcfb;
+  --color-base-200: #f3f8f4;
+  --color-base-300: #e6ece7;
+  --color-base-content: #1b241f;
+  --color-primary: #15693c;
+  --color-primary-content: #ffffff;
+  --color-secondary: oklch(55% 0.027 264.364);
+  --color-secondary-content: oklch(98% 0.002 247.839);
+  --color-accent: #15693c;
+  --color-accent-content: #ffffff;
+  --color-neutral: oklch(44% 0.017 285.786);
+  --color-neutral-content: oklch(98% 0 0);
+  --color-info: oklch(62% 0.214 259.815);
+  --color-info-content: oklch(97% 0.014 254.604);
+  --color-success: oklch(70% 0.14 182.503);
+  --color-success-content: oklch(98% 0.014 180.72);
+  --color-warning: oklch(66% 0.179 58.318);
+  --color-warning-content: oklch(98% 0.022 95.277);
+  --color-error: oklch(58% 0.253 17.585);
+  --color-error-content: oklch(96% 0.015 12.422);
+  --radius-selector: 0.25rem;
+  --radius-field: 0.25rem;
+  --radius-box: 0.5rem;
+  --size-selector: 0.21875rem;
+  --size-field: 0.21875rem;
+  --border: 1.5px;
+  --depth: 1;
+  --noise: 0;
+}
+
+/* Add variants based on LiveView classes */
+@custom-variant phx-click-loading (.phx-click-loading&, .phx-click-loading &);
+@custom-variant phx-submit-loading (.phx-submit-loading&, .phx-submit-loading &);
+@custom-variant phx-change-loading (.phx-change-loading&, .phx-change-loading &);
+
+/* Use the data attribute for dark mode  */
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
+/* Design-handoff tokens daisyUI has no slot for. The @theme inline block
+   registers them as utilities (text-muted, bg-tag, bg-card, …) that resolve
+   per theme via the --bb-* custom properties. */
+:root,
+[data-theme="light"] {
+  --bb-text-muted: #556158;
+  --bb-tag-bg: #e3f0e7;
+  --bb-card-bg: #ffffff;
+  --bb-header-bg: rgba(251, 252, 251, 0.88);
+  --bb-nav-text: #2b352f;
+}
+[data-theme="dark"] {
+  --bb-text-muted: #a9b8ae;
+  --bb-tag-bg: #1d3326;
+  --bb-card-bg: #182019;
+  --bb-header-bg: rgba(15, 21, 18, 0.88);
+  --bb-nav-text: #dfe8e2;
+}
+
+/* Without JS nothing sets [data-theme], but the daisyUI dark theme still
+   applies via prefers-color-scheme — keep the --bb-* tokens in sync there. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --bb-text-muted: #a9b8ae;
+    --bb-tag-bg: #1d3326;
+    --bb-card-bg: #182019;
+    --bb-header-bg: rgba(15, 21, 18, 0.88);
+    --bb-nav-text: #dfe8e2;
+  }
+}
+
+@theme inline {
+  --color-muted: var(--bb-text-muted);
+  --color-tag: var(--bb-tag-bg);
+  --color-card: var(--bb-card-bg);
+}
+
+/* Make LiveView wrapper divs transparent for layout */
+[data-phx-session], [data-phx-teleported-src] { display: contents }
+
+/* Trix rich text editor styles (self-hosted). */
+@import "../vendor/trix/trix.css";
+
+/* flatpickr date/time picker styles (self-hosted). */
+@import "../vendor/flatpickr/flatpickr.min.css";
+
+/* Self-hosted webfonts (priv/static/fonts, GDPR — no font CDN).
+   Variable woff2 from Fontsource; latin subset covers German. */
+@font-face {
+  font-family: "Source Serif 4";
+  font-style: normal;
+  font-weight: 200 900;
+  font-display: swap;
+  src: url("/fonts/source-serif-4-latin-vf.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Public Sans";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/public-sans-latin-vf.woff2") format("woff2");
+}
+
+/* Public Sans for body text, Source Serif 4 for the wordmark and display
+   headings (the existing `font-logo` utility). */
+@theme {
+  --font-sans: "Public Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-logo: "Source Serif 4", ui-serif, Georgia, serif;
+}
+
+/* Rich-text (Trix) output styling.
+
+   daisyUI defines the `--tw-prose-*` color variables on `.prose` (per theme),
+   but ships none of the element rules that consume them — those normally come
+   from @tailwindcss/typography, which we don't install (no npm in this repo).
+   Tailwind Preflight then strips default heading sizes and list markers, so the
+   stored Trix HTML renders unstyled. These rules complete the styling for the
+   exact element set the Trix toolbar produces, reusing daisyUI's theme-aware
+   `--tw-prose-*` tokens so light/dark just work. `.prose el` selectors
+   (specificity 0,1,1) beat Preflight (0,0,1) and daisyUI's :where() rules (0,1,0). */
+.prose :where(p, ul, ol, blockquote, pre, h1, h2, h3) {
+  margin-block: 0.75em;
+}
+.prose :where(p, li) {
+  color: var(--tw-prose-body);
+}
+.prose h1,
+.prose h2,
+.prose h3 {
+  color: var(--tw-prose-headings);
+  font-weight: 700;
+  line-height: 1.25;
+  margin-block: 1.2em 0.5em;
+}
+/* Subordinate to the page title (text-3xl / 1.875rem). */
+.prose h1 {
+  font-size: 1.5rem;
+}
+.prose h2 {
+  font-size: 1.25rem;
+}
+.prose h3 {
+  font-size: 1.125rem;
+}
+.prose a {
+  color: var(--color-primary);
+  text-decoration: underline;
+  font-weight: 500;
+}
+.prose strong {
+  color: var(--tw-prose-bold, inherit);
+  font-weight: 700;
+}
+.prose ul,
+.prose ol {
+  padding-inline-start: 1.5rem;
+}
+.prose ul {
+  list-style: disc;
+}
+.prose ol {
+  list-style: decimal;
+}
+.prose li {
+  margin-block: 0.375em;
+}
+.prose li::marker {
+  color: var(--tw-prose-bullets);
+}
+.prose ol > li::marker {
+  color: var(--tw-prose-counters);
+}
+.prose blockquote {
+  border-inline-start: 3px solid var(--tw-prose-quote-borders);
+  padding-inline-start: 1rem;
+  font-style: italic;
+  color: var(--tw-prose-quotes);
+}
+.prose pre {
+  background: var(--tw-prose-pre-bg);
+  color: var(--tw-prose-pre-code);
+  padding: 1rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+}
+.prose code {
+  color: var(--tw-prose-code);
+}
+.prose img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+}
+
+/* Give the Trix editor a sensible min height in the admin. */
+trix-editor {
+  min-height: 8rem;
+}
+
+/* Hide Trix's built-in "Attach Files" button — direct uploads are disabled;
+   media comes from the library via the "Mediathek" button (see app.js). */
+trix-toolbar [data-trix-button-group="file-tools"] {
+  display: none;
+}
+
+/* This file is for your main application CSS */

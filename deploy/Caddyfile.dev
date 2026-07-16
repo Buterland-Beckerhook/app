@@ -1,0 +1,11 @@
+# Dev reverse proxy: serve the app over local HTTPS at https://localhost.
+# `tls internal` uses Caddy's built-in CA. To silence browser warnings, trust
+# Caddy's local root once (see README/AGENTS): extract
+# /data/caddy/pki/authorities/local/root.crt from the caddy_data volume and add
+# it to your system trust store.
+localhost {
+	tls internal
+	encode zstd gzip
+	# reverse_proxy transparently upgrades the LiveView websocket.
+	reverse_proxy phoenix:4000
+}

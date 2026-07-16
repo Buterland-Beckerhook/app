@@ -1,0 +1,64 @@
+<Layouts.app flash={@flash} current_path={@conn.request_path}>
+  {event_jsonld(@event)}
+  <article class="mx-auto max-w-3xl">
+    <a href={~p"/termine"} class="text-sm text-primary hover:underline">&larr; Zurück zu Termine</a>
+
+    <header class="mt-4">
+      <div class="flex flex-wrap items-center gap-3">
+        <h1 class="text-3xl font-semibold">{@event.title}</h1>
+        <span
+          :if={@event.status == "canceled"}
+          class="rounded bg-error/10 px-2 py-0.5 text-sm font-medium text-error"
+        >
+          Abgesagt
+        </span>
+      </div>
+      <p class="mt-2 text-muted">
+        {de_range(@event.starts_at, @event.ends_at, @event.all_day)}
+      </p>
+      <p :if={@event.status == "canceled" && @event.cancel_reason} class="mt-1 text-sm text-error">
+        {@event.cancel_reason}
+      </p>
+    </header>
+
+    <div
+      :if={@event.location}
+      class="mt-4 rounded-lg border border-base-300 p-4"
+    >
+      <p class="font-medium">{@event.location.name}</p>
+      <p :if={@event.location.street} class="text-sm text-muted">
+        {@event.location.street}
+        <span :if={@event.location.city}>, {@event.location.zip} {@event.location.city}</span>
+      </p>
+      <a
+        :if={@event.location.maps_url}
+        href={@event.location.maps_url}
+        target="_blank"
+        rel="noopener"
+        class="mt-2 inline-block text-sm text-primary hover:underline"
+      >
+        Karte anzeigen
+      </a>
+    </div>
+
+    <div :if={@event.body} class="prose mt-6 max-w-none dark:prose-invert">
+      {render_richtext(@event.body)}
+    </div>
+
+    <section :if={@event.children != []} class="mt-8">
+      <h2 class="mb-3 text-xl font-semibold">Programm</h2>
+      <div class="grid gap-4 sm:grid-cols-2">
+        <.event_card :for={child <- @event.children} event={child} />
+      </div>
+    </section>
+
+    <div :if={@event.enable_ical} class="mt-8">
+      <a
+        href={~p"/termine/#{@event.year}/#{@event.slug}/event.ics"}
+        class="text-sm text-primary hover:underline"
+      >
+        Zum Kalender hinzufügen (.ics)
+      </a>
+    </div>
+  </article>
+</Layouts.app>

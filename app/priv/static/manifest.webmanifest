@@ -1,0 +1,14 @@
+{
+  "name": "Schützenverein Buterland-Beckerhook e.V.",
+  "short_name": "Buterland-Beckerhook",
+  "description": "Neuigkeiten, Termine und Throne des Schützenvereins Buterland-Beckerhook e.V.",
+  "lang": "de",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#15693c",
+  "icons": [
+    { "src": "/images/logo.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

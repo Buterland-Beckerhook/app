@@ -1,0 +1,155 @@
+# Production/Beta stack for the Phoenix rewrite: Postgres + Phoenix (release).
+# The image is built by GitHub Actions and pushed to GHCR — the server only pulls it.
+# Run: docker compose --env-file .env up -d
+# Update: docker compose --env-file .env pull phoenix && docker compose --env-file .env up -d phoenix
+#
+# TLS, HTTP->HTTPS, compression, (beta) Basic-Auth and the www->apex redirect are
+# all handled by the central Traefik on the host (driven by the labels below) —
+# this stack ships NO reverse proxy of its own and publishes no ports.
+#
+# The Beta vs Prod difference lives entirely in .env
+# (IMAGE, PHX_HOST, TRAEFIK_NAME, TRAEFIK_RULE, TRAEFIK_MIDDLEWARES, BASIC_AUTH_USERS).
+# See .env.example.
+#
+# Pinned project name so the named volumes are stable regardless of the directory
+# the stack is started from: bbh_postgres_data / bbh_uploads. backup.sh and the
+# repo seed/dump scripts reference exactly these names.
+name: bbh
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    networks:
+      - internal
+    environment:
+      POSTGRES_DB: bbh
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # One-shot restore: if ./restore holds a *.dump (from backup.sh), load it before
+  # Phoenix boots; Phoenix then migrates on top. A missing dump is a clean no-op.
+  # Consumed files are renamed to *.restored so a restart never re-restores over
+  # live data. See restore-entrypoint.sh.
+  restore:
+    image: postgres:16-alpine
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - internal
+    environment:
+      PGHOST: postgres
+      PGUSER: ${DB_USER}
+      PGPASSWORD: ${DB_PASSWORD}
+      PGDATABASE: bbh
+    volumes:
+      - ./restore:/restore
+      - ./restore-entrypoint.sh:/restore-entrypoint.sh:ro
+      - uploads:/data
+    entrypoint: ["/bin/sh", "/restore-entrypoint.sh"]
+
+  phoenix:
+    image: ${IMAGE:-ghcr.io/buterland-beckerhook/app:beta}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      # Block on the restore step: it exits 0 (no-op or success) before the app
+      # starts, so migrations always run on top of any restored data. A failed
+      # restore (non-zero exit) keeps Phoenix down rather than serving a half DB.
+      restore:
+        condition: service_completed_successfully
+    # proxy: reachable by the central Traefik. internal: reaches Postgres.
+    networks:
+      - proxy
+      - internal
+    # Run migrations, then start the server.
+    command: ["/bin/sh", "-c", "/app/bin/migrate && /app/bin/server"]
+    # Give Bandit time to drain in-flight requests before SIGKILL.
+    stop_grace_period: 60s
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:4000/health/liveness"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    environment:
+      DATABASE_URL: ecto://${DB_USER}:${DB_PASSWORD}@postgres/bbh
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE}
+      PHX_HOST: ${PHX_HOST}
+      PHX_SERVER: "true"
+      UPLOADS_DIR: /data/uploads
+      MEDIA_CACHE_DIR: /data/uploads_cache
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
+      VAPID_SUBJECT: ${VAPID_SUBJECT}
+      ALTCHA_HMAC_KEY: ${ALTCHA_HMAC_KEY}
+      SMTP_RELAY: ${SMTP_RELAY}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USERNAME: ${SMTP_USERNAME}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      CONTACT_RECIPIENT: ${CONTACT_RECIPIENT}
+      CONTACT_SENDER: ${CONTACT_SENDER}
+      MATOMO_URL: ${MATOMO_URL}
+      MATOMO_SITE_ID: ${MATOMO_SITE_ID}
+    volumes:
+      - uploads:/data
+    labels:
+      - traefik.enable=true
+      # Phoenix is attached to two networks; tell Traefik to route via 'proxy'.
+      - traefik.docker.network=proxy
+
+      # HTTP router -> redirect to HTTPS (https-redirect@file comes from the Traefik config).
+      - traefik.http.routers.${TRAEFIK_NAME}.entrypoints=http
+      - traefik.http.routers.${TRAEFIK_NAME}.rule=${TRAEFIK_RULE}
+      - traefik.http.routers.${TRAEFIK_NAME}.middlewares=https-redirect@file
+
+      # HTTPS router -> Phoenix. Middlewares are selected per .env (TRAEFIK_MIDDLEWARES).
+      - traefik.http.routers.${TRAEFIK_NAME}-sec.entrypoints=https
+      - traefik.http.routers.${TRAEFIK_NAME}-sec.rule=${TRAEFIK_RULE}
+      - traefik.http.routers.${TRAEFIK_NAME}-sec.tls=true
+      - traefik.http.routers.${TRAEFIK_NAME}-sec.tls.options=secure-tls@file
+      - traefik.http.routers.${TRAEFIK_NAME}-sec.tls.certresolver=le
+      - traefik.http.routers.${TRAEFIK_NAME}-sec.middlewares=${TRAEFIK_MIDDLEWARES}
+
+      # Phoenix listens on 4000 (not 80).
+      - traefik.http.services.${TRAEFIK_NAME}.loadbalancer.server.port=4000
+
+      # --- Middleware definitions -------------------------------------------------
+      # Only what is listed in TRAEFIK_MIDDLEWARES is actually attached; the rest
+      # is merely defined here and stays unused (harmless).
+
+      # gzip/br compression (Beta + Prod).
+      - traefik.http.middlewares.${TRAEFIK_NAME}-compress.compress=true
+
+      # Prod: www.buterland-beckerhook.de -> buterland-beckerhook.de (301).
+      - traefik.http.middlewares.${TRAEFIK_NAME}-www.redirectregex.regex=^https?://www.buterland-beckerhook.de(/.*)
+      - traefik.http.middlewares.${TRAEFIK_NAME}-www.redirectregex.replacement=https://buterland-beckerhook.de$${1}
+      - traefik.http.middlewares.${TRAEFIK_NAME}-www.redirectregex.permanent=true
+
+      # Beta: Basic-Auth. Generate the hash with htpasswd (see .env.example).
+      - traefik.http.middlewares.${TRAEFIK_NAME}-auth.basicauth.users=${BASIC_AUTH_USERS}
+
+      # Beta: keep out of search indexes.
+      - traefik.http.middlewares.${TRAEFIK_NAME}-noindex.headers.customresponseheaders.X-Robots-Tag=noindex, nofollow
+
+networks:
+  # Central Traefik network — must already exist on the host (external).
+  proxy:
+    external: true
+    name: proxy
+  # Internal network between Phoenix and Postgres only.
+  internal:
+
+volumes:
+  postgres_data:
+  uploads:

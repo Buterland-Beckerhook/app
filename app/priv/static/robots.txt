@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /users
+
+Sitemap: https://buterland-beckerhook.de/sitemap.xml

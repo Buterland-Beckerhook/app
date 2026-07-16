@@ -1,0 +1,27 @@
+<Layouts.app flash={@flash} current_scope={@current_scope} current_path="/users/totp">
+  <div class="mx-auto max-w-sm">
+    <.header>
+      Bestätigung
+      <:subtitle>Bitte den 6-stelligen Code aus deiner Authenticator-App eingeben.</:subtitle>
+    </.header>
+
+    <form method="post" action={~p"/users/totp"} class="mt-6 space-y-4">
+      <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+      <div>
+        <input
+          type="text"
+          name="totp[code]"
+          inputmode="numeric"
+          autocomplete="one-time-code"
+          pattern="[0-9]*"
+          maxlength="6"
+          autofocus
+          class="input input-bordered w-full text-center text-2xl tracking-widest"
+          placeholder="000000"
+        />
+        <p :if={@error} class="mt-1 text-sm text-error">{@error}</p>
+      </div>
+      <button type="submit" class="btn btn-primary w-full">Anmelden</button>
+    </form>
+  </div>
+</Layouts.app>
