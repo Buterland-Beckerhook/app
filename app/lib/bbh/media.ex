@@ -83,14 +83,14 @@ defmodule Bbh.Media do
   defp sort_uploads(query, _newest), do: from(u in query, order_by: [desc: u.inserted_at])
   def get_upload!(id), do: Repo.get!(Upload, id)
 
-  def change_upload(%Upload{} = upload, attrs \\ %{}), do: Upload.changeset(upload, attrs)
+  def change_upload(%Upload{} = upload, attrs \\ %{}), do: Upload.update_changeset(upload, attrs)
 
   def update_upload(%Upload{} = upload, attrs),
-    do: upload |> Upload.changeset(attrs) |> Repo.update()
+    do: upload |> Upload.update_changeset(attrs) |> Repo.update()
 
   @doc "Move an upload into a folder (`nil` moves it back to the unfiled/root level)."
   def move_upload(%Upload{} = upload, folder_id),
-    do: upload |> Upload.changeset(%{folder_id: folder_id}) |> Repo.update()
+    do: upload |> Upload.update_changeset(%{folder_id: folder_id}) |> Repo.update()
 
   ## Folders
 
@@ -159,6 +159,10 @@ defmodule Bbh.Media do
   Refuses with `{:error, :in_use}` while the media is still referenced by an article,
   media card, or gallery.
   """
+  # sobelow_skip ["Traversal.FileModule"]
+  # Path is uploads_dir/<db storage_key>; storage_key is set only at creation and
+  # format-validated (Upload.changeset), and is not user-updatable
+  # (Upload.update_changeset) — so it can never contain "..".
   def delete_upload(%Upload{} = upload) do
     if in_use?(upload) do
       {:error, :in_use}
@@ -202,6 +206,8 @@ defmodule Bbh.Media do
     end
   end
 
+  # sobelow_skip ["Traversal.FileModule"]
+  # dest is uploads_dir/<app-generated key>; source_path is a server-side temp file.
   defp do_store_file(source_path, attrs, detected_type) do
     ext = Map.fetch!(@ext_for_type, detected_type)
 
@@ -228,6 +234,8 @@ defmodule Bbh.Media do
 
   # Sniff the real image type from the leading bytes. Returns a MIME string for
   # supported image types, or nil for anything unrecognized.
+  # sobelow_skip ["Traversal.FileModule"]
+  # path is a server-side temp/upload file, not a client-supplied path.
   defp detect_image_type(path) do
     case File.open(path, [:read, :binary], &IO.binread(&1, 512)) do
       {:ok, data} when is_binary(data) -> magic_type(data)
@@ -274,6 +282,8 @@ defmodule Bbh.Media do
     end
   end
 
+  # sobelow_skip ["Traversal.FileModule"]
+  # source/dest are app-derived paths under uploads_dir (see variant/4 + safe_source/1).
   defp generate(source, dest, width, height) do
     File.mkdir_p!(Path.dirname(dest))
 

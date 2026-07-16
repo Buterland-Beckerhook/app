@@ -1,0 +1,82 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    "helpers:pinGitHubActionDigests",
+    ":dependencyDashboard",
+    ":semanticCommits"
+  ],
+  "timezone": "Europe/Berlin",
+  "schedule": ["before 6am on monday"],
+  "labels": ["dependencies"],
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 2,
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 6am on monday"]
+  },
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "labels": ["security"],
+    "schedule": ["at any time"]
+  },
+  "osvVulnerabilityAlerts": true,
+  "packageRules": [
+    {
+      "description": "Auto-merge low-risk updates once CI passes",
+      "matchUpdateTypes": ["patch", "minor", "pin", "digest", "lockFileMaintenance"],
+      "automerge": true,
+      "platformAutomerge": true
+    },
+    {
+      "description": "Major upgrades always need manual review",
+      "matchUpdateTypes": ["major"],
+      "automerge": false,
+      "addLabels": ["major"]
+    },
+    {
+      "description": "Group GitHub Actions digest bumps into one PR",
+      "matchManagers": ["github-actions"],
+      "groupName": "github-actions"
+    },
+    {
+      "description": "Group the Elixir/OTP toolchain (Dockerfiles + CI) together",
+      "matchDatasources": ["hexpm-bob"],
+      "groupName": "elixir-otp toolchain"
+    },
+    {
+      "description": "Elixir/OTP/Debian versions come from the `# renovate:` annotations (custom manager below); ignore the composite Dockerfile image tags the docker manager can't decompose",
+      "matchManagers": ["dockerfile"],
+      "matchPackageNames": ["docker.io/hexpm/elixir", "docker.io/debian"],
+      "enabled": false
+    },
+    {
+      "description": "Group the Phoenix ecosystem",
+      "matchPackageNames": [
+        "phoenix",
+        "phoenix_ecto",
+        "phoenix_html",
+        "phoenix_live_view",
+        "phoenix_live_dashboard",
+        "phoenix_live_reload",
+        "phoenix_pubsub",
+        "phoenix_template"
+      ],
+      "groupName": "phoenix"
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Update versions annotated with `# renovate:` comments (Elixir/OTP/Debian in Dockerfiles + CI)",
+      "managerFilePatterns": [
+        "/(^|/)Dockerfile$/",
+        "/(^|/)Dockerfile\\.dev$/",
+        "/(^|/)\\.github/workflows/[^/]+\\.ya?ml$/"
+      ],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>[a-z-]+?) depName=(?<depName>[^\\s]+?)(?: versioning=(?<versioning>[^\\s]+?))?[ \\t]*\\r?\\n[^\\n]*?[:=]\\s*[\"']?(?<currentValue>[^\\s\"'\\n]+)"
+      ]
+    }
+  ]
+}

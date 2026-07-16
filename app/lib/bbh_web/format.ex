@@ -87,6 +87,8 @@ defmodule BbhWeb.Format do
   """
   def render_richtext(nil), do: nil
 
+  # sobelow_skip ["XSS.Raw"]
+  # Body is sanitized on write via Bbh.Html.sanitize/1 (see @doc above).
   def render_richtext(body) when is_binary(body) do
     body
     |> Bbh.Placeholders.render()

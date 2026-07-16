@@ -79,14 +79,17 @@ defmodule Bbh.MixProject do
       {:web_push_elixir, "~> 0.4"},
       # One-time Hugo content import (mix bbh.import).
       {:yaml_elixir, "~> 2.11"},
-      {:earmark, "~> 1.4"},
+      {:mdex, "~> 0.13"},
       {:req, "~> 0.5"},
       {:telemetry_metrics, "~> 1.0"},
       {:telemetry_poller, "~> 1.0"},
       {:gettext, "~> 1.0"},
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.2.0"},
-      {:bandit, "~> 1.5"}
+      {:bandit, "~> 1.5"},
+      # Security tooling (compile-time only): dependency CVE scan + Phoenix SAST.
+      {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false},
+      {:sobelow, "~> 0.13", only: [:dev, :test], runtime: false}
     ]
   end
 
@@ -109,7 +112,14 @@ defmodule Bbh.MixProject do
         "esbuild bbh --minify",
         "phx.digest"
       ],
-      precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"]
+      precommit: [
+        "compile --warnings-as-errors",
+        "deps.unlock --unused",
+        "format",
+        "deps.audit",
+        "sobelow --config",
+        "test"
+      ]
     ]
   end
 end

@@ -108,3 +108,30 @@ Notes:
 - Conventional commit messages — `feat:`, `fix:`, `chore:`, `docs:`, `refactor:`.
 - The site is German-language; UI strings and `de-DE` date formatting are
   hardcoded.
+
+## Continuous Integration & dependency security
+
+Two GitHub Actions workflows (`.github/workflows/`):
+
+- **`ci.yml`** — test + audit gate on every PR and push. Runs `mix format
+  --check`, `compile --warnings-as-errors`, `deps.unlock --check-unused`, the
+  security audits (`mix deps.audit` for dependency CVEs via `mix_audit`, `mix
+  hex.audit` for retired packages, `mix sobelow --config` for Phoenix SAST), and
+  `mix test` against a Postgres service. This is the required check that gates
+  Renovate's auto-merge.
+- **`build.yml`** — builds the Phoenix release image and pushes it to GHCR (see
+  the deploy notes). Actions are pinned to commit SHAs; Renovate keeps them current.
+
+**Renovate** (`renovate.json`) opens dependency-update PRs weekly (Elixir/mix,
+GitHub Actions, Docker base images, docker-compose). Patch/minor/digest updates
+auto-merge once `ci.yml` is green; majors wait for manual review. The
+Elixir/OTP/Debian versions in the Dockerfiles and `ci.yml` are updated via a
+custom manager driven by `# renovate:` annotation comments — keep those comments
+directly above the version line if you move them. Config is read from the default
+branch, so a bootstrap `renovate.json` on `main` points Renovate at the active
+branch until the rewrite merges.
+
+**Sobelow** false positives are suppressed with inline `# sobelow_skip [...]`
+annotations (with a justifying comment) at the specific call site, or via
+`app/.sobelow-conf` for router-level checks — never with a blanket disable. Run
+locally with `mix sobelow --config` (included in `mix precommit`).

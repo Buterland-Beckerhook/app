@@ -17,8 +17,11 @@
 #
 # For finding packages in Debian, search on https://packages.debian.org/.
 
+# renovate: datasource=hexpm-bob depName=elixir
 ARG ELIXIR_VERSION=1.20.2
+# renovate: datasource=hexpm-bob depName=erlang versioning=semver-coerced
 ARG OTP_VERSION=29.0.3
+# renovate: datasource=docker depName=debian versioning=debian
 ARG DEBIAN_VERSION=trixie-20260713-slim
 
 ARG BUILDER_IMAGE="docker.io/hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-debian-${DEBIAN_VERSION}"

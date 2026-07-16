@@ -70,6 +70,46 @@ defmodule Bbh.MediaTest do
       assert {:ok, updated} = Media.update_upload(upload, %{title: "Neuer Titel"})
       assert updated.title == "Neuer Titel"
     end
+
+    test "ignores system fields in update params (mass-assignment guard)", %{tmp: tmp} do
+      src = write_tmp(@png)
+      {:ok, upload} = Media.store_file(src, %{filename: "x.png"})
+      original_key = upload.storage_key
+
+      # A crafted form event carrying extra keys must not repoint the stored file:
+      # storage_key drives File.rm/send_file, so overwriting it with "../.." would
+      # let an admin escape uploads_dir.
+      {:ok, updated} =
+        Media.update_upload(upload, %{
+          "title" => "Neu",
+          "storage_key" => "../../../../etc/passwd",
+          "content_type" => "text/html"
+        })
+
+      assert updated.title == "Neu"
+      assert updated.storage_key == original_key
+      assert updated.content_type == "image/png"
+      assert Path.join(tmp, updated.storage_key) |> File.regular?()
+    end
+  end
+
+  describe "Upload.changeset/2 storage_key validation" do
+    test "rejects a storage key that would escape uploads_dir" do
+      for bad <- ["../../etc/passwd", "/etc/passwd", "a/../b", "..", ""] do
+        cs = Upload.changeset(%Upload{}, %{storage_key: bad, filename: "x.png"})
+        refute cs.valid?, "expected #{inspect(bad)} to be rejected"
+      end
+    end
+
+    test "accepts the generated key shape" do
+      cs =
+        Upload.changeset(%Upload{}, %{
+          storage_key: "2026/#{Ecto.UUID.generate()}.webp",
+          filename: "x"
+        })
+
+      assert cs.valid?
+    end
   end
 
   describe "delete_upload/1" do

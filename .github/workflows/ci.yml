@@ -1,0 +1,92 @@
+name: CI
+
+# Test + audit gate. Runs on every PR and on pushes to the active branch, and is
+# the required check that makes Renovate's auto-merge safe (see renovate.json).
+on:
+  pull_request:
+  push:
+    branches: [feat/phoenix-rewrite, main]
+
+# Least privilege: this workflow only reads the checkout.
+permissions:
+  contents: read
+
+# Cancel superseded runs on the same ref.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test & audit
+    runs-on: ubuntu-latest
+
+    env:
+      MIX_ENV: test
+
+    defaults:
+      run:
+        working-directory: app
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        # Wait until Postgres is accepting connections before the job starts.
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Elixir/OTP
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          # Keep in sync with app/Dockerfile (Renovate updates all three together).
+          # renovate: datasource=hexpm-bob depName=elixir
+          elixir-version: "1.20.2"
+          # renovate: datasource=hexpm-bob depName=erlang versioning=semver-coerced
+          otp-version: "29.0.3"
+
+      - name: Cache deps and build
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            app/deps
+            app/_build
+          key: mix-${{ runner.os }}-otp29.0.3-ex1.20.2-${{ hashFiles('app/mix.lock') }}
+          restore-keys: |
+            mix-${{ runner.os }}-otp29.0.3-ex1.20.2-
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Check for unused deps in mix.lock
+        run: mix deps.unlock --check-unused
+
+      - name: Check formatting
+        run: mix format --check-formatted
+
+      - name: Compile (warnings as errors)
+        run: mix compile --warnings-as-errors
+
+      - name: Audit dependencies for CVEs
+        run: mix deps.audit
+
+      - name: Audit for retired packages
+        run: mix hex.audit
+
+      - name: Security static analysis (Sobelow)
+        run: mix sobelow --config
+
+      - name: Run tests
+        run: mix test

@@ -3,6 +3,10 @@ defmodule BbhWeb.MediaController do
 
   @max_dimension 4000
 
+  # sobelow_skip ["Traversal.SendFile", "XSS.ContentType"]
+  # resolve_variant/3 rejects any key containing ".." (Bbh.Media.safe_source/1)
+  # and returns a content type from a fixed allowlist keyed on the stored
+  # extension — never a client-supplied value.
   def show(conn, %{"path" => segments} = params) do
     key = Enum.join(segments, "/")
 
