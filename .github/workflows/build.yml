@@ -2,6 +2,13 @@ name: Build & push image
 
 # Builds the Phoenix release image and pushes it to GHCR.
 # The server only pulls the image afterwards (docker compose pull) — it never builds.
+#
+# Multi-arch (linux/amd64 + linux/arm64) is built WITHOUT QEMU emulation: each
+# architecture compiles on its own *native* GitHub-hosted runner (amd64 on
+# ubuntu-latest, arm64 on ubuntu-24.04-arm — free for public repos), pushes the
+# image by digest, then a final `merge` job stitches the two single-arch images
+# into one multi-arch manifest. The legs run in parallel, so wall-clock is
+# roughly a single native build instead of the old emulated arm64 leg.
 on:
   push:
     branches: [feat/phoenix-rewrite]
@@ -10,7 +17,7 @@ on:
       - ".github/workflows/build.yml"
   workflow_dispatch:
 
-# Deny-all by default; the build job re-grants exactly what it needs.
+# Deny-all by default; each job re-grants exactly what it needs.
 permissions: {}
 
 # Cancel a superseded build on the same ref.
@@ -20,16 +27,25 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io
-  # github.repository == "Buterland-Beckerhook/app"; the metadata-action lowercases
-  # the name to ghcr.io/buterland-beckerhook/app.
+  # github.repository == "Buterland-Beckerhook/app"; it is lowercased to
+  # ghcr.io/buterland-beckerhook/app before use (GHCR rejects uppercase names).
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   build:
-    # Multi-arch image: linux/amd64 + linux/arm64 (the prod server is arm64/v8,
-    # amd64 keeps local/dev pulls working). ubuntu-latest is an amd64 runner, so
-    # arm64 is emulated via QEMU (works everywhere, but the arm64 leg is slower).
-    runs-on: ubuntu-latest
+    # One native runner per architecture — no QEMU.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    # A stuck native-ARM runner queue would otherwise burn the 6h default and
+    # block the merge job (needs: build). A native compile is well under this.
+    timeout-minutes: 45
     permissions:
       contents: read
       packages: write
@@ -39,11 +55,12 @@ jobs:
         with:
           persist-credentials: false
 
-      # Needed to build the arm64 leg on the amd64 runner via emulation.
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: arm64
+      - name: Prepare env
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          echo "IMAGE=${REGISTRY}/${IMAGE_NAME,,}" >> "$GITHUB_ENV"
+          echo "PLATFORM_PAIR=${PLATFORM//\//-}" >> "$GITHUB_ENV"
 
       - name: Set up Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
@@ -55,23 +72,85 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Image metadata
+      - name: Image metadata (labels)
         id: meta
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=raw,value=beta
-            type=sha,format=short
+          images: ${{ env.IMAGE }}
 
-      - name: Build & push
+      - name: Build & push by digest
+        id: build
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: ./app
           file: ./app/Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          # push-by-digest turns a provenance attestation (on by default in v6)
+          # into an extra unknown/unknown entry in the merged manifest — disable it.
+          provenance: false
+          # Per-architecture cache scope so the two legs don't clobber each other.
+          cache-from: type=gha,scope=${{ env.PLATFORM_PAIR }}
+          cache-to: type=gha,mode=max,scope=${{ env.PLATFORM_PAIR }}
+
+      - name: Export digest
+        run: |
+          mkdir -p "${RUNNER_TEMP}/digests"
+          digest="${{ steps.build.outputs.digest }}"
+          touch "${RUNNER_TEMP}/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: digests-${{ env.PLATFORM_PAIR }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Prepare env
+        run: echo "IMAGE=${REGISTRY}/${IMAGE_NAME,,}" >> "$GITHUB_ENV"
+
+      - name: Download digests
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digests-*
+          merge-multiple: true
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      - name: Log in to GHCR
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Image metadata (tags)
+        id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=raw,value=beta
+            type=sha,format=short
+
+      - name: Create multi-arch manifest
+        working-directory: ${{ runner.temp }}/digests
+        run: |
+          docker buildx imagetools create \
+            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf "${IMAGE}@sha256:%s " *)
+
+      - name: Inspect image
+        run: docker buildx imagetools inspect "${IMAGE}:${{ steps.meta.outputs.version }}"
