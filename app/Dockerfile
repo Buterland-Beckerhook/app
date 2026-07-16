@@ -100,6 +100,13 @@ ENV MIX_ENV="prod"
 # Only copy the final release from the build stage
 COPY --from=builder --chown=nobody:root /app/_build/${MIX_ENV}/rel/bbh ./
 
+# The uploads volume mounts at /data (UPLOADS_DIR=/data/uploads,
+# MEDIA_CACHE_DIR=/data/uploads_cache). Create the mountpoint owned by the runtime
+# user so an *empty* named volume is initialised nobody-writable — otherwise a
+# fresh deploy gets a root-owned /data and the app can't store uploads or
+# regenerate image variants.
+RUN mkdir -p /data && chown nobody:root /data
+
 USER nobody
 
 # If using an environment that doesn't automatically reap zombie processes, it is

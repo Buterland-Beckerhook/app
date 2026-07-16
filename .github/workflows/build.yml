@@ -9,12 +9,17 @@ name: Build & push image
 # image by digest, then a final `merge` job stitches the two single-arch images
 # into one multi-arch manifest. The legs run in parallel, so wall-clock is
 # roughly a single native build instead of the old emulated arm64 leg.
+#
+# Triggers on push to main (tags :beta rolling + :sha-XXXXXXX immutable) and via
+# "Run workflow" (workflow_dispatch) for ad-hoc builds from a feature branch.
 on:
   push:
-    branches: [feat/phoenix-rewrite]
+    branches: [main]
     paths:
       - "app/**"
       - ".github/workflows/build.yml"
+  # Manual trigger — also used to build ad-hoc from a feature branch before it
+  # merges to main (the push trigger only fires on main).
   workflow_dispatch:
 
 # Deny-all by default; each job re-grants exactly what it needs.

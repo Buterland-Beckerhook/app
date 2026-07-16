@@ -264,6 +264,11 @@ dist
 # Dev seed snapshot artifacts (DB dump + uploads tarball; produced by make dump)
 /seed/
 
+# Deploy restore drop-in: dumps/uploads placed here are restored once on boot.
+# Keep the directory, never commit its (large, data-bearing) contents.
+/deploy/restore/*
+!/deploy/restore/.gitkeep
+
 # KDE directory preferences
 .directory
 
