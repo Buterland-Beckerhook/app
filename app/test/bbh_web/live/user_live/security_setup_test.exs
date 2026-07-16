@@ -14,8 +14,8 @@ defmodule BbhWeb.UserLive.SecuritySetupTest do
     assert html =~ "Konto absichern"
     assert html =~ "Passkey einrichten"
     assert html =~ "Zwei-Faktor"
-    assert html =~ ~p"/users/passkeys"
-    assert html =~ ~p"/users/2fa"
+    assert html =~ ~p"/admin/einstellungen/passkeys"
+    assert html =~ ~p"/admin/einstellungen/2fa"
     # Skippable — the explicit skip link is present.
     assert html =~ "Später erinnern"
   end

@@ -49,7 +49,7 @@ defmodule BbhWeb.UserLive.SecuritySetup do
             Anmeldung ohne Passwort per Fingerabdruck, Gesichtserkennung oder Geräte-PIN.
             Empfohlen.
           </p>
-          <.link navigate={~p"/users/passkeys"} class="btn btn-primary mt-3">
+          <.link navigate={~p"/admin/einstellungen/passkeys"} class="btn btn-primary mt-3">
             <.icon name="hero-key" class="size-5" /> Passkey hinzufügen
           </.link>
         </div>
@@ -60,7 +60,7 @@ defmodule BbhWeb.UserLive.SecuritySetup do
             Schützt die Anmeldung per E-Mail-Link mit einem zusätzlichen Code aus einer
             Authenticator-App.
           </p>
-          <.link navigate={~p"/users/2fa"} class="btn btn-soft mt-3">
+          <.link navigate={~p"/admin/einstellungen/2fa"} class="btn btn-soft mt-3">
             <.icon name="hero-shield-check" class="size-5" /> 2FA einrichten
           </.link>
         </div>

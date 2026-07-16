@@ -117,6 +117,15 @@ defmodule BbhWeb.Router do
     live_session :admin_only, on_mount: [{BbhWeb.UserAuth, :require_admin}] do
       live "/benutzer", UserLive.Index, :index
     end
+
+    # Account settings — shown as a modal over the admin chrome. One live_session
+    # so the sections (Account/Passkeys/2FA) patch in-place without a reload.
+    live_session :admin_account, on_mount: [{BbhWeb.UserAuth, :require_staff}] do
+      live "/einstellungen", SettingsLive, :account
+      live "/einstellungen/passkeys", SettingsLive, :passkeys
+      live "/einstellungen/2fa", SettingsLive, :totp
+      live "/einstellungen/confirm-email/:token", SettingsLive, :confirm_email
+    end
   end
 
   ## Authentication routes
@@ -126,10 +135,6 @@ defmodule BbhWeb.Router do
 
     live_session :require_authenticated_user,
       on_mount: [{BbhWeb.UserAuth, :require_authenticated}] do
-      live "/users/settings", UserLive.Settings, :edit
-      live "/users/settings/confirm-email/:token", UserLive.Settings, :confirm_email
-      live "/users/2fa", UserLive.Totp, :edit
-      live "/users/passkeys", UserLive.Passkeys, :edit
       live "/users/security", UserLive.SecuritySetup, :index
     end
   end

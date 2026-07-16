@@ -319,7 +319,7 @@ defmodule BbhWeb.Layouts do
             <p class="truncate text-base-content/70">{@current_scope.user.email}</p>
             <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
               <a href={~p"/"} class="link link-hover">Zur Website</a>
-              <.link navigate={~p"/users/settings"} class="link link-hover">Einstellungen</.link>
+              <.link navigate={~p"/admin/einstellungen"} class="link link-hover">Einstellungen</.link>
               <.link href={~p"/users/log-out"} method="delete" class="link link-hover">Abmelden</.link>
             </div>
           </div>
