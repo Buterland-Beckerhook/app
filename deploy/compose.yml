@@ -3,13 +3,13 @@
 # Run: docker compose --env-file .env up -d
 # Update: docker compose --env-file .env pull phoenix && docker compose --env-file .env up -d phoenix
 #
-# TLS, HTTP->HTTPS, Kompression, (Beta-)Basic-Auth und der www->apex-Redirect
-# laufen über den zentralen Traefik auf dem Host (per Labels gesteuert) — dieser
-# Stack bringt KEINEN eigenen Reverse-Proxy mehr mit und öffnet keine Ports.
+# TLS, HTTP->HTTPS, compression, (beta) Basic-Auth and the www->apex redirect are
+# all handled by the central Traefik on the host (driven by the labels below) —
+# this stack ships NO reverse proxy of its own and publishes no ports.
 #
-# Der Unterschied Beta <-> Prod steckt komplett in .env
+# The Beta vs Prod difference lives entirely in .env
 # (IMAGE, PHX_HOST, TRAEFIK_NAME, TRAEFIK_RULE, TRAEFIK_MIDDLEWARES, BASIC_AUTH_USERS).
-# Siehe .env.example.
+# See .env.example.
 services:
   postgres:
     image: postgres:16-alpine
@@ -34,7 +34,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    # proxy: vom zentralen Traefik erreichbar. internal: erreicht Postgres.
+    # proxy: reachable by the central Traefik. internal: reaches Postgres.
     networks:
       - proxy
       - internal
@@ -71,15 +71,15 @@ services:
       - uploads:/data
     labels:
       - traefik.enable=true
-      # Phoenix hängt an zwei Netzen; Traefik muss über 'proxy' routen.
+      # Phoenix is attached to two networks; tell Traefik to route via 'proxy'.
       - traefik.docker.network=proxy
 
-      # HTTP-Router -> Redirect auf HTTPS (https-redirect@file kommt aus der Traefik-Config).
+      # HTTP router -> redirect to HTTPS (https-redirect@file comes from the Traefik config).
       - traefik.http.routers.${TRAEFIK_NAME}.entrypoints=http
       - traefik.http.routers.${TRAEFIK_NAME}.rule=${TRAEFIK_RULE}
       - traefik.http.routers.${TRAEFIK_NAME}.middlewares=https-redirect@file
 
-      # HTTPS-Router -> Phoenix. Middlewares werden per .env (TRAEFIK_MIDDLEWARES) zugeschaltet.
+      # HTTPS router -> Phoenix. Middlewares are selected per .env (TRAEFIK_MIDDLEWARES).
       - traefik.http.routers.${TRAEFIK_NAME}-sec.entrypoints=https
       - traefik.http.routers.${TRAEFIK_NAME}-sec.rule=${TRAEFIK_RULE}
       - traefik.http.routers.${TRAEFIK_NAME}-sec.tls=true
@@ -87,14 +87,14 @@ services:
       - traefik.http.routers.${TRAEFIK_NAME}-sec.tls.certresolver=le
       - traefik.http.routers.${TRAEFIK_NAME}-sec.middlewares=${TRAEFIK_MIDDLEWARES}
 
-      # Phoenix lauscht auf 4000 (nicht 80).
+      # Phoenix listens on 4000 (not 80).
       - traefik.http.services.${TRAEFIK_NAME}.loadbalancer.server.port=4000
 
-      # --- Middleware-Definitionen ------------------------------------------------
-      # Nur was in TRAEFIK_MIDDLEWARES steht, wird tatsächlich angehängt; der Rest
-      # ist hier nur definiert und bleibt ungenutzt (harmlos).
+      # --- Middleware definitions -------------------------------------------------
+      # Only what is listed in TRAEFIK_MIDDLEWARES is actually attached; the rest
+      # is merely defined here and stays unused (harmless).
 
-      # gzip/br-Kompression (Beta + Prod).
+      # gzip/br compression (Beta + Prod).
       - traefik.http.middlewares.${TRAEFIK_NAME}-compress.compress=true
 
       # Prod: www.buterland-beckerhook.de -> buterland-beckerhook.de (301).
@@ -102,18 +102,18 @@ services:
       - traefik.http.middlewares.${TRAEFIK_NAME}-www.redirectregex.replacement=https://buterland-beckerhook.de$${1}
       - traefik.http.middlewares.${TRAEFIK_NAME}-www.redirectregex.permanent=true
 
-      # Beta: Basic-Auth. Hash mit htpasswd erzeugen (siehe .env.example).
+      # Beta: Basic-Auth. Generate the hash with htpasswd (see .env.example).
       - traefik.http.middlewares.${TRAEFIK_NAME}-auth.basicauth.users=${BASIC_AUTH_USERS}
 
-      # Beta: aus Suchindizes raushalten.
+      # Beta: keep out of search indexes.
       - traefik.http.middlewares.${TRAEFIK_NAME}-noindex.headers.customresponseheaders.X-Robots-Tag=noindex, nofollow
 
 networks:
-  # Zentrales Traefik-Netz — muss auf dem Host bereits existieren (external).
+  # Central Traefik network — must already exist on the host (external).
   proxy:
     external: true
     name: proxy
-  # Internes Netz nur zwischen Phoenix und Postgres.
+  # Internal network between Phoenix and Postgres only.
   internal:
 
 volumes:

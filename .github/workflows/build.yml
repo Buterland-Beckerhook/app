@@ -1,7 +1,7 @@
 name: Build & push image
 
-# Baut das Phoenix-Release-Image und pusht es nach GHCR.
-# Der Server zieht das Image danach nur noch (docker compose pull) — er baut nicht selbst.
+# Builds the Phoenix release image and pushes it to GHCR.
+# The server only pulls the image afterwards (docker compose pull) — it never builds.
 on:
   push:
     branches: [feat/phoenix-rewrite]
@@ -12,17 +12,15 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  # github.repository == "Buterland-Beckerhook/app"; die metadata-action lowercased den Namen
-  # zu ghcr.io/buterland-beckerhook/app.
+  # github.repository == "Buterland-Beckerhook/app"; the metadata-action lowercases
+  # the name to ghcr.io/buterland-beckerhook/app.
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   build:
-    # Der Zielserver ist arm64/v8, deshalb bauen wir ein linux/arm64-Image.
-    # ubuntu-latest ist ein amd64-Runner, daher wird arm64 per QEMU emuliert
-    # (funktioniert überall, aber langsamer). Wer Zugriff auf native ARM-Runner
-    # hat (public Repo oder größerer Plan), kann stattdessen viel schneller nativ
-    # bauen: `runs-on: ubuntu-24.04-arm` setzen und den QEMU-Step unten entfernen.
+    # Multi-arch image: linux/amd64 + linux/arm64 (the prod server is arm64/v8,
+    # amd64 keeps local/dev pulls working). ubuntu-latest is an amd64 runner, so
+    # arm64 is emulated via QEMU (works everywhere, but the arm64 leg is slower).
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -31,7 +29,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Für die arm64-Emulation auf dem amd64-Runner. Bei nativem ARM-Runner entfernen.
+      # Needed to build the arm64 leg on the amd64 runner via emulation.
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
         with:
@@ -61,7 +59,7 @@ jobs:
         with:
           context: ./app
           file: ./app/Dockerfile
-          platforms: linux/arm64
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
