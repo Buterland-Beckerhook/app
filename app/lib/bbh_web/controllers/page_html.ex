@@ -18,4 +18,20 @@ defmodule BbhWeb.PageHTML do
   as local time — matching how the rest of the site renders event times.
   """
   def countdown_target(%DateTime{} = dt), do: Calendar.strftime(dt, "%Y-%m-%dT%H:%M:%S")
+
+  @doc """
+  Whether to render the countdown timer for an event: enabled per-event and within
+  the configured lead window. `starts_at >= now` is already guaranteed by
+  `Bbh.Calendar.next_event/0`, so only the upper (lead-days) bound is checked.
+  """
+  def countdown_visible?(%{
+        show_countdown: true,
+        countdown_lead_days: lead,
+        starts_at: %DateTime{} = starts_at
+      })
+      when is_integer(lead) do
+    DateTime.diff(starts_at, DateTime.utc_now(), :day) <= lead
+  end
+
+  def countdown_visible?(_), do: false
 end

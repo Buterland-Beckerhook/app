@@ -207,6 +207,13 @@ defmodule BbhWeb.Admin.EventLive.Form do
         />
         <.input field={@form[:announce]} type="checkbox" label="Öffentlich ankündigen" />
         <.input field={@form[:enable_ical]} type="checkbox" label="iCal-Export aktivieren" />
+        <.input field={@form[:show_countdown]} type="checkbox" label="Countdown anzeigen" />
+        <.input
+          field={@form[:countdown_lead_days]}
+          type="number"
+          min="0"
+          label="Countdown ab (Tage vor Beginn)"
+        />
         <.input field={@form[:cancel_reason]} label="Grund bei Absage" />
         <.rich_text field={@form[:body]} label="Beschreibung" />
 

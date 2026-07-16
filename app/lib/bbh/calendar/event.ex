@@ -29,6 +29,8 @@ defmodule Bbh.Calendar.Event do
     field :announce, :boolean, default: true
     field :revision, :integer
     field :enable_ical, :boolean, default: true
+    field :show_countdown, :boolean, default: true
+    field :countdown_lead_days, :integer, default: 60
     field :calendar, :string
 
     belongs_to :location, Bbh.Calendar.Location
@@ -55,6 +57,8 @@ defmodule Bbh.Calendar.Event do
       :announce,
       :revision,
       :enable_ical,
+      :show_countdown,
+      :countdown_lead_days,
       :calendar,
       :location_id,
       :parent_id,
@@ -66,6 +70,7 @@ defmodule Bbh.Calendar.Event do
     |> validate_inclusion(:calendar, @calendars, message: "ist kein gültiger Kalender")
     |> put_year()
     |> validate_number(:year, greater_than_or_equal_to: 1900)
+    |> validate_number(:countdown_lead_days, greater_than_or_equal_to: 0)
     |> validate_end_after_start()
     |> unique_constraint([:slug, :year], name: :events_slug_year_unique)
     |> foreign_key_constraint(:location_id)
