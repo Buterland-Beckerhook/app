@@ -18,6 +18,11 @@ env:
 
 jobs:
   build:
+    # Der Zielserver ist arm64/v8, deshalb bauen wir ein linux/arm64-Image.
+    # ubuntu-latest ist ein amd64-Runner, daher wird arm64 per QEMU emuliert
+    # (funktioniert überall, aber langsamer). Wer Zugriff auf native ARM-Runner
+    # hat (public Repo oder größerer Plan), kann stattdessen viel schneller nativ
+    # bauen: `runs-on: ubuntu-24.04-arm` setzen und den QEMU-Step unten entfernen.
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -25,6 +30,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      # Für die arm64-Emulation auf dem amd64-Runner. Bei nativem ARM-Runner entfernen.
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
 
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
@@ -50,7 +61,7 @@ jobs:
         with:
           context: ./app
           file: ./app/Dockerfile
-          platforms: linux/amd64
+          platforms: linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

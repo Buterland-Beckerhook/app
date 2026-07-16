@@ -1,14 +1,21 @@
-# Production/Beta stack for the Phoenix rewrite: Postgres + Phoenix (release) + Caddy.
+# Production/Beta stack for the Phoenix rewrite: Postgres + Phoenix (release).
 # The image is built by GitHub Actions and pushed to GHCR — the server only pulls it.
 # Run: docker compose --env-file .env up -d
 # Update: docker compose --env-file .env pull phoenix && docker compose --env-file .env up -d phoenix
 #
-# The same file serves Beta and Prod; the target is selected purely via .env
-# (IMAGE, SITE_HOST, CADDYFILE, PHX_HOST, BASIC_AUTH_*). See .env.example.
+# TLS, HTTP->HTTPS, Kompression, (Beta-)Basic-Auth und der www->apex-Redirect
+# laufen über den zentralen Traefik auf dem Host (per Labels gesteuert) — dieser
+# Stack bringt KEINEN eigenen Reverse-Proxy mehr mit und öffnet keine Ports.
+#
+# Der Unterschied Beta <-> Prod steckt komplett in .env
+# (IMAGE, PHX_HOST, TRAEFIK_NAME, TRAEFIK_RULE, TRAEFIK_MIDDLEWARES, BASIC_AUTH_USERS).
+# Siehe .env.example.
 services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
+    networks:
+      - internal
     environment:
       POSTGRES_DB: bbh
       POSTGRES_USER: ${DB_USER}
@@ -27,6 +34,10 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    # proxy: vom zentralen Traefik erreichbar. internal: erreicht Postgres.
+    networks:
+      - proxy
+      - internal
     # Run migrations, then start the server.
     command: ["/bin/sh", "-c", "/app/bin/migrate && /app/bin/server"]
     # Give Bandit time to drain in-flight requests before SIGKILL.
@@ -58,27 +69,53 @@ services:
       MATOMO_SITE_ID: ${MATOMO_SITE_ID}
     volumes:
       - uploads:/data
+    labels:
+      - traefik.enable=true
+      # Phoenix hängt an zwei Netzen; Traefik muss über 'proxy' routen.
+      - traefik.docker.network=proxy
 
-  caddy:
-    image: caddy:2-alpine
-    restart: unless-stopped
-    depends_on: [phoenix]
-    ports:
-      - "80:80"
-      - "443:443"
-    # Caddy resolves the {$...} placeholders in the Caddyfile from these env vars.
-    environment:
-      SITE_HOST: ${SITE_HOST:-buterland-beckerhook.de}
-      BASIC_AUTH_USER: ${BASIC_AUTH_USER:-}
-      BASIC_AUTH_HASH: ${BASIC_AUTH_HASH:-}
-    volumes:
-      # Prod uses ./Caddyfile (default); Beta sets CADDYFILE=./Caddyfile.beta in .env.
-      - ${CADDYFILE:-./Caddyfile}:/etc/caddy/Caddyfile
-      - caddy_data:/data
-      - caddy_config:/config
+      # HTTP-Router -> Redirect auf HTTPS (https-redirect@file kommt aus der Traefik-Config).
+      - traefik.http.routers.${TRAEFIK_NAME}.entrypoints=http
+      - traefik.http.routers.${TRAEFIK_NAME}.rule=${TRAEFIK_RULE}
+      - traefik.http.routers.${TRAEFIK_NAME}.middlewares=https-redirect@file
+
+      # HTTPS-Router -> Phoenix. Middlewares werden per .env (TRAEFIK_MIDDLEWARES) zugeschaltet.
+      - traefik.http.routers.${TRAEFIK_NAME}-sec.entrypoints=https
+      - traefik.http.routers.${TRAEFIK_NAME}-sec.rule=${TRAEFIK_RULE}
+      - traefik.http.routers.${TRAEFIK_NAME}-sec.tls=true
+      - traefik.http.routers.${TRAEFIK_NAME}-sec.tls.options=secure-tls@file
+      - traefik.http.routers.${TRAEFIK_NAME}-sec.tls.certresolver=le
+      - traefik.http.routers.${TRAEFIK_NAME}-sec.middlewares=${TRAEFIK_MIDDLEWARES}
+
+      # Phoenix lauscht auf 4000 (nicht 80).
+      - traefik.http.services.${TRAEFIK_NAME}.loadbalancer.server.port=4000
+
+      # --- Middleware-Definitionen ------------------------------------------------
+      # Nur was in TRAEFIK_MIDDLEWARES steht, wird tatsächlich angehängt; der Rest
+      # ist hier nur definiert und bleibt ungenutzt (harmlos).
+
+      # gzip/br-Kompression (Beta + Prod).
+      - traefik.http.middlewares.${TRAEFIK_NAME}-compress.compress=true
+
+      # Prod: www.buterland-beckerhook.de -> buterland-beckerhook.de (301).
+      - traefik.http.middlewares.${TRAEFIK_NAME}-www.redirectregex.regex=^https?://www.buterland-beckerhook.de(/.*)
+      - traefik.http.middlewares.${TRAEFIK_NAME}-www.redirectregex.replacement=https://buterland-beckerhook.de$${1}
+      - traefik.http.middlewares.${TRAEFIK_NAME}-www.redirectregex.permanent=true
+
+      # Beta: Basic-Auth. Hash mit htpasswd erzeugen (siehe .env.example).
+      - traefik.http.middlewares.${TRAEFIK_NAME}-auth.basicauth.users=${BASIC_AUTH_USERS}
+
+      # Beta: aus Suchindizes raushalten.
+      - traefik.http.middlewares.${TRAEFIK_NAME}-noindex.headers.customresponseheaders.X-Robots-Tag=noindex, nofollow
+
+networks:
+  # Zentrales Traefik-Netz — muss auf dem Host bereits existieren (external).
+  proxy:
+    external: true
+    name: proxy
+  # Internes Netz nur zwischen Phoenix und Postgres.
+  internal:
 
 volumes:
   postgres_data:
   uploads:
-  caddy_data:
-  caddy_config:
