@@ -1,0 +1,23 @@
+# Beta reverse proxy: host + credentials come from env (set in .env, passed through
+# by deploy/compose.yml). Keeps the Beta site behind Basic-Auth and out of search
+# engines. The production Caddyfile (./Caddyfile) is unaffected.
+{$SITE_HOST} {
+	encode zstd gzip
+
+	# Gate the whole site behind Basic-Auth. Generate the hash with:
+	#   docker run --rm caddy:2-alpine caddy hash-password --plaintext 'PASSWORT'
+	basic_auth {
+		{$BASIC_AUTH_USER} {$BASIC_AUTH_HASH}
+	}
+
+	# Belt-and-suspenders: even if reachable, keep Beta out of search indexes.
+	header X-Robots-Tag "noindex, nofollow"
+
+	reverse_proxy phoenix:4000 {
+		# Active health checks against the app's liveness probe.
+		# (Caddy->upstream health checks are not affected by basic_auth.)
+		health_uri /health/liveness
+		health_interval 15s
+		health_timeout 5s
+	}
+}
