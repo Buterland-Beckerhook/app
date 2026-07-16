@@ -1,34 +1,108 @@
 <Layouts.app flash={@flash} current_path={@conn.request_path}>
-  <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
-    <h1 class="text-3xl font-semibold">Termine {@year}</h1>
-    <a
-      href={~p"/termine/index.ics"}
-      class="rounded border border-primary px-3 py-1 text-sm text-primary hover:bg-primary hover:text-primary-content"
+  <% current_year = Date.utc_today().year %>
+  <% min_year = if @years == [], do: @year, else: Enum.min(@years) %>
+  <% prev_disabled = @year <= min_year %>
+  <% next_disabled = @year >= current_year %>
+
+  <div class="mx-auto w-full max-w-4xl">
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <h1 class="font-logo text-4xl font-bold">Termine {@year}</h1>
+
+      <div class="flex items-center gap-1.5 rounded-full border border-base-300 bg-card p-1">
+        <%= if prev_disabled do %>
+          <span
+            aria-hidden="true"
+            class="flex size-9 items-center justify-center rounded-full text-lg font-bold text-base-300"
+          >
+            ‹
+          </span>
+        <% else %>
+          <a
+            href={~p"/termine?jahr=#{@year - 1}"}
+            aria-label="Vorheriges Jahr"
+            class="flex size-9 items-center justify-center rounded-full text-lg font-bold hover:bg-primary/10 hover:text-primary"
+          >
+            ‹
+          </a>
+        <% end %>
+        <span class="min-w-16 text-center text-sm font-bold">{@year}</span>
+        <%= if next_disabled do %>
+          <span
+            aria-hidden="true"
+            class="flex size-9 items-center justify-center rounded-full text-lg font-bold text-base-300"
+          >
+            ›
+          </span>
+        <% else %>
+          <a
+            href={~p"/termine?jahr=#{@year + 1}"}
+            aria-label="Nächstes Jahr"
+            class="flex size-9 items-center justify-center rounded-full text-lg font-bold hover:bg-primary/10 hover:text-primary"
+          >
+            ›
+          </a>
+        <% end %>
+      </div>
+    </div>
+
+    <p class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted">
+      <span>Alle Termine des Schützenvereins Buterland-Beckerhook im Jahr {@year}.</span>
+      <a href={~p"/termine/index.ics"} class="font-semibold text-primary hover:underline">
+        Kalender abonnieren
+      </a>
+    </p>
+
+    <div
+      :if={@events == []}
+      class="mt-9 rounded-2xl border border-dashed border-base-300 p-16 text-center text-muted"
     >
-      Kalender abonnieren
-    </a>
-  </div>
+      Keine Termine für {@year} hinterlegt.
+    </div>
 
-  <div :if={@years != []} class="mb-6 flex flex-wrap gap-2">
-    <a
-      :for={y <- @years}
-      href={~p"/termine?jahr=#{y}"}
-      class={[
-        "rounded border px-3 py-1 text-sm",
-        y == @year && "border-primary bg-primary text-primary-content",
-        y != @year &&
-          "border-base-300 hover:border-primary hover:text-primary"
-      ]}
-    >
-      {y}
-    </a>
-  </div>
-
-  <p :if={@events == []} class="text-muted">
-    Für {@year} sind keine Termine eingetragen.
-  </p>
-
-  <div class="grid gap-4 sm:grid-cols-2">
-    <.event_card :for={event <- @events} event={event} />
+    <div :if={@events != []} class="mt-9 flex flex-col gap-9">
+      <div :for={{month, events} <- month_groups(@events)}>
+        <h2 class="font-logo mb-3.5 border-b border-base-300 pb-2.5 text-xl font-bold text-primary">
+          {month} {@year}
+        </h2>
+        <div class="flex flex-col gap-3">
+          <a
+            :for={event <- events}
+            href={~p"/termine/#{event.year}/#{event.slug}"}
+            class={[
+              "grid grid-cols-[3.5rem_1fr] items-center gap-4 rounded-2xl border border-base-300 bg-card p-3.5 transition-colors hover:border-primary sm:grid-cols-[3.5rem_1fr_auto]",
+              past_event?(event) && "opacity-55"
+            ]}
+          >
+            <div class="flex size-14 flex-col items-center justify-center rounded-xl bg-tag">
+              <span class="text-[10px] font-bold tracking-wide text-primary uppercase">
+                {month_abbr(event.starts_at)}
+              </span>
+              <span class="font-logo text-xl leading-none font-bold">
+                {event.starts_at.day}
+              </span>
+            </div>
+            <div>
+              <div class="flex flex-wrap items-center gap-2 font-bold">
+                {event.title}
+                <span
+                  :if={event.status == "canceled"}
+                  class="rounded bg-error/10 px-2 py-0.5 text-xs font-medium text-error"
+                >
+                  Abgesagt
+                </span>
+              </div>
+              <div class="mt-0.5 text-sm text-muted">
+                {de_range(event.starts_at, event.ends_at, event.all_day)}<span :if={
+                  event.location
+                }> · {event.location.name}</span>
+              </div>
+            </div>
+            <div class="col-start-2 text-sm font-semibold text-primary sm:col-start-3 sm:text-right">
+              {event_time(event)}
+            </div>
+          </a>
+        </div>
+      </div>
+    </div>
   </div>
 </Layouts.app>

@@ -3,6 +3,33 @@ defmodule BbhWeb.EventHTML do
 
   embed_templates "event_html/*"
 
+  @months ~w(Januar Februar März April Mai Juni Juli August September Oktober November Dezember)
+  @month_abbr ~w(Jan Feb Mär Apr Mai Jun Jul Aug Sep Okt Nov Dez)
+
+  @doc "Group chronological events into `{\"Monat\", [events]}` tuples, ordered by month."
+  def month_groups(events) do
+    events
+    |> Enum.group_by(& &1.starts_at.month)
+    |> Enum.sort_by(fn {month, _} -> month end)
+    |> Enum.map(fn {month, evs} -> {Enum.at(@months, month - 1), evs} end)
+  end
+
+  @doc "Three-letter German month abbreviation for the date badge, e.g. \"Jul\"."
+  def month_abbr(%{month: month}), do: Enum.at(@month_abbr, month - 1)
+
+  @doc "Just the time of an event for the row's right column (or \"Ganztägig\")."
+  def event_time(%{all_day: true}), do: "Ganztägig"
+
+  def event_time(%{starts_at: %DateTime{} = dt}),
+    do: "#{two(dt.hour)}:#{two(dt.minute)} Uhr"
+
+  @doc "Has the event already passed? Dimmed rows in the list."
+  def past_event?(event, now \\ DateTime.utc_now()) do
+    DateTime.compare(event.ends_at || event.starts_at, now) == :lt
+  end
+
+  defp two(n), do: String.pad_leading(Integer.to_string(n), 2, "0")
+
   @doc "Schema.org Event JSON-LD `<script>` (raw, safe) for search engines."
   def event_jsonld(event) do
     json =
