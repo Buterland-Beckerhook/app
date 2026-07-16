@@ -43,3 +43,8 @@ and `mix test` (243 passing, up from 132) all green.
 
 Turn ended due to API error. Check progress.md for last completed task.
 Resume with: /phx:work --continue
+
+## API Failure — 2026-07-16 10:37
+
+Turn ended due to API error. Check progress.md for last completed task.
+Resume with: /phx:work --continue
