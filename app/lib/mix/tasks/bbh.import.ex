@@ -303,9 +303,14 @@ defmodule Mix.Tasks.Bbh.Import do
   end
 
   defp to_html(body) do
+    # Trusted, offline, one-time import of the club's own Hugo content, so raw
+    # HTML passthrough (unsafe) is enabled to preserve fidelity with the source.
     body
     |> strip_shortcodes()
-    |> Earmark.as_html!(compact_output: true)
+    |> MDEx.to_html!(
+      extension: [table: true, strikethrough: true, autolink: true, tasklist: true],
+      render: [unsafe: true]
+    )
   end
 
   defp strip_shortcodes(body), do: Regex.replace(~r/\{\{[<%].*?[%>]\}\}/s, body, "")

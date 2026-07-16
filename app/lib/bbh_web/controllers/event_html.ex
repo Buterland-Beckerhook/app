@@ -31,6 +31,7 @@ defmodule BbhWeb.EventHTML do
   defp two(n), do: String.pad_leading(Integer.to_string(n), 2, "0")
 
   @doc "Schema.org Event JSON-LD `<script>` (raw, safe) for search engines."
+  # sobelow_skip ["XSS.Raw"]
   def event_jsonld(event) do
     json =
       %{
@@ -49,7 +50,9 @@ defmodule BbhWeb.EventHTML do
         "location",
         event.location && %{"@type" => "Place", "name" => event.location.name}
       )
-      |> Jason.encode!()
+      # escape: :html_safe encodes `<`, `>`, `&` so event-supplied strings can't
+      # break out of the surrounding <script> tag (e.g. a title with "</script>").
+      |> Jason.encode!(escape: :html_safe)
 
     Phoenix.HTML.raw(~s(<script type="application/ld+json">) <> json <> "</script>")
   end

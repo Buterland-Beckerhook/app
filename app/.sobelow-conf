@@ -1,0 +1,17 @@
+# Sobelow (Phoenix SAST) configuration — run via `mix sobelow --config`.
+# Used by CI (.github/workflows/ci.yml) and the `mix precommit` alias.
+[
+  verbose: false,
+  # Skip the outbound "is there a newer Sobelow?" version ping — keeps CI runs
+  # hermetic and deterministic.
+  private: true,
+  # Honour inline `# sobelow_skip [...]` annotations at verified-safe call sites.
+  skip: true,
+  # Config.CSP: the Content-Security-Policy is set per request by
+  # BbhWeb.Plugs.CSP (nonce + 'strict-dynamic'), which sobelow's router-level
+  # heuristic cannot detect. All other checks stay active.
+  ignore: ["Config.CSP"],
+  ignore_files: [],
+  # Fail the run (non-zero exit) on any finding not skipped/ignored above.
+  exit: "low"
+]

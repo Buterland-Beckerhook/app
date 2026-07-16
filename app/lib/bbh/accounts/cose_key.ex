@@ -22,6 +22,7 @@ defmodule Bbh.Accounts.CoseKey do
   def dump(_), do: :error
 
   @impl true
+  # sobelow_skip ["Misc.BinToTerm"]
   def load(bin) when is_binary(bin) do
     {:ok, :erlang.binary_to_term(bin, [:safe])}
   rescue
