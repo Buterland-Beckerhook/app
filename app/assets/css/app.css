@@ -170,6 +170,90 @@
   --font-logo: "Source Serif 4", ui-serif, Georgia, serif;
 }
 
+/* Rich-text (Trix) output styling.
+
+   daisyUI defines the `--tw-prose-*` color variables on `.prose` (per theme),
+   but ships none of the element rules that consume them — those normally come
+   from @tailwindcss/typography, which we don't install (no npm in this repo).
+   Tailwind Preflight then strips default heading sizes and list markers, so the
+   stored Trix HTML renders unstyled. These rules complete the styling for the
+   exact element set the Trix toolbar produces, reusing daisyUI's theme-aware
+   `--tw-prose-*` tokens so light/dark just work. `.prose el` selectors
+   (specificity 0,1,1) beat Preflight (0,0,1) and daisyUI's :where() rules (0,1,0). */
+.prose :where(p, ul, ol, blockquote, pre, h1, h2, h3) {
+  margin-block: 0.75em;
+}
+.prose :where(p, li) {
+  color: var(--tw-prose-body);
+}
+.prose h1,
+.prose h2,
+.prose h3 {
+  color: var(--tw-prose-headings);
+  font-weight: 700;
+  line-height: 1.25;
+  margin-block: 1.2em 0.5em;
+}
+/* Subordinate to the page title (text-3xl / 1.875rem). */
+.prose h1 {
+  font-size: 1.5rem;
+}
+.prose h2 {
+  font-size: 1.25rem;
+}
+.prose h3 {
+  font-size: 1.125rem;
+}
+.prose a {
+  color: var(--color-primary);
+  text-decoration: underline;
+  font-weight: 500;
+}
+.prose strong {
+  color: var(--tw-prose-bold, inherit);
+  font-weight: 700;
+}
+.prose ul,
+.prose ol {
+  padding-inline-start: 1.5rem;
+}
+.prose ul {
+  list-style: disc;
+}
+.prose ol {
+  list-style: decimal;
+}
+.prose li {
+  margin-block: 0.375em;
+}
+.prose li::marker {
+  color: var(--tw-prose-bullets);
+}
+.prose ol > li::marker {
+  color: var(--tw-prose-counters);
+}
+.prose blockquote {
+  border-inline-start: 3px solid var(--tw-prose-quote-borders);
+  padding-inline-start: 1rem;
+  font-style: italic;
+  color: var(--tw-prose-quotes);
+}
+.prose pre {
+  background: var(--tw-prose-pre-bg);
+  color: var(--tw-prose-pre-code);
+  padding: 1rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+}
+.prose code {
+  color: var(--tw-prose-code);
+}
+.prose img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+}
+
 /* Give the Trix editor a sensible min height in the admin. */
 trix-editor {
   min-height: 8rem;

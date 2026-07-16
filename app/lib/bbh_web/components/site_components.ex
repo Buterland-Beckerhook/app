@@ -212,7 +212,7 @@ defmodule BbhWeb.SiteComponents do
   def block(%{type: "richtext"} = assigns) do
     ~H"""
     <div class="prose max-w-none dark:prose-invert">
-      {Phoenix.HTML.raw(Bbh.Placeholders.render(@block.body))}
+      {BbhWeb.Format.render_richtext(@block.body)}
     </div>
     """
   end
@@ -221,7 +221,7 @@ defmodule BbhWeb.SiteComponents do
     ~H"""
     <div class={["rounded-lg border-l-4 p-4", alert_classes(@block.icon)]}>
       <div class="prose prose-sm max-w-none dark:prose-invert">
-        {Phoenix.HTML.raw(Bbh.Placeholders.render(@block.body))}
+        {BbhWeb.Format.render_richtext(@block.body)}
       </div>
     </div>
     """
@@ -246,7 +246,7 @@ defmodule BbhWeb.SiteComponents do
           {@block.subtitle}
         </p>
         <div :if={@block.body} class="prose prose-sm mt-2 max-w-none dark:prose-invert">
-          {Phoenix.HTML.raw(Bbh.Placeholders.render(@block.body))}
+          {BbhWeb.Format.render_richtext(@block.body)}
         </div>
       </div>
     </div>

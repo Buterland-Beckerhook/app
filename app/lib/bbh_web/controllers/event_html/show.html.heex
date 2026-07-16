@@ -42,7 +42,7 @@
     </div>
 
     <div :if={@event.body} class="prose mt-6 max-w-none dark:prose-invert">
-      {Phoenix.HTML.raw(Bbh.Placeholders.render(@event.body))}
+      {render_richtext(@event.body)}
     </div>
 
     <section :if={@event.children != []} class="mt-8">

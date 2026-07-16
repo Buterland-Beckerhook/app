@@ -30,44 +30,28 @@ defmodule BbhWeb.PageControllerTest do
     html = conn |> get(~p"/") |> html_response(200)
 
     assert html =~ "Schützenfest 2099"
-    assert html =~ "–21 · 2099"
+    # Event date badge (redesign): month abbreviation + link to the event.
+    assert html =~ "Jul"
+    assert html =~ "/termine/2099/"
     assert html =~ "Ein Homepage-Artikel"
     assert html =~ "König 2098–2099"
     assert html =~ "Amtierend"
     assert html =~ "Hans Hansen"
   end
 
-  describe "badge_suffix/1" do
-    test "appends the end day for multi-day events within one month" do
-      event = %{
-        starts_at: DateTime.new!(~D[2026-07-18], ~T[14:00:00], "Etc/UTC"),
-        ends_at: DateTime.new!(~D[2026-07-21], ~T[22:00:00], "Etc/UTC")
-      }
-
-      assert PageHTML.badge_suffix(event) == "–21 · 2026"
+  describe "month_abbr/1" do
+    test "returns the short German month label for the date badge" do
+      assert PageHTML.month_abbr(DateTime.new!(~D[2026-01-18], ~T[14:00:00], "Etc/UTC")) == "Jan"
+      assert PageHTML.month_abbr(DateTime.new!(~D[2026-03-18], ~T[14:00:00], "Etc/UTC")) == "Mär"
+      assert PageHTML.month_abbr(DateTime.new!(~D[2026-07-18], ~T[14:00:00], "Etc/UTC")) == "Jul"
+      assert PageHTML.month_abbr(DateTime.new!(~D[2026-12-18], ~T[14:00:00], "Etc/UTC")) == "Dez"
     end
+  end
 
-    test "shows only the year without an end date" do
-      event = %{starts_at: DateTime.new!(~D[2026-07-18], ~T[14:00:00], "Etc/UTC"), ends_at: nil}
-      assert PageHTML.badge_suffix(event) == "2026"
-    end
-
-    test "shows only the year for a same-day event" do
-      event = %{
-        starts_at: DateTime.new!(~D[2026-07-18], ~T[14:00:00], "Etc/UTC"),
-        ends_at: DateTime.new!(~D[2026-07-18], ~T[22:00:00], "Etc/UTC")
-      }
-
-      assert PageHTML.badge_suffix(event) == "2026"
-    end
-
-    test "falls back to the year for cross-month ranges" do
-      event = %{
-        starts_at: DateTime.new!(~D[2026-07-31], ~T[14:00:00], "Etc/UTC"),
-        ends_at: DateTime.new!(~D[2026-08-02], ~T[22:00:00], "Etc/UTC")
-      }
-
-      assert PageHTML.badge_suffix(event) == "2026"
+  describe "countdown_target/1" do
+    test "renders a naive ISO timestamp (no timezone) for the JS countdown" do
+      dt = DateTime.new!(~D[2026-07-18], ~T[14:05:00], "Etc/UTC")
+      assert PageHTML.countdown_target(dt) == "2026-07-18T14:05:00"
     end
   end
 end

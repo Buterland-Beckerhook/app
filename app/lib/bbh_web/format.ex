@@ -73,4 +73,46 @@ defmodule BbhWeb.Format do
   @doc "Alt text for an article image (its title, falling back to a generic label)."
   def image_alt(%ArticleImage{title: title}) when is_binary(title) and title != "", do: title
   def image_alt(_), do: "Bild"
+
+  @doc """
+  Render a stored rich-text body for output: resolve `{{ role.field }}` placeholders,
+  retarget external/media links to open in a new tab, and mark the result safe.
+
+  Links to another host or to a `/media/...` asset get `target="_blank"` (with
+  `rel="noopener noreferrer"`); internal page links (relative, or absolute to our
+  own host) open in place. `mailto:`/`tel:` links are left untouched.
+
+  The stored HTML is already sanitized on write (`Bbh.Html.sanitize/1`), which
+  strips `target`/`rel` — so retargeting must happen here, at render time.
+  """
+  def render_richtext(nil), do: nil
+
+  def render_richtext(body) when is_binary(body) do
+    body
+    |> Bbh.Placeholders.render()
+    |> retarget_links()
+    |> Phoenix.HTML.raw()
+  end
+
+  defp retarget_links(html), do: Regex.replace(~r/<a\b[^>]*>/i, html, &rewrite_anchor/1)
+
+  defp rewrite_anchor(tag) do
+    with [_, href] <- Regex.run(~r/href="([^"]*)"/i, tag),
+         true <- new_tab?(href) do
+      String.replace_suffix(tag, ">", ~s( target="_blank" rel="noopener noreferrer">))
+    else
+      _ -> tag
+    end
+  end
+
+  defp new_tab?(href) do
+    uri = URI.parse(href)
+
+    cond do
+      uri.scheme in ["mailto", "tel"] -> false
+      is_binary(uri.host) and uri.host != BbhWeb.Endpoint.host() -> true
+      String.starts_with?(uri.path || "", "/media/") -> true
+      true -> false
+    end
+  end
 end

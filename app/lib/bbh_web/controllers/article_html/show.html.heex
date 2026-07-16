@@ -36,7 +36,7 @@
     <.hero_image :if={!hero} article={@article} width={1024} class="mt-6 w-full rounded-lg" />
 
     <div :if={@article.body} class="prose mt-6 max-w-none dark:prose-invert">
-      {Phoenix.HTML.raw(Bbh.Placeholders.render(@article.body))}
+      {render_richtext(@article.body)}
     </div>
 
     <section
