@@ -98,42 +98,55 @@
   </section>
 
   <%!-- ===== THRON ===== --%>
-  <section :if={@throne} id="thron" class="mt-16 scroll-mt-24">
-    <div class="grid gap-11 md:grid-cols-[0.9fr_1.1fr]">
-      <div>
-        <span class="text-[13px] font-semibold tracking-[0.12em] text-primary uppercase">
-          Seit 1909
-        </span>
-        <h2 class="font-logo mt-1.5 text-4xl font-bold">Aktueller Thron</h2>
-        <p class="mt-3.5 text-base leading-relaxed text-muted">
-          Das amtierende Königspaar regiert im Buterland-Beckerhook. Entdecken Sie unsere
-          Throne und ihre Geschichte bis zurück ins Gründungsjahr.
-        </p>
-        <a
-          href={~p"/thron"}
-          class="mt-5 inline-flex items-center gap-2 rounded-full border border-base-300 bg-card px-5 py-3 font-semibold text-primary transition-colors hover:border-primary"
-        >
-          Alle Throne seit 1909 →
-        </a>
-      </div>
-      <div class="overflow-hidden rounded-[20px] border border-base-300 bg-card">
-        <% pic = throne_picture(@throne) %>
-        <div :if={pic} class="h-[220px]">
+  <section :if={@thrones != []} id="thron" class="mt-16 scroll-mt-24">
+    <div class="mb-9 max-w-2xl">
+      <span class="text-[13px] font-semibold tracking-[0.12em] text-primary uppercase">
+        Seit 1909
+      </span>
+      <h2 class="font-logo mt-1.5 text-4xl font-bold">Throne</h2>
+      <p class="mt-3.5 text-base leading-relaxed text-muted">
+        Das amtierende Königspaar regiert im Buterland-Beckerhook, an seiner Seite Kaiser
+        und Stadtkaiser. Entdecken Sie unsere Throne und ihre Geschichte bis zurück ins
+        Gründungsjahr.
+      </p>
+      <a
+        href={~p"/thron"}
+        class="mt-5 inline-flex items-center gap-2 rounded-full border border-base-300 bg-card px-5 py-3 font-semibold text-primary transition-colors hover:border-primary"
+      >
+        Alle Throne seit 1909 →
+      </a>
+    </div>
+
+    <div class="flex flex-col gap-8">
+      <%!-- Alle Bildkacheln gleich hoch (md:min-h) und per items-stretch so hoch wie die
+           Thron-Tabelle daneben — auch der Stadtkaiser (nur das Kaiserpaar). --%>
+      <div
+        :for={throne <- @thrones}
+        class="grid gap-6 md:grid-cols-[0.9fr_1.1fr] md:items-stretch"
+      >
+        <% pic = throne_picture(throne) %>
+        <div class="min-h-56 overflow-hidden rounded-[20px] border border-base-300 bg-card md:min-h-[24rem]">
           <img
-            src={media_url(pic.media, width: 960, height: 440)}
+            :if={pic}
+            src={media_url(pic.media, width: 960, height: 720)}
             alt={image_alt(pic)}
             loading="lazy"
             class="h-full w-full object-cover"
           />
+          <div :if={!pic} class="flex h-full items-center justify-center bg-tag">
+            <img src={~p"/images/logo.svg"} alt="" class="h-24 w-auto opacity-30" />
+          </div>
         </div>
-        <div class="flex flex-wrap items-center justify-between gap-2.5 bg-[linear-gradient(120deg,#0f4d2c,#1c7d47)] px-7 py-5">
-          <span class="font-logo text-2xl font-bold text-white">{throne_caption(@throne)}</span>
-          <span class="rounded-full bg-white/15 px-3 py-1.5 text-xs font-bold tracking-wider text-[#eafaef] uppercase">
-            Amtierend
-          </span>
-        </div>
-        <div class="px-7 pt-1 pb-3">
-          <.throne_table throne={@throne} show_caption={false} />
+        <div class="flex flex-col overflow-hidden rounded-[20px] border border-base-300 bg-card">
+          <div class="flex flex-wrap items-center justify-between gap-2.5 bg-[linear-gradient(120deg,#0f4d2c,#1c7d47)] px-7 py-5">
+            <span class="font-logo text-2xl font-bold text-white">{throne_caption(throne)}</span>
+            <span class="rounded-full bg-white/15 px-3 py-1.5 text-xs font-bold tracking-wider text-[#eafaef] uppercase">
+              Amtierend
+            </span>
+          </div>
+          <div class="px-7 pt-1 pb-3">
+            <.throne_table throne={throne} show_caption={false} />
+          </div>
         </div>
       </div>
     </div>

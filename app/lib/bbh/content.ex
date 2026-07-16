@@ -44,6 +44,45 @@ defmodule Bbh.Content do
     )
   end
 
+  @doc """
+  The currently reigning throne of each type for the homepage throne section, ordered
+  König → Kaiser → Stadtkaiser. Missing types are omitted.
+
+  The König changes yearly, so we take the most recent one. A Kaiser/Stadtkaiser reigns
+  until the next Kaiserthron/Stadtschützenfest — which the club does not hold every year
+  and may postpone — so the current one is the latest with an *open* end year; once it has
+  concluded and no successor exists, none is shown.
+  """
+  def current_thrones do
+    [
+      current_throne_of_type("koenig"),
+      current_open_throne_of_type("kaiser"),
+      current_open_throne_of_type("stadtkaiser")
+    ]
+    |> Enum.reject(&is_nil/1)
+  end
+
+  defp current_throne_of_type(type) do
+    Repo.one(
+      from t in Throne,
+        where: t.type == ^type,
+        order_by: [desc: t.begin_year],
+        limit: 1,
+        preload: [article: [images: :media]]
+    )
+  end
+
+  # Latest still-reigning throne of a type (no end year set yet).
+  defp current_open_throne_of_type(type) do
+    Repo.one(
+      from t in Throne,
+        where: t.type == ^type and is_nil(t.end_year),
+        order_by: [desc: t.begin_year],
+        limit: 1,
+        preload: [article: [images: :media]]
+    )
+  end
+
   @doc "All thrones newest first, paginated (the /thron gallery), with article + images."
   def list_thrones(page \\ 1, per_page \\ 1) do
     base = from t in Throne, order_by: [desc: t.begin_year]

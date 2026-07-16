@@ -109,6 +109,13 @@ defmodule BbhWeb.SiteComponents do
   attr :show_caption, :boolean, default: true, doc: "hide when the caption is shown elsewhere"
 
   def throne_table(assigns) do
+    {king_label, queen_label} = throne_roles(assigns.throne.type)
+    # Stadtkaiser = nur das (Stadt-)Kaiserpaar; König/Kaiser = voller Thron mit Hofstaat.
+    full_court? = assigns.throne.type != "stadtkaiser"
+
+    assigns =
+      assign(assigns, king_label: king_label, queen_label: queen_label, full_court?: full_court?)
+
     ~H"""
     <table class="w-full text-left text-[15px]">
       <caption :if={@show_caption} class="font-logo mb-2 text-lg font-bold text-primary">
@@ -116,32 +123,32 @@ defmodule BbhWeb.SiteComponents do
       </caption>
       <tbody class="divide-y divide-base-300">
         <tr>
-          <th class="py-3.5 pr-4 font-medium text-muted">König</th>
+          <th class="py-3.5 pr-4 font-medium text-muted">{@king_label}</th>
           <td class="py-3.5 text-right font-semibold">
             {[@throne.king_title, @throne.king] |> Enum.reject(&is_nil/1) |> Enum.join(" – ")}
           </td>
         </tr>
         <tr>
-          <th class="py-3.5 pr-4 font-medium text-muted">Königin</th>
+          <th class="py-3.5 pr-4 font-medium text-muted">{@queen_label}</th>
           <td class="py-3.5 text-right font-semibold">{@throne.queen}</td>
         </tr>
-        <tr :if={@throne.moh1 || @throne.loh1}>
+        <tr :if={@full_court? && (@throne.moh1 || @throne.loh1)}>
           <th class="py-3.5 pr-4 font-medium text-muted">Ehrenpaare</th>
           <td class="py-3.5 text-right font-semibold">
             {[@throne.loh1, @throne.moh1] |> Enum.reject(&is_nil/1) |> Enum.join(" und ")}
           </td>
         </tr>
-        <tr :if={@throne.moh2 || @throne.loh2}>
+        <tr :if={@full_court? && (@throne.moh2 || @throne.loh2)}>
           <th class="py-3.5 pr-4 font-medium text-muted"></th>
           <td class="py-3.5 text-right font-semibold">
             {[@throne.loh2, @throne.moh2] |> Enum.reject(&is_nil/1) |> Enum.join(" und ")}
           </td>
         </tr>
-        <tr :if={@throne.cupbearer}>
+        <tr :if={@full_court? && @throne.cupbearer}>
           <th class="py-3.5 pr-4 font-medium text-muted">Mundschenk</th>
           <td class="py-3.5 text-right font-semibold">{@throne.cupbearer}</td>
         </tr>
-        <tr :if={@throne.courtmarshal}>
+        <tr :if={@full_court? && @throne.courtmarshal}>
           <th class="py-3.5 pr-4 font-medium text-muted">Oberhofmarschall</th>
           <td class="py-3.5 text-right font-semibold">{@throne.courtmarshal}</td>
         </tr>
@@ -149,6 +156,11 @@ defmodule BbhWeb.SiteComponents do
     </table>
     """
   end
+
+  # Row labels for the royal couple, by throne type.
+  defp throne_roles("kaiser"), do: {"Kaiser", "Kaiserin"}
+  defp throne_roles("stadtkaiser"), do: {"Stadtkaiser", "Stadtkaiserin"}
+  defp throne_roles(_), do: {"König", "Königin"}
 
   @doc "Caption line for a throne, e.g. \"König 2025–2026\" or \"Kaiser 2009\"."
   def throne_caption(%Throne{} = t) do

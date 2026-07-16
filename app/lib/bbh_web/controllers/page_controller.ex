@@ -6,7 +6,7 @@ defmodule BbhWeb.PageController do
       page_title: "Startseite",
       articles: Bbh.Content.latest_articles(3),
       next_event: Bbh.Calendar.next_event(),
-      throne: Bbh.Content.current_throne()
+      thrones: Bbh.Content.current_thrones()
     )
   end
 end
