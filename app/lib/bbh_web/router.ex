@@ -44,7 +44,7 @@ defmodule BbhWeb.Router do
     get "/thron", ThroneController, :index
 
     get "/verein", PageContentController, :verein
-    get "/verein/:slug", PageContentController, :verein_page
+    get "/verein/*path", PageContentController, :verein_page
 
     get "/impressum", PageContentController, :impressum
     get "/datenschutz", PageContentController, :datenschutz

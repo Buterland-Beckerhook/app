@@ -131,6 +131,68 @@ defmodule Bbh.ContentTest do
     end
   end
 
+  describe "page navigation tree" do
+    test "list_menu_pages/0 returns published top-level menu pages, ordered" do
+      page_fixture(slug: "b-seite", title: "B", status: "published", sort_order: 2)
+      page_fixture(slug: "a-seite", title: "A", status: "published", sort_order: 1)
+      # excluded: a child, a draft, and a legal (show_in_menu false) page
+      root = page_fixture(slug: "root", status: "published", sort_order: 3)
+      page_fixture(slug: "kind", status: "published", parent_id: root.id)
+      page_fixture(slug: "entwurf", status: "draft")
+      page_fixture(slug: "impressum", status: "published", show_in_menu: false)
+
+      slugs = Content.list_menu_pages() |> Enum.map(& &1.slug)
+      assert slugs == ["a-seite", "b-seite", "root"]
+    end
+
+    test "get_page_by_path/1 resolves a valid nested path" do
+      parent = page_fixture(slug: "ueber-uns", status: "published")
+      child = page_fixture(slug: "geschichte", status: "published", parent_id: parent.id)
+
+      assert {resolved, [ancestor, ^child]} =
+               Content.get_page_by_path(["ueber-uns", "geschichte"])
+
+      assert resolved.id == child.id
+      assert ancestor.id == parent.id
+    end
+
+    test "get_page_by_path/1 rejects a wrong ancestor chain" do
+      parent = page_fixture(slug: "ueber-uns", status: "published")
+      page_fixture(slug: "geschichte", status: "published", parent_id: parent.id)
+
+      # Correct slug but missing/incorrect parent segment.
+      refute Content.get_page_by_path(["geschichte"])
+      refute Content.get_page_by_path(["falsch", "geschichte"])
+    end
+
+    test "get_page_by_path/1 rejects a tree rooted at a non-menu (legal) page" do
+      legal = page_fixture(slug: "impressum", status: "published", show_in_menu: false)
+      page_fixture(slug: "unterpunkt", status: "published", parent_id: legal.id)
+
+      refute Content.get_page_by_path(["impressum", "unterpunkt"])
+    end
+
+    test "section_links/1 flattens the section root-first with depth" do
+      root = page_fixture(slug: "ueber-uns", title: "Über uns", status: "published")
+
+      child =
+        page_fixture(
+          slug: "geschichte",
+          title: "Geschichte",
+          status: "published",
+          parent_id: root.id
+        )
+
+      page_fixture(slug: "detail", title: "Detail", status: "published", parent_id: child.id)
+
+      assert [
+               %{path: "/verein/ueber-uns", title: "Über uns", depth: 0},
+               %{path: "/verein/ueber-uns/geschichte", title: "Geschichte", depth: 1},
+               %{path: "/verein/ueber-uns/geschichte/detail", title: "Detail", depth: 2}
+             ] = Content.section_links(root)
+    end
+  end
+
   describe "article images" do
     test "add, list and delete article images" do
       article = article_fixture()

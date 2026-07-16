@@ -134,6 +134,102 @@ defmodule Bbh.Content do
   defp preload_block(query, "image_gallery"), do: preload(query, files: :media)
   defp preload_block(query, _), do: query
 
+  ## Public page navigation (the block-based "Verein" section)
+
+  @doc """
+  Published top-level pages (`parent_id` nil) flagged for the menu, ordered by
+  `sort_order`. Drives the dynamic "Verein" dropdown and the /verein overview.
+  Excludes Impressum/Datenschutz (their `show_in_menu` is false).
+  """
+  def list_menu_pages do
+    Repo.all(
+      from p in Page,
+        where: is_nil(p.parent_id) and p.status == "published" and p.show_in_menu == true,
+        order_by: [asc: p.sort_order, asc: p.title]
+    )
+  end
+
+  @doc "Published direct children of `parent_id`, ordered by `sort_order`."
+  def list_child_pages(parent_id) do
+    Repo.all(
+      from p in Page,
+        where: p.parent_id == ^parent_id and p.status == "published",
+        order_by: [asc: p.sort_order, asc: p.title]
+    )
+  end
+
+  @doc """
+  Resolve a nested `/verein/*path` (a list of slug segments) to
+  `{page, ancestors}` where `ancestors` runs root → leaf (inclusive).
+
+  Returns `nil` unless the whole chain is published, the ancestor slugs match
+  the requested segments exactly, and the root is a menu page (`show_in_menu`).
+  This rejects wrong nesting (e.g. `/verein/vereinsgeschichte`) and legal pages
+  (e.g. `/verein/impressum`).
+  """
+  def get_page_by_path([_ | _] = segments) do
+    case find_menu_page(List.last(segments)) do
+      {_leaf, ancestors} = result ->
+        if Enum.map(ancestors, & &1.slug) == segments, do: result, else: nil
+
+      nil ->
+        nil
+    end
+  end
+
+  def get_page_by_path(_), do: nil
+
+  @doc """
+  A published page by (globally unique) slug together with its root → leaf
+  ancestor chain, but only if the whole chain is published and its root is a
+  menu page. Returns `{page, ancestors}` or `nil`.
+
+  Used to build canonical `/verein/...` redirects for non-canonical paths.
+  """
+  def find_menu_page(slug) do
+    with %Page{} = leaf <-
+           Repo.one(from p in Page, where: p.slug == ^slug and p.status == "published"),
+         ancestors = page_ancestors(leaf),
+         true <- Enum.all?(ancestors, &(&1.status == "published")),
+         %Page{show_in_menu: true} <- List.first(ancestors) do
+      {leaf, ancestors}
+    else
+      _ -> nil
+    end
+  end
+
+  @doc "A page's ancestor chain, root → leaf (inclusive)."
+  def page_ancestors(%Page{} = page), do: build_ancestors(page, [page])
+
+  defp build_ancestors(%Page{parent_id: nil}, acc), do: acc
+
+  defp build_ancestors(%Page{parent_id: pid}, acc) do
+    case Repo.get(Page, pid) do
+      nil -> acc
+      parent -> build_ancestors(parent, [parent | acc])
+    end
+  end
+
+  @doc """
+  Flat, depth-annotated links for a section's sidebar / mobile select: the root
+  page first, then its published descendants in DFS order. Each entry is
+  `%{path: canonical_path, title: title, depth: 0-based}`.
+  """
+  def section_links(%Page{} = root), do: page_links(root, "/verein/" <> root.slug, 0)
+
+  defp page_links(%Page{} = page, path, depth) do
+    [
+      %{path: path, title: page.title, depth: depth}
+      | page.id
+        |> list_child_pages()
+        |> Enum.flat_map(fn child -> page_links(child, path <> "/" <> child.slug, depth + 1) end)
+    ]
+  end
+
+  @doc "Canonical public path for a page given its root → leaf ancestor chain."
+  def page_path(ancestors) when is_list(ancestors),
+    do: "/verein/" <> Enum.map_join(ancestors, "/", & &1.slug)
+
   ## Admin CRUD — articles
 
   def list_articles do

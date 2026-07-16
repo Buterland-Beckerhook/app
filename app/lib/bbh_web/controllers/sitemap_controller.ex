@@ -1,8 +1,9 @@
 defmodule BbhWeb.SitemapController do
   use BbhWeb, :controller
   import Ecto.Query
+  alias Bbh.Content
   alias Bbh.Repo
-  alias Bbh.Content.Article
+  alias Bbh.Content.{Article, Page}
   alias Bbh.Calendar.Event
 
   @static ~w(/ /aktuell /termine /thron /verein /kontakt /impressum /datenschutz)
@@ -13,7 +14,8 @@ defmodule BbhWeb.SitemapController do
     entries =
       Enum.map(@static, &{base <> &1, nil}) ++
         article_entries(base) ++
-        event_entries(base)
+        event_entries(base) ++
+        page_entries(base)
 
     body = """
     <?xml version="1.0" encoding="UTF-8"?>
@@ -43,6 +45,22 @@ defmodule BbhWeb.SitemapController do
         select: {e.year, e.slug, e.updated_at}
     )
     |> Enum.map(fn {year, slug, updated} -> {"#{base}/termine/#{year}/#{slug}", updated} end)
+  end
+
+  # Published pages reachable under /verein: whole ancestor chain published and
+  # rooted at a menu page (legal pages are covered by @static).
+  defp page_entries(base) do
+    Repo.all(from p in Page, where: p.status == "published")
+    |> Enum.flat_map(fn page ->
+      ancestors = Content.page_ancestors(page)
+
+      if match?(%Page{show_in_menu: true}, List.first(ancestors)) and
+           Enum.all?(ancestors, &(&1.status == "published")) do
+        [{base <> Content.page_path(ancestors), page.updated_at}]
+      else
+        []
+      end
+    end)
   end
 
   defp url_element({loc, nil}), do: "  <url><loc>#{loc}</loc></url>"

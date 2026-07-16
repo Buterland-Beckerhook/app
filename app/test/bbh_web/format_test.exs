@@ -43,7 +43,9 @@ defmodule BbhWeb.FormatTest do
     end
 
     test "mailto/tel links are left untouched" do
-      assert render(~s(<a href="mailto:info@example.com">Mail</a>)) |> String.contains?("target") == false
+      assert render(~s(<a href="mailto:info@example.com">Mail</a>)) |> String.contains?("target") ==
+               false
+
       assert render(~s(<a href="tel:+491234">Tel</a>)) |> String.contains?("target") == false
     end
 

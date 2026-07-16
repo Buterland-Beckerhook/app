@@ -26,9 +26,12 @@ defmodule BbhWeb.Admin.PageLive.Form do
   end
 
   defp apply_action(socket, :new, _params) do
+    page = %Page{status: "draft"}
+
     socket
-    |> assign(page_title: "Neue Seite", page: %Page{status: "draft"}, blocks: [])
-    |> assign_meta_form(Content.change_page(%Page{status: "draft"}))
+    |> assign(page_title: "Neue Seite", page: page, blocks: [])
+    |> assign(parent_options: parent_options(page))
+    |> assign_meta_form(Content.change_page(page))
   end
 
   defp apply_action(socket, :edit, %{"id" => id}) do
@@ -36,6 +39,7 @@ defmodule BbhWeb.Admin.PageLive.Form do
 
     socket
     |> assign(page_title: "Seite bearbeiten", page: page, blocks: Content.load_blocks(page))
+    |> assign(parent_options: parent_options(page))
     |> assign_meta_form(Content.change_page(page))
   end
 
@@ -159,6 +163,44 @@ defmodule BbhWeb.Admin.PageLive.Form do
   defp assign_meta_form(socket, changeset),
     do: assign(socket, :form, to_form(changeset, as: "page"))
 
+  # Parent picker options as "Root / Child" labels, excluding the page itself and
+  # its descendants (so a page can't become its own ancestor).
+  defp parent_options(page) do
+    pages = Content.list_pages()
+    by_id = Map.new(pages, &{&1.id, &1})
+    excluded = descendant_ids(page.id, pages)
+
+    pages
+    |> Enum.reject(&(&1.id in excluded))
+    |> Enum.map(fn p -> {label_path(p, by_id), p.id} end)
+    |> Enum.sort_by(fn {label, _id} -> label end)
+  end
+
+  defp descendant_ids(nil, _pages), do: []
+
+  defp descendant_ids(id, pages) do
+    children = Enum.group_by(pages, & &1.parent_id)
+    collect_ids([id], children, MapSet.new()) |> MapSet.to_list()
+  end
+
+  defp collect_ids([], _children, acc), do: acc
+
+  defp collect_ids([id | rest], children, acc) do
+    kids = children |> Map.get(id, []) |> Enum.map(& &1.id)
+    collect_ids(rest ++ kids, children, MapSet.put(acc, id))
+  end
+
+  defp label_path(page, by_id), do: page |> label_chain(by_id, [page.title]) |> Enum.join(" / ")
+
+  defp label_chain(%{parent_id: nil}, _by_id, acc), do: acc
+
+  defp label_chain(%{parent_id: pid}, by_id, acc) do
+    case Map.get(by_id, pid) do
+      nil -> acc
+      parent -> label_chain(parent, by_id, [parent.title | acc])
+    end
+  end
+
   # Per-type param massaging before the block changeset.
   defp normalize_block("person_list", params) do
     Map.update(params, "filter_roles", [], fn
@@ -189,8 +231,16 @@ defmodule BbhWeb.Admin.PageLive.Form do
       >
         <.input field={@form[:title]} label="Titel" required />
         <.input field={@form[:slug]} label="Slug" required />
+        <.input
+          field={@form[:parent_id]}
+          type="select"
+          label="Elternseite"
+          prompt="— Keine (Top-Level) —"
+          options={@parent_options}
+        />
         <.input field={@form[:status]} type="select" label="Status" options={@statuses} />
         <.input field={@form[:sort_order]} type="number" label="Sortierung" />
+        <.input field={@form[:show_in_menu]} type="checkbox" label="Im Verein-Menü anzeigen" />
         <.button variant="primary" phx-disable-with="Speichern…">Seite speichern</.button>
       </.form>
 

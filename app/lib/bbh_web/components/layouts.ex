@@ -11,6 +11,35 @@ defmodule BbhWeb.Layouts do
   # and other static content.
   embed_templates "layouts/*"
 
+  # Thron keeps a small, static child list (two Kaiserthron articles + the list).
+  @thron_children [
+    %{href: "/thron", label: "Throne seit 1909"},
+    %{href: "/aktuell/2009/kaiserthron-2009", label: "Kaiserthron 2009"},
+    %{href: "/aktuell/1984/kaiserthron-1984", label: "Kaiserthron 1984"}
+  ]
+  @thron_child_hrefs Enum.map(@thron_children, & &1.href)
+
+  # Full public nav. The "Verein" dropdown is built from the page tree
+  # (top-level, published, show_in_menu pages) so editors control it.
+  defp nav_links do
+    verein =
+      case Enum.map(
+             Bbh.Content.list_menu_pages(),
+             &%{href: "/verein/#{&1.slug}", label: &1.title}
+           ) do
+        [] -> %{href: "/verein", label: "Verein"}
+        children -> %{href: "/verein", label: "Verein", children: children}
+      end
+
+    [
+      %{href: "/aktuell", label: "Aktuelles"},
+      %{href: "/termine", label: "Termine"},
+      %{href: "/thron", label: "Thron", children: @thron_children},
+      verein,
+      %{href: "/kontakt", label: "Kontakt"}
+    ]
+  end
+
   @doc """
   Renders your app layout.
 
@@ -25,33 +54,6 @@ defmodule BbhWeb.Layouts do
       </Layouts.app>
 
   """
-  @nav [
-    %{href: "/aktuell", label: "Aktuelles"},
-    %{href: "/termine", label: "Termine"},
-    %{
-      href: "/thron",
-      label: "Thron",
-      children: [
-        %{href: "/thron", label: "Throne seit 1909"},
-        %{href: "/aktuell/2009/kaiserthron-2009", label: "Kaiserthron 2009"},
-        %{href: "/aktuell/1984/kaiserthron-1984", label: "Kaiserthron 1984"}
-      ]
-    },
-    %{
-      href: "/verein",
-      label: "Verein",
-      children: [
-        %{href: "/verein", label: "Über uns"},
-        %{href: "/verein/vorstand", label: "Vorstand"},
-        %{href: "/verein/offiziere", label: "Offiziere"},
-        %{href: "/verein/jungschuetzen", label: "Jungschützen"},
-        %{href: "/verein/kinderfest", label: "Kinderfest"},
-        %{href: "/verein/mitglied-werden", label: "Mitglied werden"}
-      ]
-    },
-    %{href: "/kontakt", label: "Kontakt"}
-  ]
-
   attr :flash, :map, required: true, doc: "the map of flash messages"
   attr :current_path, :string, default: "/", doc: "request path, for active nav highlighting"
 
@@ -62,7 +64,7 @@ defmodule BbhWeb.Layouts do
   slot :inner_block, required: true
 
   def app(assigns) do
-    assigns = assign(assigns, :nav, @nav)
+    assigns = assign(assigns, :nav, nav_links())
 
     ~H"""
     <div class="flex min-h-screen flex-col bg-base-100 text-base-content">
@@ -238,16 +240,23 @@ defmodule BbhWeb.Layouts do
     """
   end
 
-  @child_hrefs Enum.flat_map(@nav, fn l -> Enum.map(l[:children] || [], & &1.href) end)
+  # Verein is active for its whole section (any /verein or /verein/... path),
+  # independent of the dynamic child list.
+  defp nav_active?(path, %{href: "/verein"}),
+    do: path == "/verein" or String.starts_with?(path, "/verein/")
 
-  # Top-level link is active on exact match, or as a section prefix for /aktuell and
-  # /termine — but not when the path belongs to a dropdown child (e.g. a Thron article).
-  defp nav_active?(path, %{children: children}),
-    do: Enum.any?(children, fn c -> child_active?(path, c.href, nil) end)
+  # A link with children (Thron) is active on its own prefix or on any child href.
+  defp nav_active?(path, %{children: children, href: href}),
+    do:
+      path == href or String.starts_with?(path, href <> "/") or
+        Enum.any?(children, fn c -> child_active?(path, c.href, href) end)
 
+  # /aktuell and /termine are section-active, but not on a Thron article path.
   defp nav_active?(path, %{href: href}) when href in ["/aktuell", "/termine"] do
     section = path == href or String.starts_with?(path, href <> "/")
-    section and not Enum.any?(@child_hrefs, &(path == &1 or String.starts_with?(path, &1 <> "/")))
+
+    section and
+      not Enum.any?(@thron_child_hrefs, &(path == &1 or String.starts_with?(path, &1 <> "/")))
   end
 
   defp nav_active?(path, %{href: href}), do: path == href

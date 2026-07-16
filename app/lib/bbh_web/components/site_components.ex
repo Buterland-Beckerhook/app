@@ -414,6 +414,91 @@ defmodule BbhWeb.SiteComponents do
     """
   end
 
+  @doc "Breadcrumb trail for a Verein sub-page, from its root → leaf ancestor chain."
+  attr :ancestors, :list, required: true, doc: "root → leaf list of pages"
+
+  def breadcrumbs(assigns) do
+    crumbs =
+      assigns.ancestors
+      |> Enum.with_index(1)
+      |> Enum.map(fn {p, i} ->
+        %{title: p.title, path: Bbh.Content.page_path(Enum.take(assigns.ancestors, i))}
+      end)
+
+    assigns = assign(assigns, :crumbs, crumbs)
+
+    ~H"""
+    <nav aria-label="Brotkrümel" class="mb-4 text-sm text-muted">
+      <ol class="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+        <li><a href="/verein" class="hover:text-primary">Verein</a></li>
+        <li :for={{c, i} <- Enum.with_index(@crumbs)} class="flex items-center gap-x-1.5">
+          <span aria-hidden="true" class="text-base-content/40">/</span>
+          <a :if={i < length(@crumbs) - 1} href={c.path} class="hover:text-primary">{c.title}</a>
+          <span
+            :if={i == length(@crumbs) - 1}
+            class="font-medium text-base-content"
+            aria-current="page"
+          >
+            {c.title}
+          </span>
+        </li>
+      </ol>
+    </nav>
+    """
+  end
+
+  @doc "Desktop sidebar listing a section's pages (root first, then descendants), current highlighted."
+  attr :links, :list,
+    required: true,
+    doc: "flat `%{path, title, depth}` list from Content.section_links/1"
+
+  attr :current_path, :string, required: true
+
+  def page_sidebar(assigns) do
+    ~H"""
+    <nav aria-label="Bereichsnavigation" class="text-sm">
+      <ul class="space-y-0.5">
+        <li :for={l <- @links}>
+          <a
+            href={l.path}
+            style={"padding-left: #{0.75 + l.depth * 0.75}rem"}
+            class={[
+              "block rounded-md py-1.5 pr-3 transition-colors",
+              l.path == @current_path && "bg-base-200 font-semibold text-primary",
+              l.path != @current_path && "text-muted hover:bg-base-200 hover:text-primary"
+            ]}
+            aria-current={l.path == @current_path && "page"}
+          >
+            {l.title}
+          </a>
+        </li>
+      </ul>
+    </nav>
+    """
+  end
+
+  @doc "Mobile section navigation: a native <select> that jumps to the chosen page (reuses data-nav-select)."
+  attr :links, :list, required: true
+  attr :current_path, :string, required: true
+
+  def page_submenu_select(assigns) do
+    ~H"""
+    <select
+      data-nav-select
+      class="select select-bordered w-full"
+      aria-label="Seite im Bereich wählen"
+    >
+      <option
+        :for={l <- @links}
+        value={l.path}
+        selected={l.path == @current_path}
+      >
+        {String.duplicate("– ", l.depth) <> l.title}
+      </option>
+    </select>
+    """
+  end
+
   defp throne_years(t) do
     if t.end_year && t.end_year != t.begin_year,
       do: "#{t.begin_year}–#{t.end_year}",
