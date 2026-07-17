@@ -24,9 +24,8 @@ config :bbh, BbhWeb.Endpoint,
 # Disable rate limiting in tests so it doesn't interfere
 config :bbh, BbhWeb.RateLimit, enabled: false
 
-# Disable async page-view tracking in tests (the spawned writes escape the
-# SQL sandbox); analytics behaviour is covered directly in Bbh.AnalyticsTest.
-config :bbh, BbhWeb.Plugs.TrackPageView, enabled: false
+# Run Oban jobs manually in tests (no queues/cron polling); use Oban.Testing.
+config :bbh, Oban, testing: :manual
 
 # In test we don't send emails
 config :bbh, Bbh.Mailer, adapter: Swoosh.Adapters.Test

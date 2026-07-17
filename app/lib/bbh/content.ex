@@ -6,9 +6,11 @@ defmodule Bbh.Content do
 
   @doc "Published, real articles (excludes throne-only entries), newest first, paginated."
   def list_published_articles(page \\ 1, per_page \\ 10) do
+    now = Bbh.Time.now()
+
     base =
       from a in Article,
-        where: a.status == "published" and a.no_article == false,
+        where: a.status == "published" and a.no_article == false and a.date_published <= ^now,
         order_by: [desc: a.date_published]
 
     paginate(base, page, per_page, preload: [images: :media])
@@ -16,8 +18,10 @@ defmodule Bbh.Content do
 
   @doc "The N most recent published articles (for the homepage)."
   def latest_articles(n \\ 3) do
+    now = Bbh.Time.now()
+
     from(a in Article,
-      where: a.status == "published" and a.no_article == false,
+      where: a.status == "published" and a.no_article == false and a.date_published <= ^now,
       order_by: [desc: a.date_published],
       limit: ^n,
       preload: [images: :media]
@@ -27,11 +31,37 @@ defmodule Bbh.Content do
 
   @doc "A single published article by slug + year, with images and throne."
   def get_published_article(slug, year) do
+    now = Bbh.Time.now()
+
     Repo.one(
       from a in Article,
-        where: a.slug == ^slug and a.year == ^year and a.status == "published",
+        where:
+          a.slug == ^slug and a.year == ^year and a.status == "published" and
+            a.date_published <= ^now,
         preload: [:throne, images: :media]
     )
+  end
+
+  @doc """
+  Published, real articles whose publish date has passed but which have not yet
+  had their "Neuer Artikel" push sent. Drives the publish-notifier cron.
+  """
+  def articles_pending_notification do
+    now = Bbh.Time.now()
+
+    Repo.all(
+      from a in Article,
+        where:
+          a.status == "published" and a.no_article == false and a.date_published <= ^now and
+            is_nil(a.notified_at)
+    )
+  end
+
+  @doc "Mark an article as notified so its publish push is not sent again."
+  def mark_article_notified(%Article{} = article) do
+    article
+    |> Ecto.Changeset.change(notified_at: Bbh.Time.now())
+    |> Repo.update()
   end
 
   @doc "The currently reigning throne (latest by begin year), with its article + images."

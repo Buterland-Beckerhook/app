@@ -173,17 +173,26 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
     end
   end
 
-  # Push a notification the first time an article becomes published (skip throne-only entries).
+  # Push the first time an article becomes published (skip throne-only entries).
+  # Future-dated ("vorveröffentlichte") articles are pushed by the cron notifier
+  # (Bbh.Workers.ArticlePublishNotifier) once their publish date passes.
   defp maybe_notify(old_status, %Article{status: "published", no_article: false} = article)
        when old_status != "published" do
-    url = url(~p"/aktuell/#{article.year}/#{article.slug}")
+    if publish_due?(article) do
+      Task.Supervisor.start_child(Bbh.TaskSupervisor, fn ->
+        Bbh.Workers.ArticlePublishNotifier.notify(article)
+      end)
+    end
 
-    Task.Supervisor.start_child(Bbh.TaskSupervisor, fn ->
-      Bbh.Notifications.notify("news", %{title: "Neuer Artikel", body: article.title, url: url})
-    end)
+    :ok
   end
 
   defp maybe_notify(_old_status, _article), do: :ok
+
+  defp publish_due?(%Article{date_published: %DateTime{} = dt}),
+    do: DateTime.compare(dt, Bbh.Time.now()) != :gt
+
+  defp publish_due?(_), do: false
 
   defp assign_form(socket, changeset),
     do: assign(socket, :form, to_form(changeset, as: "article"))
