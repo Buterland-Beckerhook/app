@@ -5,6 +5,14 @@ defmodule Bbh.Contact do
 
   @type params :: %{optional(String.t()) => String.t()}
 
+  @min_message_length 10
+  @max_message_length 5_000
+
+  @doc "Whether the honeypot field was filled (a bot tell)."
+  def honeypot_filled?(params) do
+    params |> Map.get("website", "") |> String.trim() != ""
+  end
+
   @doc """
   Validate the contact params. Returns `{:ok, data}` or `{:error, errors}` where
   `errors` is a map of field => message.
@@ -24,6 +32,16 @@ defmodule Bbh.Contact do
         "Bitte geben Sie eine gültige E-Mail-Adresse an."
       )
       |> put_if(message == "", :message, "Bitte geben Sie eine Nachricht ein.")
+      |> put_if(
+        message != "" and String.length(message) < @min_message_length,
+        :message,
+        "Ihre Nachricht ist zu kurz (mindestens #{@min_message_length} Zeichen)."
+      )
+      |> put_if(
+        String.length(message) > @max_message_length,
+        :message,
+        "Ihre Nachricht ist zu lang (höchstens #{@max_message_length} Zeichen)."
+      )
       |> put_if(not consent, :privacy, "Bitte stimmen Sie der Datenschutzerklärung zu.")
 
     if errors == %{},

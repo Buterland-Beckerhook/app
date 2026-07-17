@@ -38,6 +38,8 @@ defmodule BbhWeb.Plugs.CSP do
       "style-src 'self' 'unsafe-inline'",
       "font-src 'self' data:",
       "script-src 'nonce-#{nonce}' 'strict-dynamic'",
+      # Altcha solves its proof of work in an inline blob Web Worker.
+      "worker-src 'self' blob:",
       "connect-src 'self'#{extra}",
       "form-action 'self'"
     ]
