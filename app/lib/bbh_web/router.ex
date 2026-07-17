@@ -13,6 +13,7 @@ defmodule BbhWeb.Router do
     plug :put_secure_browser_headers
     plug BbhWeb.Plugs.CSP
     plug :fetch_current_scope_for_user
+    plug BbhWeb.Plugs.TrackPageView
   end
 
   pipeline :api do

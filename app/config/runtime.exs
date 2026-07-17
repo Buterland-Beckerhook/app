@@ -197,9 +197,4 @@ if config_env() == :prod do
     vapid_public_key: System.get_env("VAPID_PUBLIC_KEY"),
     vapid_private_key: System.get_env("VAPID_PRIVATE_KEY"),
     vapid_subject: System.get_env("VAPID_SUBJECT") || "mailto:admin@buterland-beckerhook.de"
-
-  # Matomo analytics (cookieless, optional).
-  config :bbh, :matomo,
-    url: System.get_env("MATOMO_URL"),
-    site_id: System.get_env("MATOMO_SITE_ID")
 end

@@ -350,36 +350,6 @@ defmodule BbhWeb.Layouts do
 
   defp visible_nav(_), do: []
 
-  attr :nonce, :string, default: nil
-
-  @doc "Cookieless Matomo analytics snippet (only rendered when configured)."
-  def matomo(assigns) do
-    cfg = Application.get_env(:bbh, :matomo, [])
-    assigns = assign(assigns, :script, matomo_script(cfg[:url], cfg[:site_id], assigns[:nonce]))
-
-    ~H"{@script}"
-  end
-
-  defp matomo_script(url, site_id, nonce)
-       when is_binary(url) and (is_binary(site_id) or is_integer(site_id)) do
-    u = if String.ends_with?(url, "/"), do: url, else: url <> "/"
-
-    js =
-      "var _paq=window._paq=window._paq||[];_paq.push(['disableCookies']);" <>
-        "_paq.push(['trackPageView']);_paq.push(['enableLinkTracking']);" <>
-        "(function(){var u=\"#{u}\";_paq.push(['setTrackerUrl',u+'matomo.php']);" <>
-        "_paq.push(['setSiteId','#{site_id}']);var d=document,g=d.createElement('script')," <>
-        "s=d.getElementsByTagName('script')[0];g.async=true;g.src=u+'matomo.js';" <>
-        "s.parentNode.insertBefore(g,s);})();"
-
-    Phoenix.HTML.raw(~s(<script#{nonce_attr(nonce)}>#{js}</script>))
-  end
-
-  defp matomo_script(_url, _site_id, _nonce), do: nil
-
-  defp nonce_attr(nonce) when is_binary(nonce) and nonce != "", do: ~s( nonce="#{nonce}")
-  defp nonce_attr(_), do: ""
-
   @doc """
   Shows the flash group with standard titles and content.
 
