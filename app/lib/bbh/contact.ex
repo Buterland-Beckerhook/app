@@ -39,7 +39,7 @@ defmodule Bbh.Contact do
     |> reply_to({name, email})
     |> subject("Kontaktanfrage von #{name}")
     |> text_body("Von: #{name} <#{email}>\n\n#{message}\n")
-    |> Mailer.deliver()
+    |> Mailer.deliver_logged("contact")
   end
 
   defp valid_email?(email), do: Regex.match?(~r/^[^\s@]+@[^\s@]+\.[^\s@]+$/, email)

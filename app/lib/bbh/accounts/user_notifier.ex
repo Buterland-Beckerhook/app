@@ -13,7 +13,7 @@ defmodule Bbh.Accounts.UserNotifier do
       |> subject(subject)
       |> text_body(body)
 
-    with {:ok, _metadata} <- Mailer.deliver(email) do
+    with {:ok, _metadata} <- Mailer.deliver_logged(email, "user") do
       {:ok, email}
     end
   end
