@@ -4,6 +4,15 @@
 
     <form method="post" action={~p"/kontakt"} class="space-y-4">
       <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+      <input type="hidden" name="form_ts" value={@form_token} />
+
+      <div
+        aria-hidden="true"
+        style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden"
+      >
+        <label for="website">Bitte dieses Feld leer lassen</label>
+        <input type="text" id="website" name="website" tabindex="-1" autocomplete="off" />
+      </div>
 
       <div>
         <label for="name" class="mb-1 block text-sm font-medium">Name</label>
@@ -61,7 +70,7 @@
       </div>
 
       <div :if={@altcha}>
-        <altcha-widget challengejson={Jason.encode!(@altcha)}></altcha-widget>
+        <altcha-widget challengejson={Jason.encode!(@altcha)} auto="onload"></altcha-widget>
       </div>
 
       <button
