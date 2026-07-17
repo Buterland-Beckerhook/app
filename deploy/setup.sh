@@ -268,8 +268,9 @@ else
   OUT[SMTP_USERNAME]="${CUR[SMTP_USERNAME]:-}"
   OUT[SMTP_PASSWORD]="${CUR[SMTP_PASSWORD]:-}"
 fi
-resolve CONTACT_RECIPIENT "Contact recipient" "info@buterland-beckerhook.de"
-resolve CONTACT_SENDER    "Contact sender"    "noreply@buterland-beckerhook.de"
+resolve CONTACT_RECIPIENT   "Contact recipient"   "info@buterland-beckerhook.de"
+resolve CONTACT_SENDER      "Contact sender"      "noreply@buterland-beckerhook.de"
+resolve CONTACT_SENDER_NAME "Contact sender name" "Buterland-Beckerhook.de"
 
 # Matomo (optional). No URL -> analytics disabled, so don't ask for the site id.
 resolve MATOMO_URL "Matomo URL (blank to disable)" ""; matomo_url_val="$RESOLVED"
@@ -316,7 +317,7 @@ ENV_TMP="$(mktemp "$ENV_FILE.XXXXXX")"
   for k in VAPID_PUBLIC_KEY VAPID_PRIVATE_KEY VAPID_SUBJECT; do printf '%s=%s\n' "$k" "${OUT[$k]}"; done
   echo
   echo "# --- Contact form (Altcha + SMTP) ---"
-  for k in ALTCHA_HMAC_KEY SMTP_RELAY SMTP_PORT SMTP_USERNAME SMTP_PASSWORD CONTACT_RECIPIENT CONTACT_SENDER; do
+  for k in ALTCHA_HMAC_KEY SMTP_RELAY SMTP_PORT SMTP_USERNAME SMTP_PASSWORD CONTACT_RECIPIENT CONTACT_SENDER CONTACT_SENDER_NAME; do
     printf '%s=%s\n' "$k" "${OUT[$k]}"
   done
   echo

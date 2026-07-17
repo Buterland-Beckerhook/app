@@ -285,6 +285,13 @@ defmodule Bbh.AccountsTest do
       assert user_token.sent_to == user.email
       assert user_token.context == "login"
     end
+
+    test "sends from the configured club sender", %{user: user} do
+      {:ok, email} =
+        Accounts.deliver_login_instructions(user, fn _token -> "https://example.test/login" end)
+
+      assert email.from == {"Buterland-Beckerhook.de", "noreply@buterland-beckerhook.de"}
+    end
   end
 
   describe "inspect/2 for the User module" do

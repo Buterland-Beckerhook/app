@@ -85,6 +85,29 @@ defmodule Bbh.MailerTest do
     end
   end
 
+  describe "sender/0 and sender_name/0" do
+    test "fall back to the club defaults when unconfigured" do
+      Application.delete_env(:bbh, :contact_sender)
+      Application.delete_env(:bbh, :contact_sender_name)
+
+      assert Mailer.sender() == "noreply@buterland-beckerhook.de"
+      assert Mailer.sender_name() == "Buterland-Beckerhook.de"
+    end
+
+    test "read overrides from application config" do
+      Application.put_env(:bbh, :contact_sender, "override@example.test")
+      Application.put_env(:bbh, :contact_sender_name, "Override Name")
+
+      on_exit(fn ->
+        Application.delete_env(:bbh, :contact_sender)
+        Application.delete_env(:bbh, :contact_sender_name)
+      end)
+
+      assert Mailer.sender() == "override@example.test"
+      assert Mailer.sender_name() == "Override Name"
+    end
+  end
+
   describe "deliver_logged/2 failure" do
     test "logs the relay and exact reason and returns the error tuple" do
       Application.put_env(:bbh, Bbh.Mailer, adapter: FailingAdapter, relay: "mail.example.test")

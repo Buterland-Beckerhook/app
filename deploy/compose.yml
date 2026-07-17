@@ -105,6 +105,7 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD}
       CONTACT_RECIPIENT: ${CONTACT_RECIPIENT}
       CONTACT_SENDER: ${CONTACT_SENDER}
+      CONTACT_SENDER_NAME: ${CONTACT_SENDER_NAME:-Buterland-Beckerhook.de}
       MATOMO_URL: ${MATOMO_URL}
       MATOMO_SITE_ID: ${MATOMO_SITE_ID}
       # Log verbosity: any Elixir Logger level

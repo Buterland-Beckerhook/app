@@ -9,7 +9,7 @@ defmodule Bbh.Accounts.UserNotifier do
     email =
       new()
       |> to(recipient)
-      |> from({"Bbh", sender()})
+      |> from({Mailer.sender_name(), Mailer.sender()})
       |> subject(subject)
       |> text_body(body)
 
