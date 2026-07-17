@@ -37,6 +37,7 @@ defmodule Bbh.Calendar.Event do
     belongs_to :parent, Bbh.Calendar.Event
     belongs_to :image, Bbh.Media.Upload
     has_many :children, Bbh.Calendar.Event, foreign_key: :parent_id
+    has_many :reminders, Bbh.Calendar.EventReminder, on_replace: :delete
 
     timestamps()
   end
@@ -71,6 +72,10 @@ defmodule Bbh.Calendar.Event do
     |> put_year()
     |> validate_number(:year, greater_than_or_equal_to: 1900)
     |> validate_number(:countdown_lead_days, greater_than_or_equal_to: 0)
+    |> cast_assoc(:reminders,
+      sort_param: :reminders_sort,
+      drop_param: :reminders_drop
+    )
     |> validate_end_after_start()
     |> unique_constraint([:slug, :year], name: :events_slug_year_unique)
     |> foreign_key_constraint(:location_id)

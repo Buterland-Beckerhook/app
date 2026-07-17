@@ -110,7 +110,11 @@ config :bbh, Oban,
   queues: [default: 10, notifications: 5],
   plugins: [
     {Oban.Plugins.Pruner, max_age: 60 * 60 * 24 * 7},
-    {Oban.Plugins.Cron, crontab: [{"*/5 * * * *", Bbh.Workers.ArticlePublishNotifier}]}
+    {Oban.Plugins.Cron,
+     crontab: [
+       {"*/5 * * * *", Bbh.Workers.ArticlePublishNotifier},
+       {"*/5 * * * *", Bbh.Workers.EventReminderNotifier}
+     ]}
   ]
 
 # Import environment specific config. This must remain at the bottom
