@@ -24,6 +24,9 @@ config :bbh, BbhWeb.Endpoint,
 # Disable rate limiting in tests so it doesn't interfere
 config :bbh, BbhWeb.RateLimit, enabled: false
 
+# Run Oban jobs manually in tests (no queues/cron polling); use Oban.Testing.
+config :bbh, Oban, testing: :manual
+
 # In test we don't send emails
 config :bbh, Bbh.Mailer, adapter: Swoosh.Adapters.Test
 

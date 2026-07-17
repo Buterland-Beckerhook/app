@@ -77,6 +77,7 @@ defmodule Bbh.MixProject do
       {:nimble_totp, "~> 1.0"},
       {:eqrcode, "~> 0.2"},
       {:web_push_elixir, "~> 0.4"},
+      {:oban, "~> 2.23"},
       # One-time Hugo content import (mix bbh.import).
       {:yaml_elixir, "~> 2.11"},
       {:mdex, "~> 0.13"},

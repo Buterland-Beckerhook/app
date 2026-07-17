@@ -102,6 +102,17 @@ config :bbh, BbhWeb.RateLimit, enabled: true
 # Content-Security-Policy. Disabled in dev.exs so LiveReload keeps working.
 config :bbh, BbhWeb.Plugs.CSP, enabled: true
 
+# Background jobs (Oban). The cron plugin runs the publish notifier every five
+# minutes so scheduled ("vorveröffentlichte") articles get their push once their
+# publish date passes. Overridden to `testing: :manual` in test.exs.
+config :bbh, Oban,
+  repo: Bbh.Repo,
+  queues: [default: 10, notifications: 5],
+  plugins: [
+    {Oban.Plugins.Pruner, max_age: 60 * 60 * 24 * 7},
+    {Oban.Plugins.Cron, crontab: [{"*/5 * * * *", Bbh.Workers.ArticlePublishNotifier}]}
+  ]
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{config_env()}.exs"

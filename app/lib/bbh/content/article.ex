@@ -12,6 +12,8 @@ defmodule Bbh.Content.Article do
     field :slug, :string
     field :date_published, :utc_datetime
     field :date_modified, :utc_datetime
+    # Set once the publish push has been sent; guards against re-notifying.
+    field :notified_at, :utc_datetime
     field :year, :integer
     field :author, :string
     field :tags, {:array, :string}, default: []
