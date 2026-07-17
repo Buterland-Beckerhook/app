@@ -27,6 +27,23 @@ defmodule BbhWeb.Admin.DashboardLiveTest do
     assert html =~ ~p"/admin/seiten"
   end
 
+  test "shows the analytics section with recorded page views", %{conn: conn} do
+    today = Date.utc_today()
+    Bbh.Analytics.record(%{path: "/aktuell", referrer_host: "google.com", day: today})
+    Bbh.Analytics.record(%{path: "/aktuell", day: today})
+
+    {:ok, lv, _html} = live(conn, ~p"/admin")
+    html = render_async(lv)
+
+    assert html =~ "Zugriffe"
+    assert html =~ "Seitenaufrufe"
+    assert html =~ "/aktuell"
+    assert html =~ "google.com"
+
+    # The range selector re-runs the analytics query.
+    assert lv |> element("button", "7 Tage") |> render_click() =~ "Zugriffe"
+  end
+
   test "the account nav links to the settings modal for sign-in methods", %{conn: conn} do
     {:ok, _lv, html} = live(conn, ~p"/admin")
 
