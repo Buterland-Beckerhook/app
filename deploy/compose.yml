@@ -73,8 +73,13 @@ services:
     networks:
       - proxy
       - internal
-    # Run migrations, then start the server.
-    command: ["/bin/sh", "-c", "/app/bin/migrate && /app/bin/server"]
+    # Run migrations, then hand PID 1 to the release via `exec`. Without `exec`,
+    # /bin/sh stays PID 1 and does not forward SIGTERM to the BEAM, so on
+    # `docker compose down` the app never drains — it keeps serving (and
+    # answering the healthcheck) until the container is SIGKILLed at the end of
+    # stop_grace_period. `exec` makes the BEAM PID 1, so it gets SIGTERM directly
+    # and shuts down gracefully (Bandit drains within shutdown_timeout, 55s).
+    command: ["/bin/sh", "-c", "/app/bin/migrate && exec /app/bin/server"]
     # Give Bandit time to drain in-flight requests before SIGKILL.
     stop_grace_period: 60s
     healthcheck:
@@ -102,6 +107,10 @@ services:
       CONTACT_SENDER: ${CONTACT_SENDER}
       MATOMO_URL: ${MATOMO_URL}
       MATOMO_SITE_ID: ${MATOMO_SITE_ID}
+      # Log verbosity: any Elixir Logger level
+      # (debug|info|notice|warning|error|critical|alert|emergency). Defaults to
+      # info; set LOG_LEVEL=debug in .env to surface /health probe lines.
+      LOG_LEVEL: ${LOG_LEVEL:-info}
     volumes:
       - uploads:/data
     labels:

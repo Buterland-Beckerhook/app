@@ -280,6 +280,16 @@ else
   OUT[MATOMO_SITE_ID]="${CUR[MATOMO_SITE_ID]:-}"
 fi
 
+# Logging. Not prompted (info suits both modes); operators flip it to debug in
+# .env when diagnosing. Preserve an existing value verbatim (already escaped, like
+# every other managed key); only a fresh default is escaped once.
+KNOWN[LOG_LEVEL]=1
+if [[ -n "${CUR[LOG_LEVEL]:-}" ]]; then
+  set_raw   LOG_LEVEL "${CUR[LOG_LEVEL]}"
+else
+  set_plain LOG_LEVEL "info"
+fi
+
 # --- write .env atomically ---------------------------------------------------
 # Temp file sits next to $ENV_FILE so the final mv is a same-filesystem atomic
 # rename (a /tmp temp could cross filesystems and degrade to copy-then-unlink).
@@ -312,6 +322,9 @@ ENV_TMP="$(mktemp "$ENV_FILE.XXXXXX")"
   echo
   echo "# --- Matomo (optional) ---"
   for k in MATOMO_URL MATOMO_SITE_ID; do printf '%s=%s\n' "$k" "${OUT[$k]}"; done
+  echo
+  echo "# --- Logging ---"
+  printf 'LOG_LEVEL=%s\n' "${OUT[LOG_LEVEL]}"
   # Pass through any operator-added keys we don't manage, so re-running never
   # silently drops them (values are already $$-escaped on disk — write verbatim).
   extra=""
