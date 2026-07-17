@@ -29,6 +29,8 @@ import "../vendor/trix/trix.umd.min.js"
 // flatpickr date/time picker (self-hosted; sets window.flatpickr + German locale).
 import "../vendor/flatpickr/flatpickr.min.js"
 import "../vendor/flatpickr/l10n/de.js"
+// Altcha proof-of-work spam protection (self-hosted; registers <altcha-widget>).
+import "../vendor/altcha/altcha.js"
 // Homepage "Nächster Termin" live countdown (progressive enhancement, no LiveView).
 import "./countdown.js"
 // Flash toast auto-hide countdown (plain JS so it works on dead pages too).
