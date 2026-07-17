@@ -28,7 +28,8 @@ defmodule Bbh.Accounts.UserNotifierTest do
       Application.delete_env(:bbh, :contact_sender)
       on_exit(fn -> restore(:contact_sender, previous) end)
 
-      {:ok, _} = UserNotifier.deliver_update_email_instructions(@user, "https://example.test/email")
+      {:ok, _} =
+        UserNotifier.deliver_update_email_instructions(@user, "https://example.test/email")
 
       assert_email_sent(fn email ->
         assert email.from == {"Bbh", "noreply@buterland-beckerhook.de"}
