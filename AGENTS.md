@@ -86,7 +86,7 @@ via env vars — all default to the dev values:
 docker compose -f deploy/compose.yml stop phoenix
 
 COMPOSE_FILE=deploy/compose.yml DB_NAME=bbh DB_USER=bbh \
-  UPLOADS_VOLUME=bbh_uploads ./scripts/seed.sh
+  UPLOADS_VOLUME=bbh-prod_uploads ./scripts/seed.sh
 
 docker compose -f deploy/compose.yml up -d phoenix   # variants regenerate on demand
 ```

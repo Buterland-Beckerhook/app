@@ -13,7 +13,7 @@
 #
 # Dev:   make dump            (or ./scripts/dump.sh)
 # Prod:  COMPOSE_FILE=deploy/compose.yml DB_NAME=bbh DB_USER=bbh \
-#          UPLOADS_VOLUME=bbh_uploads ./scripts/dump.sh
+#          UPLOADS_VOLUME=bbh-prod_uploads ./scripts/dump.sh
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"

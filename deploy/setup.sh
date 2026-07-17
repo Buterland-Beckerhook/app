@@ -162,11 +162,13 @@ if [[ "$MODE" == "beta" ]]; then
   def_image="ghcr.io/buterland-beckerhook/app:beta"
   def_host="beta.buterland-beckerhook.de"
   def_tname="bb-beta"
+  def_stack="bbh-beta"
   auth_default="y"
 else
   def_image="ghcr.io/buterland-beckerhook/app:beta"   # prompt to pin a :sha-XXXX
   def_host="buterland-beckerhook.de"
   def_tname="bb"
+  def_stack="bbh-prod"
   auth_default="n"
 fi
 
@@ -176,6 +178,9 @@ fi
 # value (e.g. an SMTP password) on every re-run.
 
 # Deploy target
+# STACK_NAME is the Compose project name (and thus the named-volume prefix), so
+# Beta and Prod coexist on one host without sharing data. See compose.yml.
+resolve STACK_NAME "Compose stack/project name" "$def_stack"
 resolve IMAGE "Container image (pin :sha-XXXX for prod)" "$def_image"
 resolve PHX_HOST "Public hostname (PHX_HOST)" "$def_host";      PHX_HOST="$RESOLVED"
 resolve TRAEFIK_NAME "Traefik router/service name" "$def_tname"; TRAEFIK_NAME="$RESOLVED"
@@ -243,24 +248,37 @@ resolve VAPID_SUBJECT "VAPID subject (mailto:)" "mailto:admin@buterland-beckerho
 # Contact form spam protection
 resolve_gen ALTCHA_HMAC_KEY gen_hmac
 
-# SMTP + contact addresses (optional; preserved if already set)
-resolve SMTP_RELAY    "SMTP relay host (blank to skip)" ""
-resolve SMTP_PORT     "SMTP port" "587"
-resolve SMTP_USERNAME "SMTP username (blank to skip)" ""
-KNOWN[SMTP_PASSWORD]=1
-if [[ -n "${CUR[SMTP_PASSWORD]:-}" ]]; then
-  set_raw SMTP_PASSWORD "${CUR[SMTP_PASSWORD]}"          # preserved: already escaped
+# SMTP + contact addresses (optional; preserved if already set).
+# No relay host -> no outbound mail, so don't bother asking for port/user/password.
+resolve SMTP_RELAY "SMTP relay host (blank to skip)" ""; smtp_relay_val="$RESOLVED"
+KNOWN[SMTP_PORT]=1; KNOWN[SMTP_USERNAME]=1; KNOWN[SMTP_PASSWORD]=1
+if [[ -n "$smtp_relay_val" ]]; then
+  resolve SMTP_PORT     "SMTP port" "587"
+  resolve SMTP_USERNAME "SMTP username (blank to skip)" ""
+  if [[ -n "${CUR[SMTP_PASSWORD]:-}" ]]; then
+    set_raw SMTP_PASSWORD "${CUR[SMTP_PASSWORD]}"        # preserved: already escaped
+  else
+    smtp_pw=""
+    [[ $ASSUME_YES -eq 0 ]] && { read -rs -p "SMTP password (blank to skip): " smtp_pw </dev/tty || smtp_pw=""; echo; }
+    set_plain SMTP_PASSWORD "$smtp_pw"
+  fi
 else
-  smtp_pw=""
-  [[ $ASSUME_YES -eq 0 ]] && { read -rs -p "SMTP password (blank to skip): " smtp_pw </dev/tty || smtp_pw=""; echo; }
-  set_plain SMTP_PASSWORD "$smtp_pw"
+  # Keep any existing values (already escaped); otherwise harmless defaults.
+  OUT[SMTP_PORT]="${CUR[SMTP_PORT]:-587}"
+  OUT[SMTP_USERNAME]="${CUR[SMTP_USERNAME]:-}"
+  OUT[SMTP_PASSWORD]="${CUR[SMTP_PASSWORD]:-}"
 fi
 resolve CONTACT_RECIPIENT "Contact recipient" "info@buterland-beckerhook.de"
 resolve CONTACT_SENDER    "Contact sender"    "noreply@buterland-beckerhook.de"
 
-# Matomo (optional)
-resolve MATOMO_URL     "Matomo URL (blank to disable)" ""
-resolve MATOMO_SITE_ID "Matomo site id (blank to disable)" ""
+# Matomo (optional). No URL -> analytics disabled, so don't ask for the site id.
+resolve MATOMO_URL "Matomo URL (blank to disable)" ""; matomo_url_val="$RESOLVED"
+KNOWN[MATOMO_SITE_ID]=1
+if [[ -n "$matomo_url_val" ]]; then
+  resolve MATOMO_SITE_ID "Matomo site id (blank to disable)" ""
+else
+  OUT[MATOMO_SITE_ID]="${CUR[MATOMO_SITE_ID]:-}"
+fi
 
 # --- write .env atomically ---------------------------------------------------
 # Temp file sits next to $ENV_FILE so the final mv is a same-filesystem atomic
@@ -273,7 +291,7 @@ ENV_TMP="$(mktemp "$ENV_FILE.XXXXXX")"
   echo "# DATABASE_URL is assembled by compose.yml from DB_USER/DB_PASSWORD."
   echo
   echo "# --- Deploy target ---"
-  for k in IMAGE PHX_HOST; do printf '%s=%s\n' "$k" "${OUT[$k]}"; done
+  for k in STACK_NAME IMAGE PHX_HOST; do printf '%s=%s\n' "$k" "${OUT[$k]}"; done
   echo
   echo "# --- Traefik routing ---"
   for k in TRAEFIK_NAME TRAEFIK_RULE TRAEFIK_MIDDLEWARES BASIC_AUTH_USERS; do printf '%s=%s\n' "$k" "${OUT[$k]}"; done
