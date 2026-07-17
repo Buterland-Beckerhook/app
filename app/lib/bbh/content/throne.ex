@@ -2,8 +2,12 @@ defmodule Bbh.Content.Throne do
   @moduledoc "König/Kaiser record. `begin_year`/`end_year` map to the `begin`/`end` columns."
   use Bbh.Schema
 
-  @types ~w(koenig kaiser stadtkaiser)
+  @types ~w(koenig kaiser stadtkaiser jungschuetzenkoenig)
   def types, do: @types
+
+  # Types that crown a single king with no queen or court.
+  @king_only_types ~w(jungschuetzenkoenig)
+  def king_only?(type), do: type in @king_only_types
 
   schema "thrones" do
     field :type, :string
@@ -42,7 +46,8 @@ defmodule Bbh.Content.Throne do
       :courtmarshal,
       :article_id
     ])
-    |> validate_required([:type, :begin_year, :king, :queen, :article_id])
+    |> validate_required([:type, :begin_year, :king, :article_id])
+    |> maybe_require_queen()
     |> validate_inclusion(:type, @types)
     |> validate_number(:begin_year, greater_than: 0)
     |> validate_end_after_begin()
@@ -52,6 +57,13 @@ defmodule Bbh.Content.Throne do
       name: :thrones_end_after_begin,
       message: "muss nach dem Beginn liegen"
     )
+  end
+
+  # A queen is required for every throne except the king-only types.
+  defp maybe_require_queen(changeset) do
+    if king_only?(get_field(changeset, :type)),
+      do: changeset,
+      else: validate_required(changeset, [:queen])
   end
 
   defp validate_end_after_begin(changeset) do

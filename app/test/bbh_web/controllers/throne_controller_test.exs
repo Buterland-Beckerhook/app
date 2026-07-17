@@ -15,6 +15,16 @@ defmodule BbhWeb.ThroneControllerTest do
     assert conn |> get(~p"/thron") |> html_response(200)
   end
 
+  test "GET /thron renders a Jungschützenkönig as king-only (no queen row)", %{conn: conn} do
+    throne_fixture(type: "jungschuetzenkoenig", king: "Tim Junior", queen: nil)
+
+    html = conn |> get(~p"/thron") |> html_response(200)
+
+    assert html =~ "Jungschützenkönig"
+    assert html =~ "Tim Junior"
+    refute html =~ "Königin"
+  end
+
   test "GET /thron renders the year-king pager", %{conn: conn} do
     throne_fixture(begin_year: 2018, end_year: 2019, king: "Gerd Lübbers")
     throne_fixture(begin_year: 2023, end_year: 2024, king: "Jan-Bernd Droste")

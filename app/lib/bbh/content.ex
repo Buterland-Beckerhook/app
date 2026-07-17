@@ -46,16 +46,17 @@ defmodule Bbh.Content do
 
   @doc """
   The currently reigning throne of each type for the homepage throne section, ordered
-  König → Kaiser → Stadtkaiser. Missing types are omitted.
+  König → Jungschützenkönig → Kaiser → Stadtkaiser. Missing types are omitted.
 
-  The König changes yearly, so we take the most recent one. A Kaiser/Stadtkaiser reigns
-  until the next Kaiserthron/Stadtschützenfest — which the club does not hold every year
-  and may postpone — so the current one is the latest with an *open* end year; once it has
-  concluded and no successor exists, none is shown.
+  König and Jungschützenkönig change yearly, so we take the most recent one. A
+  Kaiser/Stadtkaiser reigns until the next Kaiserthron/Stadtschützenfest — which the club
+  does not hold every year and may postpone — so the current one is the latest with an
+  *open* end year; once it has concluded and no successor exists, none is shown.
   """
   def current_thrones do
     [
       current_throne_of_type("koenig"),
+      current_throne_of_type("jungschuetzenkoenig"),
       current_open_throne_of_type("kaiser"),
       current_open_throne_of_type("stadtkaiser")
     ]

@@ -110,8 +110,9 @@ defmodule BbhWeb.SiteComponents do
 
   def throne_table(assigns) do
     {king_label, queen_label} = throne_roles(assigns.throne.type)
-    # Stadtkaiser = nur das (Stadt-)Kaiserpaar; König/Kaiser = voller Thron mit Hofstaat.
-    full_court? = assigns.throne.type != "stadtkaiser"
+    # Stadtkaiser = nur das (Stadt-)Kaiserpaar; Jungschützenkönig = nur der König;
+    # König/Kaiser = voller Thron mit Hofstaat.
+    full_court? = assigns.throne.type not in ["stadtkaiser", "jungschuetzenkoenig"]
 
     assigns =
       assign(assigns, king_label: king_label, queen_label: queen_label, full_court?: full_court?)
@@ -128,7 +129,7 @@ defmodule BbhWeb.SiteComponents do
             {[@throne.king_title, @throne.king] |> Enum.reject(&is_nil/1) |> Enum.join(" – ")}
           </td>
         </tr>
-        <tr>
+        <tr :if={@queen_label}>
           <th class="py-3.5 pr-4 font-medium text-muted">{@queen_label}</th>
           <td class="py-3.5 text-right font-semibold">{@throne.queen}</td>
         </tr>
@@ -157,9 +158,11 @@ defmodule BbhWeb.SiteComponents do
     """
   end
 
-  # Row labels for the royal couple, by throne type.
+  # Row labels for the royal couple, by throne type. A nil queen label hides the
+  # queen row (king-only thrones).
   defp throne_roles("kaiser"), do: {"Kaiser", "Kaiserin"}
   defp throne_roles("stadtkaiser"), do: {"Stadtkaiser", "Stadtkaiserin"}
+  defp throne_roles("jungschuetzenkoenig"), do: {"Jungschützenkönig", nil}
   defp throne_roles(_), do: {"König", "Königin"}
 
   @doc "Caption line for a throne, e.g. \"König 2025–2026\" or \"Kaiser 2009\"."
@@ -168,6 +171,7 @@ defmodule BbhWeb.SiteComponents do
       case t.type do
         "kaiser" -> "Kaiser"
         "stadtkaiser" -> "Stadtkaiser"
+        "jungschuetzenkoenig" -> "Jungschützenkönig"
         _ -> "König"
       end
 

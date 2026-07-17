@@ -375,7 +375,12 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
             field={t[:type]}
             type="select"
             label="Typ"
-            options={[{"König", "koenig"}, {"Kaiser", "kaiser"}, {"Stadtkaiser", "stadtkaiser"}]}
+            options={[
+              {"König", "koenig"},
+              {"Kaiser", "kaiser"},
+              {"Stadtkaiser", "stadtkaiser"},
+              {"Jungschützenkönig", "jungschuetzenkoenig"}
+            ]}
           />
           <div class="grid grid-cols-2 gap-2">
             <.input field={t[:begin_year]} type="number" label="Beginn (Jahr)" />

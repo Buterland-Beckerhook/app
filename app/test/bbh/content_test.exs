@@ -80,6 +80,25 @@ defmodule Bbh.ContentTest do
       assert result.total == 2
     end
 
+    test "current_thrones includes the current Jungschützenkönig" do
+      koenig = throne_fixture(type: "koenig", begin_year: 2025, end_year: 2026)
+
+      jsk =
+        throne_fixture(
+          type: "jungschuetzenkoenig",
+          begin_year: 2025,
+          end_year: nil,
+          king: "Tim Junior",
+          queen: nil
+        )
+
+      types = Content.current_thrones() |> Enum.map(& &1.type)
+      assert "jungschuetzenkoenig" in types
+      # König comes first, then the Jungschützenkönig.
+      assert Enum.take(types, 2) == ["koenig", "jungschuetzenkoenig"]
+      assert koenig.type == "koenig" and jsk.type == "jungschuetzenkoenig"
+    end
+
     test "list_thrones preloads the throne picture's media" do
       article = article_fixture(no_article: true, title: "Thron-Eintrag")
       media = upload_fixture()
