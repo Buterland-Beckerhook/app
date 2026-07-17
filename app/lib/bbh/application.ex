@@ -5,8 +5,12 @@ defmodule Bbh.Application do
 
   use Application
 
+  require Logger
+
   @impl true
   def start(_type, _args) do
+    log_mail_config()
+
     children = [
       BbhWeb.Telemetry,
       Bbh.Repo,
@@ -33,5 +37,17 @@ defmodule Bbh.Application do
   def config_change(changed, _new, removed) do
     BbhWeb.Endpoint.config_change(changed, removed)
     :ok
+  end
+
+  # Log the resolved mailer target at boot so deployment logs confirm whether the
+  # SMTP env vars were actually injected (a blank relay is itself the bug). Never
+  # logs credentials — only adapter, relay host and port.
+  defp log_mail_config do
+    cfg = Application.get_env(:bbh, Bbh.Mailer, [])
+
+    Logger.info(
+      "[mail] configured adapter=#{inspect(cfg[:adapter])} " <>
+        "relay=#{inspect(cfg[:relay])} port=#{inspect(cfg[:port])}"
+    )
   end
 end

@@ -31,6 +31,8 @@ import "../vendor/flatpickr/flatpickr.min.js"
 import "../vendor/flatpickr/l10n/de.js"
 // Homepage "Nächster Termin" live countdown (progressive enhancement, no LiveView).
 import "./countdown.js"
+// Flash toast auto-hide countdown (plain JS so it works on dead pages too).
+import "./flash.js"
 
 // base64url <-> ArrayBuffer helpers for the WebAuthn ceremony (credential ids,
 // challenges and signatures cross the wire as pad-less base64url strings).

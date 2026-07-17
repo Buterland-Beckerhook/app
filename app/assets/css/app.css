@@ -265,4 +265,32 @@ trix-toolbar [data-trix-button-group="file-tools"] {
   display: none;
 }
 
+/* Flash auto-hide countdown bar (see core_components `flash/1` + the enhancer in
+   assets/js/flash.js). The bar shrinks left-to-right over `--flash-duration`;
+   when the animation ends flash.js dismisses the toast.
+   Hovering or focusing the toast pauses the countdown so it can be read.
+   `currentColor` inherits the daisyUI alert text colour, so the bar matches
+   each kind (info/error) automatically. */
+@keyframes flash-countdown {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+
+.flash-progress {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  width: 100%;
+  transform-origin: left;
+  background: currentColor;
+  opacity: 0.4;
+  animation: flash-countdown var(--flash-duration, 6000ms) linear forwards;
+}
+
+.toast:hover .flash-progress,
+.toast:focus-within .flash-progress {
+  animation-play-state: paused;
+}
+
 /* This file is for your main application CSS */
