@@ -134,14 +134,36 @@ if config_env() == :prod do
     altcha_hmac_key: System.get_env("ALTCHA_HMAC_KEY")
 
   # Contact form email via the club's own SMTP server.
+  smtp_relay = System.get_env("SMTP_RELAY")
+
   config :bbh, Bbh.Mailer,
     adapter: Swoosh.Adapters.SMTP,
-    relay: System.get_env("SMTP_RELAY"),
+    relay: smtp_relay,
     port: String.to_integer(System.get_env("SMTP_PORT") || "587"),
     username: System.get_env("SMTP_USERNAME"),
     password: System.get_env("SMTP_PASSWORD"),
     tls: :always,
-    auth: :always
+    auth: :always,
+    # Submission relay: connect straight to SMTP_RELAY, don't chase its MX records
+    # (keeps the connected host aligned with the SNI/cert name below).
+    no_mx_lookups: true,
+    # gen_smtp's default tls_options set only `versions` (no `verify`/`cacerts`).
+    # Since OTP 26 `ssl:connect` defaults `verify` to `:verify_peer`, so those
+    # defaults are rejected as {:options, :incompatible, [verify: :verify_peer,
+    # cacerts: :undefined]} *before* the handshake — gen_smtp then sends a
+    # plaintext QUIT on the STARTTLS-primed socket, which the relay reports as an
+    # SSL "wrong version number" and we see as {:temporary_failure, :tls_failed}.
+    # Supply a self-consistent verifying config so the STARTTLS upgrade proceeds.
+    tls_options: [
+      versions: [:"tlsv1.2", :"tlsv1.3"],
+      verify: :verify_peer,
+      cacerts: :public_key.cacerts_get(),
+      server_name_indication: String.to_charlist(smtp_relay || ""),
+      depth: 3,
+      customize_hostname_check: [
+        match_fun: :public_key.pkix_verify_hostname_match_fun(:https)
+      ]
+    ]
 
   config :swoosh, :api_client, false
 
