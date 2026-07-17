@@ -4,11 +4,14 @@ defmodule BbhWeb.ThroneControllerTest do
   import Bbh.ContentFixtures
 
   test "GET /thron lists thrones", %{conn: conn} do
-    throne_fixture(king: "Friedrich der Erste")
+    throne_fixture(king: "Friedrich der Erste", queen: "Wilhelmine die Erste")
     html = conn |> get(~p"/thron") |> html_response(200)
 
     assert html =~ "Throne" or html =~ "Thron"
     assert html =~ "Friedrich der Erste"
+    # A normal (König) throne still shows the queen row.
+    assert html =~ "Königin"
+    assert html =~ "Wilhelmine die Erste"
   end
 
   test "GET /thron renders with no thrones", %{conn: conn} do
