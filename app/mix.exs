@@ -87,6 +87,9 @@ defmodule Bbh.MixProject do
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"},
+      # Time-zone database (pure Elixir) so DateTime conversions honour the
+      # configured zone — see Bbh.Time and config :elixir, :time_zone_database.
+      {:tz, "~> 0.28.2"},
       # Security tooling (compile-time only): dependency CVE scan + Phoenix SAST.
       {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false},
       {:sobelow, "~> 0.13", only: [:dev, :test], runtime: false}

@@ -95,6 +95,10 @@ services:
       PHX_SERVER: "true"
       UPLOADS_DIR: /data/uploads
       MEDIA_CACHE_DIR: /data/uploads_cache
+      # IANA time zone for event times / iCal TZID. Defaults to Europe/Berlin.
+      # TZ sets the container's OS zone (log timestamps) from the same value.
+      TIME_ZONE: ${TIME_ZONE:-Europe/Berlin}
+      TZ: ${TIME_ZONE:-Europe/Berlin}
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
       VAPID_SUBJECT: ${VAPID_SUBJECT}

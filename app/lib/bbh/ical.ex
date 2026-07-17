@@ -4,28 +4,39 @@ defmodule Bbh.ICal do
 
   @prodid "-//Buterland-Beckerhook e.V.//Termine//DE"
 
-  # Static VTIMEZONE for Europe/Berlin (CET/CEST). All club events are local time;
-  # emitting them with TZID + this definition lets calendar apps place them correctly
-  # instead of misreading naive local times as UTC.
-  @vtimezone """
-  BEGIN:VTIMEZONE\r
-  TZID:Europe/Berlin\r
-  BEGIN:DAYLIGHT\r
-  TZOFFSETFROM:+0100\r
-  TZOFFSETTO:+0200\r
-  TZNAME:CEST\r
-  DTSTART:19700329T020000\r
-  RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU\r
-  END:DAYLIGHT\r
-  BEGIN:STANDARD\r
-  TZOFFSETFROM:+0200\r
-  TZOFFSETTO:+0100\r
-  TZNAME:CET\r
-  DTSTART:19701025T030000\r
-  RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU\r
-  END:STANDARD\r
-  END:VTIMEZONE\r
-  """
+  # IANA time zone the club operates in — the iCal TZID for event times.
+  defp time_zone, do: Bbh.Time.time_zone()
+
+  # VTIMEZONE definition for the configured zone. All club events are stored as local
+  # wall-clock time; emitting them with TZID + this definition lets calendar apps place
+  # them correctly instead of misreading naive local times as UTC.
+  #
+  # The transition rules below encode Central European (CET/CEST) DST. They are correct
+  # for any CET zone (Europe/Berlin, Europe/Amsterdam, Europe/Paris, …); a zone outside
+  # CET needs its own TZOFFSET*/RRULE values here.
+  defp vtimezone do
+    tz = time_zone()
+
+    """
+    BEGIN:VTIMEZONE\r
+    TZID:#{tz}\r
+    BEGIN:DAYLIGHT\r
+    TZOFFSETFROM:+0100\r
+    TZOFFSETTO:+0200\r
+    TZNAME:CEST\r
+    DTSTART:19700329T020000\r
+    RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU\r
+    END:DAYLIGHT\r
+    BEGIN:STANDARD\r
+    TZOFFSETFROM:+0200\r
+    TZOFFSETTO:+0100\r
+    TZNAME:CET\r
+    DTSTART:19701025T030000\r
+    RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU\r
+    END:STANDARD\r
+    END:VTIMEZONE\r
+    """
+  end
 
   @doc "A full VCALENDAR feed for a list of events."
   def feed(events, site_url) do
@@ -39,7 +50,7 @@ defmodule Bbh.ICal do
     METHOD:PUBLISH\r
     X-WR-CALNAME:Buterland-Beckerhook e.V.\r
     X-PUBLISHED-TTL:P1W\r
-    #{@vtimezone}#{body}END:VCALENDAR\r
+    #{vtimezone()}#{body}END:VCALENDAR\r
     """
   end
 
@@ -69,11 +80,11 @@ defmodule Bbh.ICal do
   end
 
   defp dtstart(%Event{all_day: true, starts_at: s}), do: "DTSTART;VALUE=DATE:#{date(s)}"
-  defp dtstart(%Event{starts_at: s}), do: "DTSTART;TZID=Europe/Berlin:#{local_stamp(s)}"
+  defp dtstart(%Event{starts_at: s}), do: "DTSTART;TZID=#{time_zone()}:#{local_stamp(s)}"
 
   defp dtend(%Event{ends_at: nil}), do: nil
   defp dtend(%Event{all_day: true, ends_at: e}), do: "DTEND;VALUE=DATE:#{date(e)}"
-  defp dtend(%Event{ends_at: e}), do: "DTEND;TZID=Europe/Berlin:#{local_stamp(e)}"
+  defp dtend(%Event{ends_at: e}), do: "DTEND;TZID=#{time_zone()}:#{local_stamp(e)}"
 
   # DTSTAMP is a genuine UTC timestamp → keep the Z form.
   defp stamp(%DateTime{} = dt) do
@@ -81,8 +92,8 @@ defmodule Bbh.ICal do
     "#{date(dt)}T#{pad(dt.hour)}#{pad(dt.minute)}#{pad(dt.second)}Z"
   end
 
-  # Event start/end are stored as Europe/Berlin wall-clock time; emit the components
-  # verbatim (no Z) alongside TZID=Europe/Berlin.
+  # Event start/end are stored as local wall-clock time; emit the components
+  # verbatim (no Z) alongside the configured TZID.
   defp local_stamp(%DateTime{} = dt) do
     dt = DateTime.truncate(dt, :second)
     "#{date(dt)}T#{pad(dt.hour)}#{pad(dt.minute)}#{pad(dt.second)}"

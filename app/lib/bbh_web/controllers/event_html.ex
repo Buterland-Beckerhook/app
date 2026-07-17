@@ -24,7 +24,7 @@ defmodule BbhWeb.EventHTML do
     do: "#{two(dt.hour)}:#{two(dt.minute)} Uhr"
 
   @doc "Has the event already passed? Dimmed rows in the list."
-  def past_event?(event, now \\ DateTime.utc_now()) do
+  def past_event?(event, now \\ Bbh.Time.now()) do
     DateTime.compare(event.ends_at || event.starts_at, now) == :lt
   end
 

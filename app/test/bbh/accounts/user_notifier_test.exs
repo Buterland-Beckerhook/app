@@ -19,7 +19,7 @@ defmodule Bbh.Accounts.UserNotifierTest do
       {:ok, _} = UserNotifier.deliver_login_instructions(@user, "https://example.test/login")
 
       assert_email_sent(fn email ->
-        assert email.from == {"Bbh", "custom-sender@example.test"}
+        assert email.from == {"Buterland-Beckerhook.de", "custom-sender@example.test"}
       end)
     end
 
@@ -32,7 +32,7 @@ defmodule Bbh.Accounts.UserNotifierTest do
         UserNotifier.deliver_update_email_instructions(@user, "https://example.test/email")
 
       assert_email_sent(fn email ->
-        assert email.from == {"Bbh", "noreply@buterland-beckerhook.de"}
+        assert email.from == {"Buterland-Beckerhook.de", "noreply@buterland-beckerhook.de"}
       end)
     end
   end

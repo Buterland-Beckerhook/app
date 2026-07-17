@@ -18,12 +18,6 @@ defmodule Bbh.Accounts.UserNotifier do
     end
   end
 
-  # The authenticated SMTP sender. Shared with the contact form via the same
-  # `:contact_sender` config so account mail (login, confirmation, email
-  # changes) goes out as an address the SMTP user owns — otherwise the relay
-  # rejects it with `reject_sender_login_mismatch`.
-  defp sender, do: Application.get_env(:bbh, :contact_sender, "noreply@buterland-beckerhook.de")
-
   @doc """
   Deliver instructions to update a user email.
   """

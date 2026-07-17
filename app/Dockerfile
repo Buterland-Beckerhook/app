@@ -80,7 +80,7 @@ RUN mix release
 FROM ${RUNNER_IMAGE} AS final
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends libstdc++6 openssl libncurses6 locales ca-certificates curl \
+  && apt-get install -y --no-install-recommends libstdc++6 openssl libncurses6 locales tzdata ca-certificates curl \
   && rm -rf /var/lib/apt/lists/*
 
 # Set the locale
@@ -90,6 +90,11 @@ RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen \
 ENV LANG=en_US.UTF-8
 ENV LANGUAGE=en_US:en
 ENV LC_ALL=en_US.UTF-8
+
+# OS time zone for log timestamps and OS-level local time. Overridden at runtime by
+# the TZ env (compose sets it from TIME_ZONE). Elixir's DateTime conversions use the
+# app-level config (Bbh.Time), not this, so the two are kept in sync via TIME_ZONE.
+ENV TZ=Europe/Berlin
 
 WORKDIR "/app"
 RUN chown nobody /app
