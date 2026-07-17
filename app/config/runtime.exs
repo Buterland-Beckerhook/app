@@ -149,6 +149,7 @@ if config_env() == :prod do
     site_url: "https://#{host}",
     contact_recipient: System.get_env("CONTACT_RECIPIENT") || "info@buterland-beckerhook.de",
     contact_sender: System.get_env("CONTACT_SENDER") || "noreply@buterland-beckerhook.de",
+    contact_sender_name: System.get_env("CONTACT_SENDER_NAME") || "Buterland-Beckerhook.de",
     altcha_hmac_key: System.get_env("ALTCHA_HMAC_KEY")
 
   # Contact form email via the club's own SMTP server.

@@ -35,7 +35,7 @@ defmodule Bbh.Contact do
   def deliver(%{name: name, email: email, message: message}) do
     new()
     |> to(recipient())
-    |> from({"Website Kontaktformular", sender()})
+    |> from({"Website Kontaktformular", Mailer.sender()})
     |> reply_to({name, email})
     |> subject("Kontaktanfrage von #{name}")
     |> text_body("Von: #{name} <#{email}>\n\n#{message}\n")
@@ -49,6 +49,4 @@ defmodule Bbh.Contact do
 
   defp recipient,
     do: Application.get_env(:bbh, :contact_recipient, "info@buterland-beckerhook.de")
-
-  defp sender, do: Application.get_env(:bbh, :contact_sender, "noreply@buterland-beckerhook.de")
 end

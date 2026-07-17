@@ -54,6 +54,7 @@ defmodule Bbh.ContactTest do
       assert {:ok, _} = Contact.deliver(data)
 
       assert_email_sent(fn email ->
+        assert email.from == {"Website Kontaktformular", "noreply@buterland-beckerhook.de"}
         assert email.reply_to == {"Max Mustermann", "max@example.com"}
         assert email.subject =~ "Max Mustermann"
         assert email.text_body =~ "Hallo Welt"

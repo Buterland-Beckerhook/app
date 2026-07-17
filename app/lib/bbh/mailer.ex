@@ -3,6 +3,22 @@ defmodule Bbh.Mailer do
 
   require Logger
 
+  @default_sender_email "noreply@buterland-beckerhook.de"
+  @default_sender_name "Buterland-Beckerhook.de"
+
+  @doc """
+  Sender email address for outbound mail (env `CONTACT_SENDER`).
+
+  Shared by the contact form and the account notifier so there is a single
+  authoritative "from" address.
+  """
+  def sender, do: Application.get_env(:bbh, :contact_sender, @default_sender_email)
+
+  @doc """
+  Sender display name for outbound mail (env `CONTACT_SENDER_NAME`).
+  """
+  def sender_name, do: Application.get_env(:bbh, :contact_sender_name, @default_sender_name)
+
   @doc """
   Deliver an email with structured logging around the send.
 
