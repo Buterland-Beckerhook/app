@@ -138,6 +138,23 @@ docker compose --env-file .env pull phoenix
 docker compose --env-file .env up -d phoenix
 ```
 
+## Logs & shutdown
+
+```sh
+docker compose --env-file .env logs -f phoenix     # follow app logs
+```
+
+- **Log level** is set by `LOG_LEVEL` in `.env` — any Elixir Logger level
+  (`debug|info|notice|warning|error|critical|alert|emergency`), default `info`.
+  The frequent `/health/*` container/proxy probes are logged at
+  `debug`, so they stay out of the logs at the default level. To include them (and
+  everything else) while diagnosing, set `LOG_LEVEL=debug` and re-`up` phoenix.
+- **Graceful shutdown:** on `down`/restart the app receives `SIGTERM` and drains
+  in-flight requests (Bandit, up to 55s) before exiting — well inside the 60s
+  `stop_grace_period`. A `down` that instead sits for the full 60s and is then
+  killed means the signal isn't reaching the BEAM (PID 1); keep the `exec` in the
+  compose `command` so it does.
+
 ## Prod
 
 Run `./setup.sh --prod` for its own `.env`. Prod defaults differ from Beta:

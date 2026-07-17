@@ -41,7 +41,11 @@ defmodule BbhWeb.Endpoint do
     cookie_key: "request_logger"
 
   plug Plug.RequestId
-  plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
+
+  # Phoenix's request logger reads this :log option from the telemetry metadata.
+  # log_level/1 keeps the frequent /health probes at :debug (hidden at the
+  # default :info) while everything else logs at :info. See log_level/1 below.
+  plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint], log: {__MODULE__, :log_level, []}
 
   # Health probes for the container/reverse-proxy — mounted before the router
   # so they skip session/parsing and stay cheap.
@@ -56,4 +60,12 @@ defmodule BbhWeb.Endpoint do
   plug Plug.Head
   plug Plug.Session, @session_options
   plug BbhWeb.Router
+
+  # Per-request log level for Phoenix's request logger (wired via Plug.Telemetry
+  # above). Container/proxy health probes hit /health/* every few seconds; logging
+  # them at :debug keeps them out of prod logs (default :info) while still visible
+  # when LOG_LEVEL=debug. Every other request logs at :info.
+  @doc false
+  def log_level(%Plug.Conn{request_path: "/health/" <> _}), do: :debug
+  def log_level(_conn), do: :info
 end

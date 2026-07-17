@@ -78,6 +78,24 @@ if config_env() == :prod do
 
   config :bbh, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
+  # Log verbosity is env-tunable (LOG_LEVEL) so prod can be dialed up to :debug
+  # temporarily — e.g. to see the /health probe lines the endpoint keeps at
+  # :debug — without rebuilding the image. Defaults to :info; an unknown value
+  # fails the boot loudly rather than silently logging at the wrong level.
+  log_level =
+    case System.get_env("LOG_LEVEL", "info") do
+      level when level in ~w(emergency alert critical error warning notice info debug) ->
+        String.to_existing_atom(level)
+
+      other ->
+        raise """
+        invalid LOG_LEVEL #{inspect(other)}.
+        Expected one of: debug info notice warning error critical alert emergency
+        """
+    end
+
+  config :logger, level: log_level
+
   config :bbh, BbhWeb.Endpoint,
     url: [host: host, port: 443, scheme: "https"],
     http: [
