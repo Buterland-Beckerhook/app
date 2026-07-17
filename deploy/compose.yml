@@ -11,10 +11,11 @@
 # (IMAGE, PHX_HOST, TRAEFIK_NAME, TRAEFIK_RULE, TRAEFIK_MIDDLEWARES, BASIC_AUTH_USERS).
 # See .env.example.
 #
-# Pinned project name so the named volumes are stable regardless of the directory
-# the stack is started from: bbh_postgres_data / bbh_uploads. backup.sh and the
-# repo seed/dump scripts reference exactly these names.
-name: bbh
+# Project name per mode so Beta and Prod coexist on the same host without sharing
+# volumes: setup.sh writes STACK_NAME=bbh-beta / bbh-prod (default bbh). It also
+# prefixes the named volumes — ${STACK_NAME}_postgres_data / ${STACK_NAME}_uploads.
+# backup.sh and the repo seed/dump scripts derive the volume name from STACK_NAME.
+name: ${STACK_NAME:-bbh}
 
 services:
   postgres:

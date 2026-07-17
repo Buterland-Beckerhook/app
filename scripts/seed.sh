@@ -16,7 +16,7 @@
 #
 # Dev:   make seed            (or ./scripts/seed.sh)
 # Prod:  COMPOSE_FILE=deploy/compose.yml DB_NAME=bbh DB_USER=bbh \
-#          UPLOADS_VOLUME=bbh_uploads ./scripts/seed.sh
+#          UPLOADS_VOLUME=bbh-prod_uploads ./scripts/seed.sh
 #          (stop the phoenix service first — this drops & recreates the DB)
 set -euo pipefail
 
