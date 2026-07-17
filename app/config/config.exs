@@ -27,6 +27,15 @@ config :bbh,
 # German-language site
 config :gettext, :default_locale, "de"
 
+# IANA time zone the club operates in. Drives "now" for event/article wall-clock
+# times (Bbh.Time) and the iCal TZID. Overridable at runtime via the TIME_ZONE env
+# var (see runtime.exs). The bundled VTIMEZONE encodes Central European (CET/CEST)
+# DST rules, so a non-CET zone also needs matching transition rules in Bbh.ICal.
+config :bbh, :time_zone, "Europe/Berlin"
+
+# Time-zone database used by DateTime/2 conversions (provided by the :tz package).
+config :elixir, :time_zone_database, Tz.TimeZoneDatabase
+
 # Media: original uploads live in :uploads_dir; derived responsive variants are
 # cached (regenerable) in :media_cache_dir. Overridden per-env in runtime.exs.
 config :bbh, :uploads_dir, Path.expand("../priv/uploads", __DIR__)

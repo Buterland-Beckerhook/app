@@ -149,6 +149,11 @@ docker compose --env-file .env logs -f phoenix     # follow app logs
   The frequent `/health/*` container/proxy probes are logged at
   `debug`, so they stay out of the logs at the default level. To include them (and
   everything else) while diagnosing, set `LOG_LEVEL=debug` and re-`up` phoenix.
+- **Time zone** is set by `TIME_ZONE` in `.env` (IANA name, default
+  `Europe/Berlin`). It drives event/article wall-clock times (`Bbh.Time`), the
+  iCal `TZID`, and the container's OS zone (`TZ`, so log timestamps are local).
+  The bundled `VTIMEZONE` encodes Central European (CET/CEST) DST rules, so only
+  CET zones are emitted in iCal correctly without further code changes.
 - **Graceful shutdown:** on `down`/restart the app receives `SIGTERM` and drains
   in-flight requests (Bandit, up to 55s) before exiting — well inside the 60s
   `stop_grace_period`. A `down` that instead sits for the full 60s and is then

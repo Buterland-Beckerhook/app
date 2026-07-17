@@ -22,6 +22,12 @@ end
 
 config :bbh, BbhWeb.Endpoint, http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
+# Time zone the club operates in (iCal TZID). Env-overridable in every environment
+# so releases can set it without a rebuild; defaults to Europe/Berlin.
+if tz = System.get_env("TIME_ZONE") do
+  config :bbh, :time_zone, tz
+end
+
 if config_env() == :dev do
   # Reload browser tabs when matching files change.
   config :bbh, BbhWeb.Endpoint,

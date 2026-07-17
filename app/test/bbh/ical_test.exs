@@ -47,6 +47,19 @@ defmodule Bbh.ICalTest do
       # html is stripped from the description
       assert ics =~ "DESCRIPTION:Ein Text"
     end
+
+    test "uses the configured time zone as the TZID", %{event: event} do
+      previous = Application.get_env(:bbh, :time_zone)
+      Application.put_env(:bbh, :time_zone, "Europe/Amsterdam")
+      on_exit(fn -> Application.put_env(:bbh, :time_zone, previous) end)
+
+      ics = ICal.feed([event], "https://example.de")
+
+      assert ics =~ "TZID:Europe/Amsterdam"
+      assert ics =~ "DTSTART;TZID=Europe/Amsterdam:20270601T180000"
+      assert ics =~ "DTEND;TZID=Europe/Amsterdam:20270601T220000"
+      refute ics =~ "Europe/Berlin"
+    end
   end
 
   describe "single/2" do

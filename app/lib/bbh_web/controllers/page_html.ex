@@ -30,7 +30,7 @@ defmodule BbhWeb.PageHTML do
         starts_at: %DateTime{} = starts_at
       })
       when is_integer(lead) do
-    DateTime.diff(starts_at, DateTime.utc_now(), :day) <= lead
+    DateTime.diff(starts_at, Bbh.Time.now(), :day) <= lead
   end
 
   def countdown_visible?(_), do: false

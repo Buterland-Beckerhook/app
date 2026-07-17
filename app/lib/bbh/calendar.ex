@@ -5,7 +5,7 @@ defmodule Bbh.Calendar do
   alias Bbh.Calendar.{Event, Location}
 
   @doc "The next upcoming public event (published, announced, no internal calendar)."
-  def next_event(now \\ DateTime.utc_now()) do
+  def next_event(now \\ Bbh.Time.now()) do
     Repo.one(
       from e in public_events(),
         where: e.starts_at >= ^now,

@@ -12,7 +12,7 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
   end
 
   defp apply_action(socket, :new, _params) do
-    article = %Article{status: "draft", date_published: DateTime.utc_now(:second), tags: []}
+    article = %Article{status: "draft", date_published: Bbh.Time.now(), tags: []}
 
     socket
     |> assign(page_title: "Neuer Artikel", article: article)

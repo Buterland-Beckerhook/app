@@ -64,7 +64,7 @@ defmodule Bbh.Content.Article do
   # `date_published` ("Veröffentlicht am") is left untouched — it stays user-owned.
   defp put_date_modified(changeset) do
     if changeset.data.__meta__.state == :loaded and map_size(changeset.changes) > 0 do
-      put_change(changeset, :date_modified, DateTime.utc_now(:second))
+      put_change(changeset, :date_modified, Bbh.Time.now())
     else
       changeset
     end

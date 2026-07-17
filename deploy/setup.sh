@@ -291,6 +291,15 @@ else
   set_plain LOG_LEVEL "info"
 fi
 
+# Time zone. Not prompted (Europe/Berlin suits the club); operators override it in
+# .env. Preserve an existing value verbatim; only a fresh default is escaped once.
+KNOWN[TIME_ZONE]=1
+if [[ -n "${CUR[TIME_ZONE]:-}" ]]; then
+  set_raw   TIME_ZONE "${CUR[TIME_ZONE]}"
+else
+  set_plain TIME_ZONE "Europe/Berlin"
+fi
+
 # --- write .env atomically ---------------------------------------------------
 # Temp file sits next to $ENV_FILE so the final mv is a same-filesystem atomic
 # rename (a /tmp temp could cross filesystems and degrade to copy-then-unlink).
@@ -326,6 +335,9 @@ ENV_TMP="$(mktemp "$ENV_FILE.XXXXXX")"
   echo
   echo "# --- Logging ---"
   printf 'LOG_LEVEL=%s\n' "${OUT[LOG_LEVEL]}"
+  echo
+  echo "# --- Time zone ---"
+  printf 'TIME_ZONE=%s\n' "${OUT[TIME_ZONE]}"
   # Pass through any operator-added keys we don't manage, so re-running never
   # silently drops them (values are already $$-escaped on disk — write verbatim).
   extra=""
