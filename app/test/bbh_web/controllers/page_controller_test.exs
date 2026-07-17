@@ -18,6 +18,10 @@ defmodule BbhWeb.PageControllerTest do
     assert html =~ "Kontaktformular"
     assert html =~ "Datenschutz"
     assert html =~ ~s(id="push-optin")
+    # Discreet user login link in the footer.
+    assert html =~ ~s(href="/users/log-in")
+    # First-visit push opt-in banner, hidden until app.js reveals it.
+    assert html =~ ~s(id="push-banner" hidden)
   end
 
   test "GET / renders event banner, articles and throne when data exists", %{conn: conn} do
