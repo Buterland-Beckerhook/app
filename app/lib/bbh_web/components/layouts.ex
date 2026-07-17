@@ -68,6 +68,31 @@ defmodule BbhWeb.Layouts do
 
     ~H"""
     <div class="flex min-h-screen flex-col bg-base-100 text-base-content">
+      <%!-- First-visit push opt-in prompt; shown/hidden by app.js, decision stored in a cookie. --%>
+      <div id="push-banner" hidden class="border-b border-base-300 bg-base-200 px-4 py-3 text-sm">
+        <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3">
+          <p id="push-banner-text" class="text-base-content/80">
+            Möchten Sie über neue Termine und Beiträge benachrichtigt werden?
+          </p>
+          <div class="flex items-center gap-2">
+            <button
+              id="push-banner-enable"
+              type="button"
+              class="rounded-full bg-primary px-4 py-1.5 font-medium text-primary-content hover:opacity-90"
+            >
+              Aktivieren
+            </button>
+            <button
+              id="push-banner-dismiss"
+              type="button"
+              class="rounded-full px-3 py-1.5 text-base-content/60 hover:text-base-content"
+            >
+              Nicht jetzt
+            </button>
+          </div>
+        </div>
+      </div>
+
       <header class="sticky top-0 z-40 border-b border-base-300 bg-(--bb-header-bg) backdrop-blur-md backdrop-saturate-150">
         <nav class="mx-auto flex max-w-6xl items-center justify-between gap-6 px-4 py-3">
           <a href="/" class="flex items-center gap-3.5">
@@ -230,7 +255,12 @@ defmodule BbhWeb.Layouts do
             <p class="text-[13px] text-[#8ba597]">
               &copy; {Date.utc_today().year} Schützenverein Buterland-Beckerhook e.V.
             </p>
-            <.theme_toggle />
+            <div class="flex items-center gap-4">
+              <.link navigate={~p"/users/log-in"} class="text-[13px] text-[#8ba597] hover:text-white">
+                Anmelden
+              </.link>
+              <.theme_toggle />
+            </div>
           </div>
         </div>
       </footer>
@@ -349,36 +379,6 @@ defmodule BbhWeb.Layouts do
       end)
 
   defp visible_nav(_), do: []
-
-  attr :nonce, :string, default: nil
-
-  @doc "Cookieless Matomo analytics snippet (only rendered when configured)."
-  def matomo(assigns) do
-    cfg = Application.get_env(:bbh, :matomo, [])
-    assigns = assign(assigns, :script, matomo_script(cfg[:url], cfg[:site_id], assigns[:nonce]))
-
-    ~H"{@script}"
-  end
-
-  defp matomo_script(url, site_id, nonce)
-       when is_binary(url) and (is_binary(site_id) or is_integer(site_id)) do
-    u = if String.ends_with?(url, "/"), do: url, else: url <> "/"
-
-    js =
-      "var _paq=window._paq=window._paq||[];_paq.push(['disableCookies']);" <>
-        "_paq.push(['trackPageView']);_paq.push(['enableLinkTracking']);" <>
-        "(function(){var u=\"#{u}\";_paq.push(['setTrackerUrl',u+'matomo.php']);" <>
-        "_paq.push(['setSiteId','#{site_id}']);var d=document,g=d.createElement('script')," <>
-        "s=d.getElementsByTagName('script')[0];g.async=true;g.src=u+'matomo.js';" <>
-        "s.parentNode.insertBefore(g,s);})();"
-
-    Phoenix.HTML.raw(~s(<script#{nonce_attr(nonce)}>#{js}</script>))
-  end
-
-  defp matomo_script(_url, _site_id, _nonce), do: nil
-
-  defp nonce_attr(nonce) when is_binary(nonce) and nonce != "", do: ~s( nonce="#{nonce}")
-  defp nonce_attr(_), do: ""
 
   @doc """
   Shows the flash group with standard titles and content.
