@@ -2,7 +2,7 @@ defmodule Bbh.Calendar do
   @moduledoc "Read/query API for events and locations."
   import Ecto.Query
   alias Bbh.Repo
-  alias Bbh.Calendar.{Event, Location}
+  alias Bbh.Calendar.{Event, EventReminder, Location}
 
   @doc "The next upcoming public event (published, announced, no internal calendar)."
   def next_event(now \\ Bbh.Time.now()) do
@@ -90,9 +90,44 @@ defmodule Bbh.Calendar do
     do: from(e in query, where: e.calendar in ^(cals || []))
 
   def count_events, do: Repo.aggregate(Event, :count, :id)
-  def get_event!(id), do: Event |> Repo.get!(id) |> Repo.preload([:location])
+
+  def get_event!(id) do
+    Event
+    |> Repo.get!(id)
+    |> Repo.preload([
+      :location,
+      reminders: from(r in EventReminder, order_by: [desc: r.lead_days])
+    ])
+  end
+
   def create_event(attrs), do: %Event{} |> Event.changeset(attrs) |> Repo.insert()
   def update_event(%Event{} = e, attrs), do: e |> Event.changeset(attrs) |> Repo.update()
   def delete_event(%Event{} = e), do: Repo.delete(e)
   def change_event(%Event{} = e, attrs \\ %{}), do: Event.changeset(e, attrs)
+
+  ## Event reminders (push notifications ahead of an event)
+
+  @doc """
+  Reminders that are due to be sent: not yet sent, whose event is still a
+  public, upcoming, published event, and whose lead time has been reached
+  (`starts_at - lead_days <= now`). Preloads the event.
+  """
+  def due_reminders(now \\ Bbh.Time.now()) do
+    Repo.all(
+      from r in EventReminder,
+        join: e in assoc(r, :event),
+        where:
+          is_nil(r.sent_at) and e.status == "published" and e.announce == true and
+            is_nil(e.calendar) and e.starts_at > ^now and
+            fragment("? - make_interval(days => ?) <= ?", e.starts_at, r.lead_days, ^now),
+        preload: [event: e]
+    )
+  end
+
+  @doc "Mark a reminder as sent so it is not delivered again."
+  def mark_reminder_sent(%EventReminder{} = reminder) do
+    reminder
+    |> Ecto.Changeset.change(sent_at: Bbh.Time.now())
+    |> Repo.update()
+  end
 end

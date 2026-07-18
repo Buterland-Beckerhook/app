@@ -29,7 +29,8 @@ defmodule BbhWeb.Admin.EventLive.Form do
       announce: true,
       enable_ical: true,
       all_day: false,
-      calendar: default_cal
+      calendar: default_cal,
+      reminders: []
     }
 
     socket
@@ -216,6 +217,34 @@ defmodule BbhWeb.Admin.EventLive.Form do
         />
         <.input field={@form[:cancel_reason]} label="Grund bei Absage" />
         <.rich_text field={@form[:body]} label="Beschreibung" />
+
+        <fieldset class="rounded-box border border-base-300 p-4">
+          <legend class="px-1 text-sm font-medium">Erinnerungen (Push)</legend>
+          <p class="mb-3 text-sm text-base-content/60">
+            Benachrichtigt Abonnenten die angegebene Anzahl Tage vor Beginn mit dem eingegebenen Text.
+          </p>
+
+          <.inputs_for :let={rf} field={@form[:reminders]}>
+            <input type="hidden" name="event[reminders_sort][]" value={rf.index} />
+            <div class="mb-3 flex flex-wrap items-start gap-3">
+              <div class="w-32">
+                <.input field={rf[:lead_days]} type="number" min="0" label="Tage vorher" />
+              </div>
+              <div class="min-w-48 flex-1">
+                <.input field={rf[:text]} label="Nachricht" />
+              </div>
+              <label class="mt-8 cursor-pointer text-sm text-error hover:underline">
+                <input type="checkbox" name="event[reminders_drop][]" value={rf.index} class="hidden" />
+                Entfernen
+              </label>
+            </div>
+          </.inputs_for>
+
+          <label class="mt-1 inline-block cursor-pointer text-sm font-medium text-primary hover:underline">
+            <input type="checkbox" name="event[reminders_sort][]" class="hidden" />
+            + Erinnerung hinzufügen
+          </label>
+        </fieldset>
 
         <div class="flex gap-2">
           <.button variant="primary" phx-disable-with="Speichern…">Speichern</.button>

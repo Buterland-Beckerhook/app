@@ -387,6 +387,50 @@ async function subscribePush(btn) {
 const pushBtn = document.getElementById("push-optin")
 if (pushBtn) pushBtn.addEventListener("click", () => subscribePush(pushBtn))
 
+// First-visit push opt-in banner. The decision (enabled/dismissed) is stored in
+// a cookie so the banner is shown at most once until the user clears it.
+const PUSH_COOKIE = "push_prompt"
+function pushCookie() {
+  return document.cookie.split("; ").find((c) => c.startsWith(PUSH_COOKIE + "="))
+}
+function rememberPushChoice(value) {
+  const oneYear = 60 * 60 * 24 * 365
+  document.cookie = `${PUSH_COOKIE}=${value};path=/;max-age=${oneYear};samesite=lax`
+}
+
+const pushBanner = document.getElementById("push-banner")
+if (pushBanner && !pushCookie()) {
+  const isStandalone =
+    window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true
+  const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent)
+  const pushSupported = "serviceWorker" in navigator && "PushManager" in window
+  const enableBtn = document.getElementById("push-banner-enable")
+  const dismissBtn = document.getElementById("push-banner-dismiss")
+
+  if (pushSupported && !(isIos && !isStandalone)) {
+    // Push works in this browser — offer to turn it on.
+    enableBtn?.addEventListener("click", async () => {
+      await subscribePush()
+      rememberPushChoice("enabled")
+      pushBanner.hidden = true
+    })
+    pushBanner.hidden = false
+  } else if (isIos && !isStandalone) {
+    // iOS only delivers push to an installed PWA — show the add-to-home hint.
+    const text = document.getElementById("push-banner-text")
+    if (text)
+      text.textContent =
+        'Für Benachrichtigungen: unten im Teilen-Menü „Zum Home-Bildschirm" wählen.'
+    enableBtn?.remove()
+    pushBanner.hidden = false
+  }
+
+  dismissBtn?.addEventListener("click", () => {
+    rememberPushChoice("dismissed")
+    pushBanner.hidden = true
+  })
+}
+
 // The lines below enable quality of life phoenix_live_reload
 // development features:
 //

@@ -19,6 +19,7 @@ defmodule Bbh.Application do
       {BbhWeb.RateLimit, clean_period: :timer.minutes(10)},
       Bbh.Altcha.ReplayCache,
       {Task.Supervisor, name: Bbh.TaskSupervisor},
+      {Oban, Application.fetch_env!(:bbh, Oban)},
       # Start a worker by calling: Bbh.Worker.start_link(arg)
       # {Bbh.Worker, arg},
       # Start to serve requests, typically the last entry

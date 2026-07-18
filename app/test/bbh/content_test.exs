@@ -62,6 +62,26 @@ defmodule Bbh.ContentTest do
     end
   end
 
+  describe "scheduled pre-publishing" do
+    defp from_now(n), do: Bbh.Time.now() |> DateTime.add(n, :day) |> DateTime.truncate(:second)
+
+    test "a published article with a future date stays hidden until then" do
+      future =
+        article_fixture(slug: "kommt-bald", status: "published", date_published: from_now(2))
+
+      past = article_fixture(slug: "schon-da", status: "published", date_published: from_now(-2))
+
+      ids = Content.list_published_articles().entries |> Enum.map(& &1.id)
+      assert past.id in ids
+      refute future.id in ids
+
+      assert Enum.map(Content.latest_articles(10), & &1.id) == [past.id]
+
+      assert Content.get_published_article("schon-da", past.year).id == past.id
+      refute Content.get_published_article("kommt-bald", future.year)
+    end
+  end
+
   describe "current_throne/0 and list_thrones/2" do
     test "current_throne returns the throne with the highest begin year" do
       _older = throne_fixture(begin_year: 2018, end_year: 2019)
