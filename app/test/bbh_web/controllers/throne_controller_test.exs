@@ -42,7 +42,7 @@ defmodule BbhWeb.ThroneControllerTest do
     html = conn |> get(~p"/thron") |> html_response(200)
 
     # Queen and court are optional but shown when entered (historical entries).
-    assert html =~ "Jungschützenkönigin"
+    assert html =~ "Königin"
     assert html =~ "Alt-Königin"
     assert html =~ "Ehrendame Eins"
     assert html =~ "Mundschenk Max"

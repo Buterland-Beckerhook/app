@@ -165,7 +165,7 @@ defmodule BbhWeb.SiteComponents do
   # the king.
   defp throne_roles("kaiser"), do: {"Kaiser", "Kaiserin"}
   defp throne_roles("stadtkaiser"), do: {"Stadtkaiser", "Stadtkaiserin"}
-  defp throne_roles("jungschuetzenkoenig"), do: {"Jungschützenkönig", "Jungschützenkönigin"}
+  defp throne_roles("jungschuetzenkoenig"), do: {"Jungschützenkönig", "Königin"}
   defp throne_roles(_), do: {"König", "Königin"}
 
   @doc "Caption line for a throne, e.g. \"König 2025–2026\" or \"Kaiser 2009\"."
