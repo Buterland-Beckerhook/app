@@ -38,7 +38,8 @@ defmodule BbhWeb.PageControllerTest do
     assert html =~ "Jul"
     assert html =~ "/termine/2099/"
     assert html =~ "Ein Homepage-Artikel"
-    assert html =~ "König 2098–2099"
+    assert html =~ "König"
+    assert html =~ "2098–2099"
     assert html =~ "Amtierend"
     assert html =~ "Hans Hansen"
   end

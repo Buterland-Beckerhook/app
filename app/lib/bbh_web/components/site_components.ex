@@ -121,15 +121,18 @@ defmodule BbhWeb.SiteComponents do
 
     ~H"""
     <table class="w-full text-left text-[15px]">
-      <caption :if={@show_caption} class="font-logo mb-2 text-lg font-bold text-primary">
-        {throne_caption(@throne)}
+      <caption :if={@show_caption} class="mb-2 text-left">
+        <span class="flex items-baseline justify-between gap-3">
+          <span class="font-logo text-lg font-bold text-primary">{throne_name(@throne)}</span>
+          <span class="text-sm font-semibold whitespace-nowrap text-muted">
+            {throne_years(@throne)}
+          </span>
+        </span>
       </caption>
       <tbody class="divide-y divide-base-300">
         <tr>
           <th class="py-3.5 pr-4 font-medium text-muted">{@king_label}</th>
-          <td class="py-3.5 text-right font-semibold">
-            {[@throne.king_title, @throne.king] |> Enum.reject(&is_nil/1) |> Enum.join(" – ")}
-          </td>
+          <td class="py-3.5 text-right font-semibold">{@throne.king}</td>
         </tr>
         <tr :if={@throne.queen}>
           <th class="py-3.5 pr-4 font-medium text-muted">{@queen_label}</th>
@@ -168,22 +171,10 @@ defmodule BbhWeb.SiteComponents do
   defp throne_roles("jungschuetzenkoenig"), do: {"Jungschützenkönig", "Königin"}
   defp throne_roles(_), do: {"König", "Königin"}
 
-  @doc "Caption line for a throne, e.g. \"König 2025–2026\" or \"Kaiser 2009\"."
-  def throne_caption(%Throne{} = t) do
-    kind =
-      case t.type do
-        "kaiser" -> "Kaiser"
-        "stadtkaiser" -> "Stadtkaiser"
-        "jungschuetzenkoenig" -> "Jungschützenkönig"
-        _ -> "König"
-      end
-
-    years =
-      if t.end_year && t.end_year != t.begin_year,
-        do: "#{t.begin_year}–#{t.end_year}",
-        else: "#{t.begin_year}"
-
-    "#{kind} #{years}"
+  @doc ~S(Heading name for a throne: title + regency name, e.g. "König Jan-Bernd I." or "Jungschützenkönig".)
+  def throne_name(%Throne{} = t) do
+    {kind, _} = throne_roles(t.type)
+    [kind, t.king_title] |> Enum.reject(&(&1 in [nil, ""])) |> Enum.join(" ")
   end
 
   @doc "Simple role → name table (Vorstand / Offiziere)."
@@ -506,7 +497,8 @@ defmodule BbhWeb.SiteComponents do
     """
   end
 
-  defp throne_years(t) do
+  @doc ~S(Reign years for a throne, e.g. "2025–2026" or "2009".)
+  def throne_years(t) do
     if t.end_year && t.end_year != t.begin_year,
       do: "#{t.begin_year}–#{t.end_year}",
       else: "#{t.begin_year}"

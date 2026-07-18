@@ -6,8 +6,9 @@
   </p>
 
   <div :for={throne <- @result.entries} class="mx-auto max-w-3xl">
-    <h2 class="mb-6 text-3xl font-semibold">
-      {[throne.king_title] |> Enum.reject(&is_nil/1) |> Enum.join(" – ")}
+    <h2 class="mb-6 flex flex-wrap items-baseline justify-between gap-x-3 text-3xl font-semibold">
+      <span>{throne_name(throne)}</span>
+      <span class="text-xl font-normal text-muted">{throne_years(throne)}</span>
     </h2>
 
     <% pic = throne_picture(throne) %>
@@ -18,7 +19,7 @@
       class="mb-6 w-full rounded-lg object-cover"
     />
     <div class="rounded-lg border border-base-300 p-4">
-      <.throne_table throne={throne} />
+      <.throne_table throne={throne} show_caption={false} />
       <a
         :if={throne.article && !throne.article.no_article}
         href={~p"/aktuell/#{throne.article.year}/#{throne.article.slug}"}

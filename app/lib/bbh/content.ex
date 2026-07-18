@@ -76,7 +76,7 @@ defmodule Bbh.Content do
 
   @doc """
   The currently reigning throne of each type for the homepage throne section, ordered
-  König → Jungschützenkönig → Kaiser → Stadtkaiser. Missing types are omitted.
+  König → Kaiser → Stadtkaiser → Jungschützenkönig. Missing types are omitted.
 
   König and Jungschützenkönig change yearly, so we take the most recent one. A
   Kaiser/Stadtkaiser reigns until the next Kaiserthron/Stadtschützenfest — which the club
@@ -86,9 +86,9 @@ defmodule Bbh.Content do
   def current_thrones do
     [
       current_throne_of_type("koenig"),
-      current_throne_of_type("jungschuetzenkoenig"),
       current_open_throne_of_type("kaiser"),
-      current_open_throne_of_type("stadtkaiser")
+      current_open_throne_of_type("stadtkaiser"),
+      current_throne_of_type("jungschuetzenkoenig")
     ]
     |> Enum.reject(&is_nil/1)
   end
