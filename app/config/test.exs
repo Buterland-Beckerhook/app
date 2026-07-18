@@ -31,6 +31,10 @@ config :bbh, Oban, testing: :manual
 # borrow and outlive the SQL sandbox connection, flaking other async tests.
 config :bbh, Bbh.Notifications, async: false
 
+# Don't pre-warm image variants in tests: the detached task would outlive the
+# per-test temp dirs and log spurious mkdir failures during teardown.
+config :bbh, :media_prewarm, false
+
 # In test we don't send emails
 config :bbh, Bbh.Mailer, adapter: Swoosh.Adapters.Test
 

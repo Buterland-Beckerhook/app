@@ -72,18 +72,20 @@ defmodule BbhWeb.Admin.MediaLive.Index do
                folder_id: folder_id
              }) do
           {:ok, upload} -> {:ok, {:stored, upload}}
-          # Magic-byte validation rejected the file (e.g. spoofed extension).
-          {:error, _reason} -> {:ok, :rejected}
+          # Rejected: :image_too_large (pixel bomb) or :unsupported_media_type /
+          # other (e.g. spoofed extension, failed magic-byte validation).
+          {:error, reason} -> {:ok, {:rejected, reason}}
         end
       end)
 
     stored = for {:stored, upload} <- results, do: upload
-    rejected = Enum.count(results, &(&1 == :rejected))
+    too_large = Enum.count(results, &(&1 == {:rejected, :image_too_large}))
+    rejected = Enum.count(results, &match?({:rejected, r} when r != :image_too_large, &1))
 
     socket =
       Enum.reduce(stored, socket, fn upload, acc -> stream_insert(acc, :items, upload, at: 0) end)
 
-    {:noreply, put_upload_flash(socket, length(stored), rejected)}
+    {:noreply, put_upload_flash(socket, length(stored), rejected, too_large)}
   end
 
   def handle_event("delete", %{"id" => id}, socket) do
@@ -202,19 +204,26 @@ defmodule BbhWeb.Admin.MediaLive.Index do
     |> List.first() || "Ordner konnte nicht erstellt werden."
   end
 
-  defp put_upload_flash(socket, stored, 0),
-    do: put_flash(socket, :info, "#{stored} Datei(en) hochgeladen.")
+  defp put_upload_flash(socket, stored, rejected, too_large) do
+    msg = upload_summary(stored, rejected, too_large)
 
-  defp put_upload_flash(socket, 0, _rejected),
-    do: put_flash(socket, :error, "Datei wurde nicht als gültiges Bild/PDF erkannt.")
+    cond do
+      rejected == 0 and too_large == 0 -> put_flash(socket, :info, msg)
+      stored == 0 -> put_flash(socket, :error, msg)
+      true -> put_flash(socket, :warning, msg)
+    end
+  end
 
-  defp put_upload_flash(socket, stored, rejected),
-    do:
-      put_flash(
-        socket,
-        :warning,
-        "#{stored} hochgeladen, #{rejected} abgelehnt (kein gültiges Bild/PDF)."
-      )
+  defp upload_summary(stored, rejected, too_large) do
+    [
+      stored > 0 && "#{stored} Datei(en) hochgeladen",
+      rejected > 0 && "#{rejected} abgelehnt (kein gültiges Bild/PDF)",
+      too_large > 0 && "#{too_large} abgelehnt (Bildauflösung zu hoch)"
+    ]
+    |> Enum.filter(& &1)
+    |> Enum.join(", ")
+    |> Kernel.<>(".")
+  end
 
   @impl true
   def render(assigns) do

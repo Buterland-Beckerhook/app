@@ -17,16 +17,21 @@ defmodule Bbh.MediaTest do
 
   setup do
     tmp = Path.join(System.tmp_dir!(), "bbh_media_test_#{System.unique_integer([:positive])}")
+    cache = Path.join(tmp, "cache")
     File.mkdir_p!(tmp)
+    File.mkdir_p!(cache)
     prev = Application.get_env(:bbh, :uploads_dir)
+    prev_cache = Application.get_env(:bbh, :media_cache_dir)
     Application.put_env(:bbh, :uploads_dir, tmp)
+    Application.put_env(:bbh, :media_cache_dir, cache)
 
     on_exit(fn ->
       Application.put_env(:bbh, :uploads_dir, prev)
+      Application.put_env(:bbh, :media_cache_dir, prev_cache)
       File.rm_rf(tmp)
     end)
 
-    {:ok, tmp: tmp}
+    {:ok, tmp: tmp, cache: cache}
   end
 
   defp write_tmp(bytes) do
@@ -155,6 +160,20 @@ defmodule Bbh.MediaTest do
       assert is_nil(upload.width) and is_nil(upload.height)
       refute Media.image?(upload)
     end
+
+    test "rejects an image whose pixel count exceeds the megapixel budget", %{tmp: tmp} do
+      # Drive the budget below the 1×1 fixture so a real (tiny) image trips the
+      # guard — the same code path a decompression bomb hits, without needing one.
+      prev = Application.get_env(:bbh, :max_image_pixels)
+      Application.put_env(:bbh, :max_image_pixels, 0)
+      on_exit(fn -> Application.put_env(:bbh, :max_image_pixels, prev) end)
+
+      src = write_tmp(@png)
+      assert {:error, :image_too_large} = Media.store_file(src, %{filename: "bomb.png"})
+
+      # Rejected before anything landed in the uploads dir (only the cache subdir).
+      assert File.ls!(tmp) == ["cache"]
+    end
   end
 
   describe "delete_upload/1 with references" do
@@ -230,6 +249,18 @@ defmodule Bbh.MediaTest do
 
       assert {:ok, path, "image/png"} = Media.resolve_variant(upload.storage_key, nil, nil)
       assert File.regular?(path)
+    end
+
+    test "generates a cached WebP variant from the source path (shrink-on-load)" do
+      src = write_tmp(@png)
+      {:ok, upload} = Media.store_file(src, %{filename: "x.png"})
+
+      assert {:ok, path, "image/webp"} = Media.resolve_variant(upload.storage_key, 100, 100)
+      assert File.regular?(path)
+      assert String.ends_with?(path, ".webp")
+
+      # Second request is served from cache (identical path), not regenerated.
+      assert {:ok, ^path, "image/webp"} = Media.resolve_variant(upload.storage_key, 100, 100)
     end
   end
 end

@@ -61,6 +61,14 @@ services:
   phoenix:
     image: ${IMAGE:-ghcr.io/buterland-beckerhook/app:beta}
     restart: unless-stopped
+    # Hard resource ceiling so a runaway image-processing spike (libvips is native
+    # and allocates OUTSIDE the BEAM's accounting) can only ever OOM-kill THIS
+    # container — never the shared host (mailcow, Postgres, Traefik, sshd). The
+    # host has 0 swap, so without this a multi-GB decode detonates the whole box.
+    # memswap_limit == mem_limit ⇒ the container cannot spill to swap.
+    mem_limit: ${PHX_MEM_LIMIT:-1500m}
+    memswap_limit: ${PHX_MEM_LIMIT:-1500m}
+    cpus: ${PHX_CPUS:-1.5}
     depends_on:
       postgres:
         condition: service_healthy
@@ -95,6 +103,13 @@ services:
       PHX_SERVER: "true"
       UPLOADS_DIR: /data/uploads
       MEDIA_CACHE_DIR: /data/uploads_cache
+      # libvips guardrails. VIPS_CONCURRENCY caps native threads PER operation to
+      # 1 (Vix reads this env), so concurrent variant generation can't fan out to
+      # (cores × ops) threads. MALLOC_ARENAS_MAX bounds glibc arena fragmentation
+      # from many short-lived native allocations. App-level limits live in code
+      # (Bbh.Media.VariantLimiter + megapixel guard); these are the native floor.
+      VIPS_CONCURRENCY: "1"
+      MALLOC_ARENAS_MAX: "2"
       # IANA time zone for event times / iCal TZID. Defaults to Europe/Berlin.
       # TZ sets the container's OS zone (log timestamps) from the same value.
       TIME_ZONE: ${TIME_ZONE:-Europe/Berlin}

@@ -84,7 +84,7 @@ defmodule BbhWeb.Admin.MediaLiveTest do
       render_upload(file, "fake.png")
       html = lv |> element("#upload-form") |> render_submit()
 
-      assert html =~ "nicht als gültiges Bild/PDF erkannt"
+      assert html =~ "abgelehnt (kein gültiges Bild/PDF)"
       assert Media.list_uploads() == []
     end
   end

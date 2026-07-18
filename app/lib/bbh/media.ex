@@ -37,6 +37,17 @@ defmodule Bbh.Media do
   # PDFs are stored as-is (documents), so they are excluded here.
   @image_types ~w(image/jpeg image/png image/gif image/webp image/avif image/svg+xml)
 
+  # Reject absurdly large images up front (a "decompression bomb": small on disk,
+  # gigapixels decoded). Well above any real camera (~50 MP) but far below the
+  # sizes that blow up native memory. The byte-size limit lives in the LiveView.
+  # Overridable via config (`:bbh, :max_image_pixels`) for tuning without a rebuild.
+  @default_max_pixels 100 * 1_000_000
+
+  # Square admin thumbnails (media library grid, picker, editor). Generated at
+  # upload time so those views — which request one variant per image at once —
+  # open against a warm cache instead of a cold-cache decode burst.
+  @prewarm_variants [{120, 120}, {200, 200}, {300, 300}]
+
   @doc "True for a stored content type we treat as a displayable image (not a PDF/document)."
   def image_type?(type), do: type in @image_types
 
@@ -195,9 +206,10 @@ defmodule Bbh.Media do
   media library and the one-time import). Extra `attrs` (title, copyright, …) are merged.
 
   The file's real type is sniffed from its magic bytes; anything that isn't a
-  supported image is rejected with `{:error, :unsupported_media_type}`. The stored
-  content type and storage-key extension come from the detected type, never from
-  the client-supplied filename/content type.
+  supported image is rejected with `{:error, :unsupported_media_type}`; an image
+  whose pixel dimensions exceed the megapixel budget is rejected with
+  `{:error, :image_too_large}`. The stored content type and storage-key extension
+  come from the detected type, never from the client-supplied filename/content type.
   """
   def store_file(source_path, attrs \\ %{}) do
     case detect_image_type(source_path) do
@@ -209,28 +221,54 @@ defmodule Bbh.Media do
   # sobelow_skip ["Traversal.FileModule"]
   # dest is uploads_dir/<app-generated key>; source_path is a server-side temp file.
   defp do_store_file(source_path, attrs, detected_type) do
-    ext = Map.fetch!(@ext_for_type, detected_type)
+    # Read dimensions from the SOURCE (header-only, cheap) and reject a bomb
+    # BEFORE copying it into the uploads dir or ever decoding its pixels.
+    {width, height} = if image_type?(detected_type), do: dimensions(source_path), else: {nil, nil}
 
-    key = "#{Date.utc_today().year}/#{Ecto.UUID.generate()}#{ext}"
-    dest = Path.join(uploads_dir(), key)
-    File.mkdir_p!(Path.dirname(dest))
-    File.cp!(source_path, dest)
+    if oversized?(width, height) do
+      {:error, :image_too_large}
+    else
+      ext = Map.fetch!(@ext_for_type, detected_type)
 
-    {width, height} = if image_type?(detected_type), do: dimensions(dest), else: {nil, nil}
+      key = "#{Date.utc_today().year}/#{Ecto.UUID.generate()}#{ext}"
+      dest = Path.join(uploads_dir(), key)
+      File.mkdir_p!(Path.dirname(dest))
+      File.cp!(source_path, dest)
 
-    attrs
-    |> Map.new(fn {k, v} -> {to_string(k), v} end)
-    |> Map.merge(%{
-      "storage_key" => key,
-      "filename" => attrs[:filename] || attrs["filename"] || Path.basename(source_path),
-      "content_type" => detected_type,
-      "byte_size" => File.stat!(dest).size,
-      "width" => width,
-      "height" => height
-    })
-    |> then(&Upload.changeset(%Upload{}, &1))
-    |> Repo.insert()
+      attrs
+      |> Map.new(fn {k, v} -> {to_string(k), v} end)
+      |> Map.merge(%{
+        "storage_key" => key,
+        "filename" => attrs[:filename] || attrs["filename"] || Path.basename(source_path),
+        "content_type" => detected_type,
+        "byte_size" => File.stat!(dest).size,
+        "width" => width,
+        "height" => height
+      })
+      |> then(&Upload.changeset(%Upload{}, &1))
+      |> Repo.insert()
+      |> tap_prewarm()
+    end
   end
+
+  defp oversized?(w, h) when is_integer(w) and is_integer(h), do: w * h > max_pixels()
+  defp oversized?(_w, _h), do: false
+
+  defp max_pixels, do: Application.get_env(:bbh, :max_image_pixels, @default_max_pixels)
+
+  # Pre-generate the admin thumbnails off the request path so the upload response
+  # stays snappy; generation still funnels through VariantLimiter (see variant/4).
+  defp tap_prewarm({:ok, %Upload{} = upload} = result) do
+    if image?(upload) and Application.get_env(:bbh, :media_prewarm, true) do
+      Task.Supervisor.start_child(Bbh.TaskSupervisor, fn ->
+        Enum.each(@prewarm_variants, fn {w, h} -> resolve_variant(upload.storage_key, w, h) end)
+      end)
+    end
+
+    result
+  end
+
+  defp tap_prewarm(result), do: result
 
   # Sniff the real image type from the leading bytes. Returns a MIME string for
   # supported image types, or nil for anything unrecognized.
@@ -273,7 +311,7 @@ defmodule Bbh.Media do
       File.regular?(dest) ->
         {:ok, dest, "image/webp"}
 
-      generate(source, dest, width, height) == :ok ->
+      limited_generate(source, dest, width, height) == :ok ->
         {:ok, dest, "image/webp"}
 
       # On any processing failure, fall back to the original so the page still shows.
@@ -282,13 +320,22 @@ defmodule Bbh.Media do
     end
   end
 
+  # Bound concurrent generation so a cold-cache burst (the media library/picker
+  # requests one variant per image at once) can't pile up native image decodes.
+  defp limited_generate(source, dest, width, height) do
+    Bbh.Media.VariantLimiter.run(fn -> generate(source, dest, width, height) end)
+  end
+
   # sobelow_skip ["Traversal.FileModule"]
   # source/dest are app-derived paths under uploads_dir (see variant/4 + safe_source/1).
   defp generate(source, dest, width, height) do
     File.mkdir_p!(Path.dirname(dest))
 
-    with {:ok, img} <- Image.open(source),
-         {:ok, thumb} <- thumbnail(img, width, height),
+    # Pass the source PATH (not an opened image) to Image.thumbnail so libvips
+    # uses shrink-on-load / sequential access — it decodes a downscaled image
+    # directly instead of first materializing the full-resolution pixel buffer.
+    # This keeps peak memory at tens of MB even for very large source images.
+    with {:ok, thumb} <- thumbnail(source, width, height),
          {:ok, _} <- Image.write(thumb, dest, quality: 82) do
       :ok
     else
@@ -296,11 +343,11 @@ defmodule Bbh.Media do
     end
   end
 
-  defp thumbnail(img, width, nil), do: Image.thumbnail(img, width)
-  defp thumbnail(img, nil, height), do: Image.thumbnail(img, "x#{height}")
+  defp thumbnail(source, width, nil), do: Image.thumbnail(source, width)
+  defp thumbnail(source, nil, height), do: Image.thumbnail(source, "x#{height}")
 
-  defp thumbnail(img, width, height),
-    do: Image.thumbnail(img, width, height: height, crop: :center)
+  defp thumbnail(source, width, height),
+    do: Image.thumbnail(source, width, height: height, crop: :center)
 
   defp dimensions(path) do
     case Image.open(path) do
