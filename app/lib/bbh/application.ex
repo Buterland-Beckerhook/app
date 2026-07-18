@@ -18,6 +18,7 @@ defmodule Bbh.Application do
       {Phoenix.PubSub, name: Bbh.PubSub},
       {BbhWeb.RateLimit, clean_period: :timer.minutes(10)},
       Bbh.Altcha.ReplayCache,
+      Bbh.Media.VariantLimiter,
       {Task.Supervisor, name: Bbh.TaskSupervisor},
       {Oban, Application.fetch_env!(:bbh, Oban)},
       # Start a worker by calling: Bbh.Worker.start_link(arg)
