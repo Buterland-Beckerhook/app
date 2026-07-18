@@ -35,6 +35,9 @@ defmodule BbhWeb.Admin.ArticleLiveTest do
     test "deletes an article from the edit page with slug confirmation", %{conn: conn} do
       article = article_fixture()
       {:ok, lv, _html} = live(conn, ~p"/admin/artikel/#{article.id}/bearbeiten")
+      # Drain the edit page's assign_async (media library) so navigating away on
+      # delete doesn't kill an in-flight DB task on the test's sandbox connection.
+      render_async(lv)
 
       {:ok, _lv, html} =
         lv
@@ -74,6 +77,7 @@ defmodule BbhWeb.Admin.ArticleLiveTest do
       article = article_fixture(date_published: published, title: "Alt")
 
       {:ok, lv, _html} = live(conn, ~p"/admin/artikel/#{article.id}/bearbeiten")
+      render_async(lv)
 
       # Submit a change that omits date_published from the params entirely.
       lv
@@ -93,6 +97,7 @@ defmodule BbhWeb.Admin.ArticleLiveTest do
       {:ok, b} = Content.add_article_image(article, upload_fixture().id)
 
       {:ok, lv, _html} = live(conn, ~p"/admin/artikel/#{article.id}/bearbeiten")
+      render_async(lv)
 
       # Click the actual per-image button, not just the raw event.
       html =

@@ -21,6 +21,23 @@ defmodule Bbh.Notifications do
   def vapid_public_key, do: Application.get_env(:web_push_elixir, :vapid_public_key)
 
   @doc """
+  Run a notification side effect off the request via `Bbh.TaskSupervisor`.
+
+  Set `config :bbh, Bbh.Notifications, async: false` (tests) to run it inline
+  instead — a detached task would otherwise borrow and outlive the Ecto SQL
+  sandbox connection, poisoning the pool for later async tests.
+  """
+  def dispatch(fun) when is_function(fun, 0) do
+    if Application.get_env(:bbh, __MODULE__, [])[:async] == false do
+      fun.()
+    else
+      Task.Supervisor.start_child(Bbh.TaskSupervisor, fun)
+    end
+
+    :ok
+  end
+
+  @doc """
   Whether `endpoint` is an `https` URL pointing at a known push service.
   Used both when accepting a subscription and again before sending (SSRF guard).
   """

@@ -179,9 +179,7 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
   defp maybe_notify(old_status, %Article{status: "published", no_article: false} = article)
        when old_status != "published" do
     if publish_due?(article) do
-      Task.Supervisor.start_child(Bbh.TaskSupervisor, fn ->
-        Bbh.Workers.ArticlePublishNotifier.notify(article)
-      end)
+      Bbh.Notifications.dispatch(fn -> Bbh.Workers.ArticlePublishNotifier.notify(article) end)
     end
 
     :ok
@@ -384,7 +382,12 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
             field={t[:type]}
             type="select"
             label="Typ"
-            options={[{"König", "koenig"}, {"Kaiser", "kaiser"}, {"Stadtkaiser", "stadtkaiser"}]}
+            options={[
+              {"König", "koenig"},
+              {"Kaiser", "kaiser"},
+              {"Stadtkaiser", "stadtkaiser"},
+              {"Jungschützenkönig", "jungschuetzenkoenig"}
+            ]}
           />
           <div class="grid grid-cols-2 gap-2">
             <.input field={t[:begin_year]} type="number" label="Beginn (Jahr)" />

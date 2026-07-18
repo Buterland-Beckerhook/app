@@ -110,7 +110,10 @@ defmodule BbhWeb.SiteComponents do
 
   def throne_table(assigns) do
     {king_label, queen_label} = throne_roles(assigns.throne.type)
-    # Stadtkaiser = nur das (Stadt-)Kaiserpaar; König/Kaiser = voller Thron mit Hofstaat.
+    # Stadtkaiser = bewusst nur das (Stadt-)Kaiserpaar. Sonst ist die Anzeige
+    # datengesteuert: Königin und Hofstaat erscheinen, wenn sie eingetragen sind
+    # (der Jungschützenkönig hatte früher vollen Hofstaat, dann nur eine Königin,
+    # heute nur den König).
     full_court? = assigns.throne.type != "stadtkaiser"
 
     assigns =
@@ -128,7 +131,7 @@ defmodule BbhWeb.SiteComponents do
             {[@throne.king_title, @throne.king] |> Enum.reject(&is_nil/1) |> Enum.join(" – ")}
           </td>
         </tr>
-        <tr>
+        <tr :if={@throne.queen}>
           <th class="py-3.5 pr-4 font-medium text-muted">{@queen_label}</th>
           <td class="py-3.5 text-right font-semibold">{@throne.queen}</td>
         </tr>
@@ -157,9 +160,12 @@ defmodule BbhWeb.SiteComponents do
     """
   end
 
-  # Row labels for the royal couple, by throne type.
+  # Row labels for the royal couple, by throne type. The queen row itself is only
+  # rendered when a queen is set (see the table), so a king-only throne shows just
+  # the king.
   defp throne_roles("kaiser"), do: {"Kaiser", "Kaiserin"}
   defp throne_roles("stadtkaiser"), do: {"Stadtkaiser", "Stadtkaiserin"}
+  defp throne_roles("jungschuetzenkoenig"), do: {"Jungschützenkönig", "Königin"}
   defp throne_roles(_), do: {"König", "Königin"}
 
   @doc "Caption line for a throne, e.g. \"König 2025–2026\" or \"Kaiser 2009\"."
@@ -168,6 +174,7 @@ defmodule BbhWeb.SiteComponents do
       case t.type do
         "kaiser" -> "Kaiser"
         "stadtkaiser" -> "Stadtkaiser"
+        "jungschuetzenkoenig" -> "Jungschützenkönig"
         _ -> "König"
       end
 

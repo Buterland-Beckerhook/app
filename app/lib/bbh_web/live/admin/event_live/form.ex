@@ -129,7 +129,7 @@ defmodule BbhWeb.Admin.EventLive.Form do
        when old_status != "published" do
     url = url(~p"/termine/#{event.year}/#{event.slug}")
 
-    Task.Supervisor.start_child(Bbh.TaskSupervisor, fn ->
+    Bbh.Notifications.dispatch(fn ->
       Bbh.Notifications.notify("termine", %{title: "Neuer Termin", body: event.title, url: url})
     end)
   end
