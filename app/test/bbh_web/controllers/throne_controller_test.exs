@@ -18,14 +18,34 @@ defmodule BbhWeb.ThroneControllerTest do
     assert conn |> get(~p"/thron") |> html_response(200)
   end
 
-  test "GET /thron renders a Jungschützenkönig as king-only (no queen row)", %{conn: conn} do
+  test "GET /thron renders a Jungschützenkönig as king-only when no queen is set", %{conn: conn} do
     throne_fixture(type: "jungschuetzenkoenig", king: "Tim Junior", queen: nil)
 
     html = conn |> get(~p"/thron") |> html_response(200)
 
     assert html =~ "Jungschützenkönig"
     assert html =~ "Tim Junior"
-    refute html =~ "Königin"
+    # No queen and no court rows when there's no data for them.
+    refute html =~ "önigin"
+    refute html =~ "Ehrenpaare"
+  end
+
+  test "GET /thron shows a Jungschützenkönig's queen and court when present", %{conn: conn} do
+    throne_fixture(
+      type: "jungschuetzenkoenig",
+      king: "Alt-König",
+      queen: "Alt-Königin",
+      moh1: "Ehrendame Eins",
+      cupbearer: "Mundschenk Max"
+    )
+
+    html = conn |> get(~p"/thron") |> html_response(200)
+
+    # Queen and court are optional but shown when entered (historical entries).
+    assert html =~ "Jungschützenkönigin"
+    assert html =~ "Alt-Königin"
+    assert html =~ "Ehrendame Eins"
+    assert html =~ "Mundschenk Max"
   end
 
   test "GET /thron renders the year-king pager", %{conn: conn} do
