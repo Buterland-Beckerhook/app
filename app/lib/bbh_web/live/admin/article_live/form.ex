@@ -179,9 +179,7 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
   defp maybe_notify(old_status, %Article{status: "published", no_article: false} = article)
        when old_status != "published" do
     if publish_due?(article) do
-      Task.Supervisor.start_child(Bbh.TaskSupervisor, fn ->
-        Bbh.Workers.ArticlePublishNotifier.notify(article)
-      end)
+      Bbh.Notifications.dispatch(fn -> Bbh.Workers.ArticlePublishNotifier.notify(article) end)
     end
 
     :ok

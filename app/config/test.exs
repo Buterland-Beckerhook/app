@@ -27,6 +27,10 @@ config :bbh, BbhWeb.RateLimit, enabled: false
 # Run Oban jobs manually in tests (no queues/cron polling); use Oban.Testing.
 config :bbh, Oban, testing: :manual
 
+# Run push-notification side effects inline in tests: a detached task would
+# borrow and outlive the SQL sandbox connection, flaking other async tests.
+config :bbh, Bbh.Notifications, async: false
+
 # In test we don't send emails
 config :bbh, Bbh.Mailer, adapter: Swoosh.Adapters.Test
 
