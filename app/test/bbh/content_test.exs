@@ -114,8 +114,8 @@ defmodule Bbh.ContentTest do
 
       types = Content.current_thrones() |> Enum.map(& &1.type)
       assert "jungschuetzenkoenig" in types
-      # König comes first, then the Jungschützenkönig.
-      assert Enum.take(types, 2) == ["koenig", "jungschuetzenkoenig"]
+      # König first, Jungschützenkönig last (Kaiser/Stadtkaiser absent here).
+      assert types == ["koenig", "jungschuetzenkoenig"]
       assert koenig.type == "koenig" and jsk.type == "jungschuetzenkoenig"
     end
 
