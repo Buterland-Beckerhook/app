@@ -18,6 +18,23 @@ defmodule BbhWeb.ThroneControllerTest do
     assert conn |> get(~p"/thron") |> html_response(200)
   end
 
+  test "GET /thron shows title + regency name + years in the heading", %{conn: conn} do
+    throne_fixture(
+      type: "koenig",
+      king_title: "Jan-Bernd I.",
+      king: "Jan-Bernd Droste",
+      begin_year: 2025,
+      end_year: 2026
+    )
+
+    html = conn |> get(~p"/thron") |> html_response(200)
+
+    assert html =~ "König Jan-Bernd I."
+    assert html =~ "2025–2026"
+    # The regency name lives in the heading now, the table shows the real name.
+    assert html =~ "Jan-Bernd Droste"
+  end
+
   test "GET /thron renders a Jungschützenkönig as king-only when no queen is set", %{conn: conn} do
     throne_fixture(type: "jungschuetzenkoenig", king: "Tim Junior", queen: nil)
 
