@@ -327,35 +327,63 @@ defmodule BbhWeb.SiteComponents do
   attr :base_path, :string, required: true
 
   def pagination(assigns) do
+    assigns = assign(assigns, :items, pagination_items(assigns.page, assigns.total_pages))
+
     ~H"""
-    <nav :if={@total_pages > 1} class="mt-8 flex items-center justify-center gap-1">
+    <nav :if={@total_pages > 1} class="mt-8 flex flex-wrap items-center justify-center gap-1">
       <a
         :if={@page > 1}
         href={"#{@base_path}?seite=#{@page - 1}"}
+        rel="prev"
+        aria-label="Zurück"
         class="rounded border border-base-300 px-3 py-1 text-sm hover:border-primary hover:text-primary"
       >
-        Zurück
+        <span class="sr-only sm:not-sr-only">Zurück</span>
+        <span aria-hidden="true" class="sm:hidden">‹</span>
       </a>
-      <a
-        :for={n <- 1..@total_pages}
-        href={"#{@base_path}?seite=#{n}"}
-        class={[
-          "rounded border px-3 py-1 text-sm",
-          n == @page && "border-primary bg-primary text-primary-content",
-          n != @page && "border-base-300 hover:border-primary hover:text-primary"
-        ]}
-      >
-        {n}
-      </a>
+      <%= for item <- @items do %>
+        <span :if={item == :gap} class="px-2 py-1 text-sm text-muted">…</span>
+        <a
+          :if={item != :gap}
+          href={"#{@base_path}?seite=#{item}"}
+          aria-current={item == @page && "page"}
+          class={[
+            "rounded border px-3 py-1 text-sm",
+            item == @page && "border-primary bg-primary text-primary-content",
+            item != @page && "border-base-300 hover:border-primary hover:text-primary"
+          ]}
+        >
+          {item}
+        </a>
+      <% end %>
       <a
         :if={@page < @total_pages}
         href={"#{@base_path}?seite=#{@page + 1}"}
+        rel="next"
+        aria-label="Weiter"
         class="rounded border border-base-300 px-3 py-1 text-sm hover:border-primary hover:text-primary"
       >
-        Weiter
+        <span class="sr-only sm:not-sr-only">Weiter</span>
+        <span aria-hidden="true" class="sm:hidden">›</span>
       </a>
     </nav>
     """
+  end
+
+  # Windowed page list: always first/last + current ±1, with :gap markers for
+  # the elided stretches, so the pager stays narrow even with many pages.
+  defp pagination_items(page, total) do
+    [1, total, page - 1, page, page + 1]
+    |> Enum.filter(&(&1 >= 1 and &1 <= total))
+    |> Enum.uniq()
+    |> Enum.sort()
+    |> Enum.reduce([], fn n, acc ->
+      case acc do
+        [prev | _] when is_integer(prev) and n - prev > 1 -> [n, :gap | acc]
+        _ -> [n | acc]
+      end
+    end)
+    |> Enum.reverse()
   end
 
   @doc "Kompakter Jahr–König-Pager für /thron (nur ?seite= Navigation)."
@@ -374,8 +402,8 @@ defmodule BbhWeb.SiteComponents do
       )
 
     ~H"""
-    <nav :if={@total > 1} class="mt-8 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-      <div class="justify-self-start">
+    <nav :if={@total > 1} class="mt-8 grid grid-cols-1 items-center gap-2 sm:grid-cols-[1fr_auto_1fr]">
+      <div class="hidden justify-self-start sm:block">
         <a
           :if={@newer}
           href={"#{@base_path}?seite=#{@page - 1}"}
@@ -387,7 +415,7 @@ defmodule BbhWeb.SiteComponents do
 
       <select
         data-nav-select
-        class="select max-w-[16rem] justify-self-center"
+        class="select w-full max-w-full justify-self-center sm:max-w-[16rem]"
         aria-label="Thron auswählen"
       >
         <option
@@ -399,7 +427,7 @@ defmodule BbhWeb.SiteComponents do
         </option>
       </select>
 
-      <div class="justify-self-end text-right">
+      <div class="hidden justify-self-end text-right sm:block">
         <a
           :if={@older}
           href={"#{@base_path}?seite=#{@page + 1}"}
