@@ -3,7 +3,7 @@ defmodule BbhWeb.ArticleController do
   import BbhWeb.ControllerHelpers
 
   def index(conn, params) do
-    result = Bbh.Content.list_published_articles(page_param(params), 10)
+    result = Bbh.Content.list_published_articles(page_param(params), 12)
     render(conn, :index, page_title: "Aktuelles", result: result)
   end
 

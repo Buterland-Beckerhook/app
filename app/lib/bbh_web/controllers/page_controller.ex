@@ -4,7 +4,7 @@ defmodule BbhWeb.PageController do
   def home(conn, _params) do
     render(conn, :home,
       page_title: "Startseite",
-      articles: Bbh.Content.latest_articles(3),
+      articles: Bbh.Content.latest_articles(4),
       next_event: Bbh.Calendar.next_event(),
       thrones: Bbh.Content.current_thrones()
     )
