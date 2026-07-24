@@ -186,6 +186,20 @@ defmodule BbhWeb.Layouts do
                 </a>
               <% end %>
             <% end %>
+            <form method="get" action={~p"/suche"} role="search" class="relative">
+              <label for="nav-q" class="sr-only">Suche</label>
+              <.icon
+                name="hero-magnifying-glass"
+                class="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted"
+              />
+              <input
+                type="search"
+                name="q"
+                id="nav-q"
+                placeholder="Suchen…"
+                class="w-36 rounded-full border border-base-300 bg-card/60 py-1.5 pr-3 pl-8 text-sm text-base-content transition-all focus:w-48 focus:border-primary focus:outline-none"
+              />
+            </form>
             <a
               href={~p"/verein/mitglied-werden"}
               class="rounded-full bg-accent px-4.5 py-2 text-[15px] font-semibold whitespace-nowrap text-accent-content transition-opacity hover:opacity-90"
@@ -217,6 +231,11 @@ defmodule BbhWeb.Layouts do
                   </ul>
                 </li>
               <% end %>
+              <li>
+                <a href={~p"/suche"} class="font-medium">
+                  <.icon name="hero-magnifying-glass" class="size-4" /> Suche
+                </a>
+              </li>
               <li class="mt-2">
                 <a
                   href={~p"/verein/mitglied-werden"}

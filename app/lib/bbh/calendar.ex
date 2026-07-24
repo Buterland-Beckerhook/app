@@ -100,9 +100,13 @@ defmodule Bbh.Calendar do
     ])
   end
 
-  def create_event(attrs), do: %Event{} |> Event.changeset(attrs) |> Repo.insert()
-  def update_event(%Event{} = e, attrs), do: e |> Event.changeset(attrs) |> Repo.update()
-  def delete_event(%Event{} = e), do: Repo.delete(e)
+  def create_event(attrs),
+    do: %Event{} |> Event.changeset(attrs) |> Repo.insert() |> Bbh.Search.reindex_after()
+
+  def update_event(%Event{} = e, attrs),
+    do: e |> Event.changeset(attrs) |> Repo.update() |> Bbh.Search.reindex_after()
+
+  def delete_event(%Event{} = e), do: e |> Repo.delete() |> Bbh.Search.reindex_after()
   def change_event(%Event{} = e, attrs \\ %{}), do: Event.changeset(e, attrs)
 
   ## Event reminders (push notifications ahead of an event)

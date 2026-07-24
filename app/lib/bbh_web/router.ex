@@ -51,6 +51,8 @@ defmodule BbhWeb.Router do
     get "/impressum", PageContentController, :impressum
     get "/datenschutz", PageContentController, :datenschutz
 
+    get "/suche", SearchController, :index
+
     get "/kontakt", ContactController, :new
     post "/kontakt", ContactController, :create
 

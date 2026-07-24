@@ -104,6 +104,54 @@ defmodule BbhWeb.SiteComponents do
     """
   end
 
+  @doc "A single full-text search hit (article, event or page)."
+  attr :doc, :map, required: true
+
+  def search_result(assigns) do
+    ~H"""
+    <a
+      href={@doc.url}
+      class="block rounded-lg border border-base-300 bg-card p-4 transition-shadow hover:shadow-md"
+    >
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="rounded-full bg-tag px-2.5 py-0.5 text-xs font-semibold text-primary">
+          {source_label(@doc.source_type)}
+        </span>
+        <time :if={@doc.document_date} class="text-[13px] text-muted">
+          {de_date(@doc.document_date)}
+        </time>
+      </div>
+      <h3 class="font-logo mt-1.5 text-[20px] font-bold leading-snug text-base-content group-hover:text-primary">
+        {@doc.title}
+      </h3>
+      <p
+        :if={@doc.headline not in [nil, ""]}
+        class="mt-1.5 text-[15px] leading-relaxed text-muted [&_mark]:bg-accent/30 [&_mark]:text-base-content"
+      >
+        {mark_headline(@doc.headline)}
+      </p>
+    </a>
+    """
+  end
+
+  defp source_label("article"), do: "Artikel"
+  defp source_label("event"), do: "Termin"
+  defp source_label("page"), do: "Seite"
+  defp source_label(other), do: other
+
+  # The snippet arrives with neutral @@M@@/@@E@@ markers around matches. Escape
+  # the (plain-text) content first, then reinstate <mark> — so nothing in the
+  # indexed text can inject markup.
+  # sobelow_skip ["XSS.Raw"]
+  defp mark_headline(text) when is_binary(text) do
+    text
+    |> Phoenix.HTML.html_escape()
+    |> Phoenix.HTML.safe_to_string()
+    |> String.replace("@@M@@", "<mark>")
+    |> String.replace("@@E@@", "</mark>")
+    |> Phoenix.HTML.raw()
+  end
+
   @doc "Throne detail table (König/Kaiser + court)."
   attr :throne, :map, required: true
   attr :show_caption, :boolean, default: true, doc: "hide when the caption is shown elsewhere"
@@ -325,6 +373,7 @@ defmodule BbhWeb.SiteComponents do
   attr :page, :integer, required: true
   attr :total_pages, :integer, required: true
   attr :base_path, :string, required: true
+  attr :query, :map, default: %{}, doc: "extra query params to preserve, e.g. %{\"q\" => term}"
 
   def pagination(assigns) do
     assigns = assign(assigns, :items, pagination_items(assigns.page, assigns.total_pages))
@@ -333,7 +382,7 @@ defmodule BbhWeb.SiteComponents do
     <nav :if={@total_pages > 1} class="mt-8 flex flex-wrap items-center justify-center gap-1">
       <a
         :if={@page > 1}
-        href={"#{@base_path}?seite=#{@page - 1}"}
+        href={page_href(@base_path, @query, @page - 1)}
         rel="prev"
         aria-label="Zurück"
         class="rounded border border-base-300 px-3 py-1 text-sm hover:border-primary hover:text-primary"
@@ -345,7 +394,7 @@ defmodule BbhWeb.SiteComponents do
         <span :if={item == :gap} class="px-2 py-1 text-sm text-muted">…</span>
         <a
           :if={item != :gap}
-          href={"#{@base_path}?seite=#{item}"}
+          href={page_href(@base_path, @query, item)}
           aria-current={item == @page && "page"}
           class={[
             "rounded border px-3 py-1 text-sm",
@@ -358,7 +407,7 @@ defmodule BbhWeb.SiteComponents do
       <% end %>
       <a
         :if={@page < @total_pages}
-        href={"#{@base_path}?seite=#{@page + 1}"}
+        href={page_href(@base_path, @query, @page + 1)}
         rel="next"
         aria-label="Weiter"
         class="rounded border border-base-300 px-3 py-1 text-sm hover:border-primary hover:text-primary"
@@ -368,6 +417,12 @@ defmodule BbhWeb.SiteComponents do
       </a>
     </nav>
     """
+  end
+
+  # Build "?…&seite=N", URL-encoding any preserved params (e.g. the search query).
+  defp page_href(base_path, query, seite) do
+    qs = query |> Map.put("seite", seite) |> URI.encode_query()
+    "#{base_path}?#{qs}"
   end
 
   # Windowed page list: always first/last + current ±1, with :gap markers for

@@ -113,7 +113,9 @@ config :bbh, Oban,
     {Oban.Plugins.Cron,
      crontab: [
        {"*/5 * * * *", Bbh.Workers.ArticlePublishNotifier},
-       {"*/5 * * * *", Bbh.Workers.EventReminderNotifier}
+       {"*/5 * * * *", Bbh.Workers.EventReminderNotifier},
+       # Rebuild the full-text search index; self-healing, so a coarse cadence is fine.
+       {"*/15 * * * *", Bbh.Workers.SearchReindexer}
      ]}
   ]
 
