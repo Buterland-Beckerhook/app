@@ -3,6 +3,39 @@ defmodule BbhWeb.FormatTest do
 
   import Phoenix.HTML, only: [safe_to_string: 1]
 
+  alias Bbh.Media.Upload
+  alias BbhWeb.Format
+
+  describe "media_url/2" do
+    defp upload(attrs \\ %{}), do: struct(%Upload{storage_key: "2026/x.jpg"}, attrs)
+
+    test "no options serves the original" do
+      assert Format.media_url(upload()) == "/media/2026/x.jpg"
+    end
+
+    test "width/height become query params" do
+      assert Format.media_url(upload(), width: 640, height: 380) ==
+               "/media/2026/x.jpg?w=640&h=380"
+    end
+
+    test "focal point is appended only on a cover crop (both dimensions)" do
+      up = upload(%{focal_point_x: 0.25, focal_point_y: 0.75})
+      url = Format.media_url(up, width: 640, height: 380)
+      assert url =~ "fx=0.25"
+      assert url =~ "fy=0.75"
+    end
+
+    test "focal point is omitted without both dimensions" do
+      up = upload(%{focal_point_x: 0.25, focal_point_y: 0.75})
+      refute Format.media_url(up, width: 640) =~ "fx="
+      refute Format.media_url(up) =~ "fx="
+    end
+
+    test "no focal point means no fx/fy" do
+      refute Format.media_url(upload(), width: 640, height: 380) =~ "fx="
+    end
+  end
+
   describe "render_richtext/1" do
     defp render(body), do: body |> BbhWeb.Format.render_richtext() |> safe_to_string()
 

@@ -41,6 +41,15 @@ defmodule Bbh.MediaTest do
     path
   end
 
+  # A real w×h PNG, so focal crops actually have pixels to reposition.
+  defp write_image(w, h) do
+    {:ok, img} = Image.new(w, h, color: [200, 50, 50])
+    path = Path.join(System.tmp_dir!(), "src_#{System.unique_integer([:positive])}.png")
+    {:ok, _} = Image.write(img, path)
+    on_exit(fn -> File.rm(path) end)
+    path
+  end
+
   describe "list_uploads/1" do
     test "filters by search across filename and title" do
       upload_fixture(filename: "sonnenblume.webp", title: "Blume")
@@ -261,6 +270,50 @@ defmodule Bbh.MediaTest do
 
       # Second request is served from cache (identical path), not regenerated.
       assert {:ok, ^path, "image/webp"} = Media.resolve_variant(upload.storage_key, 100, 100)
+    end
+  end
+
+  describe "resolve_variant/5 focal crop" do
+    test "produces a distinct, correctly-sized variant when a focal point is given" do
+      src = write_image(400, 200)
+      {:ok, upload} = Media.store_file(src, %{filename: "wide.png"})
+
+      assert {:ok, centered, "image/webp"} = Media.resolve_variant(upload.storage_key, 100, 100)
+
+      assert {:ok, focal, "image/webp"} =
+               Media.resolve_variant(upload.storage_key, 100, 100, 0.9, 0.5)
+
+      # A focal crop is cached under a different key than the centered one …
+      refute centered == focal
+      # … and still yields exactly the requested box.
+      {:ok, img} = Image.open(focal)
+      assert Image.width(img) == 100
+      assert Image.height(img) == 100
+    end
+
+    test "the same focal point is served from cache on repeat" do
+      src = write_image(400, 200)
+      {:ok, upload} = Media.store_file(src, %{filename: "wide.png"})
+
+      assert {:ok, p1, _} = Media.resolve_variant(upload.storage_key, 120, 80, 0.2, 0.7)
+      assert {:ok, ^p1, _} = Media.resolve_variant(upload.storage_key, 120, 80, 0.2, 0.7)
+    end
+
+    test "no focal point keeps the pre-focal cache key (existing caches stay valid)" do
+      src = write_image(400, 200)
+      {:ok, upload} = Media.store_file(src, %{filename: "wide.png"})
+
+      assert {:ok, p1, _} = Media.resolve_variant(upload.storage_key, 100, 100)
+      assert {:ok, ^p1, _} = Media.resolve_variant(upload.storage_key, 100, 100, nil, nil)
+    end
+
+    test "a focal point is ignored unless both dimensions are requested" do
+      src = write_image(400, 200)
+      {:ok, upload} = Media.store_file(src, %{filename: "wide.png"})
+
+      # width-only variant: focal is irrelevant, so the cache key matches the plain call.
+      assert {:ok, p1, _} = Media.resolve_variant(upload.storage_key, 100, nil)
+      assert {:ok, ^p1, _} = Media.resolve_variant(upload.storage_key, 100, nil, 0.9, 0.1)
     end
   end
 end

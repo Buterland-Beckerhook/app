@@ -153,6 +153,52 @@ const Hooks = {
       }
     },
   },
+  // Click/drag on the preview image to pick a focal point (0..1 per axis). The
+  // fractions drive the crosshair marker and two hidden inputs the media form
+  // submits; "Zentrieren" clears them (server treats empty as centered).
+  FocalPoint: {
+    mounted() {
+      this.img = this.el.querySelector("img")
+      this.marker = this.el.querySelector("[data-focal-marker]")
+      this.xInput = document.getElementById(this.el.dataset.xInput)
+      this.yInput = document.getElementById(this.el.dataset.yInput)
+
+      this._onPick = e => this.pick(e)
+      this.el.addEventListener("pointerdown", e => {
+        this._dragging = true
+        this.pick(e)
+      })
+      this.el.addEventListener("pointermove", e => this._dragging && this.pick(e))
+      window.addEventListener("pointerup", (this._stop = () => (this._dragging = false)))
+
+      const reset = this.el.parentElement.querySelector("[data-focal-reset]")
+      if (reset) reset.addEventListener("click", (this._onReset = () => this.reset()))
+    },
+    destroyed() {
+      window.removeEventListener("pointerup", this._stop)
+    },
+    pick(e) {
+      const rect = this.img.getBoundingClientRect()
+      if (!rect.width || !rect.height) return
+      const x = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width))
+      const y = Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height))
+      this.set(x, y)
+    },
+    reset() {
+      this.set(null, null)
+    },
+    set(x, y) {
+      this.marker.style.left = `${(x ?? 0.5) * 100}%`
+      this.marker.style.top = `${(y ?? 0.5) * 100}%`
+      this.write(this.xInput, x)
+      this.write(this.yInput, y)
+    },
+    write(input, v) {
+      if (!input) return
+      input.value = v == null ? "" : v.toFixed(4)
+      input.dispatchEvent(new Event("input", {bubbles: true}))
+    },
+  },
   TrixEditor: {
     mounted() {
       const editor = this.el.querySelector("trix-editor")

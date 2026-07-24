@@ -45,9 +45,10 @@ defmodule BbhWeb.Format do
   def media_url(nil, _opts), do: nil
   def media_url(%Ecto.Association.NotLoaded{}, _opts), do: nil
 
-  def media_url(%Upload{storage_key: key}, opts) do
+  def media_url(%Upload{storage_key: key} = upload, opts) do
     query =
       [w: opts[:width], h: opts[:height]]
+      |> Enum.concat(focal_params(upload, opts))
       |> Enum.reject(fn {_k, v} -> is_nil(v) end)
 
     case query do
@@ -55,6 +56,18 @@ defmodule BbhWeb.Format do
       q -> "/media/#{key}?" <> URI.encode_query(q)
     end
   end
+
+  # A focal point only changes a cover crop (both dimensions requested), so it is
+  # only carried on the URL then. Rounded to keep the URL — and the derived
+  # variant cache key — stable across insignificant float noise.
+  defp focal_params(%Upload{focal_point_x: x, focal_point_y: y}, opts)
+       when is_number(x) and is_number(y) do
+    if opts[:width] && opts[:height],
+      do: [fx: Float.round(x * 1.0, 4), fy: Float.round(y * 1.0, 4)],
+      else: []
+  end
+
+  defp focal_params(_upload, _opts), do: []
 
   @doc "The best hero image for an article (flagged one, else first), as an ArticleImage."
   def article_hero(%Article{images: images}) when is_list(images) do
