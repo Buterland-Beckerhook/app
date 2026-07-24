@@ -43,6 +43,7 @@ defmodule BbhWeb.Router do
     get "/termine/:year/:slug/event.ics", EventController, :ics
 
     get "/thron", ThroneController, :index
+    get "/thron/:type", ThroneController, :index_type
 
     get "/verein", PageContentController, :verein
     get "/verein/*path", PageContentController, :verein_page

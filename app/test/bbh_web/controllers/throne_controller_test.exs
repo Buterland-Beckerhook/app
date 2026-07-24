@@ -38,7 +38,7 @@ defmodule BbhWeb.ThroneControllerTest do
   test "GET /thron renders a Jungschützenkönig as king-only when no queen is set", %{conn: conn} do
     throne_fixture(type: "jungschuetzenkoenig", king: "Tim Junior", queen: nil)
 
-    html = conn |> get(~p"/thron") |> html_response(200)
+    html = conn |> get(~p"/thron/jungschuetzenkoenig") |> html_response(200)
 
     assert html =~ "Jungschützenkönig"
     assert html =~ "Tim Junior"
@@ -56,7 +56,7 @@ defmodule BbhWeb.ThroneControllerTest do
       cupbearer: "Mundschenk Max"
     )
 
-    html = conn |> get(~p"/thron") |> html_response(200)
+    html = conn |> get(~p"/thron/jungschuetzenkoenig") |> html_response(200)
 
     # Queen and court are optional but shown when entered (historical entries).
     assert html =~ "Königin"
@@ -75,5 +75,32 @@ defmodule BbhWeb.ThroneControllerTest do
     # Newest throne is shown first; the older one is reachable via the next link.
     assert html =~ "2023–2024 – Jan-Bernd Droste"
     assert html =~ "/thron?seite=2"
+  end
+
+  test "GET /thron only lists Könige, not other throne types", %{conn: conn} do
+    throne_fixture(type: "koenig", king: "König Karl")
+    throne_fixture(type: "stadtkaiser", king: "Stadtkaiser Sven")
+    throne_fixture(type: "jungschuetzenkoenig", king: "Jungkönig Jonas", queen: nil)
+
+    html = conn |> get(~p"/thron") |> html_response(200)
+
+    assert html =~ "König Karl"
+    refute html =~ "Stadtkaiser Sven"
+    refute html =~ "Jungkönig Jonas"
+  end
+
+  test "GET /thron/stadtkaiser lists only Stadtkaiser with its own heading", %{conn: conn} do
+    throne_fixture(type: "koenig", king: "König Karl")
+    throne_fixture(type: "stadtkaiser", king: "Stadtkaiser Sven")
+
+    html = conn |> get(~p"/thron/stadtkaiser") |> html_response(200)
+
+    assert html =~ ">Stadtkaiser</h1>"
+    assert html =~ "Stadtkaiser Sven"
+    refute html =~ "König Karl"
+  end
+
+  test "GET /thron with an unknown type returns 404", %{conn: conn} do
+    assert conn |> get(~p"/thron/gibtsnicht") |> response(404)
   end
 end
