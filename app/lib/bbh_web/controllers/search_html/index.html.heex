@@ -1,0 +1,54 @@
+<Layouts.app flash={@flash} current_path={@conn.request_path}>
+  <h1 class="mb-6 text-3xl font-semibold">Suche</h1>
+
+  <form method="get" action={~p"/suche"} role="search" class="mb-8 flex max-w-xl gap-2">
+    <label for="q" class="sr-only">Suchbegriff</label>
+    <div class="relative flex-1">
+      <.icon
+        name="hero-magnifying-glass"
+        class="pointer-events-none absolute top-1/2 left-3 size-5 -translate-y-1/2 text-muted"
+      />
+      <input
+        type="search"
+        name="q"
+        id="q"
+        value={@q}
+        placeholder="Suchen…"
+        autofocus
+        class="w-full rounded-lg border border-base-300 bg-card py-2.5 pr-3 pl-10 text-base-content focus:border-primary focus:outline-none"
+      />
+    </div>
+    <button
+      type="submit"
+      class="rounded-lg bg-primary px-5 py-2.5 font-medium text-primary-content transition-opacity hover:opacity-90"
+    >
+      Suchen
+    </button>
+  </form>
+
+  <p :if={@q == ""} class="text-muted">
+    Geben Sie einen Suchbegriff ein, um Artikel, Termine und Vereinsseiten zu durchsuchen.
+  </p>
+
+  <p :if={@q != "" and @result.entries == []} class="text-muted">
+    Keine Ergebnisse für <strong>{@q}</strong> gefunden.
+  </p>
+
+  <div :if={@result.entries != []}>
+    <p class="mb-4 text-sm text-muted">
+      {@result.total} {if @result.total == 1, do: "Ergebnis", else: "Ergebnisse"} für
+      <strong>{@q}</strong>
+    </p>
+
+    <div class="flex flex-col gap-4">
+      <.search_result :for={doc <- @result.entries} doc={doc} />
+    </div>
+
+    <.pagination
+      page={@result.page}
+      total_pages={@result.total_pages}
+      base_path={~p"/suche"}
+      query={%{"q" => @q}}
+    />
+  </div>
+</Layouts.app>

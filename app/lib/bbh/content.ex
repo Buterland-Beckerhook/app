@@ -290,12 +290,14 @@ defmodule Bbh.Content do
 
   def get_article!(id), do: Article |> Repo.get!(id) |> Repo.preload([:throne, images: :media])
 
-  def create_article(attrs), do: %Article{} |> Article.changeset(attrs) |> Repo.insert()
+  def create_article(attrs),
+    do: %Article{} |> Article.changeset(attrs) |> Repo.insert() |> Bbh.Search.reindex_after()
 
   def update_article(%Article{} = article, attrs),
-    do: article |> Article.changeset(attrs) |> Repo.update()
+    do: article |> Article.changeset(attrs) |> Repo.update() |> Bbh.Search.reindex_after()
 
-  def delete_article(%Article{} = article), do: Repo.delete(article)
+  def delete_article(%Article{} = article),
+    do: article |> Repo.delete() |> Bbh.Search.reindex_after()
 
   def change_article(%Article{} = article, attrs \\ %{}), do: Article.changeset(article, attrs)
 
@@ -357,9 +359,13 @@ defmodule Bbh.Content do
 
   ## Admin — thrones (edited in the context of their article)
 
-  def create_throne(attrs), do: %Throne{} |> Throne.changeset(attrs) |> Repo.insert()
-  def update_throne(%Throne{} = t, attrs), do: t |> Throne.changeset(attrs) |> Repo.update()
-  def delete_throne(%Throne{} = t), do: Repo.delete(t)
+  def create_throne(attrs),
+    do: %Throne{} |> Throne.changeset(attrs) |> Repo.insert() |> Bbh.Search.reindex_after()
+
+  def update_throne(%Throne{} = t, attrs),
+    do: t |> Throne.changeset(attrs) |> Repo.update() |> Bbh.Search.reindex_after()
+
+  def delete_throne(%Throne{} = t), do: t |> Repo.delete() |> Bbh.Search.reindex_after()
   def change_throne(%Throne{} = t, attrs \\ %{}), do: Throne.changeset(t, attrs)
 
   ## Admin CRUD — pages
@@ -367,8 +373,13 @@ defmodule Bbh.Content do
   def list_pages, do: Repo.all(from p in Page, order_by: [asc: p.sort_order, asc: p.title])
   def count_pages, do: Repo.aggregate(Page, :count, :id)
   def get_page!(id), do: Repo.get!(Page, id)
-  def create_page(attrs), do: %Page{} |> Page.changeset(attrs) |> Repo.insert()
-  def update_page(%Page{} = page, attrs), do: page |> Page.changeset(attrs) |> Repo.update()
+
+  def create_page(attrs),
+    do: %Page{} |> Page.changeset(attrs) |> Repo.insert() |> Bbh.Search.reindex_after()
+
+  def update_page(%Page{} = page, attrs),
+    do: page |> Page.changeset(attrs) |> Repo.update() |> Bbh.Search.reindex_after()
+
   def change_page(%Page{} = page, attrs \\ %{}), do: Page.changeset(page, attrs)
 
   @doc "Delete a page along with its page_blocks and the concrete (polymorphic) block rows."
@@ -379,6 +390,7 @@ defmodule Bbh.Content do
       Enum.each(blocks, fn {pb, _} -> delete_block!(pb) end)
       Repo.delete!(page)
     end)
+    |> Bbh.Search.reindex_after()
   end
 
   ## Admin — page blocks
@@ -405,18 +417,19 @@ defmodule Bbh.Content do
         block_id: block.id
       })
     end)
+    |> Bbh.Search.reindex_after()
   end
 
   @doc "Update the concrete block referenced by a page_block."
   def update_block(%PageBlock{} = pb, attrs) do
     schema = Blocks.schema_for(pb.block_type)
     block = Repo.get!(schema, pb.block_id)
-    block |> schema.changeset(attrs) |> Repo.update()
+    block |> schema.changeset(attrs) |> Repo.update() |> Bbh.Search.reindex_after()
   end
 
   @doc "Delete a page_block and its concrete block."
   def delete_block(%PageBlock{} = pb) do
-    Repo.transaction(fn -> delete_block!(pb) end)
+    Repo.transaction(fn -> delete_block!(pb) end) |> Bbh.Search.reindex_after()
   end
 
   @doc "Swap a block with its neighbour in the given direction (:up | :down)."
