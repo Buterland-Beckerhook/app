@@ -13,6 +13,7 @@ defmodule BbhWeb.SitemapController do
 
     entries =
       Enum.map(@static, &{base <> &1, nil}) ++
+        throne_entries(base) ++
         article_entries(base) ++
         event_entries(base) ++
         page_entries(base)
@@ -25,6 +26,16 @@ defmodule BbhWeb.SitemapController do
     """
 
     conn |> put_resp_content_type("application/xml") |> send_resp(200, body)
+  end
+
+  # Per-type throne list pages, only for types that actually have records.
+  # /thron (König) is already covered by @static.
+  defp throne_entries(base) do
+    %{types_present: types} = Content.throne_menu()
+
+    for type <- ["stadtkaiser", "jungschuetzenkoenig"], MapSet.member?(types, type) do
+      {"#{base}/thron/#{type}", nil}
+    end
   end
 
   defp article_entries(base) do

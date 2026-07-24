@@ -1,5 +1,5 @@
 <Layouts.app flash={@flash} current_path={@conn.request_path}>
-  <h1 class="mb-6 text-3xl font-semibold">Throne seit 1909</h1>
+  <h1 class="mb-6 text-3xl font-semibold">{@heading}</h1>
 
   <p :if={@result.entries == []} class="text-muted">
     Es sind noch keine Throne erfasst.
@@ -30,5 +30,5 @@
     </div>
   </div>
 
-  <.throne_pager page={@result.page} nav={@nav} base_path={~p"/thron"} />
+  <.throne_pager page={@result.page} nav={@nav} base_path={@base_path} />
 </Layouts.app>

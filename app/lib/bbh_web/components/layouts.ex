@@ -11,13 +11,30 @@ defmodule BbhWeb.Layouts do
   # and other static content.
   embed_templates "layouts/*"
 
-  # Thron keeps a small, static child list (two Kaiserthron articles + the list).
-  @thron_children [
-    %{href: "/thron", label: "Throne seit 1909"},
-    %{href: "/aktuell/2009/kaiserthron-2009", label: "Kaiserthron 2009"},
-    %{href: "/aktuell/1984/kaiserthron-1984", label: "Kaiserthron 1984"}
-  ]
-  @thron_child_hrefs Enum.map(@thron_children, & &1.href)
+  # The Thron dropdown, built per request: a König list, one direct link per Kaiser
+  # reign (rare — roughly every 25 years), and a filtered list per remaining type.
+  defp thron_children do
+    %{kaiser: kaiser, types_present: types} = Bbh.Content.throne_menu()
+
+    kaiser_links =
+      kaiser
+      |> Enum.filter(&(&1.article && !&1.article.no_article))
+      |> Enum.map(fn t ->
+        %{
+          href: "/aktuell/#{t.article.year}/#{t.article.slug}",
+          label: "Kaiserthron #{t.begin_year}"
+        }
+      end)
+
+    list_link = fn type, label ->
+      if MapSet.member?(types, type), do: [%{href: "/thron/#{type}", label: label}], else: []
+    end
+
+    [%{href: "/thron", label: "Throne seit 1909"}] ++
+      kaiser_links ++
+      list_link.("stadtkaiser", "Stadtkaiser") ++
+      list_link.("jungschuetzenkoenig", "Jungschützenkönig")
+  end
 
   # Full public nav. The "Verein" dropdown is built from the page tree
   # (top-level, published, show_in_menu pages) so editors control it.
@@ -34,7 +51,7 @@ defmodule BbhWeb.Layouts do
     [
       %{href: "/aktuell", label: "Aktuelles"},
       %{href: "/termine", label: "Termine"},
-      %{href: "/thron", label: "Thron", children: @thron_children},
+      %{href: "/thron", label: "Thron", children: thron_children()},
       verein,
       %{href: "/kontakt", label: "Kontakt"}
     ]
@@ -64,7 +81,12 @@ defmodule BbhWeb.Layouts do
   slot :inner_block, required: true
 
   def app(assigns) do
-    assigns = assign(assigns, :nav, nav_links())
+    nav = nav_links()
+
+    assigns =
+      assigns
+      |> assign(:nav, nav)
+      |> assign(:thron_child_hrefs, thron_child_hrefs(nav))
 
     ~H"""
     <div class="flex min-h-screen flex-col bg-base-100 text-base-content">
@@ -122,8 +144,9 @@ defmodule BbhWeb.Layouts do
                     href={link.href}
                     class={[
                       "flex items-center gap-1 text-[15px] transition-colors",
-                      nav_active?(@current_path, link) && "font-semibold text-primary",
-                      !nav_active?(@current_path, link) &&
+                      nav_active?(@current_path, link, @thron_child_hrefs) &&
+                        "font-semibold text-primary",
+                      !nav_active?(@current_path, link, @thron_child_hrefs) &&
                         "font-medium text-(--bb-nav-text) hover:text-primary"
                     ]}
                   >
@@ -153,8 +176,9 @@ defmodule BbhWeb.Layouts do
                   href={link.href}
                   class={[
                     "text-[15px] transition-colors",
-                    nav_active?(@current_path, link) && "font-semibold text-primary",
-                    !nav_active?(@current_path, link) &&
+                    nav_active?(@current_path, link, @thron_child_hrefs) &&
+                      "font-semibold text-primary",
+                    !nav_active?(@current_path, link, @thron_child_hrefs) &&
                       "font-medium text-(--bb-nav-text) hover:text-primary"
                   ]}
                 >
@@ -270,26 +294,35 @@ defmodule BbhWeb.Layouts do
     """
   end
 
+  # Hrefs of the current Thron dropdown children, so /aktuell can tell a Kaiser
+  # article path (a Thron child) apart from an ordinary news article.
+  defp thron_child_hrefs(nav) do
+    case Enum.find(nav, &(&1.href == "/thron")) do
+      %{children: children} -> Enum.map(children, & &1.href)
+      _ -> []
+    end
+  end
+
   # Verein is active for its whole section (any /verein or /verein/... path),
   # independent of the dynamic child list.
-  defp nav_active?(path, %{href: "/verein"}),
+  defp nav_active?(path, %{href: "/verein"}, _thron_hrefs),
     do: path == "/verein" or String.starts_with?(path, "/verein/")
 
   # A link with children (Thron) is active on its own prefix or on any child href.
-  defp nav_active?(path, %{children: children, href: href}),
+  defp nav_active?(path, %{children: children, href: href}, _thron_hrefs),
     do:
       path == href or String.starts_with?(path, href <> "/") or
         Enum.any?(children, fn c -> child_active?(path, c.href, href) end)
 
   # /aktuell and /termine are section-active, but not on a Thron article path.
-  defp nav_active?(path, %{href: href}) when href in ["/aktuell", "/termine"] do
+  defp nav_active?(path, %{href: href}, thron_hrefs) when href in ["/aktuell", "/termine"] do
     section = path == href or String.starts_with?(path, href <> "/")
 
     section and
-      not Enum.any?(@thron_child_hrefs, &(path == &1 or String.starts_with?(path, &1 <> "/")))
+      not Enum.any?(thron_hrefs, &(path == &1 or String.starts_with?(path, &1 <> "/")))
   end
 
-  defp nav_active?(path, %{href: href}), do: path == href
+  defp nav_active?(path, %{href: href}, _thron_hrefs), do: path == href
 
   # A "Über uns"-style child whose href equals its parent matches exactly only.
   defp child_active?(path, href, parent_href) when href == parent_href, do: path == href

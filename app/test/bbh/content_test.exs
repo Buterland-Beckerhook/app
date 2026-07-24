@@ -94,7 +94,7 @@ defmodule Bbh.ContentTest do
       _a = throne_fixture(begin_year: 2018, end_year: 2019)
       b = throne_fixture(begin_year: 2023, end_year: 2024)
 
-      result = Content.list_thrones(1, 1)
+      result = Content.list_thrones("koenig", 1, 1)
       assert [only] = result.entries
       assert only.id == b.id
       assert result.total == 2
@@ -133,19 +133,47 @@ defmodule Bbh.ContentTest do
 
       throne_fixture(article: article, begin_year: 2023, end_year: 2024)
 
-      assert [entry] = Content.list_thrones(1, 1).entries
+      assert [entry] = Content.list_thrones("koenig", 1, 1).entries
       assert [image] = entry.article.images
       assert image.media.id == media.id
     end
 
-    test "list_throne_nav returns all thrones newest first with year/king" do
+    test "list_throne_nav returns thrones of a type newest first with year/king" do
       _older = throne_fixture(begin_year: 2018, end_year: 2019, king: "Gerd Lübbers")
       _newer = throne_fixture(begin_year: 2023, end_year: 2024, king: "Jan-Bernd Droste")
+      # A different type must not leak into the König pager.
+      _stadt = throne_fixture(type: "stadtkaiser", begin_year: 2020, king: "Anton Stadt")
 
       assert [
                %{begin_year: 2023, king: "Jan-Bernd Droste"},
                %{begin_year: 2018, king: "Gerd Lübbers"}
-             ] = Content.list_throne_nav()
+             ] = Content.list_throne_nav("koenig")
+    end
+
+    test "list_thrones and list_throne_nav filter by type" do
+      koenig = throne_fixture(type: "koenig", begin_year: 2023, end_year: 2024)
+      stadt = throne_fixture(type: "stadtkaiser", begin_year: 2020, king: "Anton Stadt")
+
+      assert [%{id: stadt_id}] = Content.list_thrones("stadtkaiser", 1, 1).entries
+      assert stadt_id == stadt.id
+      assert [%{begin_year: 2020}] = Content.list_throne_nav("stadtkaiser")
+
+      assert [%{id: koenig_id}] = Content.list_thrones("koenig", 1, 1).entries
+      assert koenig_id == koenig.id
+    end
+
+    test "throne_menu lists Kaiser reigns and the set of present types" do
+      _koenig = throne_fixture(type: "koenig", begin_year: 2023, end_year: 2024)
+
+      _kaiser =
+        throne_fixture(type: "kaiser", begin_year: 2009, end_year: 2034, king: "Kaiser Karl")
+
+      %{kaiser: kaiser, types_present: types} = Content.throne_menu()
+
+      assert [%{begin_year: 2009, type: "kaiser"}] = kaiser
+      assert MapSet.member?(types, "koenig")
+      assert MapSet.member?(types, "kaiser")
+      refute MapSet.member?(types, "stadtkaiser")
     end
   end
 

@@ -114,19 +114,38 @@ defmodule Bbh.Content do
     )
   end
 
-  @doc "All thrones newest first, paginated (the /thron gallery), with article + images."
-  def list_thrones(page \\ 1, per_page \\ 1) do
-    base = from t in Throne, order_by: [desc: t.begin_year]
+  @doc "Thrones of one type, newest first, paginated (the /thron gallery), with article + images."
+  def list_thrones(type, page \\ 1, per_page \\ 1) do
+    base = from t in Throne, where: t.type == ^type, order_by: [desc: t.begin_year]
     paginate(base, page, per_page, preload: [article: [images: :media]])
   end
 
-  @doc "Schlanke Liste aller Throne (neueste zuerst) für den /thron-Pager."
-  def list_throne_nav do
+  @doc "Schlanke Liste der Throne eines Typs (neueste zuerst) für den /thron-Pager."
+  def list_throne_nav(type) do
     Repo.all(
       from t in Throne,
+        where: t.type == ^type,
         order_by: [desc: t.begin_year],
         select: %{begin_year: t.begin_year, end_year: t.end_year, king: t.king, type: t.type}
     )
+  end
+
+  @doc """
+  Data for the Thron dropdown menu: the Kaiser reigns (newest first, with their linked
+  article for direct links) and the set of throne types that have at least one record.
+  """
+  def throne_menu do
+    kaiser =
+      Repo.all(
+        from t in Throne,
+          where: t.type == "kaiser",
+          order_by: [desc: t.begin_year],
+          preload: [:article]
+      )
+
+    types = Repo.all(from t in Throne, distinct: true, select: t.type) |> MapSet.new()
+
+    %{kaiser: kaiser, types_present: types}
   end
 
   @doc """
