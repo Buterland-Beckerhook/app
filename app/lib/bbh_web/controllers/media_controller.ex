@@ -10,7 +10,13 @@ defmodule BbhWeb.MediaController do
   def show(conn, %{"path" => segments} = params) do
     key = Enum.join(segments, "/")
 
-    case Bbh.Media.resolve_variant(key, dim(params["w"]), dim(params["h"])) do
+    case Bbh.Media.resolve_variant(
+           key,
+           dim(params["w"]),
+           dim(params["h"]),
+           frac(params["fx"]),
+           frac(params["fy"])
+         ) do
       {:ok, path, content_type} ->
         conn
         |> put_resp_content_type(content_type, nil)
@@ -34,6 +40,17 @@ defmodule BbhWeb.MediaController do
   defp dim(value) do
     case Integer.parse(value) do
       {n, _} when n > 0 and n <= @max_dimension -> n
+      _ -> nil
+    end
+  end
+
+  # A focal-point fraction in 0.0..1.0; anything out of range or unparseable is
+  # ignored (nil), so the crop simply falls back to center.
+  defp frac(nil), do: nil
+
+  defp frac(value) do
+    case Float.parse(value) do
+      {f, _} when f >= 0.0 and f <= 1.0 -> f
       _ -> nil
     end
   end

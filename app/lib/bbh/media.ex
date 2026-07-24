@@ -187,19 +187,34 @@ defmodule Bbh.Media do
   Resolve a media request to a servable file. Returns `{:ok, path, content_type}`
   or `:error`. With no dimensions, serves the original; otherwise a cached WebP
   variant (`fit=cover` when both dimensions are given).
+
+  `focal_x`/`focal_y` (fractions in `0.0..1.0`) shift a cover crop's window off
+  center toward that point; `nil` keeps the default center crop.
   """
-  def resolve_variant(key, width, height) do
+  def resolve_variant(key, width, height, focal_x \\ nil, focal_y \\ nil) do
     with {:ok, source} <- safe_source(key), true <- File.regular?(source) do
       type = content_type(source)
 
       # Non-images (PDFs, …) have no responsive variants — always serve the original.
       if (is_nil(width) and is_nil(height)) or not image_type?(type),
         do: {:ok, source, type},
-        else: variant(source, key, width, height)
+        else: variant(source, key, width, height, focal(width, height, focal_x, focal_y))
     else
       _ -> :error
     end
   end
+
+  # A focal point only affects a cover crop (both dimensions given). Otherwise it
+  # is irrelevant, so drop it — keeps the cache key stable with the pre-focal path.
+  defp focal(width, height, x, y)
+       when is_integer(width) and is_integer(height) and is_number(x) and is_number(y),
+       do: {clamp01(x), clamp01(y)}
+
+  defp focal(_width, _height, _x, _y), do: nil
+
+  defp clamp01(v) when v < 0.0, do: 0.0
+  defp clamp01(v) when v > 1.0, do: 1.0
+  defp clamp01(v), do: v * 1.0
 
   @doc """
   Copy a file into the uploads dir and create an `Upload` row (used by the admin
@@ -303,15 +318,17 @@ defmodule Bbh.Media do
     end
   end
 
-  defp variant(source, key, width, height) do
-    name = :crypto.hash(:sha256, "#{key}|#{width}|#{height}") |> Base.encode16(case: :lower)
+  defp variant(source, key, width, height, focal) do
+    name =
+      :crypto.hash(:sha256, cache_seed(key, width, height, focal)) |> Base.encode16(case: :lower)
+
     dest = Path.join(cache_dir(), "#{name}.webp")
 
     cond do
       File.regular?(dest) ->
         {:ok, dest, "image/webp"}
 
-      limited_generate(source, dest, width, height) == :ok ->
+      limited_generate(source, dest, width, height, focal) == :ok ->
         {:ok, dest, "image/webp"}
 
       # On any processing failure, fall back to the original so the page still shows.
@@ -320,22 +337,27 @@ defmodule Bbh.Media do
     end
   end
 
+  # The focal point is only folded into the key when it actually applies, so
+  # existing (center-cropped) cache files stay valid for the common no-focal case.
+  defp cache_seed(key, width, height, nil), do: "#{key}|#{width}|#{height}"
+  defp cache_seed(key, width, height, {x, y}), do: "#{key}|#{width}|#{height}|#{x}|#{y}"
+
   # Bound concurrent generation so a cold-cache burst (the media library/picker
   # requests one variant per image at once) can't pile up native image decodes.
-  defp limited_generate(source, dest, width, height) do
-    Bbh.Media.VariantLimiter.run(fn -> generate(source, dest, width, height) end)
+  defp limited_generate(source, dest, width, height, focal) do
+    Bbh.Media.VariantLimiter.run(fn -> generate(source, dest, width, height, focal) end)
   end
 
   # sobelow_skip ["Traversal.FileModule"]
-  # source/dest are app-derived paths under uploads_dir (see variant/4 + safe_source/1).
-  defp generate(source, dest, width, height) do
+  # source/dest are app-derived paths under uploads_dir (see variant/5 + safe_source/1).
+  defp generate(source, dest, width, height, focal) do
     File.mkdir_p!(Path.dirname(dest))
 
     # Pass the source PATH (not an opened image) to Image.thumbnail so libvips
     # uses shrink-on-load / sequential access — it decodes a downscaled image
     # directly instead of first materializing the full-resolution pixel buffer.
     # This keeps peak memory at tens of MB even for very large source images.
-    with {:ok, thumb} <- thumbnail(source, width, height),
+    with {:ok, thumb} <- thumbnail(source, width, height, focal),
          {:ok, _} <- Image.write(thumb, dest, quality: 82) do
       :ok
     else
@@ -343,11 +365,39 @@ defmodule Bbh.Media do
     end
   end
 
-  defp thumbnail(source, width, nil), do: Image.thumbnail(source, width)
-  defp thumbnail(source, nil, height), do: Image.thumbnail(source, "x#{height}")
+  defp thumbnail(source, width, nil, _focal), do: Image.thumbnail(source, width)
+  defp thumbnail(source, nil, height, _focal), do: Image.thumbnail(source, "x#{height}")
 
-  defp thumbnail(source, width, height),
+  defp thumbnail(source, width, height, nil),
     do: Image.thumbnail(source, width, height: height, crop: :center)
+
+  # Focal cover crop: scale the source so it just covers the box (shrink-on-load
+  # from the path, same as the center path), then extract the target window
+  # positioned around the focal point instead of the middle.
+  defp thumbnail(source, width, height, {fx, fy}) do
+    case dimensions(source) do
+      {w0, h0} when is_integer(w0) and is_integer(h0) and w0 > 0 and h0 > 0 ->
+        scale = max(width / w0, height / h0)
+        sw = round(w0 * scale)
+        sh = round(h0 * scale)
+        left = crop_offset(fx, sw, width)
+        top = crop_offset(fy, sh, height)
+
+        with {:ok, cover} <- Image.thumbnail(source, "#{sw}x#{sh}", crop: :none) do
+          Image.crop(cover, left, top, width, height)
+        end
+
+      # Dimensions unreadable — fall back to a center crop rather than failing.
+      _ ->
+        Image.thumbnail(source, width, height: height, crop: :center)
+    end
+  end
+
+  # Top-left of a `size`-wide window centered on fraction `f` of `full`, clamped
+  # so the window stays inside the scaled image.
+  defp crop_offset(f, full, size) do
+    round(f * full - size / 2) |> min(full - size) |> max(0)
+  end
 
   defp dimensions(path) do
     case Image.open(path) do
