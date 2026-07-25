@@ -117,7 +117,7 @@ defmodule BbhWeb.Layouts do
 
       <header class="sticky top-0 z-40 border-b border-base-300 bg-(--bb-header-bg) backdrop-blur-md backdrop-saturate-150">
         <nav class="mx-auto flex max-w-6xl items-center justify-between gap-6 px-4 py-3">
-          <a href="/" class="flex items-center gap-3.5">
+          <a href="/" class="flex shrink-0 items-center gap-3.5">
             <img
               src={~p"/images/logo.svg"}
               alt=""
@@ -126,17 +126,17 @@ defmodule BbhWeb.Layouts do
               class="h-13 w-13"
             />
             <div class="leading-tight">
-              <span class="block text-xs font-semibold tracking-[0.14em] text-muted uppercase">
+              <span class="block whitespace-nowrap text-xs font-semibold tracking-[0.14em] text-muted uppercase">
                 Schützenverein
               </span>
-              <span class="font-logo block text-lg font-bold text-primary md:text-[23px]">
+              <span class="font-logo block whitespace-nowrap text-base font-bold text-primary sm:text-lg lg:text-[23px]">
                 Buterland-Beckerhook e.V.
               </span>
             </div>
           </a>
 
           <%!-- Desktop nav --%>
-          <div class="hidden items-center gap-6 md:flex">
+          <div class="hidden items-center gap-4 md:flex lg:gap-6">
             <%= for link <- @nav do %>
               <%= if link[:children] do %>
                 <div class="group relative">
@@ -186,7 +186,14 @@ defmodule BbhWeb.Layouts do
                 </a>
               <% end %>
             <% end %>
-            <form method="get" action={~p"/suche"} role="search" class="relative">
+            <a
+              href={~p"/suche"}
+              aria-label="Suche"
+              class="flex items-center text-(--bb-nav-text) transition-colors hover:text-primary lg:hidden"
+            >
+              <.icon name="hero-magnifying-glass" class="size-5" />
+            </a>
+            <form method="get" action={~p"/suche"} role="search" class="relative hidden lg:block">
               <label for="nav-q" class="sr-only">Suche</label>
               <.icon
                 name="hero-magnifying-glass"
@@ -197,12 +204,12 @@ defmodule BbhWeb.Layouts do
                 name="q"
                 id="nav-q"
                 placeholder="Suchen…"
-                class="w-36 rounded-full border border-base-300 bg-card/60 py-1.5 pr-3 pl-8 text-sm text-base-content transition-all focus:w-48 focus:border-primary focus:outline-none"
+                class="w-36 rounded-full border border-base-300 bg-card/60 py-1.5 pr-3 pl-8 text-sm text-base-content transition-all focus:border-primary focus:outline-none xl:focus:w-48"
               />
             </form>
             <a
               href={~p"/verein/mitglied-werden"}
-              class="rounded-full bg-accent px-4.5 py-2 text-[15px] font-semibold whitespace-nowrap text-accent-content transition-opacity hover:opacity-90"
+              class="hidden rounded-full bg-accent px-4.5 py-2 text-[15px] font-semibold whitespace-nowrap text-accent-content transition-opacity hover:opacity-90 xl:inline-block"
             >
               Mitglied werden
             </a>
