@@ -10,6 +10,29 @@ defmodule BbhWeb.EventControllerTest do
       assert html =~ "Termine"
       assert html =~ "Schützenfest"
     end
+
+    test "the subscribe section offers webcal (Apple/Outlook) and a copyable https URL (Google/Android)",
+         %{conn: conn} do
+      event = event_fixture()
+      html = conn |> get(~p"/termine?jahr=#{event.year}") |> html_response(200)
+
+      assert html =~ "Kalender abonnieren"
+      # Apple/Outlook: a webcal:// link subscribes (live, re-polled).
+      assert html =~ ~r{href="webcal://[^"]*/termine/abo\.ics"}
+      # Google/Android: the raw https feed URL as copyable text to paste into
+      # Google Calendar (web) — the only path that works there. (Scheme is http in
+      # the test env, https in prod; the point is a plain, non-webcal absolute URL.)
+      assert html =~ ~r{value="https?://[^"]*/termine/abo\.ics"}
+      # Copy-select uses a delegated listener, not inline onclick (CSP blocks the
+      # latter in prod — no 'unsafe-inline' in script-src).
+      assert html =~ "data-select-on-click"
+      refute html =~ "onclick"
+      # The one-time .ics download link is still offered.
+      assert html =~ ~s{href="/termine/abo.ics"}
+      # The old subscribe link was a bare relative import-once link — guard against
+      # regressing to it as the primary action.
+      refute html =~ ~s{href="/termine/index.ics"}
+    end
   end
 
   describe "GET /termine/:year/:slug" do

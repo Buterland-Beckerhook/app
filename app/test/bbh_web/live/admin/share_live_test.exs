@@ -38,7 +38,13 @@ defmodule BbhWeb.Admin.ShareLiveTest do
         |> form("#share-form", share: %{calendar: "vorstand", recipient_label: "kassierer"})
         |> render_submit()
 
-      assert html =~ "/kalender/geteilt/"
+      # Two links: webcal:// for one-tap subscribe (Apple/Outlook)…
+      assert html =~ ~r{value="webcal://[^"]*/kalender/geteilt/}
+      # …and the plain https feed URL to paste into Google Calendar (web) on Android.
+      assert html =~ ~r{value="https?://[^"]*/kalender/geteilt/}
+      # Copy-select via delegated listener, not CSP-blocked inline onclick.
+      assert html =~ "data-select-on-click"
+      refute html =~ "onclick"
       # QR code rendered as inline SVG.
       assert html =~ "<svg"
       # The new share appears in the list.

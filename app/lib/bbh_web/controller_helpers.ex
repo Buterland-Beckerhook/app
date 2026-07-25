@@ -38,4 +38,19 @@ defmodule BbhWeb.ControllerHelpers do
 
   @doc "The public site URL, used to build absolute links in feeds."
   def site_url, do: Application.get_env(:bbh, :site_url, "https://buterland-beckerhook.de")
+
+  @doc """
+  Turn an absolute `http(s)://` feed URL into a `webcal://` subscription URL.
+
+  Calendar apps (Apple Kalender, iCloud, Outlook, Google) create a live,
+  periodically-refreshed *subscription* only when handed the `webcal://`
+  scheme. A plain `https://…/….ics` link is treated as a downloadable file and
+  imported once, so events added later never appear. Every "abonnieren" link
+  must therefore go through this helper.
+
+  Requires an absolute URL (wrap route paths in `url/1`). A relative/schemeless
+  input raises rather than emitting a silently-broken `webcal:///…` link.
+  """
+  def webcal_url("http://" <> rest), do: "webcal://" <> rest
+  def webcal_url("https://" <> rest), do: "webcal://" <> rest
 end

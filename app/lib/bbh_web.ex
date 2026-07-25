@@ -88,6 +88,8 @@ defmodule BbhWeb do
       import BbhWeb.CoreComponents
       # German date/media formatting helpers
       import BbhWeb.Format
+      # webcal:// subscription-link helper
+      import BbhWeb.ControllerHelpers, only: [webcal_url: 1]
       # Reusable public-site components
       import BbhWeb.SiteComponents
 

@@ -397,6 +397,14 @@ document.addEventListener("change", (e) => {
   if (sel && sel.value) location.assign(sel.value)
 })
 
+// --- Readonly "zum Kopieren" inputs: click selects all. Delegated so it works on
+// dead pages and LiveView-rendered panels alike; an inline onclick would be blocked
+// by the CSP (script-src has no 'unsafe-inline'). ---
+document.addEventListener("click", (e) => {
+  const el = e.target.closest("input[data-select-on-click]")
+  if (el) el.select()
+})
+
 // --- Web Push opt-in (public pages, plain JS — no LiveView required) ---
 function urlBase64ToUint8Array(base64String) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4)

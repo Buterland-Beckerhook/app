@@ -18,8 +18,8 @@ defmodule Bbh.Calendar.ShareNotifier do
     end
   end
 
-  @doc "Deliver a link to subscribe to a shared internal calendar."
-  def deliver_calendar_share_instructions(recipient, calendar_label, url) do
+  @doc "Deliver links to subscribe to a shared internal calendar."
+  def deliver_calendar_share_instructions(recipient, calendar_label, webcal_url, https_url) do
     deliver(recipient, "Geteilter Kalender: #{calendar_label}", """
 
     ==============================
@@ -28,10 +28,14 @@ defmodule Bbh.Calendar.ShareNotifier do
 
     du wurdest eingeladen, den Kalender „#{calendar_label}“ zu abonnieren.
 
-    Füge den folgenden Link in deiner Kalender-App als Abo hinzu
-    (Apple Kalender, Google Kalender, Outlook …):
+    Apple Kalender / Outlook — tippe auf diesen Link, um sofort zu abonnieren:
 
-    #{url}
+    #{webcal_url}
+
+    Google Kalender / Android — öffne Google Kalender am Computer, dann
+    „Weitere Kalender“ (+) → „Per URL“ und füge diese Adresse ein:
+
+    #{https_url}
 
     Der Link ist persönlich für dich. Bitte gib ihn nicht weiter — er kann
     jederzeit widerrufen werden.

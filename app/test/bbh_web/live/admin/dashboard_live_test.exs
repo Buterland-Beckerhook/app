@@ -16,7 +16,9 @@ defmodule BbhWeb.Admin.DashboardLiveTest do
     page_fixture()
 
     {:ok, lv, _html} = live(conn, ~p"/admin")
-    html = render_async(lv)
+    # Generous timeout: the DB-backed async assigns can exceed the 100 ms default
+    # under parallel test load, which flaked CI.
+    html = render_async(lv, 2000)
 
     assert html =~ "Übersicht"
     assert html =~ "Artikel"
@@ -33,7 +35,9 @@ defmodule BbhWeb.Admin.DashboardLiveTest do
     Bbh.Analytics.record(%{path: "/aktuell", day: today})
 
     {:ok, lv, _html} = live(conn, ~p"/admin")
-    html = render_async(lv)
+    # Generous timeout: the DB-backed async assigns can exceed the 100 ms default
+    # under parallel test load, which flaked CI.
+    html = render_async(lv, 2000)
 
     assert html =~ "Zugriffe"
     assert html =~ "Seitenaufrufe"
