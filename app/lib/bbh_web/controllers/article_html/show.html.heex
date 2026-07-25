@@ -1,6 +1,22 @@
 <Layouts.app flash={@flash} current_path={@conn.request_path}>
   <article class="mx-auto max-w-3xl">
-    <a href={~p"/aktuell"} class="text-sm text-primary hover:underline">&larr; Zurück zu Aktuelles</a>
+    <div
+      :if={assigns[:preview]}
+      class="mb-4 rounded-box border border-warning bg-warning/10 px-4 py-2 text-sm"
+    >
+      <span class="font-medium">Vorschau</span>
+      — dieser Artikel ist derzeit nicht öffentlich sichtbar.
+    </div>
+
+    <div class="flex items-center justify-between gap-3">
+      <a href={~p"/aktuell"} class="text-sm text-primary hover:underline">
+        &larr; Zurück zu Aktuelles
+      </a>
+      <.edit_link
+        :if={BbhWeb.Authz.can_access_section?(@current_scope && @current_scope.user, :articles)}
+        href={~p"/admin/artikel/#{@article.id}/bearbeiten"}
+      />
+    </div>
 
     <header class="mt-4">
       <h1 class="text-3xl font-semibold">{@article.title}</h1>

@@ -40,6 +40,14 @@ defmodule BbhWeb.Admin.DashboardLiveTest do
     assert html =~ "/aktuell"
     assert html =~ "google.com"
 
+    # The per-day chart shows a scaled axis and a peak caption (two views today).
+    assert html =~ "Aufrufe pro Tag"
+    assert html =~ "Spitze 2"
+
+    # iCal subscription metrics render alongside the page-view cards.
+    assert html =~ "iCal-Abrufe"
+    assert html =~ "iCal-Abos"
+
     # The range selector re-runs the analytics query.
     assert lv |> element("button", "7 Tage") |> render_click() =~ "Zugriffe"
   end

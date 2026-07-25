@@ -12,7 +12,7 @@ defmodule Bbh.Analytics do
   """
   import Ecto.Query
 
-  alias Bbh.Analytics.{DailyPageView, DailyReferrer, DailyVisitor}
+  alias Bbh.Analytics.{DailyPageView, DailyReferrer, DailyVisitor, IcalFetch}
   alias Bbh.Repo
 
   @path_max 255
@@ -59,6 +59,57 @@ defmodule Bbh.Analytics do
       require Logger
       Logger.warning("Analytics.record failed: #{inspect(error)}")
       :error
+  end
+
+  @doc """
+  Record one retrieval of the iCal subscription feed. Expects `%{visitor_hash:}`
+  (and optional `:day`, defaulting to today, UTC). Increments the client's daily
+  fetch counter. Best-effort: any error is swallowed.
+  """
+  def record_ical(attrs) do
+    day = Map.get(attrs, :day, Date.utc_today())
+
+    case attrs[:visitor_hash] do
+      hash when is_binary(hash) and hash != "" ->
+        Repo.insert(%IcalFetch{day: day, visitor_hash: hash, fetches: 1},
+          on_conflict: [inc: [fetches: 1]],
+          conflict_target: [:day, :visitor_hash]
+        )
+
+      _ ->
+        :ok
+    end
+
+    :ok
+  rescue
+    error ->
+      require Logger
+      Logger.warning("Analytics.record_ical failed: #{inspect(error)}")
+      :error
+  end
+
+  @doc """
+  iCal feed retrievals in `[from, to]`: total `fetches` and `subscribers` (the
+  peak daily unique-client count, a rough proxy for the number of subscriptions).
+  """
+  def ical_summary(from, to) do
+    fetches =
+      Repo.one(
+        from f in IcalFetch,
+          where: f.day >= ^from and f.day <= ^to,
+          select: coalesce(sum(f.fetches), 0)
+      )
+
+    subscribers =
+      Repo.all(
+        from f in IcalFetch,
+          where: f.day >= ^from and f.day <= ^to,
+          group_by: f.day,
+          select: count(f.id)
+      )
+      |> Enum.max(fn -> 0 end)
+
+    %{fetches: fetches, subscribers: subscribers}
   end
 
   @doc "Total page views and rough visits (summed daily uniques) in `[from, to]`."

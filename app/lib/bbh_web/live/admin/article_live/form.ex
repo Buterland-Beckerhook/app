@@ -1,6 +1,8 @@
 defmodule BbhWeb.Admin.ArticleLive.Form do
   use BbhWeb, :live_view
 
+  import BbhWeb.Admin.MediaEditor, only: [media_editor: 1]
+
   alias Bbh.Content
   alias Bbh.Content.{Article, ArticleImage, Throne}
 
@@ -8,6 +10,14 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
 
   @impl true
   def mount(params, _session, socket) do
+    socket =
+      allow_upload(socket, :image,
+        accept: ~w(.jpg .jpeg .png .webp .gif),
+        max_entries: 5,
+        max_file_size: 20_000_000
+      )
+      |> assign(editing_media: nil)
+
     {:ok, apply_action(socket, socket.assigns.live_action, params)}
   end
 
@@ -27,6 +37,7 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
     |> assign(page_title: "Artikel bearbeiten", article: article, throne: article.throne)
     |> assign(show_throne: not is_nil(article.throne))
     |> assign(images: Content.list_article_images(id), picker_search: "")
+    |> assign(folder_options: Bbh.Media.folder_options())
     |> assign_async(:media_library, fn ->
       {:ok, %{media_library: Bbh.Media.list_uploads(images_only: true)}}
     end)
@@ -71,6 +82,34 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
     {:noreply, reload_images(socket)}
   end
 
+  def handle_event("validate_upload", _params, socket), do: {:noreply, socket}
+
+  def handle_event("cancel_upload", %{"ref" => ref}, socket),
+    do: {:noreply, cancel_upload(socket, :image, ref)}
+
+  def handle_event("upload_images", _params, socket) do
+    article = socket.assigns.article
+
+    results =
+      consume_uploaded_entries(socket, :image, fn %{path: path}, entry ->
+        with {:ok, upload} <-
+               Bbh.Media.store_file(path, %{
+                 filename: entry.client_name,
+                 content_type: entry.client_type
+               }),
+             {:ok, _} <- Content.add_article_image(article, upload.id) do
+          {:ok, :stored}
+        else
+          {:error, reason} -> {:ok, {:rejected, reason}}
+        end
+      end)
+
+    stored = Enum.count(results, &(&1 == :stored))
+    rejected = Enum.count(results, &match?({:rejected, _}, &1))
+
+    {:noreply, socket |> put_upload_result_flash(stored, rejected) |> reload_images()}
+  end
+
   def handle_event("search_media", %{"search" => search}, socket) do
     {:noreply,
      socket
@@ -92,6 +131,28 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
   def handle_event("delete_image", %{"img_id" => id}, socket) do
     id |> Content.get_article_image!() |> Content.delete_article_image()
     {:noreply, reload_images(socket)}
+  end
+
+  def handle_event("edit_media", %{"upload_id" => id}, socket),
+    do: {:noreply, assign(socket, :editing_media, Bbh.Media.get_upload!(id))}
+
+  def handle_event("cancel_edit", _params, socket),
+    do: {:noreply, assign(socket, :editing_media, nil)}
+
+  def handle_event("save_meta", %{"upload" => params}, socket) do
+    params = Map.update(params, "folder_id", nil, &blank_to_nil/1)
+
+    case Bbh.Media.update_upload(socket.assigns.editing_media, params) do
+      {:ok, _updated} ->
+        {:noreply,
+         socket
+         |> assign(:editing_media, nil)
+         |> put_flash(:info, "Bild gespeichert.")
+         |> reload_images()}
+
+      {:error, _changeset} ->
+        {:noreply, put_flash(socket, :error, "Bild konnte nicht gespeichert werden.")}
+    end
   end
 
   def handle_event("set_preview_image", %{"img_id" => id}, socket) do
@@ -128,6 +189,25 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
   defp reload_images(socket),
     do: assign(socket, :images, Content.list_article_images(socket.assigns.article.id))
 
+  defp blank_to_nil(""), do: nil
+  defp blank_to_nil(v), do: v
+
+  defp put_upload_result_flash(socket, stored, 0) when stored > 0,
+    do: put_flash(socket, :info, "#{stored} Bild(er) hochgeladen und hinzugefügt.")
+
+  defp put_upload_result_flash(socket, 0, rejected) when rejected > 0,
+    do: put_flash(socket, :error, "#{rejected} Bild(er) konnten nicht hochgeladen werden.")
+
+  defp put_upload_result_flash(socket, stored, rejected) when stored > 0 and rejected > 0,
+    do: put_flash(socket, :warning, "#{stored} hochgeladen, #{rejected} abgelehnt.")
+
+  defp put_upload_result_flash(socket, _stored, _rejected), do: socket
+
+  defp upload_error_label(:too_large), do: "Datei ist zu groß (max. 20 MB)."
+  defp upload_error_label(:too_many_files), do: "Zu viele Dateien (max. 5)."
+  defp upload_error_label(:not_accepted), do: "Dateityp nicht erlaubt (nur Bilder)."
+  defp upload_error_label(_), do: "Fehler beim Hochladen."
+
   defp reload_article(socket) do
     article = Content.get_article!(socket.assigns.article.id)
 
@@ -148,8 +228,11 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
       {:ok, article} ->
         maybe_notify(nil, article)
 
+        # Land on the new article's edit page so images/throne can be added right away.
         {:noreply,
-         socket |> put_flash(:info, "Artikel erstellt.") |> push_navigate(to: ~p"/admin/artikel")}
+         socket
+         |> put_flash(:info, "Artikel erstellt.")
+         |> push_navigate(to: ~p"/admin/artikel/#{article.id}/bearbeiten")}
 
       {:error, changeset} ->
         {:noreply, assign_form(socket, changeset)}
@@ -163,10 +246,13 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
       {:ok, article} ->
         maybe_notify(old_status, article)
 
+        # Stay on the edit page (reload the fresh record and rebuild the form).
+        socket = reload_article(socket)
+
         {:noreply,
          socket
-         |> put_flash(:info, "Artikel gespeichert.")
-         |> push_navigate(to: ~p"/admin/artikel")}
+         |> assign_form(Content.change_article(socket.assigns.article))
+         |> put_flash(:info, "Artikel gespeichert.")}
 
       {:error, changeset} ->
         {:noreply, assign_form(socket, changeset)}
@@ -230,7 +316,20 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
   def render(assigns) do
     ~H"""
     <Layouts.admin flash={@flash} current_scope={@current_scope} active={:articles}>
-      <.header>{@page_title}</.header>
+      <.header>
+        {@page_title}
+        <:actions>
+          <.link
+            :if={@live_action == :edit}
+            href={~p"/aktuell/#{@article.year}/#{@article.slug}"}
+            target="_blank"
+            rel="noopener"
+            class="btn btn-sm btn-soft gap-1"
+          >
+            <.icon name="hero-eye" class="size-4" /> {view_label(@article)}
+          </.link>
+        </:actions>
+      </.header>
 
       <.form
         for={@form}
@@ -275,6 +374,14 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
             />
             <button
               type="button"
+              phx-click="edit_media"
+              phx-value-upload_id={img.media.id}
+              class="btn btn-outline btn-sm mb-2 w-full gap-1"
+            >
+              <.icon name="hero-scissors" class="size-4" /> Bild bearbeiten (Zuschnitt)
+            </button>
+            <button
+              type="button"
               phx-click="set_preview_image"
               phx-value-img_id={img.id}
               disabled={img.use_as_article_image}
@@ -309,7 +416,51 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
           <p :if={@images == []} class="text-base-content/60">Noch keine Bilder.</p>
         </div>
 
-        <div class="mt-4">
+        <form
+          id="article-image-upload"
+          phx-submit="upload_images"
+          phx-change="validate_upload"
+          class="mt-6"
+        >
+          <p class="mb-2 text-sm font-medium">Neues Bild hochladen</p>
+          <div
+            class="rounded-box border-2 border-dashed border-base-300 p-6 text-center"
+            phx-drop-target={@uploads.image.ref}
+          >
+            <.live_file_input upload={@uploads.image} class="file-input file-input-bordered" />
+            <p class="mt-2 text-sm text-base-content/60">
+              JPG, PNG, WebP oder GIF · bis 20&nbsp;MB · max. 5 Dateien
+            </p>
+          </div>
+
+          <div :if={@uploads.image.entries != []} class="mt-4 space-y-2">
+            <div
+              :for={entry <- @uploads.image.entries}
+              class="flex items-center gap-3 rounded-box border border-base-300 p-2"
+            >
+              <.live_img_preview entry={entry} class="size-14 rounded object-cover" />
+              <div class="flex-1">
+                <p class="truncate text-sm">{entry.client_name}</p>
+                <progress class="progress progress-primary w-full" value={entry.progress} max="100" />
+              </div>
+              <button
+                type="button"
+                phx-click="cancel_upload"
+                phx-value-ref={entry.ref}
+                class="btn btn-ghost btn-sm"
+                aria-label="Abbrechen"
+              >
+                ✕
+              </button>
+            </div>
+            <p :for={err <- upload_errors(@uploads.image)} class="text-sm text-error">
+              {upload_error_label(err)}
+            </p>
+            <.button variant="primary" phx-disable-with="Lädt hoch…">Hochladen &amp; hinzufügen</.button>
+          </div>
+        </form>
+
+        <div class="mt-6">
           <p class="mb-2 text-sm font-medium">Bild aus Mediathek hinzufügen</p>
           <form phx-change="search_media" id="media-picker-search" class="mb-2">
             <input
@@ -355,8 +506,10 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
             </.async_result>
           </div>
           <p class="mt-1 text-xs text-base-content/50">
-            Bilder zuerst in der <.link navigate={~p"/admin/medien"} class="link">Mediathek</.link>
-            hochladen.
+            Hochgeladene Bilder landen automatisch in der <.link
+              navigate={~p"/admin/medien"}
+              class="link"
+            >Mediathek</.link>.
           </p>
         </div>
       </section>
@@ -432,9 +585,23 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
         Der Artikel „{@article.title}" wird mit allen Bildern dauerhaft gelöscht.
       </.danger_zone>
       <.live_component module={BbhWeb.Admin.MediaPickerComponent} id="media-picker" />
+      <.media_editor
+        :if={@editing_media}
+        upload={@editing_media}
+        folder_options={@folder_options}
+      />
     </Layouts.admin>
     """
   end
+
+  # "Ansehen" when the article is actually public, "Vorschau" otherwise (draft,
+  # scheduled/future-dated, or archived — the public page then shows a preview banner).
+  defp view_label(article), do: if(article_live?(article), do: "Ansehen", else: "Vorschau")
+
+  defp article_live?(%Article{status: "published", date_published: %DateTime{} = dt}),
+    do: DateTime.compare(dt, Bbh.Time.now()) != :gt
+
+  defp article_live?(_), do: false
 
   defp image_form(%ArticleImage{} = img),
     do: to_form(ArticleImage.changeset(img, %{}), as: "image")

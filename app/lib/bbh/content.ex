@@ -43,6 +43,18 @@ defmodule Bbh.Content do
   end
 
   @doc """
+  A single article by slug + year regardless of publish state, with images and
+  throne. For the logged-in editor preview only — never expose this to the public.
+  """
+  def get_article_by_slug_year(slug, year) do
+    Repo.one(
+      from a in Article,
+        where: a.slug == ^slug and a.year == ^year,
+        preload: [:throne, images: :media]
+    )
+  end
+
+  @doc """
   Published, real articles whose publish date has passed but which have not yet
   had their "Neuer Artikel" push sent. Drives the publish-notifier cron.
   """

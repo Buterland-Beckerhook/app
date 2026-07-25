@@ -22,6 +22,22 @@ defmodule BbhWeb.EventControllerTest do
     test "returns 404 for an unknown event", %{conn: conn} do
       assert conn |> get(~p"/termine/2026/nada") |> response(404)
     end
+
+    test "hides the admin edit link from anonymous visitors", %{conn: conn} do
+      event = event_fixture()
+      html = conn |> get(~p"/termine/#{event.year}/#{event.slug}") |> html_response(200)
+      refute html =~ "/bearbeiten"
+    end
+  end
+
+  describe "admin edit affordance" do
+    setup :register_and_log_in_admin
+
+    test "shows an edit link to the event form for staff", %{conn: conn} do
+      event = event_fixture(title: "Redigierbar")
+      html = conn |> get(~p"/termine/#{event.year}/#{event.slug}") |> html_response(200)
+      assert html =~ ~p"/admin/termine/#{event.id}/bearbeiten"
+    end
   end
 
   describe "iCal feeds" do

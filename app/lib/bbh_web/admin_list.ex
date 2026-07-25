@@ -32,12 +32,21 @@ defmodule BbhWeb.AdminList do
 
   @per_page 20
 
-  @type state :: %{q: String.t(), sort: String.t() | nil, dir: :asc | :desc, page: pos_integer()}
+  @type state :: %{
+          q: String.t(),
+          sort: String.t() | nil,
+          dir: :asc | :desc,
+          page: pos_integer(),
+          cat: String.t() | nil
+        }
 
-  @doc "Initial list state. Options: `:sort` (default column key) and `:dir` (`:asc`/`:desc`)."
+  @doc """
+  Initial list state. Options: `:sort` (default column key), `:dir` (`:asc`/`:desc`)
+  and `:cat` (initial category-filter value, default `nil`).
+  """
   @spec init(keyword()) :: state()
   def init(opts \\ []) do
-    %{q: "", sort: opts[:sort], dir: opts[:dir] || :asc, page: 1}
+    %{q: "", sort: opts[:sort], dir: opts[:dir] || :asc, page: 1, cat: opts[:cat]}
   end
 
   @doc """
@@ -53,6 +62,9 @@ defmodule BbhWeb.AdminList do
 
   defp update_state(state, "filter", params),
     do: %{state | q: params["q"] || "", page: 1}
+
+  defp update_state(state, "filter-cat", params),
+    do: %{state | cat: blank_to_nil(params["cat"]), page: 1}
 
   defp update_state(state, "sort", %{"key" => key}), do: toggle_sort(state, key)
 
@@ -78,15 +90,19 @@ defmodule BbhWeb.AdminList do
     * `:search` — list of accessor funs; a row matches if any accessor's string value
       contains the query (case-insensitive).
     * `:sort` — map of `sort key => accessor fun`. Only listed keys are sortable.
+    * `:category` — `{accessor_fun, selected}`; keeps only rows where `accessor.(row)`
+      equals the non-blank `selected` value (from `state.cat`). No-op when `selected`
+      is `nil`/`""`.
     * `:per_page` — page size (default #{@per_page}).
 
-  Returns `%{entries:, page:, per_page:, total:, total_pages:, sort:, dir:, q:}`.
+  Returns `%{entries:, page:, per_page:, total:, total_pages:, sort:, dir:, q:, cat:}`.
   """
   def process(list, state, opts) do
     per_page = opts[:per_page] || @per_page
 
     sorted =
       list
+      |> category(opts[:category])
       |> filter(state.q, opts[:search] || [])
       |> sort(state.sort, state.dir, opts[:sort] || %{})
 
@@ -103,9 +119,20 @@ defmodule BbhWeb.AdminList do
       total_pages: total_pages,
       sort: state.sort,
       dir: state.dir,
-      q: state.q
+      q: state.q,
+      cat: state.cat
     }
   end
+
+  defp category(list, {accessor, selected}) when is_binary(selected) and selected != "" do
+    Enum.filter(list, fn item -> accessor.(item) == selected end)
+  end
+
+  defp category(list, _), do: list
+
+  defp blank_to_nil(nil), do: nil
+  defp blank_to_nil(v) when is_binary(v), do: if(String.trim(v) == "", do: nil, else: v)
+  defp blank_to_nil(v), do: v
 
   defp filter(list, q, fields) when is_binary(q) do
     case String.trim(q) do
