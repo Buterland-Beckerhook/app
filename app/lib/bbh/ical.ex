@@ -58,8 +58,6 @@ defmodule Bbh.ICal do
   def single(%Event{} = event, site_url), do: feed([event], site_url)
 
   defp vevent(%Event{} = e, site_url) do
-    url = "#{site_url}/termine/#{e.year}/#{e.slug}"
-
     lines =
       [
         "BEGIN:VEVENT",
@@ -71,7 +69,9 @@ defmodule Bbh.ICal do
         e.location && "LOCATION:#{escape(location_text(e.location))}",
         e.body && "DESCRIPTION:#{escape(strip_html(e.body))}",
         e.status == "canceled" && "STATUS:CANCELLED",
-        "URL:#{url}",
+        # Only public events have a page at /termine/:year/:slug; internal
+        # (shared-calendar) events would 404, so omit the link for them.
+        is_nil(e.calendar) && "URL:#{site_url}/termine/#{e.year}/#{e.slug}",
         "END:VEVENT"
       ]
       |> Enum.reject(&(&1 in [nil, false]))

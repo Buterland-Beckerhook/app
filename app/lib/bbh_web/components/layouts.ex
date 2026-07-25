@@ -361,6 +361,7 @@ defmodule BbhWeb.Layouts do
     {:dashboard, "/admin", "Übersicht"},
     {:articles, "/admin/artikel", "Artikel"},
     {:events, "/admin/termine", "Termine"},
+    {:shares, "/admin/termine/teilen", "Kalender teilen"},
     {:locations, "/admin/orte", "Orte"},
     {:people, "/admin/personen", "Personen"},
     {:pages, "/admin/seiten", "Seiten"},

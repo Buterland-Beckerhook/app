@@ -21,7 +21,7 @@ defmodule BbhWeb.Authz do
   def can_access_section?(%User{} = user, section) do
     cond do
       User.admin?(user) -> true
-      section in [:dashboard, :events] -> true
+      section in [:dashboard, :events, :shares] -> true
       section in @content_sections -> user.role == "editor"
       true -> false
     end

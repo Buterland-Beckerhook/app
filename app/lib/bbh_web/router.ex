@@ -42,6 +42,9 @@ defmodule BbhWeb.Router do
     get "/termine/:year/:slug", EventController, :show
     get "/termine/:year/:slug/event.ics", EventController, :ics
 
+    # Revocable per-recipient share of one internal calendar (read-only .ics feed).
+    get "/kalender/geteilt/:token", CalendarShareController, :feed
+
     get "/thron", ThroneController, :index
     get "/thron/:type", ThroneController, :index_type
 
@@ -92,6 +95,7 @@ defmodule BbhWeb.Router do
       live "/", DashboardLive, :index
 
       live "/termine", EventLive.Index, :index
+      live "/termine/teilen", ShareLive.Index, :index
       live "/termine/neu", EventLive.Form, :new
       live "/termine/:id/bearbeiten", EventLive.Form, :edit
     end
