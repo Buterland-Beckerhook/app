@@ -36,4 +36,47 @@ defmodule BbhWeb.Admin.EventLive.FormTest do
     assert [%EventReminder{lead_days: 14, text: "In zwei Wochen!"}] =
              Bbh.Repo.all(Ecto.assoc(event, :reminders))
   end
+
+  test "hides public-only options when an internal calendar is selected", %{conn: conn} do
+    {:ok, lv, html} = live(conn, ~p"/admin/termine/neu")
+
+    # A new event defaults to public → the public-only options are shown.
+    assert html =~ "Öffentlich ankündigen"
+    assert html =~ "iCal-Export aktivieren"
+    assert html =~ "Countdown anzeigen"
+    assert html =~ "Erinnerungen"
+
+    # Selecting an internal calendar hides all of them.
+    html =
+      lv
+      |> element("#event-form")
+      |> render_change(%{"event" => %{"title" => "Intern", "calendar" => "vorstand"}})
+
+    refute html =~ "Öffentlich ankündigen"
+    refute html =~ "iCal-Export aktivieren"
+    refute html =~ "Countdown anzeigen"
+    refute html =~ "Countdown ab"
+    refute html =~ "Erinnerungen"
+
+    # Toggling back to public re-shows the options.
+    html =
+      lv
+      |> element("#event-form")
+      |> render_change(%{"event" => %{"title" => "Wieder öffentlich", "calendar" => ""}})
+
+    assert html =~ "Öffentlich ankündigen"
+    assert html =~ "Erinnerungen"
+  end
+
+  test "the edit form of an existing internal event hides the public-only options",
+       %{conn: conn} do
+    event = Bbh.CalendarFixtures.event_fixture(calendar: "vorstand", slug: "intern-edit")
+
+    {:ok, _lv, html} = live(conn, ~p"/admin/termine/#{event.id}/bearbeiten")
+
+    refute html =~ "Öffentlich ankündigen"
+    refute html =~ "iCal-Export aktivieren"
+    refute html =~ "Countdown anzeigen"
+    refute html =~ "Erinnerungen"
+  end
 end

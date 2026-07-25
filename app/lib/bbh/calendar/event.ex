@@ -76,6 +76,7 @@ defmodule Bbh.Calendar.Event do
       sort_param: :reminders_sort,
       drop_param: :reminders_drop
     )
+    |> reset_internal_public_fields()
     |> validate_end_after_start()
     |> unique_constraint([:slug, :year], name: :events_slug_year_unique)
     |> foreign_key_constraint(:location_id)
@@ -89,6 +90,37 @@ defmodule Bbh.Calendar.Event do
       name: :events_year_range,
       message: "muss ab 1900 liegen"
     )
+  end
+
+  # Internal-calendar events have no public presence — they are only reachable via
+  # a shared .ics feed. The public-facing options (public announcement, homepage
+  # countdown, push reminders, public iCal download) therefore never apply, so
+  # force them off regardless of what the form submitted. `countdown_lead_days`
+  # is left at its default — it is inert once `show_countdown` is false.
+  defp reset_internal_public_fields(changeset) do
+    case get_field(changeset, :calendar) do
+      cal when cal in [nil, ""] ->
+        changeset
+
+      _internal ->
+        changeset
+        |> put_change(:announce, false)
+        |> put_change(:show_countdown, false)
+        |> put_change(:enable_ical, false)
+        |> drop_reminders()
+    end
+  end
+
+  # Replacing reminders with [] is safe on a new (unpersisted) parent and on a
+  # persisted parent whose reminders are loaded. Only the persisted-and-unloaded
+  # case would raise from put_assoc — skip it (leftover reminders on an internal
+  # event are inert; `due_reminders` filters them out anyway).
+  defp drop_reminders(changeset) do
+    persisted_unloaded? =
+      changeset.data.__meta__.state == :loaded and
+        match?(%Ecto.Association.NotLoaded{}, changeset.data.reminders)
+
+    if persisted_unloaded?, do: changeset, else: put_assoc(changeset, :reminders, [])
   end
 
   defp put_year(changeset) do

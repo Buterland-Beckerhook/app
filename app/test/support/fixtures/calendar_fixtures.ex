@@ -34,4 +34,21 @@ defmodule Bbh.CalendarFixtures do
     {:ok, event} = Calendar.create_event(attrs)
     event
   end
+
+  @doc """
+  A calendar share. Returns the `%CalendarShare{}`; pass `calendar:` (default
+  `"vorstand"`), `recipient_label:` and `expires_at:` to control it. Use
+  `share_with_token/1` when you need the plaintext token too.
+  """
+  def calendar_share_fixture(attrs \\ %{}) do
+    {_plaintext, share} = share_with_token(attrs)
+    share
+  end
+
+  @doc "Like `calendar_share_fixture/1` but returns `{plaintext_token, share}`."
+  def share_with_token(attrs \\ %{}) do
+    {calendar, attrs} = Map.pop(Map.new(attrs), :calendar, "vorstand")
+    {:ok, {plaintext, share}} = Calendar.create_share(calendar, attrs, attrs[:created_by])
+    {plaintext, share}
+  end
 end

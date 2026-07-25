@@ -206,10 +206,26 @@ defmodule BbhWeb.Admin.EventLive.Form do
           label="Kalender"
           options={@calendar_options}
         />
-        <.input field={@form[:announce]} type="checkbox" label="Öffentlich ankündigen" />
-        <.input field={@form[:enable_ical]} type="checkbox" label="iCal-Export aktivieren" />
-        <.input field={@form[:show_countdown]} type="checkbox" label="Countdown anzeigen" />
         <.input
+          :if={public_calendar?(@form)}
+          field={@form[:announce]}
+          type="checkbox"
+          label="Öffentlich ankündigen"
+        />
+        <.input
+          :if={public_calendar?(@form)}
+          field={@form[:enable_ical]}
+          type="checkbox"
+          label="iCal-Export aktivieren"
+        />
+        <.input
+          :if={public_calendar?(@form)}
+          field={@form[:show_countdown]}
+          type="checkbox"
+          label="Countdown anzeigen"
+        />
+        <.input
+          :if={public_calendar?(@form)}
           field={@form[:countdown_lead_days]}
           type="number"
           min="0"
@@ -218,7 +234,7 @@ defmodule BbhWeb.Admin.EventLive.Form do
         <.input field={@form[:cancel_reason]} label="Grund bei Absage" />
         <.rich_text field={@form[:body]} label="Beschreibung" />
 
-        <fieldset class="rounded-box border border-base-300 p-4">
+        <fieldset :if={public_calendar?(@form)} class="rounded-box border border-base-300 p-4">
           <legend class="px-1 text-sm font-medium">Erinnerungen (Push)</legend>
           <p class="mb-3 text-sm text-base-content/60">
             Benachrichtigt Abonnenten die angegebene Anzahl Tage vor Beginn mit dem eingegebenen Text.
@@ -264,4 +280,13 @@ defmodule BbhWeb.Admin.EventLive.Form do
   end
 
   defp statuses, do: @statuses
+
+  # Public events (no internal calendar) get the public-facing options; internal
+  # ones don't — they only surface via a shared .ics feed.
+  defp public_calendar?(form) do
+    case form[:calendar].value do
+      cal when cal in [nil, ""] -> true
+      _internal -> false
+    end
+  end
 end

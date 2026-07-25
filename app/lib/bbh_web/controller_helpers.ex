@@ -27,4 +27,15 @@ defmodule BbhWeb.ControllerHelpers do
       _ -> nil
     end
   end
+
+  @doc "Send an iCalendar body inline as `text/calendar` with the given filename."
+  def send_ical(conn, body, filename) do
+    conn
+    |> put_resp_content_type("text/calendar")
+    |> put_resp_header("content-disposition", ~s(inline; filename="#{filename}"))
+    |> send_resp(200, body)
+  end
+
+  @doc "The public site URL, used to build absolute links in feeds."
+  def site_url, do: Application.get_env(:bbh, :site_url, "https://buterland-beckerhook.de")
 end

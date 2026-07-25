@@ -106,4 +106,57 @@ defmodule Bbh.CalendarTest do
       assert Calendar.location_options() == [{"Altes Rathaus", a.id}, {"Bürgerhaus", b.id}]
     end
   end
+
+  describe "internal calendar events drop public-only fields" do
+    @reminder_params %{
+      "reminders_sort" => ["0"],
+      "reminders" => %{"0" => %{"lead_days" => "7", "text" => "bald"}}
+    }
+
+    defp base_attrs(extra) do
+      Map.merge(
+        %{
+          "status" => "published",
+          "title" => "T",
+          "slug" => "t-#{System.unique_integer([:positive])}",
+          "starts_at" => ~U[2027-06-01 10:00:00Z],
+          "announce" => true,
+          "show_countdown" => true
+        },
+        extra
+      )
+    end
+
+    defp reminders(event), do: Bbh.Repo.all(Ecto.assoc(event, :reminders))
+
+    test "create_event forces announce/countdown off and drops reminders for an internal calendar" do
+      {:ok, event} =
+        Calendar.create_event(
+          base_attrs(Map.merge(%{"calendar" => "vorstand"}, @reminder_params))
+        )
+
+      refute event.announce
+      refute event.show_countdown
+      assert reminders(event) == []
+    end
+
+    test "public events keep announce, countdown and reminders" do
+      {:ok, event} = Calendar.create_event(base_attrs(@reminder_params))
+
+      assert event.announce
+      assert event.show_countdown
+      assert [%{lead_days: 7}] = reminders(event)
+    end
+
+    test "switching an existing public event to an internal calendar clears its reminders" do
+      {:ok, event} = Calendar.create_event(base_attrs(@reminder_params))
+      assert [_] = reminders(event)
+
+      {:ok, updated} = Calendar.update_event(event, %{"calendar" => "offiziere"})
+
+      refute updated.announce
+      refute updated.show_countdown
+      assert reminders(updated) == []
+    end
+  end
 end
