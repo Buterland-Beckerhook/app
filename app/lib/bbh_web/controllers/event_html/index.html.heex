@@ -45,18 +45,8 @@
       </div>
     </div>
 
-    <p class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted">
-      <span>Alle Termine des Schützenvereins Buterland-Beckerhook im Jahr {@year}.</span>
-      <a
-        href={webcal_url(url(~p"/termine/abo.ics"))}
-        class="font-semibold text-primary hover:underline"
-      >
-        Kalender abonnieren
-      </a>
-      <%!-- https fallback for browsers/OSes without a webcal:// handler (imports once). --%>
-      <a href={~p"/termine/abo.ics"} class="hover:text-primary hover:underline">
-        (als .ics-Datei)
-      </a>
+    <p class="mt-2 text-sm text-muted">
+      Alle Termine des Schützenvereins Buterland-Beckerhook im Jahr {@year}.
     </p>
 
     <div
@@ -111,5 +101,46 @@
         </div>
       </div>
     </div>
+
+    <section class="mt-12 rounded-2xl border border-base-300 bg-card p-5 text-sm">
+      <h2 class="font-logo mb-2 text-lg font-bold text-primary">Kalender abonnieren</h2>
+      <p class="text-muted">
+        Alle Termine automatisch im eigenen Kalender — neue Einträge erscheinen von selbst.
+      </p>
+      <div class="mt-4 flex flex-col gap-4">
+        <p>
+          <span class="font-medium">Apple Kalender / Outlook:</span>
+          <a
+            href={webcal_url(url(~p"/termine/abo.ics"))}
+            class="font-semibold text-primary hover:underline"
+          >
+            mit einem Tipp abonnieren
+          </a>.
+        </p>
+        <div>
+          <p class="mb-2">
+            <span class="font-medium">Google Kalender / Android:</span>
+            Adresse kopieren und in Google Kalender am Computer unter
+            „Weitere Kalender“ (+) → „Per URL“ einfügen.
+          </p>
+          <input
+            type="text"
+            readonly
+            value={url(~p"/termine/abo.ics")}
+            data-select-on-click
+            class="input input-bordered w-full font-mono text-xs"
+            aria-label="Kalender-Adresse zum Kopieren"
+          />
+        </div>
+        <p class="text-muted">
+          Nur einmalig importieren: <a
+            href={~p"/termine/abo.ics"}
+            class="hover:text-primary hover:underline"
+          >
+            als .ics-Datei herunterladen
+          </a>.
+        </p>
+      </div>
+    </section>
   </div>
 </Layouts.app>

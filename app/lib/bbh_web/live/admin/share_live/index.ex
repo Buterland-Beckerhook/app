@@ -28,12 +28,13 @@ defmodule BbhWeb.Admin.ShareLive.Index do
 
       case Calendar.create_share(calendar, attrs, user) do
         {:ok, {plaintext, share}} ->
-          url = webcal_url(url(~p"/kalender/geteilt/#{plaintext}"))
-          {level, message} = create_flash(share, url, params["notify"])
+          https = url(~p"/kalender/geteilt/#{plaintext}")
+          webcal = webcal_url(https)
+          {level, message} = create_flash(share, webcal, https, params["notify"])
 
           {:noreply,
            socket
-           |> assign(:new_share, %{share: share, url: url, qr: qr_svg(url)})
+           |> assign(:new_share, new_share(share, webcal, https))
            |> put_flash(level, message)
            |> assign_form()
            |> load_shares()}
@@ -91,12 +92,13 @@ defmodule BbhWeb.Admin.ShareLive.Index do
       true ->
         case Calendar.rotate_share_token(share) do
           {:ok, {plaintext, share}} ->
-            url = webcal_url(url(~p"/kalender/geteilt/#{plaintext}"))
-            {level, message} = resend_flash(share, url)
+            https = url(~p"/kalender/geteilt/#{plaintext}")
+            webcal = webcal_url(https)
+            {level, message} = resend_flash(share, webcal, https)
 
             {:noreply,
              socket
-             |> assign(:new_share, %{share: share, url: url, qr: qr_svg(url)})
+             |> assign(:new_share, new_share(share, webcal, https))
              |> put_flash(level, message)
              |> load_shares()}
 
@@ -106,9 +108,16 @@ defmodule BbhWeb.Admin.ShareLive.Index do
     end
   end
 
+  # A share is offered two ways: webcal:// for one-tap subscribe on Apple/Outlook,
+  # and the plain https feed URL to paste into Google Calendar (web) — Android has
+  # no webcal handler. The QR encodes the webcal form: scanning only subscribes on
+  # Apple/iOS anyway, and Android users are routed to the https copy field instead.
+  defp new_share(share, webcal, https),
+    do: %{share: share, webcal_url: webcal, https_url: https, qr: qr_svg(webcal)}
+
   # Resend rotates the token; on success the previously-issued link stops working.
-  defp resend_flash(share, url) do
-    case Calendar.deliver_share_link(share, url) do
+  defp resend_flash(share, webcal, https) do
+    case Calendar.deliver_share_link(share, webcal, https) do
       {:ok, _} ->
         {:info,
          "Neuer Link per E-Mail an #{share.recipient_label} gesendet. Der bisherige Link ist ungültig."}
@@ -126,8 +135,8 @@ defmodule BbhWeb.Admin.ShareLive.Index do
   # A freshly-minted token is only shown once. When the admin asked to email it,
   # the flash must reflect what actually happened with delivery — not just the
   # recipient-label heuristic.
-  defp create_flash(share, url, "true") do
-    case Calendar.deliver_share_link(share, url) do
+  defp create_flash(share, webcal, https, "true") do
+    case Calendar.deliver_share_link(share, webcal, https) do
       {:ok, _} ->
         {:info, "Link erstellt und per E-Mail an #{share.recipient_label} gesendet."}
 
@@ -140,7 +149,7 @@ defmodule BbhWeb.Admin.ShareLive.Index do
     end
   end
 
-  defp create_flash(_share, _url, _notify), do: {:info, base_notice()}
+  defp create_flash(_share, _webcal, _https, _notify), do: {:info, base_notice()}
 
   defp base_notice, do: "Link erstellt. Der Link ist nur jetzt sichtbar — bitte kopieren."
 
@@ -263,13 +272,33 @@ defmodule BbhWeb.Admin.ShareLive.Index do
           Dieser Link wird nur jetzt angezeigt. Kopiere ihn oder scanne den QR-Code.
         </p>
         <div class="flex flex-col gap-4 sm:flex-row sm:items-start">
-          <input
-            type="text"
-            readonly
-            value={@new_share.url}
-            class="input input-bordered w-full font-mono text-sm"
-            aria-label="Geteilter Link"
-          />
+          <div class="flex w-full flex-col gap-3">
+            <div>
+              <label class="mb-1 block text-sm font-medium">Apple Kalender / Outlook (ein Tipp)</label>
+              <input
+                type="text"
+                readonly
+                value={@new_share.webcal_url}
+                data-select-on-click
+                class="input input-bordered w-full font-mono text-sm"
+                aria-label="Abo-Link (webcal)"
+              />
+            </div>
+            <div>
+              <label class="mb-1 block text-sm font-medium">Google Kalender / Android</label>
+              <input
+                type="text"
+                readonly
+                value={@new_share.https_url}
+                data-select-on-click
+                class="input input-bordered w-full font-mono text-sm"
+                aria-label="Abo-Adresse (https)"
+              />
+              <p class="mt-1 text-xs text-base-content/60">
+                Google Kalender (Web): „Weitere Kalender“ (+) → „Per URL“ → Adresse einfügen.
+              </p>
+            </div>
+          </div>
           <div class="shrink-0 bg-white p-3 rounded-box">{Phoenix.HTML.raw(@new_share.qr)}</div>
         </div>
       </div>

@@ -218,12 +218,13 @@ defmodule Bbh.Calendar do
   Returns `{:ok, email}`, `{:error, reason}` from the mailer, or `:skip` when the
   label is not an email.
   """
-  def deliver_share_link(%CalendarShare{recipient_label: label} = share, url) do
+  def deliver_share_link(%CalendarShare{recipient_label: label} = share, webcal_url, https_url) do
     if CalendarShare.emailable?(share) do
       Bbh.Calendar.ShareNotifier.deliver_calendar_share_instructions(
         label,
         Event.calendar_label(share.calendar),
-        url
+        webcal_url,
+        https_url
       )
     else
       :skip

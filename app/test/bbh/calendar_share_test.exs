@@ -156,17 +156,23 @@ defmodule Bbh.CalendarShareTest do
     end
   end
 
-  describe "deliver_share_link/2" do
-    test "emails the link when the recipient label is an address" do
+  describe "deliver_share_link/3" do
+    test "emails both the webcal and https links when the recipient label is an address" do
       {:ok, {_plain, share}} =
         Calendar.create_share("vorstand", %{recipient_label: "kassierer@example.com"}, nil)
 
       assert {:ok, _email} =
-               Calendar.deliver_share_link(share, "https://example.com/kalender/geteilt/abc")
+               Calendar.deliver_share_link(
+                 share,
+                 "webcal://example.com/kalender/geteilt/abc",
+                 "https://example.com/kalender/geteilt/abc"
+               )
 
       assert_email_sent(fn email ->
         assert email.subject =~ "Vorstand"
         assert {_, "kassierer@example.com"} = hd(email.to)
+        # Apple/Outlook one-tap link and the Google/Android paste address are both present.
+        assert email.text_body =~ "webcal://example.com/kalender/geteilt/abc"
         assert email.text_body =~ "https://example.com/kalender/geteilt/abc"
       end)
     end
@@ -175,7 +181,12 @@ defmodule Bbh.CalendarShareTest do
       {:ok, {_plain, share}} =
         Calendar.create_share("vorstand", %{recipient_label: "Kassierer"}, nil)
 
-      assert Calendar.deliver_share_link(share, "https://example.com/x") == :skip
+      assert Calendar.deliver_share_link(
+               share,
+               "webcal://example.com/x",
+               "https://example.com/x"
+             ) == :skip
+
       assert_no_email_sent()
     end
   end
