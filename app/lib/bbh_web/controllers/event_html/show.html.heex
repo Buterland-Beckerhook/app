@@ -1,7 +1,15 @@
 <Layouts.app flash={@flash} current_path={@conn.request_path}>
   {event_jsonld(@event)}
   <article class="mx-auto max-w-3xl">
-    <a href={~p"/termine"} class="text-sm text-primary hover:underline">&larr; Zurück zu Termine</a>
+    <div class="flex items-center justify-between gap-3">
+      <a href={~p"/termine"} class="text-sm text-primary hover:underline">
+        &larr; Zurück zu Termine
+      </a>
+      <.edit_link
+        :if={BbhWeb.Authz.can_edit_event?(@current_scope && @current_scope.user, @event)}
+        href={~p"/admin/termine/#{@event.id}/bearbeiten"}
+      />
+    </div>
 
     <header class="mt-4">
       <div class="flex flex-wrap items-center gap-3">

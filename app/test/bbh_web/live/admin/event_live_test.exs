@@ -18,6 +18,23 @@ defmodule BbhWeb.Admin.EventLiveTest do
       assert html =~ "Vereinsheim"
     end
 
+    test "filters events by calendar", %{conn: conn} do
+      _public = event_fixture(title: "Sommerfest")
+      _internal = event_fixture(title: "Vorstandssitzung", calendar: "vorstand")
+
+      {:ok, lv, html} = live(conn, ~p"/admin/termine")
+      assert html =~ "Sommerfest"
+      assert html =~ "Vorstandssitzung"
+
+      html = lv |> form("form[phx-change=list-filter-cat]", %{cat: "vorstand"}) |> render_change()
+      assert html =~ "Vorstandssitzung"
+      refute html =~ "Sommerfest"
+
+      html = lv |> form("form[phx-change=list-filter-cat]", %{cat: "public"}) |> render_change()
+      assert html =~ "Sommerfest"
+      refute html =~ "Vorstandssitzung"
+    end
+
     test "deletes an event from the edit page with slug confirmation", %{conn: conn} do
       event = event_fixture()
       {:ok, lv, _html} = live(conn, ~p"/admin/termine/#{event.id}/bearbeiten")

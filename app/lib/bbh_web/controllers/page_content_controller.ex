@@ -47,6 +47,7 @@ defmodule BbhWeb.PageContentController do
         render(conn, :page,
           page_title: page.title || title,
           title: page.title || title,
+          page: page,
           blocks: blocks
         )
 

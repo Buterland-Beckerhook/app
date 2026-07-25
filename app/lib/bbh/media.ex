@@ -117,6 +117,18 @@ defmodule Bbh.Media do
     )
   end
 
+  @doc """
+  A flat, indented `{label, value}` option list of all folders (plus a "no folder"
+  entry) for a folder-select. Value `""` means the root.
+  """
+  def folder_options do
+    [{"— Kein Ordner —", ""}] ++
+      Enum.flat_map(list_root_folders(), fn root ->
+        [{root.name, root.id}] ++
+          Enum.map(root.children, fn child -> {"#{root.name} / #{child.name}", child.id} end)
+      end)
+  end
+
   @doc "Direct sub-folders of `parent_id` (nil = top level), alphabetical."
   def list_subfolders(nil),
     do: Repo.all(from f in Folder, where: is_nil(f.parent_id), order_by: [asc: f.name])

@@ -578,10 +578,13 @@ defmodule BbhWeb.CoreComponents do
   attr :event, :string, default: "list-page"
 
   def list_pagination(assigns) do
+    assigns =
+      assign(assigns, :pages, pagination_pages(assigns.meta.page, assigns.meta.total_pages))
+
     ~H"""
     <nav
       :if={@meta.total_pages > 1}
-      class="mt-4 flex items-center justify-center gap-1"
+      class="mt-4 flex flex-wrap items-center justify-center gap-1"
       aria-label="Seiten"
     >
       <button
@@ -593,15 +596,19 @@ defmodule BbhWeb.CoreComponents do
       >
         Zurück
       </button>
-      <button
-        :for={n <- 1..@meta.total_pages}
-        type="button"
-        phx-click={@event}
-        phx-value-page={n}
-        class={["btn btn-sm", if(n == @meta.page, do: "btn-primary", else: "btn-ghost")]}
-      >
-        {n}
-      </button>
+      <%= for item <- @pages do %>
+        <span :if={item == :gap} class="px-1 text-base-content/50" aria-hidden="true">…</span>
+        <button
+          :if={item != :gap}
+          type="button"
+          phx-click={@event}
+          phx-value-page={item}
+          aria-current={item == @meta.page && "page"}
+          class={["btn btn-sm", if(item == @meta.page, do: "btn-primary", else: "btn-ghost")]}
+        >
+          {item}
+        </button>
+      <% end %>
       <button
         :if={@meta.page < @meta.total_pages}
         type="button"
@@ -612,6 +619,50 @@ defmodule BbhWeb.CoreComponents do
         Weiter
       </button>
     </nav>
+    """
+  end
+
+  # Page-number window: show all up to 7 pages, otherwise first + last + the
+  # current page's neighbours, with `:gap` markers (rendered as "…") for the holes.
+  # A hole spanning a single page is filled with that page instead of an ellipsis.
+  defp pagination_pages(_page, total) when total <= 7, do: Enum.to_list(1..total)
+
+  defp pagination_pages(page, total) do
+    [1, page - 1, page, page + 1, total]
+    |> Enum.filter(&(&1 >= 1 and &1 <= total))
+    |> Enum.uniq()
+    |> Enum.sort()
+    |> insert_gaps()
+  end
+
+  defp insert_gaps([a, b | rest]) do
+    cond do
+      b - a == 1 -> [a | insert_gaps([b | rest])]
+      b - a == 2 -> [a, a + 1 | insert_gaps([b | rest])]
+      true -> [a, :gap | insert_gaps([b | rest])]
+    end
+  end
+
+  defp insert_gaps(rest), do: rest
+
+  @doc """
+  A compact "edit in the admin area" affordance for authorized editors on public
+  pages. Opens the admin form in a new tab. Always render it inside an `:if` that
+  checks authorization for the specific resource (e.g. `BbhWeb.Authz.can_edit_event?/2`).
+  """
+  attr :href, :string, required: true
+  attr :label, :string, default: "Bearbeiten"
+
+  def edit_link(assigns) do
+    ~H"""
+    <.link
+      href={@href}
+      target="_blank"
+      rel="noopener"
+      class="btn btn-sm btn-primary btn-soft gap-1"
+    >
+      <.icon name="hero-pencil-square" class="size-4" /> {@label}
+    </.link>
     """
   end
 

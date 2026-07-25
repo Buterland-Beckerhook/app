@@ -1,6 +1,7 @@
 defmodule BbhWeb.Plugs.TrackPageView do
   @moduledoc """
-  Records a page view for public GET requests into `Bbh.Analytics`.
+  Records a page view for public GET requests into `Bbh.Analytics`, plus retrievals
+  of the iCal subscription feed.
 
   Runs a `register_before_send/2` callback so the response status and
   content-type are known, and hands the actual DB write to `Bbh.TaskSupervisor`
@@ -18,6 +19,7 @@ defmodule BbhWeb.Plugs.TrackPageView do
 
   @skip_prefixes ["/admin", "/users", "/api", "/dev", "/assets", "/images", "/fonts"]
   @skip_paths ["/favicon.ico", "/robots.txt", "/sw.js", "/manifest.webmanifest"]
+  @ical_feed_paths ["/termine/abo.ics", "/termine/index.ics"]
   @bot_re ~r/bot|crawl|spider|slurp|mediapartners|facebookexternalhit|embedly|preview|scrapy|curl|wget|python-requests|headless|monitor|uptime/i
 
   def init(opts), do: opts
@@ -35,21 +37,33 @@ defmodule BbhWeb.Plugs.TrackPageView do
   end
 
   defp record(conn) do
-    if conn.status == 200 and html?(conn) do
-      attrs = %{
-        path: conn.request_path,
-        referrer_host: external_referrer_host(conn),
-        visitor_hash: visitor_hash(conn)
-      }
+    cond do
+      conn.status == 200 and html?(conn) ->
+        attrs = %{
+          path: conn.request_path,
+          referrer_host: external_referrer_host(conn),
+          visitor_hash: visitor_hash(conn)
+        }
 
-      if async?() do
-        Task.Supervisor.start_child(Bbh.TaskSupervisor, fn -> Bbh.Analytics.record(attrs) end)
-      else
-        Bbh.Analytics.record(attrs)
-      end
+        dispatch(fn -> Bbh.Analytics.record(attrs) end)
+
+      conn.status == 200 and ical_feed?(conn) ->
+        hash = visitor_hash(conn)
+        dispatch(fn -> Bbh.Analytics.record_ical(%{visitor_hash: hash}) end)
+
+      true ->
+        :ok
     end
 
     conn
+  end
+
+  defp dispatch(fun) do
+    if async?() do
+      Task.Supervisor.start_child(Bbh.TaskSupervisor, fun)
+    else
+      fun.()
+    end
   end
 
   defp skipped_path?(path) do
@@ -68,6 +82,15 @@ defmodule BbhWeb.Plugs.TrackPageView do
       [ct | _] -> String.contains?(ct, "text/html")
       _ -> false
     end
+  end
+
+  # A retrieval of the iCal subscription feed (not one-off single-event downloads).
+  defp ical_feed?(conn) do
+    conn.request_path in @ical_feed_paths and
+      case get_resp_header(conn, "content-type") do
+        [ct | _] -> String.contains?(ct, "text/calendar")
+        _ -> false
+      end
   end
 
   # The referrer host, only when it is a different site than our own.

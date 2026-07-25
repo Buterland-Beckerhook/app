@@ -46,6 +46,7 @@ defmodule BbhWeb.Admin.DashboardLive do
          analytics: %{
            summary: Bbh.Analytics.summary(from, to),
            by_day: Bbh.Analytics.views_by_day(from, to),
+           ical: Bbh.Analytics.ical_summary(from, to),
            top_pages: Bbh.Analytics.top_pages(from, to),
            top_referrers: Bbh.Analytics.top_referrers(from, to)
          }
@@ -131,18 +132,48 @@ defmodule BbhWeb.Admin.DashboardLive do
                 Besuche
               </div>
             </div>
+            <div class="rounded-box border border-base-300 bg-base-200 p-4">
+              <div class="text-3xl font-semibold text-primary">{a.ical.fetches}</div>
+              <div class="text-sm text-base-content/70" title="Abrufe des Termin-Abo-Feeds (.ics)">
+                iCal-Abrufe
+              </div>
+            </div>
+            <div class="rounded-box border border-base-300 bg-base-200 p-4">
+              <div class="text-3xl font-semibold text-primary">{a.ical.subscribers}</div>
+              <div
+                class="text-sm text-base-content/70"
+                title="Verschiedene Kalender-Clients am aktivsten Tag"
+              >
+                iCal-Abos
+              </div>
+            </div>
           </div>
 
           <div class="mt-6 rounded-box border border-base-300 bg-base-200 p-4">
-            <div class="mb-2 text-sm text-base-content/70">Aufrufe pro Tag</div>
-            <% max = day_max(a.by_day) %>
-            <div class="flex h-32 items-end gap-px">
-              <div
-                :for={point <- a.by_day}
-                class="flex-1 rounded-t bg-primary/70 hover:bg-primary"
-                style={"height: #{bar_pct(point.count, max)}%"}
-                title={"#{Calendar.strftime(point.day, "%d.%m.")}: #{point.count}"}
-              >
+            <% peak = day_max(a.by_day) %>
+            <% top = nice_ceil(peak) %>
+            <div class="mb-2 flex items-baseline justify-between gap-2 text-sm text-base-content/70">
+              <span>Aufrufe pro Tag</span>
+              <span :if={peak > 0} class="text-xs tabular-nums">
+                Ø {day_avg(a.by_day)} · Spitze {peak}
+              </span>
+            </div>
+            <div class="flex gap-2">
+              <div class="flex h-32 w-8 shrink-0 flex-col justify-between text-right text-[10px] text-base-content/50 tabular-nums">
+                <span>{top}</span>
+                <span>{round(top / 2)}</span>
+                <span>0</span>
+              </div>
+              <div class="relative flex h-32 flex-1 items-end gap-px">
+                <div class="pointer-events-none absolute inset-x-0 top-1/2 border-t border-base-content/10">
+                </div>
+                <div
+                  :for={point <- a.by_day}
+                  class="flex-1 rounded-t bg-primary/70 hover:bg-primary"
+                  style={"height: #{bar_pct(point.count, top)}%"}
+                  title={"#{Calendar.strftime(point.day, "%d.%m.")}: #{point.count}"}
+                >
+                </div>
               </div>
             </div>
           </div>
@@ -200,7 +231,35 @@ defmodule BbhWeb.Admin.DashboardLive do
 
   defp day_max(by_day), do: by_day |> Enum.map(& &1.count) |> Enum.max(fn -> 0 end)
 
+  defp day_avg([]), do: 0
+
+  defp day_avg(by_day) do
+    total = by_day |> Enum.map(& &1.count) |> Enum.sum()
+    round(total / length(by_day))
+  end
+
+  # Round the axis maximum up to a tidy 1/2/5 × 10ⁿ so the scale reads cleanly and
+  # the tallest bar doesn't peg at 100%.
+  defp nice_ceil(n) when n <= 0, do: 0
+
+  defp nice_ceil(n) do
+    mag = magnitude(n)
+
+    nice =
+      cond do
+        n <= mag -> 1
+        n <= 2 * mag -> 2
+        n <= 5 * mag -> 5
+        true -> 10
+      end
+
+    nice * mag
+  end
+
+  defp magnitude(n) when n < 10, do: 1
+  defp magnitude(n), do: 10 * magnitude(div(n, 10))
+
   defp bar_pct(0, _max), do: 0
   defp bar_pct(_count, 0), do: 0
-  defp bar_pct(count, max), do: max(round(count / max * 100), 2)
+  defp bar_pct(count, max), do: max(round(count / max * 100), 4)
 end

@@ -36,6 +36,31 @@ defmodule Bbh.AnalyticsTest do
     end
   end
 
+  describe "record_ical/1 and ical_summary/2" do
+    test "counts total fetches and peak daily unique subscribers" do
+      Analytics.record_ical(%{visitor_hash: "a", day: @today})
+      Analytics.record_ical(%{visitor_hash: "a", day: @today})
+      Analytics.record_ical(%{visitor_hash: "b", day: @today})
+
+      assert %{fetches: 3, subscribers: 2} = Analytics.ical_summary(@today, @today)
+    end
+
+    test "subscribers is the peak daily unique count, not the range sum" do
+      yesterday = Date.add(@today, -1)
+      Analytics.record_ical(%{visitor_hash: "a", day: yesterday})
+      Analytics.record_ical(%{visitor_hash: "a", day: @today})
+      Analytics.record_ical(%{visitor_hash: "b", day: @today})
+
+      assert %{fetches: 3, subscribers: 2} = Analytics.ical_summary(yesterday, @today)
+    end
+
+    test "ignores retrievals without a visitor hash" do
+      assert :ok = Analytics.record_ical(%{})
+
+      assert %{fetches: 0, subscribers: 0} = Analytics.ical_summary(@today, @today)
+    end
+  end
+
   describe "time-series" do
     test "views_by_day gap-fills the whole range oldest-first" do
       yesterday = Date.add(@today, -1)

@@ -2,6 +2,7 @@ defmodule BbhWeb.Admin.EventLive.Index do
   use BbhWeb, :live_view
 
   alias Bbh.Calendar
+  alias Bbh.Calendar.Event
   alias BbhWeb.AdminList
 
   @impl true
@@ -23,6 +24,7 @@ defmodule BbhWeb.Admin.EventLive.Index do
     meta =
       AdminList.process(events, socket.assigns.list_state,
         search: [& &1.title],
+        category: {&(&1.calendar || "public"), socket.assigns.list_state.cat},
         sort: %{
           "title" => & &1.title,
           "starts_at" => & &1.starts_at,
@@ -44,13 +46,33 @@ defmodule BbhWeb.Admin.EventLive.Index do
         </:actions>
       </.header>
 
-      <.list_search q={@list_meta.q} placeholder="Nach Titel suchen…" />
+      <div class="flex flex-wrap items-center gap-2">
+        <.list_search q={@list_meta.q} placeholder="Nach Titel suchen…" />
+        <form id="event-cat-filter" phx-change="list-filter-cat">
+          <select name="cat" class="select select-sm select-bordered" aria-label="Kalender filtern">
+            <option value="" selected={@list_meta.cat in [nil, ""]}>Alle Kalender</option>
+            <option value="public" selected={@list_meta.cat == "public"}>Öffentlich</option>
+            <option
+              :for={c <- Event.calendars()}
+              value={c}
+              selected={@list_meta.cat == c}
+            >
+              {Event.calendar_label(c)}
+            </option>
+          </select>
+        </form>
+      </div>
 
       <.table id="events" rows={@events} sort={@list_meta.sort} dir={@list_meta.dir}>
         <:col :let={e} label="Titel" sort_key="title">
           <span class="font-medium">{e.title}</span>
         </:col>
         <:col :let={e} label="Beginn" sort_key="starts_at">{de_datetime(e.starts_at)}</:col>
+        <:col :let={e} label="Kalender">
+          <span class={["badge badge-sm", if(e.calendar, do: "badge-secondary", else: "badge-ghost")]}>
+            {if e.calendar, do: Event.calendar_label(e.calendar), else: "Öffentlich"}
+          </span>
+        </:col>
         <:col :let={e} label="Ort">{e.location && e.location.name}</:col>
         <:col :let={e} label="Status" sort_key="status"><.status_badge status={e.status} /></:col>
         <:action :let={e}>

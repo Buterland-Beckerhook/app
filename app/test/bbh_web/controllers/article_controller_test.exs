@@ -26,6 +26,17 @@ defmodule BbhWeb.ArticleControllerTest do
       assert response(conn, 404)
     end
 
+    test "hides the admin edit link from anonymous visitors", %{conn: conn} do
+      article = article_fixture()
+      html = conn |> get(~p"/aktuell/#{article.year}/#{article.slug}") |> html_response(200)
+      refute html =~ "/bearbeiten"
+    end
+
+    test "returns 404 for a draft article for anonymous visitors", %{conn: conn} do
+      article = article_fixture(status: "draft")
+      assert conn |> get(~p"/aktuell/#{article.year}/#{article.slug}") |> response(404)
+    end
+
     test "returns 404 for a non-numeric year", %{conn: conn} do
       conn = get(conn, ~p"/aktuell/abcd/irgendwas")
       assert response(conn, 404)
@@ -56,6 +67,23 @@ defmodule BbhWeb.ArticleControllerTest do
       html = conn |> get(~p"/aktuell/#{article.year}/#{article.slug}") |> html_response(200)
       # The hero is excluded, leaving at least one gallery image with a lightbox trigger.
       assert html =~ "data-lightbox-src"
+    end
+  end
+
+  describe "admin edit affordance" do
+    setup :register_and_log_in_admin
+
+    test "shows an edit link to the article form for editors", %{conn: conn} do
+      article = article_fixture(title: "Redigierbar")
+      html = conn |> get(~p"/aktuell/#{article.year}/#{article.slug}") |> html_response(200)
+      assert html =~ ~p"/admin/artikel/#{article.id}/bearbeiten"
+    end
+
+    test "previews a draft article with a banner for editors", %{conn: conn} do
+      article = article_fixture(title: "Noch Entwurf", status: "draft")
+      html = conn |> get(~p"/aktuell/#{article.year}/#{article.slug}") |> html_response(200)
+      assert html =~ "Noch Entwurf"
+      assert html =~ "Vorschau"
     end
   end
 
