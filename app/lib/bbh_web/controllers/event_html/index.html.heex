@@ -47,8 +47,15 @@
 
     <p class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted">
       <span>Alle Termine des Schützenvereins Buterland-Beckerhook im Jahr {@year}.</span>
-      <a href={~p"/termine/index.ics"} class="font-semibold text-primary hover:underline">
+      <a
+        href={webcal_url(url(~p"/termine/abo.ics"))}
+        class="font-semibold text-primary hover:underline"
+      >
         Kalender abonnieren
+      </a>
+      <%!-- https fallback for browsers/OSes without a webcal:// handler (imports once). --%>
+      <a href={~p"/termine/abo.ics"} class="hover:text-primary hover:underline">
+        (als .ics-Datei)
       </a>
     </p>
 

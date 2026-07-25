@@ -29,6 +29,11 @@ defmodule Bbh.ICalTest do
 
       assert ics =~ "BEGIN:VCALENDAR"
       assert ics =~ "VERSION:2.0"
+
+      # Subscribed clients are told to re-poll hourly, so events added after the
+      # initial subscribe show up promptly instead of once a week.
+      assert ics =~ "REFRESH-INTERVAL;VALUE=DURATION:PT1H"
+      assert ics =~ "X-PUBLISHED-TTL:PT1H"
       assert ics =~ "BEGIN:VEVENT"
       assert ics =~ "END:VEVENT"
       assert ics =~ "END:VCALENDAR"

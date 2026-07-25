@@ -10,6 +10,20 @@ defmodule BbhWeb.EventControllerTest do
       assert html =~ "Termine"
       assert html =~ "Schützenfest"
     end
+
+    test "the 'Kalender abonnieren' link uses the webcal:// scheme so clients subscribe",
+         %{conn: conn} do
+      event = event_fixture()
+      html = conn |> get(~p"/termine?jahr=#{event.year}") |> html_response(200)
+
+      # A webcal:// link subscribes (live, re-polled); the plain .ics link is the
+      # download fallback for clients without a webcal:// handler.
+      assert html =~ ~r{href="webcal://[^"]*/termine/abo\.ics"}
+      assert html =~ ~s{href="/termine/abo.ics"}
+      # The old subscribe link was a bare relative import-once link — guard against
+      # regressing to it as the primary action.
+      refute html =~ ~s{href="/termine/index.ics"}
+    end
   end
 
   describe "GET /termine/:year/:slug" do

@@ -38,7 +38,8 @@ defmodule BbhWeb.Admin.ShareLiveTest do
         |> form("#share-form", share: %{calendar: "vorstand", recipient_label: "kassierer"})
         |> render_submit()
 
-      assert html =~ "/kalender/geteilt/"
+      # webcal:// so the recipient's calendar app subscribes instead of importing once.
+      assert html =~ ~r{webcal://[^"\s]*/kalender/geteilt/}
       # QR code rendered as inline SVG.
       assert html =~ "<svg"
       # The new share appears in the list.

@@ -49,7 +49,8 @@ defmodule Bbh.ICal do
     CALSCALE:GREGORIAN\r
     METHOD:PUBLISH\r
     X-WR-CALNAME:Buterland-Beckerhook e.V.\r
-    X-PUBLISHED-TTL:P1W\r
+    REFRESH-INTERVAL;VALUE=DURATION:PT1H\r
+    X-PUBLISHED-TTL:PT1H\r
     #{vtimezone()}#{body}END:VCALENDAR\r
     """
   end

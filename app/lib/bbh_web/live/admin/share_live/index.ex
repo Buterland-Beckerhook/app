@@ -28,7 +28,7 @@ defmodule BbhWeb.Admin.ShareLive.Index do
 
       case Calendar.create_share(calendar, attrs, user) do
         {:ok, {plaintext, share}} ->
-          url = url(~p"/kalender/geteilt/#{plaintext}")
+          url = webcal_url(url(~p"/kalender/geteilt/#{plaintext}"))
           {level, message} = create_flash(share, url, params["notify"])
 
           {:noreply,
@@ -91,7 +91,7 @@ defmodule BbhWeb.Admin.ShareLive.Index do
       true ->
         case Calendar.rotate_share_token(share) do
           {:ok, {plaintext, share}} ->
-            url = url(~p"/kalender/geteilt/#{plaintext}")
+            url = webcal_url(url(~p"/kalender/geteilt/#{plaintext}"))
             {level, message} = resend_flash(share, url)
 
             {:noreply,
