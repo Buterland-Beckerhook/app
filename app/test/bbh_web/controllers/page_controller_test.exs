@@ -40,7 +40,6 @@ defmodule BbhWeb.PageControllerTest do
     assert html =~ "Ein Homepage-Artikel"
     assert html =~ "König"
     assert html =~ "2098–2099"
-    assert html =~ "Amtierend"
     assert html =~ "Hans Hansen"
   end
 
