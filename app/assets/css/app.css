@@ -566,4 +566,100 @@ h1, h2, h3, h4, h5, h6 {
   border-radius: var(--radius-field);
 }
 
+/* Gallery block, "Diashow" layout (BbhWeb.SiteComponents.gallery_slideshow +
+   assets/js/slideshow.js). A scroll-snap strip rather than a JS-positioned track: swipe,
+   keyboard scrolling and the no-JS case all come from the browser, and the arrows only
+   have to call scrollTo. `scroll-behavior: smooth` is the push animation — the next
+   picture slides in and shoves the current one out, instead of the two cutting. */
+.bbh-slideshow-track {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  /* The dots are the position indicator; a scrollbar under the pictures would only
+     repeat them, and on desktop it would sit between photo and caption. */
+  scrollbar-width: none;
+  /* Swiping past the last picture must not chain to the page: near the edge of an iOS
+     viewport, a horizontal overscroll is the back gesture, so flicking to the end of a
+     gallery would navigate away from it. */
+  overscroll-behavior-x: contain;
+}
+
+.bbh-slideshow-track::-webkit-scrollbar {
+  display: none;
+}
+
+.bbh-slideshow-slide {
+  flex: 0 0 100%;
+  min-width: 0;
+  scroll-snap-align: start;
+}
+
+.bbh-slideshow-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 9999px;
+  border: 0;
+  cursor: pointer;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: #fff;
+  background: rgb(0 0 0 / 0.45);
+}
+
+.bbh-slideshow-arrow:hover {
+  background: rgb(0 0 0 / 0.75);
+}
+
+/* An 8px dot inside a 24px target. WCAG 2.5.8 wants 24×24 for a tap target, and these
+   dots are small, numerous and sit next to each other — `background-clip: content-box`
+   keeps the padding invisible so the target grows without the dot doing the same. */
+.bbh-slideshow-dot {
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0.5rem;
+  box-sizing: border-box;
+  border-radius: 9999px;
+  border: 0;
+  cursor: pointer;
+  background: var(--color-base-content);
+  background-clip: content-box;
+  /* Not fainter than this: the dots are the only thing telling a reader how many
+     pictures there are (the scrollbar is hidden above), so the inactive ones have to
+     clear 3:1 against the page for SC 1.4.11. */
+  opacity: 0.5;
+  transition: opacity 150ms, background-color 150ms;
+}
+
+.bbh-slideshow-dot[aria-current="true"] {
+  background: var(--color-primary);
+  background-clip: content-box;
+  opacity: 1;
+}
+
+/* Both controls sit on a photograph, where the UA's default focus ring is often
+   invisible. daisyUI gives every other control in this app a ring; these two are
+   hand-rolled, so they need their own (SC 2.4.7). */
+.bbh-slideshow-arrow:focus-visible,
+.bbh-slideshow-dot:focus-visible,
+.bbh-slideshow-track:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Honour the reader's setting: no sliding, and slideshow.js reads the same query to
+   leave autoplay off. A diashow that moves on its own is exactly what the setting is
+   asking not to happen. */
+@media (prefers-reduced-motion: reduce) {
+  .bbh-slideshow-track {
+    scroll-behavior: auto;
+  }
+}
+
 /* This file is for your main application CSS */

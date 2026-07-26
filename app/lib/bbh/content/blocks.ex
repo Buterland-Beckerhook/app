@@ -98,10 +98,26 @@ defmodule Bbh.Content.Blocks do
     @layouts ~w(slideshow grid)
     def layouts, do: @layouts
 
+    @doc """
+    The frames a slideshow can crop its images to, widest first, landscape before
+    portrait. Only used by the `slideshow` layout — the grid crops to squares.
+
+    Every entry is `W:H`; the renderer hands it to CSS `aspect-ratio` after swapping the
+    colon for a slash, so a ratio that is not two numbers would break the crop silently.
+    """
+    @aspect_ratios ~w(16:9 3:2 4:3 1:1 3:4 2:3 9:16)
+    def aspect_ratios, do: @aspect_ratios
+
     schema "block_image_gallery" do
       field :title, :string
-      field :layout, :string, default: "slideshow"
+      # "grid", matching `Content.@block_defaults` and the column default. The three
+      # used to disagree (schema and column said "slideshow", the insert path said
+      # "grid"), which cost nothing while nothing read `layout` — and would have turned
+      # every row created outside `add_block/2` into a slideshow the moment one did.
+      field :layout, :string, default: "grid"
       field :lightbox, :boolean, default: true
+      field :aspect_ratio, :string, default: "16:9"
+      field :autoplay, :boolean, default: false
 
       has_many :files, Bbh.Content.Blocks.GalleryFile,
         foreign_key: :gallery_id,
@@ -112,8 +128,13 @@ defmodule Bbh.Content.Blocks do
 
     def changeset(block, attrs) do
       block
-      |> cast(attrs, [:title, :layout, :lightbox])
+      |> cast(attrs, [:title, :layout, :lightbox, :aspect_ratio, :autoplay])
+      # `validate_inclusion/3` skips nil, and both columns are NOT NULL — without this
+      # an explicit nil would pass the changeset and come back as a Postgrex error
+      # instead of `{:error, changeset}`.
+      |> validate_required([:layout, :aspect_ratio])
       |> validate_inclusion(:layout, @layouts)
+      |> validate_inclusion(:aspect_ratio, @aspect_ratios)
     end
   end
 

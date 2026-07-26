@@ -38,6 +38,8 @@ import "./countdown.js"
 import "./flash.js"
 // Obfuscated e-mail links -> mailto: on first interaction (see BbhWeb.EmailObfuscation).
 import "./mail.js"
+// Gallery block in "Diashow" layout: index arithmetic for the controller further down.
+import {step, nearestSlide} from "./slideshow.js"
 // URL slug generation from a title — mirrors Mix.Tasks.Bbh.Import.slugify/1.
 import {slugify} from "./slug.js"
 // Drop-target geometry and payload types for the admin media folder tree.
@@ -751,7 +753,6 @@ window.liveSocket = liveSocket
   })
 
   // Open the lightbox at `trigger`, pulling in every element that shares its group.
-  // Exposed so the slideshow (below) can hand off its active slide on a middle-click.
   function openLightbox(trigger) {
     if (!trigger) return
     ensureDialog()
@@ -763,70 +764,205 @@ window.liveSocket = liveSocket
     show(index)
     dialog.showModal()
   }
-  window.openLightbox = openLightbox
-
+  // Every trigger is handled here, slideshow slides included: a slide's picture is a
+  // real button, so there is no pointer-position guessing for this to stay out of.
   document.addEventListener("click", (e) => {
     const trigger = e.target.closest("[data-lightbox-src]")
     if (!trigger) return
-    // Inside a slideshow the stage owns clicks (edge = page, middle = enlarge),
-    // so it calls openLightbox itself — don't double-fire here.
-    if (trigger.closest("[data-slideshow]")) return
     e.preventDefault()
     openLightbox(trigger)
   })
 })()
 
-// --- Diashow / slideshow for gallery blocks (plain JS — no LiveView) ---
-// Markup (site_components.ex): a `[data-slideshow]` container with `[data-slide]`
-// images (one visible at a time), optional `[data-slide-dot][data-index]` buttons,
-// and hover arrow glyphs. Clicking the left/right ~15% of the stage pages back/
-// forward; the middle enlarges via the shared lightbox. Delegated so it works on
-// server-rendered pages too.
-;(function initSlideshow() {
-  const current = new WeakMap()
+// --- Gallery block, "Diashow" layout (BbhWeb.SiteComponents.gallery_slideshow) ---
+// The strip is a CSS scroll-snap container, so swiping, snapping and the push animation
+// come from the browser and work with this switched off. Added here is only what a
+// scroll container has no opinion about: arrows, dots and advancing on a timer. The
+// index arithmetic lives in slideshow.js, where it is unit-tested.
+;(function initSlideshows() {
+  const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)")
 
-  function slides(box) {
-    return Array.from(box.querySelectorAll("[data-slide]"))
-  }
+  function setup(root) {
+    const track = root.querySelector("[data-slideshow-track]")
+    if (!track) return
 
-  function go(box, to) {
-    const imgs = slides(box)
-    if (imgs.length < 2) return
-    const i = (to + imgs.length) % imgs.length
-    current.set(box, i)
-    imgs.forEach((img, n) => (img.hidden = n !== i))
-    box.querySelectorAll("[data-slide-dot]").forEach((dot) => {
-      const active = Number(dot.getAttribute("data-index")) === i
-      if (active) dot.setAttribute("data-active", "true")
-      else dot.removeAttribute("data-active")
-    })
-  }
+    const slides = Array.from(track.children)
+    const dots = Array.from(root.querySelectorAll("[data-slideshow-dot]"))
+    if (slides.length < 2) return
 
-  document.addEventListener("click", (e) => {
-    const box = e.target.closest("[data-slideshow]")
-    if (!box) return
+    const slideWidth = () => slides[0].getBoundingClientRect().width
 
-    const dot = e.target.closest("[data-slide-dot]")
-    if (dot) {
-      go(box, Number(dot.getAttribute("data-index")))
-      return
+    // Where a smooth scroll started here is heading, for as long as it is in flight.
+    // The scroll position is still the source of truth for anything the visitor drives
+    // — but a scroll *this code* started has not arrived yet, and reading the strip
+    // mid-animation would answer with the slide being scrolled away from. Two quick
+    // clicks on the arrow would then both be answered "you are on slide 1" and the
+    // second would go nowhere. Cleared once the strip stops moving, so a swipe, a
+    // trackpad flick and a resize all go back to being read off the position.
+    let heading = null
+    // The last slide the strip came to rest on. Only used to put it back after a
+    // resize — see the resize listener.
+    let settled = 0
+    const current = () =>
+      heading === null ? nearestSlide(track.scrollLeft, slideWidth(), slides.length) : heading
+
+    let headingTimer = null
+
+    // `behavior` is left off on purpose: its default, "auto", means "use the element's
+    // computed scroll-behavior", and app.css sets that to smooth — including flipping
+    // it back under prefers-reduced-motion. One place decides how this animates.
+    // "instant" is passed only where the animation itself is wrong.
+    function goTo(index, {instant = false} = {}) {
+      heading = index
+      const left = index * slideWidth()
+      track.scrollTo(instant ? {left, behavior: "instant"} : {left})
+
+      // A scrollTo to where the strip already is fires no scroll event, so the settle
+      // timer below would never run and `heading` would stick. Reachable by clicking
+      // the current slide's own dot.
+      window.clearTimeout(headingTimer)
+      headingTimer = window.setTimeout(() => {
+        if (heading === index) heading = null
+      }, 800)
     }
 
-    const stage = box.querySelector("[data-slide]")?.parentElement
-    if (!stage || !stage.contains(e.target)) return
-    const imgs = slides(box)
-    const i = current.get(box) || 0
-    const openHere = () => window.openLightbox && window.openLightbox(imgs[i])
+    // One step to a neighbour animates; wrapping round the end does not. A wrap is a
+    // scroll across the whole strip, and smooth-scrolling it drags the reader past every
+    // picture in between — a rewind on a three-image gallery, seconds of strobing on a
+    // twenty-image one, and under autoplay it would happen every cycle.
+    function advance(delta) {
+      const from = current()
+      const to = step(from, delta, slides.length)
+      goTo(to, {instant: Math.abs(to - from) > 1})
+    }
 
-    // A lone image has no edges to page — any click just enlarges it.
-    if (imgs.length < 2) return openHere()
+    // --- Autoplay ---
+    // Absent unless the editor asked for it, and refused outright to a reader who asked
+    // for reduced motion — a picture that moves on its own is what that setting is about.
+    const interval = Number(root.dataset.slideshowInterval)
+    const autoplays = interval > 0 && !motionQuery.matches
+    let timer = null
+    let takenOver = false
 
-    const rect = stage.getBoundingClientRect()
-    const x = (e.clientX - rect.left) / rect.width
-    if (x < 0.15) go(box, i - 1)
-    else if (x > 0.85) go(box, i + 1)
-    else openHere()
-  })
+    function pause() {
+      if (timer !== null) window.clearInterval(timer)
+      timer = null
+    }
+
+    function resume() {
+      if (timer !== null || takenOver || !autoplays) return
+      timer = window.setInterval(() => {
+        // A background tab would otherwise queue up scrolls nobody is watching and land
+        // on an arbitrary slide once the reader comes back.
+        if (document.hidden) return
+        advance(1)
+      }, interval)
+    }
+
+    // Any deliberate move by the visitor stops the show for good — an arrow, a dot, or
+    // a swipe. That is both the polite reading (they are browsing at their own pace
+    // now) and how an autoplaying Diashow here satisfies WCAG 2.2.2: it always carries
+    // a control that halts the motion.
+    //
+    // The swipe case is the one that matters. Hover-pause is a desktop affordance; on
+    // touch, `pointerenter`/`pointerleave` fire at the start and end of the swipe
+    // itself, so without this the timer restarts the moment a finger lifts and moves
+    // the reader off the picture they just swiped to.
+    function takeOver() {
+      takenOver = true
+      pause()
+    }
+
+    root.querySelector("[data-slideshow-prev]")?.addEventListener("click", () => {
+      takeOver()
+      advance(-1)
+    })
+
+    root.querySelector("[data-slideshow-next]")?.addEventListener("click", () => {
+      takeOver()
+      advance(1)
+    })
+
+    dots.forEach((dot) => {
+      dot.addEventListener("click", () => {
+        takeOver()
+        goTo(Number(dot.dataset.slideshowDot))
+      })
+    })
+
+    // Coalesced to one read per frame: a smooth scroll fires this dozens of times.
+    let queued = false
+    function syncDots() {
+      if (queued) return
+      queued = true
+      window.requestAnimationFrame(() => {
+        queued = false
+        const active = current()
+        dots.forEach((dot, i) => dot.setAttribute("aria-current", String(i === active)))
+      })
+    }
+
+    // `scrollend` would say this outright, but Safari only learned it recently, and
+    // this is the same thing every polyfill does: the strip has stopped when it has
+    // been quiet for a couple of frames.
+    let settleTimer = null
+    track.addEventListener(
+      "scroll",
+      () => {
+        syncDots()
+        window.clearTimeout(settleTimer)
+        settleTimer = window.setTimeout(() => {
+          // No `heading` means nothing here started this scroll — the visitor did, by
+          // swiping or flicking. Same contract as pressing an arrow.
+          if (heading === null) takeOver()
+          heading = null
+          settled = nearestSlide(track.scrollLeft, slideWidth(), slides.length)
+          syncDots()
+        }, 150)
+      },
+      {passive: true},
+    )
+
+    // Put the strip back on the slide that was showing. A resize changes how wide a
+    // slide is, and the browser answers that by re-snapping to the start — so without
+    // this, turning a phone sideways sends the reader back to picture one. Instant on
+    // purpose: this is restoring a position, not travelling to a new one, and `heading`
+    // is set with it so the settle above does not read the restore as a swipe.
+    //
+    // Observing the track rather than the window: a slide is as wide as its container,
+    // so width is the only thing that can invalidate the position — and this also
+    // catches a zoom change or a page scrollbar appearing, which `window.innerWidth`
+    // misses. It ignores the height-only resize that hiding a mobile address bar
+    // fires mid-scroll, which would otherwise snatch the strip from a moving finger.
+    let lastWidth = null
+    new ResizeObserver(([entry]) => {
+      const width = Math.round(entry.contentRect.width)
+      if (width === lastWidth) return
+      const first = lastWidth === null
+      lastWidth = width
+      if (first || !width) return
+      goTo(settled, {instant: true})
+      syncDots()
+    }).observe(track)
+
+    if (autoplays) {
+      // Pause while it is being read or reached for: hover and keyboard focus.
+      root.addEventListener("pointerenter", pause)
+      root.addEventListener("pointerleave", resume)
+      root.addEventListener("focusin", pause)
+      root.addEventListener("focusout", (e) => {
+        if (!root.contains(e.relatedTarget)) resume()
+      })
+      resume()
+    }
+  }
+
+  const start = () => document.querySelectorAll("[data-slideshow]").forEach(setup)
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", start)
+  } else {
+    start()
+  }
 })()
 
 // --- Thron-Pager: per <select data-nav-select> zu einem Jahr springen ---

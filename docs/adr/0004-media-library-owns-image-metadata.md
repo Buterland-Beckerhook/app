@@ -2,6 +2,10 @@
 
 **Status:** Accepted (2026-07-26)
 
+**Refined by:** [ADR 0008](0008-gallery-slideshow.md) — "a gallery image's caption
+appears only on enlarging" is now the *grid* layout's rule. The Diashow shows the
+credit line on the page, because it is already the enlarged view.
+
 ## Context
 
 Image text lived in three places at once. `media` carried `title`,

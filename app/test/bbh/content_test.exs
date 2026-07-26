@@ -334,13 +334,66 @@ defmodule Bbh.ContentTest do
     end
   end
 
-  describe "gallery files" do
-    setup do
-      page = page_fixture()
-      {:ok, _} = Content.add_block(page, "image_gallery")
-      [{pb, gallery}] = Content.load_blocks(Content.get_page!(page.id))
-      %{page: page, pb: pb, gallery: gallery}
+  # Both gallery describes want the same empty block on an empty page.
+  defp gallery_block(_ctx) do
+    page = page_fixture()
+    {:ok, _} = Content.add_block(page, "image_gallery")
+    [{pb, gallery}] = Content.load_blocks(Content.get_page!(page.id))
+    %{page: page, pb: pb, gallery: gallery}
+  end
+
+  describe "image_gallery block settings" do
+    setup :gallery_block
+
+    test "a new gallery starts as a grid with the default slideshow settings", %{
+      gallery: gallery
+    } do
+      assert gallery.layout == "grid"
+      assert gallery.aspect_ratio == "16:9"
+      assert gallery.autoplay == false
     end
+
+    test "the slideshow settings are editable", %{pb: pb} do
+      assert {:ok, gallery} =
+               Content.update_block(pb, %{
+                 "layout" => "slideshow",
+                 "aspect_ratio" => "3:4",
+                 "autoplay" => "true"
+               })
+
+      assert gallery.layout == "slideshow"
+      assert gallery.aspect_ratio == "3:4"
+      assert gallery.autoplay == true
+    end
+
+    test "portrait and landscape ratios are both offered" do
+      ratios = Bbh.Content.Blocks.ImageGallery.aspect_ratios()
+
+      # The editor's dropdown reads from here, and the renderer turns each entry into a
+      # CSS `aspect-ratio`, so an unparseable entry would silently break the crop.
+      assert "16:9" in ratios
+      assert "3:4" in ratios
+      assert Enum.all?(ratios, &Regex.match?(~r|^\d+:\d+$|, &1))
+    end
+
+    test "an unknown aspect ratio is rejected", %{pb: pb} do
+      assert {:error, changeset} = Content.update_block(pb, %{"aspect_ratio" => "42:1"})
+      assert %{aspect_ratio: [_]} = errors_on(changeset)
+    end
+
+    test "a nil layout or ratio is refused by the changeset, not by the database", %{pb: pb} do
+      # `validate_inclusion/3` skips nil and both columns are NOT NULL, so without an
+      # explicit `validate_required` this came back as a raised Postgrex.Error.
+      assert {:error, changeset} = Content.update_block(pb, %{"aspect_ratio" => nil})
+      assert %{aspect_ratio: [_]} = errors_on(changeset)
+
+      assert {:error, changeset} = Content.update_block(pb, %{"layout" => nil})
+      assert %{layout: [_]} = errors_on(changeset)
+    end
+  end
+
+  describe "gallery file ordering" do
+    setup :gallery_block
 
     test "adds images in order and lists them with their media", %{gallery: gallery} do
       first = upload_fixture(filename: "a.webp")
