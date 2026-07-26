@@ -14,6 +14,10 @@ defmodule BbhWeb.Admin.MediaLive.Index do
       socket
       |> assign(page_title: "Medien", search: "", sort: "newest")
       |> assign(scope: :all, editing: nil, new_folder: false)
+      # Assigned here and nowhere else: picking a folder is a patch, so anything set in
+      # handle_params/3 is set again on every click in the tree — which would throw the
+      # sorting mode away mid-drag and fold the branch the editor just opened.
+      |> assign(edit_mode: false, expanded: MapSet.new())
       |> allow_upload(:files,
         accept: ~w(.jpg .jpeg .png .webp .gif .pdf),
         max_entries: 10,
@@ -28,6 +32,7 @@ defmodule BbhWeb.Admin.MediaLive.Index do
     {:noreply,
      socket
      |> assign(scope: scope_from(params["folder"]), editing: nil, new_folder: false)
+     |> reveal_scope()
      |> load_tree()
      |> load_items()}
   end
@@ -39,6 +44,16 @@ defmodule BbhWeb.Admin.MediaLive.Index do
   defp scope_from("none"), do: :unfiled
   defp scope_from(id), do: Media.get_folder(id) || :all
 
+  defp reveal_scope(socket), do: reveal_parent(socket, socket.assigns.scope)
+
+  # Only a sub-folder can be out of sight, so its parent is unfolded. A top-level folder
+  # is left as the editor had it: the row is visible either way, and its files are in the
+  # grid regardless of whether the branch below it is open.
+  defp reveal_parent(socket, %Folder{parent_id: parent_id}) when not is_nil(parent_id),
+    do: assign(socket, :expanded, MapSet.put(socket.assigns.expanded, parent_id))
+
+  defp reveal_parent(socket, _scope), do: socket
+
   defp load_tree(socket) do
     tree = Media.list_folder_tree()
     assign(socket, tree: tree, folder_options: Media.folder_options(tree.roots))
@@ -49,16 +64,30 @@ defmodule BbhWeb.Admin.MediaLive.Index do
       Media.list_uploads(
         search: socket.assigns.search,
         sort: socket.assigns.sort,
-        folder: folder_scope(socket.assigns.scope)
+        folder: folder_scope(socket.assigns.scope, socket.assigns.tree)
       )
 
     stream(socket, :items, items, reset: true)
   end
 
   # What `Media.list_uploads(folder:)` expects for each scope.
-  defp folder_scope(:all), do: :all
-  defp folder_scope(:unfiled), do: :root
-  defp folder_scope(%Folder{id: id}), do: id
+  defp folder_scope(:all, _tree), do: :all
+  defp folder_scope(:unfiled, _tree), do: :root
+  defp folder_scope(%Folder{} = folder, tree), do: branch_ids(tree, folder)
+
+  # The folders a scope lists: the chosen one plus its sub-folders, so a folded branch
+  # hides nothing. Read off the already-loaded tree for the same reason
+  # `Media.folder_options/1` takes loaded roots — re-querying would double the preload on
+  # every folder change, upload, edit and drop. A sub-folder has no children (two-level
+  # cap); a folder gone between render and click stands for itself alone.
+  defp branch_ids(tree, %Folder{parent_id: nil, id: id}) do
+    case Enum.find(tree.roots, &(&1.id == id)) do
+      %Folder{children: children} -> [id | Enum.map(children, & &1.id)]
+      nil -> [id]
+    end
+  end
+
+  defp branch_ids(_tree, %Folder{id: id}), do: [id]
 
   # The folder an upload lands in. A sub-folder is a fine home for a file.
   defp folder_scope_id(%Folder{id: id}), do: id
@@ -148,6 +177,24 @@ defmodule BbhWeb.Admin.MediaLive.Index do
   def handle_event("toggle_new_folder", _params, socket),
     do: {:noreply, assign(socket, :new_folder, not socket.assigns.new_folder)}
 
+  # Sorting is the rare intent and navigating the common one, so the grips are off by
+  # default. An unchecked box is absent from a phx-change payload rather than false.
+  def handle_event("toggle_edit", params, socket),
+    do: {:noreply, assign(socket, :edit_mode, Map.has_key?(params, "edit"))}
+
+  # The id comes from a server-rendered phx-value-id and only ever indexes a MapSet, so
+  # unlike the drop payloads it needs no shape check.
+  def handle_event("toggle_folder", %{"id" => id}, socket) do
+    expanded = socket.assigns.expanded
+
+    toggled =
+      if MapSet.member?(expanded, id),
+        do: MapSet.delete(expanded, id),
+        else: MapSet.put(expanded, id)
+
+    {:noreply, assign(socket, :expanded, toggled)}
+  end
+
   def handle_event("create_folder", %{"name" => name}, socket) do
     parent_id = new_folder_parent_id(socket.assigns.scope)
 
@@ -189,8 +236,15 @@ defmodule BbhWeb.Admin.MediaLive.Index do
   # two-level cap is enforced in Bbh.Media.Folder.move_changeset/4.
   def handle_event("move_folder", %{"id" => id} = params, socket) do
     with %Folder{} = folder <- Media.get_folder(id),
-         {:ok, _moved} <- Media.move_folder(folder, params["parent_id"], params["position"]) do
-      {:noreply, socket |> load_tree() |> reload_scope()}
+         {:ok, moved} <- Media.move_folder(folder, params["parent_id"], params["position"]) do
+      # Unfold the new parent, or the folder just dragged in disappears the moment
+      # sorting is switched back off.
+      #
+      # And reload the grid, not only the tree: before the branch scope a folder move
+      # could not change which files the open folder lists, so this was two steps.
+      # Nesting a folder into the open one now pulls its files in and un-nesting takes
+      # them away — the count would say so while the grid still showed the old set.
+      {:noreply, socket |> reveal_parent(moved) |> load_tree() |> reload_scope() |> load_items()}
     else
       # Gone between the render and the drop — the next tree render is the answer.
       nil -> {:noreply, load_tree(socket)}
@@ -232,15 +286,20 @@ defmodule BbhWeb.Admin.MediaLive.Index do
   # Keep the grid in step: drop the item if it no longer belongs in the current scope,
   # otherwise re-render it in place. Nothing ever falls out of "Alle Medien".
   defp refresh(socket, updated) do
-    if in_scope?(socket.assigns.scope, updated),
+    if in_scope?(socket, updated),
       do: stream_insert(socket, :items, updated),
       else: stream_delete(socket, :items, updated)
   end
 
-  defp in_scope?(:all, _upload), do: true
-  defp in_scope?(:unfiled, %{folder_id: nil}), do: true
-  defp in_scope?(%Folder{id: id}, %{folder_id: id}), do: true
-  defp in_scope?(_scope, _upload), do: false
+  # Mirrors folder_scope/2 — a file filed into a sub-folder of the open folder is still
+  # listed there, so dropping it from the stream would make it look deleted.
+  defp in_scope?(socket, upload) do
+    case socket.assigns.scope do
+      :all -> true
+      :unfiled -> is_nil(upload.folder_id)
+      %Folder{} = folder -> upload.folder_id in branch_ids(socket.assigns.tree, folder)
+    end
+  end
 
   defp moved_message(%{folder_id: nil}), do: "Datei aus dem Ordner entfernt."
 
@@ -364,11 +423,19 @@ defmodule BbhWeb.Admin.MediaLive.Index do
         </div>
       </form>
 
-      <div class="mt-8 flex items-center justify-between gap-2">
+      <div class="mt-8 flex flex-wrap items-center justify-between gap-2">
         <h2 class="text-lg font-semibold">Ordner</h2>
-        <button type="button" phx-click="toggle_new_folder" class="btn btn-outline btn-sm">
-          <.icon name="hero-folder-plus" class="size-4" /> Neuer Ordner
-        </button>
+        <div class="flex items-center gap-3">
+          <form phx-change="toggle_edit" id="tree-edit-mode">
+            <label class="flex cursor-pointer items-center gap-2 text-sm">
+              <input type="checkbox" name="edit" checked={@edit_mode} class="checkbox checkbox-sm" />
+              Ordner sortieren
+            </label>
+          </form>
+          <button type="button" phx-click="toggle_new_folder" class="btn btn-outline btn-sm">
+            <.icon name="hero-folder-plus" class="size-4" /> Neuer Ordner
+          </button>
+        </div>
       </div>
 
       <form
@@ -390,8 +457,10 @@ defmodule BbhWeb.Admin.MediaLive.Index do
         <span class="text-sm text-base-content/60">{new_folder_hint(@scope)}</span>
       </form>
 
-      <%!-- Fully expanded, always: two levels fit on screen, and a collapsed branch is
-            somewhere a dragged file gets dropped by accident.
+      <%!-- Fully expanded exactly while sorting is on, because that is when a folded
+            branch would be somewhere a dragged file lands by accident. With the grips
+            gone nothing can be dropped between rows, so branches fold — the tree grows
+            by one row per archive year and would otherwise push the grid off screen.
 
             A nested <ul> of links, deliberately *not* role="tree". A real tree widget
             promises roaming arrow-key navigation and a roving tabindex; this offers
@@ -401,13 +470,15 @@ defmodule BbhWeb.Admin.MediaLive.Index do
       <nav
         id="media-tree"
         phx-hook="MediaTree"
+        data-edit-mode={to_string(@edit_mode)}
         aria-label="Ordner"
-        aria-describedby="tree-keys"
+        aria-describedby={@edit_mode && "tree-keys"}
         class="mt-3"
       >
         <%!-- The grip is decorative and unfocusable, so without this the keyboard route
-              is undiscoverable — and it is the only one that does not need a mouse. --%>
-        <p id="tree-keys" class="sr-only">
+              is undiscoverable — and it is the only one that does not need a mouse. Only
+              while sorting is on: that is when the keys do anything. --%>
+        <p :if={@edit_mode} id="tree-keys" class="sr-only">
           Alt und Pfeil hoch oder runter sortiert einen Ordner, Alt und Pfeil rechts
           verschachtelt ihn unter dem Ordner darüber, Alt und Pfeil links löst ihn wieder heraus.
         </p>
@@ -442,11 +513,19 @@ defmodule BbhWeb.Admin.MediaLive.Index do
               folder_id={root.id}
               parent_id=""
               leaf={root.children == []}
-              draggable
+              draggable={@edit_mode}
+              expandable={not @edit_mode and root.children != []}
+              expanded={MapSet.member?(@expanded, root.id)}
             />
+            <%!-- Folded with `hidden`, not `:if`: the list keeps existing, so the toggle's
+                  aria-controls always resolves and folding is an attribute patch rather
+                  than a structural one. `[hidden]` is display:none, so a folded row is no
+                  drop target either. --%>
             <ul
               :if={root.children != []}
+              id={"subfolders-#{root.id}"}
               data-subfolders
+              hidden={not (@edit_mode or MapSet.member?(@expanded, root.id))}
               class="ml-5 space-y-0.5 border-l border-base-300 pl-2"
             >
               <li :for={child <- root.children}>
@@ -459,7 +538,7 @@ defmodule BbhWeb.Admin.MediaLive.Index do
                   accepts="folder media"
                   folder_id={child.id}
                   parent_id={root.id}
-                  draggable
+                  draggable={@edit_mode}
                 />
               </li>
             </ul>
@@ -583,7 +662,12 @@ defmodule BbhWeb.Admin.MediaLive.Index do
   # A folder with sub-folders cannot be nested (two-level cap), so the hook refuses to
   # offer "drop into" for it instead of letting the server reject the move afterwards.
   attr :leaf, :boolean, default: true
+  # One slot in front of the label, three states: the grip while sorting, otherwise the
+  # fold toggle if there is a branch to fold, otherwise a spacer keeping the rows aligned.
+  # `draggable` and `expandable` are never both true — the callers key them off @edit_mode.
   attr :draggable, :boolean, default: false
+  attr :expandable, :boolean, default: false
+  attr :expanded, :boolean, default: false
 
   defp tree_row(assigns) do
     ~H"""
@@ -609,7 +693,22 @@ defmodule BbhWeb.Admin.MediaLive.Index do
       >
         <.icon name="hero-bars-2" class="size-4" />
       </span>
-      <span :if={not @draggable} class="size-4" aria-hidden="true"></span>
+      <button
+        :if={@expandable}
+        type="button"
+        phx-click="toggle_folder"
+        phx-value-id={@folder_id}
+        aria-expanded={to_string(@expanded)}
+        aria-controls={"subfolders-#{@folder_id}"}
+        aria-label={"Unterordner von „#{@label}“ #{if @expanded, do: "ausblenden", else: "anzeigen"}"}
+        class="cursor-pointer text-base-content/40 hover:text-base-content"
+      >
+        <.icon
+          name={if @expanded, do: "hero-chevron-down", else: "hero-chevron-right"}
+          class="size-4"
+        />
+      </button>
+      <span :if={not @draggable and not @expandable} class="size-4" aria-hidden="true"></span>
       <%!-- A stable id keeps morphdom matching this link to *this* folder across the
             patch that follows a move. Without it the DOM node is matched positionally,
             so focus stays on the slot rather than the folder — and a second Alt+Up

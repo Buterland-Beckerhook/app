@@ -76,7 +76,8 @@ defmodule Bbh.Media do
 
   @doc """
   List uploads, optionally filtered by `:search` (filename/title), `:folder`
-  (`:root` = unfiled, a folder id, or absent = all), `:images_only`, and `:sort`.
+  (`:root` = unfiled, a folder id, a list of folder ids, or absent = all),
+  `:images_only`, and `:sort`.
   """
   def list_uploads(opts \\ []) do
     from(u in Upload)
@@ -98,6 +99,11 @@ defmodule Bbh.Media do
 
   defp filter_folder(query, root) when root in [:root, nil, ""],
     do: where(query, [u], is_nil(u.folder_id))
+
+  # A folder scope can span more than one folder: the media library lists a folder
+  # together with its sub-folders, so selecting a parent shows the whole branch.
+  defp filter_folder(query, ids) when is_list(ids),
+    do: where(query, [u], u.folder_id in ^ids)
 
   defp filter_folder(query, folder_id), do: where(query, [u], u.folder_id == ^folder_id)
 
@@ -308,21 +314,36 @@ defmodule Bbh.Media do
   root folders with their children (both in editor order) plus the file counts
   shown on every node.
 
-  Counts are of *direct* contents — the number the node actually lists when
-  clicked — so a parent whose files all live in sub-folders reads 0. One grouped
-  query covers every folder at once; per-node counting would be N+1.
+  A count is the number the node actually lists when clicked, which since the branch
+  scope means a parent counts its sub-folders' files too. `counts` holds every folder,
+  `unfiled` the files in none. One grouped query covers the lot; per-node counting
+  would be N+1.
   """
   def list_folder_tree do
-    counts =
+    direct =
       Repo.all(from u in Upload, group_by: u.folder_id, select: {u.folder_id, count(u.id)})
       |> Map.new()
 
+    roots = list_root_folders()
+
     %{
-      roots: list_root_folders(),
-      counts: counts,
-      total: counts |> Map.values() |> Enum.sum(),
-      unfiled: Map.get(counts, nil, 0)
+      roots: roots,
+      counts: branch_counts(roots, direct),
+      # From the direct counts, so folding the branches cannot count a parent twice.
+      total: direct |> Map.values() |> Enum.sum(),
+      unfiled: Map.get(direct, nil, 0)
     }
+  end
+
+  defp branch_counts(roots, direct) do
+    Enum.reduce(roots, %{}, fn root, acc ->
+      children = Map.new(root.children, &{&1.id, Map.get(direct, &1.id, 0)})
+      own = Map.get(direct, root.id, 0)
+
+      acc
+      |> Map.merge(children)
+      |> Map.put(root.id, own + (children |> Map.values() |> Enum.sum()))
+    end)
   end
 
   @doc """

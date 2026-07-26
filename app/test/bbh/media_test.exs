@@ -79,6 +79,21 @@ defmodule Bbh.MediaTest do
       assert [%{id: newest} | _] = Media.list_uploads(sort: "newest")
       assert newest == b.id
     end
+
+    test "a list of folder ids lists every named folder and nothing else" do
+      {:ok, presse} = Media.create_folder(%{"name" => "Presse"})
+      {:ok, y2026} = Media.create_folder(%{"name" => "2026", "parent_id" => presse.id})
+      {:ok, satzung} = Media.create_folder(%{"name" => "Satzungen"})
+
+      own = upload_fixture(folder_id: presse.id, filename: "own.webp")
+      nested = upload_fixture(folder_id: y2026.id, filename: "nested.webp")
+      _elsewhere = upload_fixture(folder_id: satzung.id, filename: "elsewhere.webp")
+      _unfiled = upload_fixture(filename: "unfiled.webp")
+
+      listed = Media.list_uploads(folder: [presse.id, y2026.id], sort: "name")
+
+      assert Enum.map(listed, & &1.filename) == [nested.filename, own.filename]
+    end
   end
 
   describe "get_upload!/1 and update_upload/2" do
@@ -614,7 +629,7 @@ defmodule Bbh.MediaTest do
   end
 
   describe "list_folder_tree/0" do
-    test "returns both levels in editor order with direct counts" do
+    test "returns both levels in editor order, counting what each node lists" do
       {:ok, presse} = Media.create_folder(%{"name" => "Presse"})
       {:ok, satzung} = Media.create_folder(%{"name" => "Satzungen"})
       {:ok, y2026} = Media.create_folder(%{"name" => "2026", "parent_id" => presse.id})
@@ -631,13 +646,31 @@ defmodule Bbh.MediaTest do
       assert ["Satzungen", "Presse"] == Enum.map(tree.roots, & &1.name)
       assert [[], ["2026"]] == Enum.map(tree.roots, fn r -> Enum.map(r.children, & &1.name) end)
 
-      # Direct contents only — Presse holds one file itself, its sub-folder two.
-      assert tree.counts[presse.id] == 1
+      # The whole branch, because that is what clicking the node now lists: Presse holds
+      # one file itself and two in its sub-folder.
+      assert tree.counts[presse.id] == 3
       assert tree.counts[y2026.id] == 2
-      refute Map.has_key?(tree.counts, satzung.id)
+      assert tree.counts[satzung.id] == 0
 
+      # Summed from the direct counts, so the branch fold cannot double-count a parent.
       assert tree.total == 4
       assert tree.unfiled == 1
+    end
+
+    test "a parent whose pictures all live in its sub-folder counts them anyway" do
+      # The case ADR 0006 recorded as reading 0 — the branch scope is what fixes it.
+      {:ok, presse} = Media.create_folder(%{"name" => "Presse"})
+      {:ok, y2026} = Media.create_folder(%{"name" => "2026", "parent_id" => presse.id})
+
+      upload_fixture(folder_id: y2026.id)
+      upload_fixture(folder_id: y2026.id)
+
+      tree = Media.list_folder_tree()
+
+      assert tree.counts[presse.id] == 2
+      assert tree.counts[y2026.id] == 2
+      assert tree.total == 2
+      assert tree.unfiled == 0
     end
 
     test "counts are zero on an empty library" do
