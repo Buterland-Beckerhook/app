@@ -91,6 +91,11 @@ defmodule BbhWeb.Admin.MediaPickerTest do
       assert html =~ "2025"
       refute html =~ "unsortiert.webp"
 
+      # ADR 0007: the library browses a whole branch, the picker walks a path. A
+      # sub-folder's files stay behind the chip that leads to them — otherwise they would
+      # appear twice, here and one click deeper.
+      refute html =~ ctx.nested.filename
+
       # And one level deeper.
       html = browse(lv, ctx.sub.id)
       assert html =~ "zapfenstreich.webp"

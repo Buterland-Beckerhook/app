@@ -78,6 +78,10 @@ defmodule Bbh.Media do
   List uploads, optionally filtered by `:search` (filename/title), `:folder`
   (`:root` = unfiled, a folder id, a list of folder ids, or absent = all),
   `:images_only`, and `:sort`.
+
+  Note the asymmetry at the edges of `:folder`: absent means every file, while `[]` means
+  none. A caller building the list from a selection has to decide which of the two an
+  empty selection is; it will not raise either way.
   """
   def list_uploads(opts \\ []) do
     from(u in Upload)

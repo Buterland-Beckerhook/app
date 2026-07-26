@@ -266,8 +266,11 @@ defmodule BbhWeb.Admin.MediaLiveTest do
         "position" => 0
       })
 
-      # Otherwise the folder just dragged in vanishes the moment edit mode goes off.
+      # Otherwise the folder just dragged in vanishes the moment edit mode goes off. The
+      # positive half matters as much as the refute: with no list rendered at all, "not
+      # folded" would be true for the wrong reason.
       refute has_element?(lv, ~s(ul#subfolders-#{ctx.presse.id}[hidden]))
+      assert has_element?(lv, ~s(ul#subfolders-#{ctx.presse.id} a#tree-node-#{ctx.satzung.id}))
     end
   end
 
@@ -275,8 +278,27 @@ defmodule BbhWeb.Admin.MediaLiveTest do
     setup do
       {:ok, presse} = Media.create_folder(%{"name" => "Presse"})
       {:ok, child} = Media.create_folder(%{"name" => "2026", "parent_id" => presse.id})
+      # A second branch nobody opens, so "restores the previous state" can be told apart
+      # from "everything stays unfolded once sorting has been used".
+      {:ok, satzung} = Media.create_folder(%{"name" => "Satzungen"})
+      {:ok, _} = Media.create_folder(%{"name" => "alt", "parent_id" => satzung.id})
 
-      %{presse: presse, child: child}
+      %{presse: presse, child: child, satzung: satzung}
+    end
+
+    test "the checkbox itself drives the mode", ctx do
+      {:ok, lv, _html} = live(ctx.conn, ~p"/admin/medien")
+
+      # Every other test in here pushes `toggle_edit` directly, which would keep passing
+      # if the form lost its binding and the box went inert. This one goes through it.
+      html = lv |> form("#tree-edit-mode", %{"edit" => "on"}) |> render_change()
+
+      assert html =~ "data-drag-handle"
+
+      # A checkbox does not block implicit submission, so Enter on it submits the form.
+      # Without phx-submit that is a browser GET which remounts the LiveView, losing both
+      # the mode and the open folder.
+      assert has_element?(lv, ~s(form#tree-edit-mode[phx-submit="toggle_edit"]))
     end
 
     test "the drag grips appear only once sorting is switched on", ctx do
@@ -315,9 +337,16 @@ defmodule BbhWeb.Admin.MediaLiveTest do
       render_click(lv, "toggle_folder", %{"id" => ctx.presse.id})
       render_change(lv, "toggle_edit", %{"edit" => "on"})
       # An unchecked box is simply absent from a phx-change payload.
-      render_change(lv, "toggle_edit", %{})
+      html = render_change(lv, "toggle_edit", %{})
+
+      # The mode really is off — asserted on its own consequences, because `hidden` alone
+      # reads the same whether the branch is open or the mode never went off.
+      refute html =~ "data-drag-handle"
+      assert has_element?(lv, ~s(#media-tree[data-edit-mode="false"]))
 
       refute has_element?(lv, ~s(ul#subfolders-#{ctx.presse.id}[hidden]))
+      # And the branch nobody opened is folded again, not left open by the mode.
+      assert has_element?(lv, ~s(ul#subfolders-#{ctx.satzung.id}[hidden]))
     end
 
     test "the mode survives picking a folder", ctx do

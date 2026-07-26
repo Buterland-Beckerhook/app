@@ -70,9 +70,9 @@ not in a `<details>` element.
   it, and the same function unfolds a folder's new parent after it is nested — so
   a folder dragged into a branch does not vanish when the mode goes back off.
   This reveal is also **why `expanded` is server state and `<details>` was not an
-  option**: the server has to be able to open a branch. A dynamic
-  `open={…}` attribute is in the diff, so every patch would force it back to
-  whatever the server thought, undoing the reader's own toggling.
+  option**: the server has to be able to open a branch. A dynamic `open={…}`
+  attribute would ride along in every diff, so each patch would force the element
+  back to whatever the server thought, undoing the reader's own toggling.
 - **A folded branch is `hidden`, not absent.** The `<ul>` stays rendered, so the
   toggle's `aria-controls` always resolves to a real element and folding is an
   attribute patch rather than a structural one. `[hidden]` is `display: none`, so
@@ -83,13 +83,18 @@ not in a `<details>` element.
   the heading over the grid still names the folder, and unfolding brings the
   highlight back. Refusing to fold that one branch would be a special case nobody
   could discover.
-- **A folder move now reloads the grid, not just the tree.** This is new work the
+- **A folder move can now reload the grid, not just the tree.** This is new work the
   branch scope created: before it, moving a folder could not change which files the
   open folder lists, so `move_folder` only reloaded the tree and the heading.
   Nesting a folder into the open one now pulls its files in and un-nesting takes
   them away — without the reload the count claimed the new branch while the grid
   still showed the old set, and a file that had left stayed on screen until the
   next navigation. Both directions are pinned by tests.
+
+  It reloads *only* when the set of listed folders actually changes, compared
+  order-insensitively. A plain sibling reorder is the common case — it is the whole
+  point of the mode — and it cannot change a single file in the grid, so holding
+  `Alt`+`Down` down an archive is not one full stream reset per keystroke.
 - **`Alt`+arrows are refused outside the mode, and not for symmetry.** Folded rows
   are `hidden` but still in the DOM, and the hook's `siblings()` counts every row
   on a level — a position worked out against a half-invisible level is not the one
@@ -111,11 +116,12 @@ not in a `<details>` element.
   folder, including empty ones. `tree.unfiled` was already the unfiled count and
   stays the only way to ask for it; `tree.total` is still summed from the *direct*
   counts, because summing the branch counts would count every parent twice.
-- **`in_scope?/2` had to learn the branch as well.** Filing a tile into a
+- **`in_scope?/3` had to learn the branch as well.** Filing a tile into a
   sub-folder of the open folder keeps it in the grid — the scope still lists it, so
-  removing it from the stream would read as a delete. It now takes the socket and
-  mirrors `folder_scope/2` off one shared `branch_ids/2`, rather than restating the
-  rule.
+  removing it from the stream would read as a delete. It is the predicate half of
+  `folder_scope/2` over the same `branch_ids/2`, and takes the scope and the tree
+  rather than the socket so it stays the pure multi-clause predicate every other
+  one in the module is.
 - **Not verified in a browser.** No browser runs in this environment (ARM64, no
   Chrome-for-Testing build, no `chromium` package), so nobody has clicked a fold
   toggle or held `Alt`. What is covered: the rendered contract the hook depends on
