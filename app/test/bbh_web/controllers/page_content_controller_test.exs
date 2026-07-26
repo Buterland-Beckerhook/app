@@ -2,20 +2,12 @@ defmodule BbhWeb.PageContentControllerTest do
   use BbhWeb.ConnCase, async: true
 
   import Bbh.ContentFixtures
-  import Bbh.ClubFixtures
 
   test "GET /verein lists published top-level pages", %{conn: conn} do
     page_fixture(slug: "ueber-uns", title: "Über uns", status: "published")
     html = conn |> get(~p"/verein") |> html_response(200)
     assert html =~ "Über uns"
     assert html =~ ~s(href="/verein/ueber-uns")
-  end
-
-  test "GET /verein/vorstand lists board members", %{conn: conn} do
-    page_fixture(slug: "vorstand", title: "Vorstand", status: "published")
-    person = person_fixture(name: "Vorstandsmitglied", role: "vorstand")
-    html = conn |> get(~p"/verein/vorstand") |> html_response(200)
-    assert html =~ person.name
   end
 
   test "GET a nested page renders with its breadcrumb chain", %{conn: conn} do

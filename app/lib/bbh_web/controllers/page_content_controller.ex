@@ -19,8 +19,7 @@ defmodule BbhWeb.PageContentController do
           ancestors: ancestors,
           section_links: Content.section_links(List.first(ancestors)),
           current_path: conn.request_path,
-          blocks: Content.load_blocks(page),
-          people: people_for(page.slug)
+          blocks: Content.load_blocks(page)
         )
 
       nil ->
@@ -55,10 +54,4 @@ defmodule BbhWeb.PageContentController do
         not_found(conn)
     end
   end
-
-  # Backward-compatible people injection for the Vorstand/Offiziere pages until
-  # they are modelled with a `person_list` block.
-  defp people_for("vorstand"), do: Bbh.Club.list_vorstand()
-  defp people_for("offiziere"), do: Bbh.Club.list_offiziere()
-  defp people_for(_slug), do: nil
 end
