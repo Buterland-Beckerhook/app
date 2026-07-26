@@ -8,6 +8,19 @@ defmodule BbhWeb.SiteComponents do
   alias Bbh.Content.Throne
   alias BbhWeb.EmailObfuscation
 
+  # --- Gallery block, "Diashow" layout (see docs/adr/0008) ---
+
+  # The frame a slide falls back to when its stored ratio is unreadable.
+  @default_ratio {16, 9}
+
+  # How large a variant a slide asks the media pipeline for, on its longer edge.
+  @slide_long_edge 1600
+
+  # How long a slide stays before autoplay moves on. Long enough to read a caption and
+  # look at the picture; short enough that a visitor waiting for the next one does not
+  # give up. Only ever used when the editor turned autoplay on.
+  @autoplay_interval_ms 6000
+
   @doc """
   An article's hero image, sized as requested. Falls back to the club logo
   (contained, not cropped) when the article has no images.
@@ -403,112 +416,13 @@ defmodule BbhWeb.SiteComponents do
     """
   end
 
-  def block(%{type: "image_gallery", block: %{layout: "slideshow"}} = assigns) do
-    ~H"""
-    <figure>
-      <figcaption :if={@block.title} class="mb-2 font-semibold">{@block.title}</figcaption>
-      <%!-- Files arrive in the editor's order (ImageGallery.has_many :preload_order).
-            One slide is shown at a time; JS (app.js) drives navigation. Clicking the
-            left/right ~15% edges pages back/forward, the middle opens the lightbox.
-            Slides carry the lightbox data so the enlarged view spans the whole gallery. --%>
-      <div
-        :if={@block.files != []}
-        data-slideshow
-        class="group relative select-none"
-        aria-roledescription="Diashow"
-      >
-        <%!-- Default cursor = zoom (middle click enlarges); the left/right edge zones
-              below override it to a pointer to signal paging. --%>
-        <div class="relative flex aspect-video cursor-zoom-in items-center justify-center overflow-hidden rounded-lg bg-base-200">
-          <img
-            :for={{f, i} <- Enum.with_index(@block.files)}
-            data-slide
-            hidden={i != 0}
-            src={media_url(f.media, width: 1200)}
-            alt={image_alt(f)}
-            loading={if(i == 0, do: "eager", else: "lazy")}
-            data-lightbox-src={media_url(f.media, width: 1600)}
-            data-lightbox-alt={image_alt(f)}
-            data-lightbox-caption={image_caption(f)}
-            data-lightbox-copyright={copyright_label(image_copyright(f))}
-            data-lightbox-group={"gallery-#{@block.id}"}
-            class="max-h-full max-w-full object-contain"
-          />
-          <span
-            :if={length(@block.files) > 1}
-            aria-hidden="true"
-            class="pointer-events-none absolute left-2 top-1/2 z-10 -translate-y-1/2 text-4xl text-white opacity-0 drop-shadow transition-opacity group-hover:opacity-70"
-          >‹</span>
-          <span
-            :if={length(@block.files) > 1}
-            aria-hidden="true"
-            class="pointer-events-none absolute right-2 top-1/2 z-10 -translate-y-1/2 text-4xl text-white opacity-0 drop-shadow transition-opacity group-hover:opacity-70"
-          >›</span>
-          <%!-- Transparent hit/cursor zones. Clicks bubble to the delegated handler in
-                app.js, which re-derives prev/next/enlarge from the pointer position. --%>
-          <div :if={length(@block.files) > 1} class="absolute inset-y-0 left-0 w-[15%] cursor-pointer">
-          </div>
-          <div
-            :if={length(@block.files) > 1}
-            class="absolute inset-y-0 right-0 w-[15%] cursor-pointer"
-          >
-          </div>
-        </div>
-        <div
-          :if={length(@block.files) > 1}
-          data-slide-dots
-          class="mt-2 flex items-center justify-center gap-2"
-        >
-          <button
-            :for={i <- 0..(length(@block.files) - 1)}
-            type="button"
-            data-slide-dot
-            data-index={i}
-            aria-label={"Bild #{i + 1}"}
-            class="size-2 rounded-full bg-base-content/25 transition-colors data-[active]:bg-base-content"
-            data-active={i == 0}
-          ></button>
-        </div>
-      </div>
-    </figure>
-    """
-  end
-
   def block(%{type: "image_gallery"} = assigns) do
     ~H"""
     <figure>
       <figcaption :if={@block.title} class="mb-2 font-semibold">{@block.title}</figcaption>
-      <%!-- Files arrive in the editor's order (ImageGallery.has_many :preload_order).
-            Thumbnails stay bare; caption and copyright appear on enlarging. --%>
-      <div class="grid grid-cols-2 gap-2 md:grid-cols-3">
-        <%= for f <- @block.files do %>
-          <button
-            :if={@block.lightbox}
-            type="button"
-            data-lightbox-src={media_url(f.media, width: 1600)}
-            data-lightbox-alt={image_alt(f)}
-            data-lightbox-caption={image_caption(f)}
-            data-lightbox-copyright={copyright_label(image_copyright(f))}
-            data-lightbox-group={"gallery-#{@block.id}"}
-            class="block cursor-zoom-in"
-            aria-label="Bild vergrößern"
-          >
-            <img
-              src={media_url(f.media, width: 400, height: 400)}
-              alt={image_alt(f)}
-              loading="lazy"
-              class="aspect-square w-full rounded object-cover"
-            />
-          </button>
-          <img
-            :if={!@block.lightbox}
-            src={media_url(f.media, width: 400, height: 400)}
-            alt={image_alt(f)}
-            loading="lazy"
-            class="aspect-square w-full rounded object-cover"
-          />
-        <% end %>
-      </div>
+      <%!-- Files arrive in the editor's order (ImageGallery.has_many :preload_order). --%>
+      <.gallery_slideshow :if={@block.layout == "slideshow"} block={@block} />
+      <.gallery_grid :if={@block.layout != "slideshow"} block={@block} />
     </figure>
     """
   end
@@ -536,6 +450,212 @@ defmodule BbhWeb.SiteComponents do
   end
 
   def block(assigns), do: ~H""
+
+  # Thumbnails stay bare; caption and copyright appear on enlarging.
+  attr :block, :any, required: true
+
+  defp gallery_grid(assigns) do
+    ~H"""
+    <div class="grid grid-cols-2 gap-2 md:grid-cols-3">
+      <.gallery_image
+        :for={f <- @block.files}
+        file={f}
+        block={@block}
+        size={{400, 400}}
+        class="aspect-square w-full rounded object-cover"
+      />
+    </div>
+    """
+  end
+
+  # One horizontal strip of slides, one slide wide, snapping to each. The strip is a
+  # plain scroll container: without JavaScript it still swipes and still shows every
+  # picture, and `scroll-behavior: smooth` (app.css) is what makes the arrows push the
+  # next picture in instead of cutting to it. assets/js/slideshow.js adds the arrows'
+  # behaviour, keyboard control and autoplay on top.
+  #
+  # Every slide is cropped to the block's ratio, so the frame stays put from picture to
+  # picture — a slideshow that resizes itself around each photo is what the fixed ratio
+  # exists to prevent. Unlike the grid, the credit line is shown right here: a Diashow
+  # *is* the enlarged view, so hiding the Bildunterschrift behind the lightbox would
+  # mean it is never read.
+  attr :block, :any, required: true
+
+  defp gallery_slideshow(assigns) do
+    ratio = parse_ratio(assigns.block.aspect_ratio)
+
+    assigns =
+      assigns
+      |> assign(:ratio, ratio)
+      |> assign(:css_ratio, css_ratio(ratio))
+      |> assign(:count, length(assigns.block.files))
+      |> assign(:interval, @autoplay_interval_ms)
+
+    ~H"""
+    <div
+      class="relative"
+      data-slideshow
+      data-slideshow-interval={@block.autoplay && to_string(@interval)}
+      role="region"
+      aria-roledescription="Diashow"
+      aria-label={@block.title || "Bildergalerie"}
+    >
+      <%!-- `tabindex` so the strip is reachable and arrow-scrollable by keyboard even
+            with the lightbox off, when no slide contains anything focusable. The live
+            region announces the slide a reader scrolled to — silenced while autoplay
+            runs, where it would interrupt them every few seconds instead. --%>
+      <div
+        class="bbh-slideshow-track"
+        data-slideshow-track
+        tabindex="0"
+        aria-live={if @block.autoplay, do: "off", else: "polite"}
+      >
+        <figure
+          :for={{f, i} <- Enum.with_index(@block.files)}
+          class="bbh-slideshow-slide"
+          role="group"
+          aria-roledescription="Bild"
+          aria-label={"#{i + 1} von #{@count}"}
+        >
+          <.gallery_image
+            file={f}
+            block={@block}
+            size={slide_size(@ratio, f.media)}
+            class="w-full rounded object-cover"
+            style={"aspect-ratio: #{@css_ratio}"}
+            eager={i == 0}
+          />
+          <.image_credit caption={image_caption(f)} copyright={image_copyright(f)} />
+        </figure>
+      </div>
+
+      <%!-- Overlaid on the picture, not on the whole slide: sharing the slide's ratio
+            makes this layer end exactly where the credit line begins, so the arrows sit
+            in the middle of the photo rather than the middle of the photo plus its
+            caption. Click-through everywhere except on the arrows themselves. --%>
+      <div
+        :if={@count > 1}
+        class="pointer-events-none absolute inset-x-0 top-0"
+        style={"aspect-ratio: #{@css_ratio}"}
+      >
+        <button
+          type="button"
+          data-slideshow-prev
+          class="bbh-slideshow-arrow pointer-events-auto left-2"
+          aria-label="Vorheriges Bild"
+        >
+          ‹
+        </button>
+        <button
+          type="button"
+          data-slideshow-next
+          class="bbh-slideshow-arrow pointer-events-auto right-2"
+          aria-label="Nächstes Bild"
+        >
+          ›
+        </button>
+      </div>
+
+      <%!-- `aria-current` carries the string, not the boolean: it is an enumerated
+            attribute, and HEEx renders `true` as a valueless `aria-current`, which the
+            spec reads as "false" and `.bbh-slideshow-dot[aria-current="true"]` does not
+            match — leaving no dot marked until the first scroll. --%>
+      <div :if={@count > 1} class="mt-2 flex justify-center gap-1.5">
+        <button
+          :for={{_f, i} <- Enum.with_index(@block.files)}
+          type="button"
+          class="bbh-slideshow-dot"
+          data-slideshow-dot={i}
+          aria-current={to_string(i == 0)}
+          aria-label={"Bild #{i + 1} anzeigen"}
+        ></button>
+      </div>
+    </div>
+    """
+  end
+
+  # The image itself, with the lightbox trigger around it when the block asks for one.
+  attr :file, :any, required: true
+  attr :block, :any, required: true
+  attr :size, :any, required: true, doc: "{width, height} of the variant to request"
+  attr :class, :any, required: true
+  attr :style, :any, default: nil
+
+  attr :eager, :boolean,
+    default: false,
+    doc: "the slide showing on load — the gallery's LCP candidate, so never lazy"
+
+  defp gallery_image(assigns) do
+    {width, height} = assigns.size
+    assigns = assigns |> assign(:width, width) |> assign(:height, height)
+
+    ~H"""
+    <button
+      :if={@block.lightbox}
+      type="button"
+      data-lightbox-src={media_url(@file.media, width: 1600)}
+      data-lightbox-alt={image_alt(@file)}
+      data-lightbox-caption={image_caption(@file)}
+      data-lightbox-copyright={copyright_label(image_copyright(@file))}
+      data-lightbox-group={"gallery-#{@block.id}"}
+      class="block w-full cursor-zoom-in"
+      aria-label="Bild vergrößern"
+    >
+      <img
+        src={media_url(@file.media, width: @width, height: @height)}
+        alt={image_alt(@file)}
+        loading={if @eager, do: "eager", else: "lazy"}
+        fetchpriority={@eager && "high"}
+        class={@class}
+        style={@style}
+      />
+    </button>
+    <img
+      :if={!@block.lightbox}
+      src={media_url(@file.media, width: @width, height: @height)}
+      alt={image_alt(@file)}
+      loading={if @eager, do: "eager", else: "lazy"}
+      fetchpriority={@eager && "high"}
+      class={@class}
+      style={@style}
+    />
+    """
+  end
+
+  # `ImageGallery.aspect_ratios/0` stores "W:H"; everything downstream wants the two
+  # numbers. Parsed once, here, so a value that somehow got past `validate_inclusion`
+  # (a hand-written UPDATE, a nil slipping through) costs the crop rather than the
+  # page — every other dispatch in this module is total, and this one reads straight
+  # from the database into a `style` attribute.
+  defp parse_ratio(aspect_ratio) do
+    case aspect_ratio |> to_string() |> String.split(":") |> Enum.map(&Integer.parse/1) do
+      [{w, ""}, {h, ""}] when w > 0 and h > 0 -> {w, h}
+      _ -> @default_ratio
+    end
+  end
+
+  defp css_ratio({w, h}), do: "#{w}/#{h}"
+
+  # The variant to ask the media pipeline for: the block's ratio scaled until its longer
+  # edge reaches @slide_long_edge. Requesting both dimensions is the point —
+  # `media_url/2` only carries the focal point on a URL that asks for a cover crop, so
+  # this is what makes a portrait frame keep the face instead of the middle of the
+  # picture. Derived from the ratio rather than tabulated, so adding one to
+  # `ImageGallery.aspect_ratios/0` needs no second edit here.
+  #
+  # Never larger than the picture actually is: the resize step upscales on request, and
+  # a 640px club photo blown up to 1600 is a soft image that also costs more bytes than
+  # the original. The frame is held by CSS either way, so a smaller variant only means
+  # less zoom headroom on a wide screen.
+  defp slide_size({w, h}, media) do
+    scale = source_long_edge(media) / max(w, h)
+    {round(w * scale), round(h * scale)}
+  end
+
+  defp source_long_edge(%{width: w, height: h}) when is_integer(w) and is_integer(h),
+    do: min(@slide_long_edge, max(w, h))
+
+  defp source_long_edge(_media), do: @slide_long_edge
 
   defp alert_classes("warning"), do: "border-warning bg-warning/10"
   defp alert_classes("success"), do: "border-success bg-success/10"

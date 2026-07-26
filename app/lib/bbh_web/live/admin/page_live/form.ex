@@ -386,6 +386,8 @@ defmodule BbhWeb.Admin.PageLive.Form do
   end
 
   defp block_fields(%{type: "image_gallery"} = assigns) do
+    assigns = assign(assigns, :aspect_ratios, aspect_ratio_options())
+
     ~H"""
     <.input field={@f[:title]} label="Titel" />
     <.input
@@ -394,7 +396,16 @@ defmodule BbhWeb.Admin.PageLive.Form do
       label="Layout"
       options={[{"Raster", "grid"}, {"Diashow", "slideshow"}]}
     />
+    <%!-- Shown whatever the layout is: the form saves in one go, so hiding these until
+          „Diashow" has been stored would cost a save before they could be set. --%>
+    <.input
+      field={@f[:aspect_ratio]}
+      type="select"
+      label="Seitenverhältnis der Diashow"
+      options={@aspect_ratios}
+    />
     <.input field={@f[:lightbox]} type="checkbox" label="Lightbox aktivieren" />
+    <.input field={@f[:autoplay]} type="checkbox" label="Diashow automatisch weiterblättern" />
     """
   end
 
@@ -437,6 +448,27 @@ defmodule BbhWeb.Admin.PageLive.Form do
     ~H"""
     <p class="text-sm text-base-content/60">Horizontale Trennlinie – keine Einstellungen.</p>
     """
+  end
+
+  # Read off the schema so the dropdown cannot offer a ratio the changeset rejects. A
+  # ratio without a label here still shows up, as its bare „W:H".
+  @aspect_ratio_labels %{
+    "16:9" => "Breitbild",
+    "3:2" => "Kamera, quer",
+    "4:3" => "Klassisch, quer",
+    "1:1" => "Quadratisch",
+    "3:4" => "Klassisch, hoch",
+    "2:3" => "Kamera, hoch",
+    "9:16" => "Hochformat"
+  }
+
+  defp aspect_ratio_options do
+    for ratio <- Bbh.Content.Blocks.ImageGallery.aspect_ratios() do
+      case @aspect_ratio_labels[ratio] do
+        nil -> {ratio, ratio}
+        label -> {"#{ratio} · #{label}", ratio}
+      end
+    end
   end
 
   # The single image of a media_card block.
@@ -554,7 +586,7 @@ defmodule BbhWeb.Admin.PageLive.Form do
       <p class="mt-1 text-xs text-base-content/60">
         Bildunterschrift und Copyright kommen aus der
         <.link navigate={~p"/admin/medien"} class="link">Mediathek</.link>
-        und erscheinen beim Vergrößern.
+        — im Raster beim Vergrößern, in der Diashow direkt unter dem Bild.
       </p>
     </div>
     """

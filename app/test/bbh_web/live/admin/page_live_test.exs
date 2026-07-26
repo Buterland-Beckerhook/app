@@ -136,6 +136,33 @@ defmodule BbhWeb.Admin.PageLiveTest do
 
       assert Enum.map(gallery_files(ctx.page), & &1.media.filename) == ["eins.webp"]
     end
+
+    test "the Diashow settings are editable and saved", ctx do
+      ctx.lv
+      |> form("#block-#{ctx.pb.id}", %{
+        "block" => %{"layout" => "slideshow", "aspect_ratio" => "3:4", "autoplay" => "true"}
+      })
+      |> render_submit()
+
+      [{_pb, gallery}] = Content.load_blocks(Content.get_page!(ctx.page.id))
+      assert gallery.layout == "slideshow"
+      assert gallery.aspect_ratio == "3:4"
+      assert gallery.autoplay == true
+    end
+
+    test "every ratio the schema allows is offered in the editor, and nothing else", ctx do
+      offered =
+        ctx.lv
+        |> render()
+        |> LazyHTML.from_document()
+        |> LazyHTML.query(~s(select[name="block[aspect_ratio]"] option))
+        |> LazyHTML.attribute("value")
+
+      # The dropdown and the changeset's validate_inclusion have to agree — an option
+      # the schema rejects would fail on save with no way for the editor to tell why,
+      # and one the schema allows but the dropdown omits is unreachable.
+      assert offered == Bbh.Content.Blocks.ImageGallery.aspect_ratios()
+    end
   end
 
   describe "media picker contract" do

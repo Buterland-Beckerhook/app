@@ -456,7 +456,12 @@ defmodule Bbh.Content do
     "richtext" => %{body: "<p></p>"},
     "alert" => %{icon: "info", body: "<p></p>"},
     "media_card" => %{image_position: "right"},
-    "image_gallery" => %{layout: "grid", lightbox: true},
+    "image_gallery" => %{
+      layout: "grid",
+      lightbox: true,
+      aspect_ratio: "16:9",
+      autoplay: false
+    },
     "person_list" => %{display_style: "table", filter_honorary: "all", filter_roles: []},
     "separator" => %{}
   }
