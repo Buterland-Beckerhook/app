@@ -42,6 +42,29 @@ defmodule BbhWeb.PageContentControllerTest do
     assert html =~ "Mitglied werden"
   end
 
+  test "a draft page is hidden from anonymous visitors (404)", %{conn: conn} do
+    page_fixture(slug: "geheim", title: "Geheime Seite", status: "draft")
+    assert conn |> get(~p"/verein/geheim") |> response(404)
+  end
+
+  describe "draft page preview for editors" do
+    setup :register_and_log_in_admin
+
+    test "previews a draft page with a banner", %{conn: conn} do
+      page_fixture(slug: "geheim", title: "Geheime Seite", status: "draft")
+      html = conn |> get(~p"/verein/geheim") |> html_response(200)
+      assert html =~ "Geheime Seite"
+      assert html =~ "Vorschau"
+    end
+
+    test "lists draft pages with a badge on the Verein overview", %{conn: conn} do
+      page_fixture(slug: "geheim", title: "Geheime Seite", status: "draft")
+      html = conn |> get(~p"/verein") |> html_response(200)
+      assert html =~ "Geheime Seite"
+      assert html =~ "Entwurf"
+    end
+  end
+
   test "a gallery block renders its images in order, with lightbox metadata", %{conn: conn} do
     page = page_fixture(slug: "bilder", title: "Bilder", status: "published")
     {:ok, _} = Bbh.Content.add_block(page, "image_gallery")

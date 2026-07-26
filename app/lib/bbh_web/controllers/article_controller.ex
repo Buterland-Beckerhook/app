@@ -3,7 +3,11 @@ defmodule BbhWeb.ArticleController do
   import BbhWeb.ControllerHelpers
 
   def index(conn, params) do
-    result = Bbh.Content.list_published_articles(page_param(params), 12)
+    result =
+      Bbh.Content.list_published_articles(page_param(params), 12,
+        include_unpublished: editor?(conn)
+      )
+
     render(conn, :index, page_title: "Aktuelles", result: result)
   end
 
@@ -35,8 +39,6 @@ defmodule BbhWeb.ArticleController do
     end
   end
 
-  defp editor?(conn) do
-    scope = conn.assigns[:current_scope]
-    scope && BbhWeb.Authz.can_access_section?(scope.user, :articles)
-  end
+  defp editor?(conn),
+    do: BbhWeb.Authz.can_preview?(conn.assigns[:current_scope], :articles)
 end

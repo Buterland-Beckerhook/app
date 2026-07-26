@@ -77,6 +77,21 @@ defmodule BbhWeb.Format do
   defp revision_param(%Upload{revision: rev}) when is_integer(rev) and rev > 0, do: [v: rev]
   defp revision_param(_upload), do: []
 
+  @doc """
+  Editor-facing status label for an article on preview surfaces (list card / detail
+  banner), or `nil` when the article is publicly live. `"Entwurf"` for a draft,
+  `"Archiviert"` for an archived one, and `"Geplant für <date>"` for a published
+  article whose publish date is still in the future.
+  """
+  def article_status_label(%Article{status: "draft"}), do: "Entwurf"
+  def article_status_label(%Article{status: "archived"}), do: "Archiviert"
+
+  def article_status_label(%Article{status: "published", date_published: %DateTime{} = date}) do
+    if DateTime.compare(date, Bbh.Time.now()) == :gt, do: "Geplant für #{de_date(date)}"
+  end
+
+  def article_status_label(_), do: nil
+
   @doc "The best hero image for an article (flagged one, else first), as an ArticleImage."
   def article_hero(%Article{images: images}) when is_list(images) do
     Enum.find(images, & &1.use_as_article_image) || List.first(images)

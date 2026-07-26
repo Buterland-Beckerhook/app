@@ -1,4 +1,4 @@
-<Layouts.app flash={@flash} current_path={@conn.request_path}>
+<Layouts.app flash={@flash} current_scope={@current_scope} current_path={@conn.request_path}>
   {event_jsonld(@event)}
   <article class="mx-auto max-w-3xl">
     <div class="flex items-center justify-between gap-3">

@@ -29,6 +29,12 @@ defmodule BbhWeb.Authz do
 
   def can_access_section?(_, _), do: false
 
+  @doc """
+  Whether this (possibly nil) scope may preview unpublished content of a section.
+  Nil-safe: an anonymous scope (nil) or non-editor returns false.
+  """
+  def can_preview?(scope, section), do: can_access_section?(scope && scope.user, section)
+
   @doc "Whether the user may create/edit an event on the given calendar (nil = public)."
   def can_manage_calendar?(%User{} = user, calendar) do
     cond do
