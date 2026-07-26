@@ -650,31 +650,40 @@ window.liveSocket = liveSocket
 // enlarged view is where caption and copyright are shown. Delegated so it works on
 // server-rendered pages too.
 ;(function initLightbox() {
-  let dialog, imgEl, barEl, captionEl, counterEl, copyrightEl, prevBtn, nextBtn
+  let dialog, imgEl, captionEl, counterEl, copyrightEl, prevBtn, nextBtn
   let group = []
   let index = 0
 
   function ensureDialog() {
     if (dialog) return dialog
+    const muted = "rgba(255,255,255,.55)"
     const style = document.createElement("style")
     style.textContent =
       "dialog.lightbox{padding:0;border:0;background:transparent;width:100vw;height:100vh;max-width:100vw;max-height:100vh;overflow:hidden}" +
-      "dialog.lightbox::backdrop{background:rgba(0,0,0,.9)}" +
+      "dialog.lightbox::backdrop{background:rgba(0,0,0,.92)}" +
       "dialog.lightbox .lb-stage{position:relative;width:100vw;height:100vh;display:flex;align-items:center;justify-content:center}" +
-      "dialog.lightbox img{max-width:92vw;max-height:92vh;object-fit:contain;border-radius:.5rem}" +
-      "dialog.lightbox button{position:absolute;background:rgba(0,0,0,.45);color:#fff;border:0;cursor:pointer;border-radius:9999px;width:3rem;height:3rem;font-size:1.75rem;line-height:1;display:flex;align-items:center;justify-content:center}" +
-      "dialog.lightbox button:hover{background:rgba(0,0,0,.75)}" +
-      "dialog.lightbox .lb-prev{left:1rem;top:50%;transform:translateY(-50%)}" +
-      "dialog.lightbox .lb-next{right:1rem;top:50%;transform:translateY(-50%)}" +
-      "dialog.lightbox .lb-close{right:1rem;top:1rem;width:2.5rem;height:2.5rem;font-size:1.25rem}" +
-      // Caption left, counter centered, copyright right — wrapping instead of
-      // overlapping when they don't fit side by side.
-      "dialog.lightbox .lb-bar{position:absolute;bottom:0;left:0;right:0;display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:.15rem .75rem;padding:.6rem 1rem;color:#fff;font-size:.8125rem;line-height:1.3;background:linear-gradient(to top,rgba(0,0,0,.7),rgba(0,0,0,0))}" +
-      // display:flex above would otherwise beat the UA's [hidden] rule.
-      "dialog.lightbox .lb-bar[hidden]{display:none}" +
-      "dialog.lightbox .lb-caption{min-width:0}" +
-      "dialog.lightbox .lb-counter{margin-inline:auto;opacity:.7;white-space:nowrap}" +
-      "dialog.lightbox .lb-copyright{margin-left:auto;opacity:.7;white-space:nowrap}"
+      // Image + caption stack, centred and shrink-wrapped so the caption's left
+      // edge lines up with the image's left edge.
+      "dialog.lightbox .lb-figure{margin:auto;display:flex;flex-direction:column;max-width:92vw;max-height:92vh}" +
+      "dialog.lightbox img{max-width:100%;max-height:86vh;object-fit:contain;border-radius:.25rem}" +
+      // Caption sits directly under the image, left-aligned.
+      "dialog.lightbox .lb-caption{margin-top:.5rem;color:rgba(255,255,255,.8);font-size:.8125rem;line-height:1.3;text-align:left}" +
+      "dialog.lightbox .lb-caption[hidden]{display:none}" +
+      // Minimal, background-less controls: muted glyphs that brighten on hover. Extra
+      // inset keeps them clear of the window edge (and any scrollbar behind the modal).
+      "dialog.lightbox button{position:absolute;background:none;border:0;padding:0;cursor:pointer;color:" + muted + ";line-height:1;transition:color .15s,opacity .15s}" +
+      "dialog.lightbox button:hover{color:#fff}" +
+      // Chevrons: tall (2× via scaleY) and darker, with a drop-shadow so they read over
+      // the image itself — like the gallery slideshow arrows.
+      "dialog.lightbox .lb-prev,dialog.lightbox .lb-next{top:50%;transform:translateY(-50%) scaleY(2);font-size:2.75rem;color:rgba(170,170,170,.7);text-shadow:0 2px 8px rgba(0,0,0,.75)}" +
+      "dialog.lightbox .lb-prev{left:2rem}" +
+      "dialog.lightbox .lb-next{right:2rem}" +
+      "dialog.lightbox .lb-close{top:1.25rem;right:2rem;font-size:2rem;text-shadow:0 2px 8px rgba(0,0,0,.75)}" +
+      // Counter centred at the bottom of the window, copyright pinned bottom-right.
+      "dialog.lightbox .lb-counter{position:absolute;bottom:.6rem;left:50%;transform:translateX(-50%);color:" + muted + ";font-size:.8125rem;white-space:nowrap}" +
+      "dialog.lightbox .lb-counter[hidden]{display:none}" +
+      "dialog.lightbox .lb-copyright{position:absolute;bottom:.6rem;right:1.25rem;color:" + muted + ";font-size:.8125rem;white-space:nowrap}" +
+      "dialog.lightbox .lb-copyright[hidden]{display:none}"
     document.head.appendChild(style)
 
     dialog = document.createElement("dialog")
@@ -683,16 +692,15 @@ window.liveSocket = liveSocket
       '<div class="lb-stage">' +
       '<button class="lb-close" aria-label="Schließen">✕</button>' +
       '<button class="lb-prev" aria-label="Vorheriges Bild">‹</button>' +
+      '<figure class="lb-figure">' +
       '<img alt="">' +
+      '<figcaption class="lb-caption"></figcaption>' +
+      "</figure>" +
       '<button class="lb-next" aria-label="Nächstes Bild">›</button>' +
-      '<div class="lb-bar">' +
-      '<span class="lb-caption"></span>' +
-      '<span class="lb-counter"></span>' +
-      '<span class="lb-copyright"></span>' +
-      "</div>" +
+      '<div class="lb-counter"></div>' +
+      '<div class="lb-copyright"></div>' +
       "</div>"
     imgEl = dialog.querySelector("img")
-    barEl = dialog.querySelector(".lb-bar")
     captionEl = dialog.querySelector(".lb-caption")
     counterEl = dialog.querySelector(".lb-counter")
     copyrightEl = dialog.querySelector(".lb-copyright")
@@ -730,9 +738,10 @@ window.liveSocket = liveSocket
     captionEl.textContent = t.getAttribute("data-lightbox-caption") || ""
     copyrightEl.textContent = t.getAttribute("data-lightbox-copyright") || ""
     counterEl.textContent = multi ? `${index + 1} / ${group.length}` : ""
-    // No caption, no copyright and a single image — nothing to put in the bar.
-    barEl.hidden = !captionEl.textContent && !copyrightEl.textContent && !multi
-    prevBtn.style.display = nextBtn.style.display = multi ? "flex" : "none"
+    captionEl.hidden = !captionEl.textContent
+    copyrightEl.hidden = !copyrightEl.textContent
+    counterEl.hidden = !multi
+    prevBtn.style.display = nextBtn.style.display = multi ? "block" : "none"
   }
 
   document.addEventListener("keydown", (e) => {
@@ -741,10 +750,10 @@ window.liveSocket = liveSocket
     else if (e.key === "ArrowRight" || e.key === "l") { e.preventDefault(); show(index + 1) }
   })
 
-  document.addEventListener("click", (e) => {
-    const trigger = e.target.closest("[data-lightbox-src]")
+  // Open the lightbox at `trigger`, pulling in every element that shares its group.
+  // Exposed so the slideshow (below) can hand off its active slide on a middle-click.
+  function openLightbox(trigger) {
     if (!trigger) return
-    e.preventDefault()
     ensureDialog()
     const groupId = trigger.getAttribute("data-lightbox-group")
     group = groupId
@@ -753,6 +762,70 @@ window.liveSocket = liveSocket
     index = Math.max(0, group.indexOf(trigger))
     show(index)
     dialog.showModal()
+  }
+  window.openLightbox = openLightbox
+
+  document.addEventListener("click", (e) => {
+    const trigger = e.target.closest("[data-lightbox-src]")
+    if (!trigger) return
+    // Inside a slideshow the stage owns clicks (edge = page, middle = enlarge),
+    // so it calls openLightbox itself — don't double-fire here.
+    if (trigger.closest("[data-slideshow]")) return
+    e.preventDefault()
+    openLightbox(trigger)
+  })
+})()
+
+// --- Diashow / slideshow for gallery blocks (plain JS — no LiveView) ---
+// Markup (site_components.ex): a `[data-slideshow]` container with `[data-slide]`
+// images (one visible at a time), optional `[data-slide-dot][data-index]` buttons,
+// and hover arrow glyphs. Clicking the left/right ~15% of the stage pages back/
+// forward; the middle enlarges via the shared lightbox. Delegated so it works on
+// server-rendered pages too.
+;(function initSlideshow() {
+  const current = new WeakMap()
+
+  function slides(box) {
+    return Array.from(box.querySelectorAll("[data-slide]"))
+  }
+
+  function go(box, to) {
+    const imgs = slides(box)
+    if (imgs.length < 2) return
+    const i = (to + imgs.length) % imgs.length
+    current.set(box, i)
+    imgs.forEach((img, n) => (img.hidden = n !== i))
+    box.querySelectorAll("[data-slide-dot]").forEach((dot) => {
+      const active = Number(dot.getAttribute("data-index")) === i
+      if (active) dot.setAttribute("data-active", "true")
+      else dot.removeAttribute("data-active")
+    })
+  }
+
+  document.addEventListener("click", (e) => {
+    const box = e.target.closest("[data-slideshow]")
+    if (!box) return
+
+    const dot = e.target.closest("[data-slide-dot]")
+    if (dot) {
+      go(box, Number(dot.getAttribute("data-index")))
+      return
+    }
+
+    const stage = box.querySelector("[data-slide]")?.parentElement
+    if (!stage || !stage.contains(e.target)) return
+    const imgs = slides(box)
+    const i = current.get(box) || 0
+    const openHere = () => window.openLightbox && window.openLightbox(imgs[i])
+
+    // A lone image has no edges to page — any click just enlarges it.
+    if (imgs.length < 2) return openHere()
+
+    const rect = stage.getBoundingClientRect()
+    const x = (e.clientX - rect.left) / rect.width
+    if (x < 0.15) go(box, i - 1)
+    else if (x > 0.85) go(box, i + 1)
+    else openHere()
   })
 })()
 

@@ -384,6 +384,77 @@ defmodule BbhWeb.SiteComponents do
     """
   end
 
+  def block(%{type: "image_gallery", block: %{layout: "slideshow"}} = assigns) do
+    ~H"""
+    <figure>
+      <figcaption :if={@block.title} class="mb-2 font-semibold">{@block.title}</figcaption>
+      <%!-- Files arrive in the editor's order (ImageGallery.has_many :preload_order).
+            One slide is shown at a time; JS (app.js) drives navigation. Clicking the
+            left/right ~15% edges pages back/forward, the middle opens the lightbox.
+            Slides carry the lightbox data so the enlarged view spans the whole gallery. --%>
+      <div
+        :if={@block.files != []}
+        data-slideshow
+        class="group relative select-none"
+        aria-roledescription="Diashow"
+      >
+        <%!-- Default cursor = zoom (middle click enlarges); the left/right edge zones
+              below override it to a pointer to signal paging. --%>
+        <div class="relative flex aspect-video cursor-zoom-in items-center justify-center overflow-hidden rounded-lg bg-base-200">
+          <img
+            :for={{f, i} <- Enum.with_index(@block.files)}
+            data-slide
+            hidden={i != 0}
+            src={media_url(f.media, width: 1200)}
+            alt={image_alt(f)}
+            loading={if(i == 0, do: "eager", else: "lazy")}
+            data-lightbox-src={media_url(f.media, width: 1600)}
+            data-lightbox-alt={image_alt(f)}
+            data-lightbox-caption={image_caption(f)}
+            data-lightbox-copyright={copyright_label(image_copyright(f))}
+            data-lightbox-group={"gallery-#{@block.id}"}
+            class="max-h-full max-w-full object-contain"
+          />
+          <span
+            :if={length(@block.files) > 1}
+            aria-hidden="true"
+            class="pointer-events-none absolute left-2 top-1/2 z-10 -translate-y-1/2 text-4xl text-white opacity-0 drop-shadow transition-opacity group-hover:opacity-70"
+          >‹</span>
+          <span
+            :if={length(@block.files) > 1}
+            aria-hidden="true"
+            class="pointer-events-none absolute right-2 top-1/2 z-10 -translate-y-1/2 text-4xl text-white opacity-0 drop-shadow transition-opacity group-hover:opacity-70"
+          >›</span>
+          <%!-- Transparent hit/cursor zones. Clicks bubble to the delegated handler in
+                app.js, which re-derives prev/next/enlarge from the pointer position. --%>
+          <div :if={length(@block.files) > 1} class="absolute inset-y-0 left-0 w-[15%] cursor-pointer">
+          </div>
+          <div
+            :if={length(@block.files) > 1}
+            class="absolute inset-y-0 right-0 w-[15%] cursor-pointer"
+          >
+          </div>
+        </div>
+        <div
+          :if={length(@block.files) > 1}
+          data-slide-dots
+          class="mt-2 flex items-center justify-center gap-2"
+        >
+          <button
+            :for={i <- 0..(length(@block.files) - 1)}
+            type="button"
+            data-slide-dot
+            data-index={i}
+            aria-label={"Bild #{i + 1}"}
+            class="size-2 rounded-full bg-base-content/25 transition-colors data-[active]:bg-base-content"
+            data-active={i == 0}
+          ></button>
+        </div>
+      </div>
+    </figure>
+    """
+  end
+
   def block(%{type: "image_gallery"} = assigns) do
     ~H"""
     <figure>
@@ -436,6 +507,12 @@ defmodule BbhWeb.SiteComponents do
       <h3 :if={@block.title} class="mb-2 text-lg font-semibold">{@block.title}</h3>
       <.person_table people={@people} show_address={@block.show_address} />
     </div>
+    """
+  end
+
+  def block(%{type: "separator"} = assigns) do
+    ~H"""
+    <hr class="border-t border-base-300" />
     """
   end
 

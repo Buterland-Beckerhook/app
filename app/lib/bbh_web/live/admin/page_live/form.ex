@@ -10,7 +10,8 @@ defmodule BbhWeb.Admin.PageLive.Form do
     {"Hinweis", "alert"},
     {"Bild-Karte", "media_card"},
     {"Galerie", "image_gallery"},
-    {"Personenliste", "person_list"}
+    {"Personenliste", "person_list"},
+    {"Trennlinie", "separator"}
   ]
 
   @impl true
@@ -429,6 +430,12 @@ defmodule BbhWeb.Admin.PageLive.Form do
     """
   end
 
+  defp block_fields(%{type: "separator"} = assigns) do
+    ~H"""
+    <p class="text-sm text-base-content/60">Horizontale Trennlinie – keine Einstellungen.</p>
+    """
+  end
+
   # The single image of a media_card block.
   attr :pb, :map, required: true
   attr :block, :any, required: true
@@ -563,5 +570,6 @@ defmodule BbhWeb.Admin.PageLive.Form do
   defp block_label("media_card"), do: "Bild-Karte"
   defp block_label("image_gallery"), do: "Galerie"
   defp block_label("person_list"), do: "Personenliste"
+  defp block_label("separator"), do: "Trennlinie"
   defp block_label(other), do: other
 end
