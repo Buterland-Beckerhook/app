@@ -25,6 +25,9 @@ defmodule BbhWeb.Router do
 
     post "/push/subscribe", PushController, :subscribe
     post "/push/unsubscribe", PushController, :unsubscribe
+
+    # IBAN → BIC/Kreditinstitut for the membership form's live auto-fill.
+    get "/blz", BlzController, :show
   end
 
   scope "/", BbhWeb do
@@ -47,6 +50,11 @@ defmodule BbhWeb.Router do
 
     get "/thron", ThroneController, :index
     get "/thron/:type", ThroneController, :index_type
+
+    # Registered before the "/verein/*path" catch-all so the membership form is not
+    # swallowed by the dynamic page tree.
+    get "/verein/mitglied-werden", MembershipController, :new
+    post "/verein/mitglied-werden", MembershipController, :create
 
     get "/verein", PageContentController, :verein
     get "/verein/*path", PageContentController, :verein_page

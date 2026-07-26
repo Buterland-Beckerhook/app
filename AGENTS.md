@@ -136,6 +136,20 @@ Notes:
 - Nightly production backups (dump + uploads, offsite via Borg) are handled
   separately by `deploy/backup.sh`.
 
+## BLZ table (IBAN → BIC/Kreditinstitut)
+
+The membership form derives BIC/Kreditinstitut from a German IBAN via a stripped
+Deutsche Bundesbank "Bankleitzahlendatei" (`Bbh.Blz`, loaded into `:persistent_term`
+at boot). Everything degrades gracefully — an unknown/outdated BLZ just leaves the
+fields blank.
+
+- Committed data: `app/priv/data/blz.tsv` (`BLZ<TAB>BIC<TAB>Name`, ~3.5k rows).
+- Refresh (~quarterly, the download URL is not stable so it's manual): download the
+  new `blz-aktuell-csv-data.csv` from bundesbank.de, then
+  `mix bbh.blz.strip path/to/blz-aktuell-csv-data.csv` and commit the regenerated TSV.
+- Override without a rebuild: drop a newer `blz.tsv` at `/data/blz.tsv` in the uploads
+  volume (or set `BLZ_DATA_FILE`); it wins over the shipped copy on next boot.
+
 ## Git & Workflow
 
 - Default branch: `main`. Feature branches off it (e.g. `feat/…`).
