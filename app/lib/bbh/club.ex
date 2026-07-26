@@ -11,15 +11,25 @@ defmodule Bbh.Club do
 
     * `:honorary` — `"all"` (default), `"only"` or `"exclude"`
     * `:only_active` — when true, drop everyone whose „Amt bis" is set
+    * `:sort` — `"sort_order"` (default) or `"year_start"` (Amtsantritt, oldest first)
   """
   def list_people(roles, opts \\ []) when is_list(roles) do
-    from(p in Person, order_by: [asc: p.sort_order, asc: p.name])
+    from(p in Person)
     |> filter_roles(roles)
     |> filter_honorary(Keyword.get(opts, :honorary, "all"))
     |> filter_active(Keyword.get(opts, :only_active, false))
+    |> order_people(Keyword.get(opts, :sort, "sort_order"))
     |> preload(:portrait)
     |> Repo.all()
   end
+
+  # „Amt (from)" = Amtsantritts-Jahr (`year_start`), oldest first; people without one sort
+  # last, then the manual `sort_order`, then `name`. Any other value keeps the default order.
+  defp order_people(query, "year_start"),
+    do: order_by(query, [p], asc_nulls_last: p.year_start, asc: p.sort_order, asc: p.name)
+
+  defp order_people(query, _),
+    do: order_by(query, [p], asc: p.sort_order, asc: p.name)
 
   @doc """
   The current holder of a role — the last/currently serving person.

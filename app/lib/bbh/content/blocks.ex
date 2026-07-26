@@ -178,6 +178,7 @@ defmodule Bbh.Content.Blocks do
 
     @honorary ~w(all only exclude)
     @styles ~w(table cards)
+    @sort_bys ~w(sort_order year_start)
 
     def honorary_options, do: @honorary
 
@@ -188,6 +189,13 @@ defmodule Bbh.Content.Blocks do
     """
     def styles, do: @styles
 
+    @doc """
+    How the list is ordered: „Reihenfolge (manuell)" (`sort_order`) or „Amtsantritt (Jahr)"
+    (`Person.year_start`). Same contract as `styles/0` — the editor's dropdown reads this so
+    it cannot offer a value the changeset rejects. `Bbh.Club.list_people/2` interprets it.
+    """
+    def sort_bys, do: @sort_bys
+
     schema "block_person_list" do
       field :title, :string
       field :filter_roles, {:array, :string}, default: []
@@ -196,6 +204,7 @@ defmodule Bbh.Content.Blocks do
       field :show_address, :boolean, default: false
       # „Amt bis" (Person.year_end) empty means still serving.
       field :only_active, :boolean, default: false
+      field :sort_by, :string, default: "sort_order"
       timestamps()
     end
 
@@ -207,10 +216,12 @@ defmodule Bbh.Content.Blocks do
         :filter_honorary,
         :display_style,
         :show_address,
-        :only_active
+        :only_active,
+        :sort_by
       ])
       |> validate_inclusion(:filter_honorary, @honorary)
       |> validate_inclusion(:display_style, @styles)
+      |> validate_inclusion(:sort_by, @sort_bys)
     end
   end
 end

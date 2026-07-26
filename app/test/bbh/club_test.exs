@@ -66,6 +66,24 @@ defmodule Bbh.ClubTest do
       assert ids == [serving.id]
     end
 
+    test "sorts by sort_order then name by default" do
+      c = person_fixture(role: "vorstand", name: "Cäsar", sort_order: 0)
+      a = person_fixture(role: "vorstand", name: "Anton", sort_order: 1)
+      b = person_fixture(role: "vorstand", name: "Berta", sort_order: 0)
+
+      # sort_order first (0 before 1), name breaks the tie within the same sort_order.
+      assert Club.list_people(["vorstand"]) |> Enum.map(& &1.id) == [b.id, c.id, a.id]
+    end
+
+    test "sort: year_start orders by Amtsantritt, oldest first, missing last" do
+      old = person_fixture(role: "vorstand", name: "Alt", year_start: 1990)
+      new = person_fixture(role: "vorstand", name: "Neu", year_start: 2020)
+      none = person_fixture(role: "vorstand", name: "Ohne", year_start: nil)
+
+      assert Club.list_people(["vorstand"], sort: "year_start") |> Enum.map(& &1.id) ==
+               [old.id, new.id, none.id]
+    end
+
     test "preloads the portrait" do
       upload = upload_fixture(filename: "portrait.webp")
       person_fixture(role: "vorstand", portrait_id: upload.id)

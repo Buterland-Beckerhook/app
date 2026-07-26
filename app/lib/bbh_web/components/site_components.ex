@@ -538,7 +538,8 @@ defmodule BbhWeb.SiteComponents do
         :people,
         Bbh.Club.list_people(assigns.block.filter_roles,
           honorary: assigns.block.filter_honorary,
-          only_active: assigns.block.only_active
+          only_active: assigns.block.only_active,
+          sort: assigns.block.sort_by
         )
       )
 
