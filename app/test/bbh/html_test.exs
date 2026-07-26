@@ -33,6 +33,17 @@ defmodule Bbh.HtmlTest do
                ~s(class="bbh-img-md")
     end
 
+    test "keeps whitelisted inline text classes (font weight, size, muted)" do
+      assert Html.sanitize(~s(<p><span class="bbh-weight-500">x</span></p>)) =~
+               ~s(class="bbh-weight-500")
+
+      assert Html.sanitize(~s(<p><span class="bbh-size-lg">x</span></p>)) =~
+               ~s(class="bbh-size-lg")
+
+      assert Html.sanitize(~s(<p><span class="bbh-muted-on">x</span></p>)) =~
+               ~s(class="bbh-muted-on")
+    end
+
     test "keeps only whitelisted tokens within a class attribute" do
       out = Html.sanitize(~s(<p class="ql-align-center fixed inset-0">x</p>))
 

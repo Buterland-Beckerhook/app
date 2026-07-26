@@ -459,6 +459,44 @@ h1, h2, h3, h4, h5, h6 {
   margin-inline: auto;
 }
 
+/* Inline text formatting from the editor (bbh-weight-*, bbh-size-*, bbh-muted).
+   Scoped to both the public output (.prose) and the editor (.ql-editor) so the
+   chosen formatting is visible while authoring, not only once published. Barlow
+   ships all weights 100–900, so every step renders faithfully. Sizes are em-based
+   so they scale relative to the surrounding text. */
+.prose span.bbh-weight-100,
+.ql-editor span.bbh-weight-100 { font-weight: 100; }
+.prose span.bbh-weight-200,
+.ql-editor span.bbh-weight-200 { font-weight: 200; }
+.prose span.bbh-weight-300,
+.ql-editor span.bbh-weight-300 { font-weight: 300; }
+.prose span.bbh-weight-400,
+.ql-editor span.bbh-weight-400 { font-weight: 400; }
+.prose span.bbh-weight-500,
+.ql-editor span.bbh-weight-500 { font-weight: 500; }
+.prose span.bbh-weight-600,
+.ql-editor span.bbh-weight-600 { font-weight: 600; }
+.prose span.bbh-weight-700,
+.ql-editor span.bbh-weight-700 { font-weight: 700; }
+.prose span.bbh-weight-800,
+.ql-editor span.bbh-weight-800 { font-weight: 800; }
+.prose span.bbh-weight-900,
+.ql-editor span.bbh-weight-900 { font-weight: 900; }
+
+.prose span.bbh-size-xs,
+.ql-editor span.bbh-size-xs { font-size: 0.75em; }
+.prose span.bbh-size-sm,
+.ql-editor span.bbh-size-sm { font-size: 0.875em; }
+.prose span.bbh-size-lg,
+.ql-editor span.bbh-size-lg { font-size: 1.25em; }
+.prose span.bbh-size-xl,
+.ql-editor span.bbh-size-xl { font-size: 1.5em; }
+.prose span.bbh-size-2xl,
+.ql-editor span.bbh-size-2xl { font-size: 2em; }
+
+.prose span.bbh-muted-on,
+.ql-editor span.bbh-muted-on { color: var(--bb-text-muted); }
+
 /* --- Quill editor chrome (admin) --- */
 /* Quill's snow theme sets height:100% on both .ql-container and .ql-editor.
    Inside the admin's flex/min-h-screen layout that resolves to the full column
@@ -501,6 +539,51 @@ h1, h2, h3, h4, h5, h6 {
 }
 .ql-snow .ql-picker.ql-bbhImgSize .ql-picker-item[data-value="full"]::before {
   content: "Volle Breite";
+}
+
+/* Label the "Stärke" (font weight) picker. The selected label shows the numeric
+   weight; the dropdown items add a plain-language hint. Value 400 = normal. */
+.ql-snow .ql-picker.ql-bbhWeight {
+  width: 6.5rem;
+}
+.ql-snow .ql-picker.ql-bbhWeight .ql-picker-label::before {
+  content: "Stärke";
+}
+.ql-snow .ql-picker.ql-bbhWeight .ql-picker-label[data-value]::before {
+  content: "Stärke " attr(data-value);
+}
+.ql-snow .ql-picker.ql-bbhWeight .ql-picker-item::before {
+  content: attr(data-value);
+}
+.ql-snow .ql-picker.ql-bbhWeight .ql-picker-item[data-value="400"]::before {
+  content: "400 (Normal)";
+}
+
+/* Label the "Textgröße" (font size) picker. Empty value = normal. */
+.ql-snow .ql-picker.ql-bbhTextSize {
+  width: 7rem;
+}
+.ql-snow .ql-picker.ql-bbhTextSize .ql-picker-label::before {
+  content: "Textgröße";
+}
+.ql-snow .ql-picker.ql-bbhTextSize .ql-picker-item[data-value="xs"]::before {
+  content: "Sehr klein";
+}
+.ql-snow .ql-picker.ql-bbhTextSize .ql-picker-item[data-value="sm"]::before {
+  content: "Klein";
+}
+.ql-snow .ql-picker.ql-bbhTextSize .ql-picker-item:not([data-value])::before,
+.ql-snow .ql-picker.ql-bbhTextSize .ql-picker-item[data-value=""]::before {
+  content: "Normal";
+}
+.ql-snow .ql-picker.ql-bbhTextSize .ql-picker-item[data-value="lg"]::before {
+  content: "Groß";
+}
+.ql-snow .ql-picker.ql-bbhTextSize .ql-picker-item[data-value="xl"]::before {
+  content: "Sehr groß";
+}
+.ql-snow .ql-picker.ql-bbhTextSize .ql-picker-item[data-value="2xl"]::before {
+  content: "Riesig";
 }
 
 /* Flash auto-hide countdown bar (see core_components `flash/1` + the enhancer in
