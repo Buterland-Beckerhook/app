@@ -176,7 +176,7 @@ defmodule BbhWeb.Admin.EventLive.Form do
         phx-submit="save"
         class="mt-6 space-y-4"
       >
-        <.input field={@form[:title]} label="Titel" required />
+        <.input field={@form[:title]} label="Titel" required phx-hook="SlugFromTitle" />
         <.input field={@form[:slug]} label="Slug" required />
         <.input field={@form[:status]} type="select" label="Status" options={statuses()} />
         <div class="grid gap-4 sm:grid-cols-2">

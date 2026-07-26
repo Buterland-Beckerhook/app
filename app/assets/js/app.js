@@ -50,8 +50,54 @@ function bufToB64url(buffer) {
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
 }
 
+// URL slug from a title — mirrors Bbh's server-side slugify (German umlauts, then
+// non-alphanumerics collapse to dashes, edges trimmed). Kept in sync with
+// Mix.Tasks.Bbh.Import.slugify/1.
+const UMLAUTS = {ä: "ae", ö: "oe", ü: "ue", ß: "ss"}
+function slugify(s) {
+  return (s || "")
+    .toLowerCase()
+    .replace(/[äöüß]/g, c => UMLAUTS[c])
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+}
+
 // Sync a Trix editor's content into its hidden input and notify LiveView.
 const Hooks = {
+  // Auto-fill the slug field from the title while creating content. Bound to the
+  // title input; it finds the sibling `[slug]` input in the same form. Generation
+  // stays active only while the slug is untouched — an existing value (editing a
+  // record) or a manual edit locks it; clearing the slug re-enables auto-fill.
+  // The field remains editable at all times.
+  SlugFromTitle: {
+    mounted() {
+      this.slug = this.el.form?.querySelector("input[name$='[slug]']")
+      if (!this.slug) return
+      this.locked = this.slug.value.trim() !== ""
+
+      this._onTitle = () => {
+        if (this.locked) return
+        const value = slugify(this.el.value)
+        if (this.slug.value === value) return
+        this.slug.value = value
+        // Serialize the new slug on this same change cycle so LiveView validation
+        // (and any re-render) keeps it. Guarded so it doesn't read as a manual edit.
+        this._programmatic = true
+        this.slug.dispatchEvent(new Event("input", {bubbles: true}))
+        this._programmatic = false
+      }
+      this._onSlug = () => {
+        if (!this._programmatic) this.locked = this.slug.value.trim() !== ""
+      }
+
+      this.el.addEventListener("input", this._onTitle)
+      this.slug.addEventListener("input", this._onSlug)
+    },
+    destroyed() {
+      this.el.removeEventListener("input", this._onTitle)
+      if (this.slug) this.slug.removeEventListener("input", this._onSlug)
+    },
+  },
   // WebAuthn passkeys: runs the credential ceremony synchronously inside the
   // user's gesture. Safari only delegates WebAuthn to a browser-extension
   // credential provider (Bitwarden/1Password) while transient user activation is

@@ -255,7 +255,7 @@ defmodule BbhWeb.Admin.PageLive.Form do
         phx-submit="save_page"
         class="mt-6 space-y-4"
       >
-        <.input field={@form[:title]} label="Titel" required />
+        <.input field={@form[:title]} label="Titel" required phx-hook="SlugFromTitle" />
         <.input field={@form[:slug]} label="Slug" required />
         <.input
           field={@form[:parent_id]}
