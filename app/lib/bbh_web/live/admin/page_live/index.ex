@@ -18,14 +18,18 @@ defmodule BbhWeb.Admin.PageLive.Index do
     do: {:noreply, AdminList.handle(action, params, socket, &load_list/1)}
 
   defp load_list(socket) do
+    tree = Content.list_pages_tree()
+    # DFS rank keeps the default "sort_order" sort in tree order (children under parents).
+    ranks = tree |> Enum.with_index() |> Map.new(fn {p, i} -> {p.id, i} end)
+
     meta =
-      AdminList.process(Content.list_pages(), socket.assigns.list_state,
+      AdminList.process(tree, socket.assigns.list_state,
         search: [& &1.title, & &1.slug],
         sort: %{
           "title" => & &1.title,
           "slug" => & &1.slug,
           "status" => & &1.status,
-          "sort_order" => & &1.sort_order
+          "sort_order" => &Map.fetch!(ranks, &1.id)
         }
       )
 
@@ -47,7 +51,9 @@ defmodule BbhWeb.Admin.PageLive.Index do
 
       <.table id="pages" rows={@pages} sort={@list_meta.sort} dir={@list_meta.dir}>
         <:col :let={p} label="Titel" sort_key="title">
-          <span class="font-medium">{p.title}</span>
+          <span class="font-medium" style={"padding-left: #{p.depth * 1.25}rem"}>
+            <span :if={p.depth > 0} class="text-base-content/40">└ </span>{p.title}
+          </span>
         </:col>
         <:col :let={p} label="Slug" sort_key="slug">{p.slug}</:col>
         <:col :let={p} label="Status" sort_key="status">
