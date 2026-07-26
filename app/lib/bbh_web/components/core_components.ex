@@ -320,9 +320,11 @@ defmodule BbhWeb.CoreComponents do
   end
 
   @doc """
-  Renders a Trix rich text editor bound to a form field. The field value is HTML.
+  Renders a Quill rich text editor bound to a form field. The field value is HTML.
 
-  Trix keeps the hidden input in sync; the `TrixEditor` hook notifies LiveView on change.
+  The `QuillEditor` hook builds the editor inside the `data-quill-editor` div,
+  syncs the hidden input, and notifies LiveView on change. The whole wrapper is
+  `phx-update="ignore"` so Quill's injected DOM survives LiveView patches.
   """
   attr :field, Phoenix.HTML.FormField, required: true
   attr :label, :string, default: nil
@@ -331,15 +333,14 @@ defmodule BbhWeb.CoreComponents do
     ~H"""
     <div class="fieldset mb-2">
       <span :if={@label} class="label mb-1">{@label}</span>
-      <div id={"#{@field.id}-rt"} phx-hook="TrixEditor" phx-update="ignore">
+      <div id={"#{@field.id}-rt"} phx-hook="QuillEditor" phx-update="ignore">
         <input
           type="hidden"
           name={@field.name}
           id={@field.id}
-          value={Phoenix.HTML.Form.normalize_value("hidden", @field.value)}
+          value={Phoenix.HTML.Form.normalize_value("hidden", Bbh.Html.to_editor(@field.value))}
         />
-        <trix-editor input={@field.id} class="trix-content rounded border border-base-300 bg-base-100">
-        </trix-editor>
+        <div data-quill-editor class="rounded border border-base-300 bg-base-100"></div>
       </div>
       <.error :for={msg <- Enum.map(@field.errors, &translate_error/1)}>{msg}</.error>
     </div>

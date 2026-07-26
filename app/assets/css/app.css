@@ -140,8 +140,8 @@
 /* Make LiveView wrapper divs transparent for layout */
 [data-phx-session], [data-phx-teleported-src] { display: contents }
 
-/* Trix rich text editor styles (self-hosted). */
-@import "../vendor/trix/trix.css";
+/* Quill 2 rich text editor styles (self-hosted, snow theme). */
+@import "../vendor/quill/quill.snow.css";
 
 /* flatpickr date/time picker styles (self-hosted). */
 @import "../vendor/flatpickr/flatpickr.min.css";
@@ -180,7 +180,12 @@
    exact element set the Trix toolbar produces, reusing daisyUI's theme-aware
    `--tw-prose-*` tokens so light/dark just work. `.prose el` selectors
    (specificity 0,1,1) beat Preflight (0,0,1) and daisyUI's :where() rules (0,1,0). */
-.prose :where(p, ul, ol, blockquote, pre, h1, h2, h3) {
+/* Break long words/URLs so narrow viewports don't scroll horizontally.
+   overflow-wrap is inherited, so this covers every descendant of .prose. */
+.prose {
+  overflow-wrap: break-word;
+}
+.prose :where(p, ul, ol, blockquote, pre, h1, h2, h3, h4) {
   margin-block: 0.75em;
 }
 .prose :where(p, li) {
@@ -188,7 +193,8 @@
 }
 .prose h1,
 .prose h2,
-.prose h3 {
+.prose h3,
+.prose h4 {
   color: var(--tw-prose-headings);
   font-weight: 700;
   line-height: 1.25;
@@ -203,6 +209,9 @@
 }
 .prose h3 {
   font-size: 1.125rem;
+}
+.prose h4 {
+  font-size: 1rem;
 }
 .prose a {
   color: var(--color-primary);
@@ -254,15 +263,79 @@
   border-radius: 0.5rem;
 }
 
-/* Give the Trix editor a sensible min height in the admin. */
-trix-editor {
-  min-height: 8rem;
+/* Quill alignment (class-based) on the public side. Applied to the block
+   element the author aligned (paragraph, heading, list item). */
+.prose .ql-align-center {
+  text-align: center;
+}
+.prose .ql-align-right {
+  text-align: right;
+}
+.prose .ql-align-justify {
+  text-align: justify;
 }
 
-/* Hide Trix's built-in "Attach Files" button — direct uploads are disabled;
-   media comes from the library via the "Mediathek" button (see app.js). */
-trix-toolbar [data-trix-button-group="file-tools"] {
-  display: none;
+/* Image size presets from the editor's "Größe" dropdown (bbh-img-*). */
+.prose img.bbh-img-sm {
+  width: 25%;
+}
+.prose img.bbh-img-md {
+  width: 50%;
+}
+.prose img.bbh-img-lg {
+  width: 75%;
+}
+.prose img.bbh-img-full {
+  width: 100%;
+}
+/* A centered block that wraps an image centers the image itself. */
+.prose .ql-align-center img {
+  display: block;
+  margin-inline: auto;
+}
+
+/* --- Quill editor chrome (admin) --- */
+/* Quill's snow theme sets height:100% on both .ql-container and .ql-editor.
+   Inside the admin's flex/min-h-screen layout that resolves to the full column
+   height, blowing the editor up so it overlaps the "Block speichern" button.
+   Force auto-grow (like Trix's min-height) so the editor sizes to its content. */
+.ql-container.ql-snow {
+  height: auto;
+}
+.ql-editor {
+  height: auto;
+  min-height: 8rem;
+  overflow-y: visible;
+}
+.ql-toolbar.ql-snow,
+.ql-container.ql-snow {
+  border-color: var(--color-base-300);
+}
+.ql-container.ql-snow {
+  color: var(--color-base-content);
+  font-family: inherit;
+  font-size: 1rem;
+}
+
+/* Label the custom "Größe" (image size) picker and its options in German
+   (Quill otherwise shows the raw sm/md/lg/full values). */
+.ql-snow .ql-picker.ql-bbhImgSize {
+  width: 6rem;
+}
+.ql-snow .ql-picker.ql-bbhImgSize .ql-picker-label::before {
+  content: "Größe";
+}
+.ql-snow .ql-picker.ql-bbhImgSize .ql-picker-item[data-value="sm"]::before {
+  content: "Klein";
+}
+.ql-snow .ql-picker.ql-bbhImgSize .ql-picker-item[data-value="md"]::before {
+  content: "Mittel";
+}
+.ql-snow .ql-picker.ql-bbhImgSize .ql-picker-item[data-value="lg"]::before {
+  content: "Groß";
+}
+.ql-snow .ql-picker.ql-bbhImgSize .ql-picker-item[data-value="full"]::before {
+  content: "Volle Breite";
 }
 
 /* Flash auto-hide countdown bar (see core_components `flash/1` + the enhancer in
