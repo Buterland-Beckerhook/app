@@ -593,7 +593,10 @@ defmodule Bbh.Media do
     counts = [
       articles: count_refs(Bbh.Content.ArticleImage, :media_id, id),
       media_cards: count_refs(Bbh.Content.Blocks.MediaCard, :image_id, id),
-      galleries: count_refs(Bbh.Content.Blocks.GalleryFile, :media_id, id)
+      galleries: count_refs(Bbh.Content.Blocks.GalleryFile, :media_id, id),
+      # `people.portrait_id` nilifies on delete, so an unguarded delete would silently
+      # empty the portrait on a person's card instead of refusing.
+      portraits: count_refs(Bbh.Club.Person, :portrait_id, id)
     ]
 
     Enum.filter(counts, fn {_place, n} -> n > 0 end)
@@ -609,7 +612,7 @@ defmodule Bbh.Media do
   @doc """
   Delete an upload record, its original file and its cached variants.
   Refuses with `{:error, :in_use}` while the media is still referenced by an article,
-  media card, or gallery.
+  media card, gallery, or a person's portrait.
   """
   # sobelow_skip ["Traversal.FileModule"]
   # Path is uploads_dir/<db storage_key>; storage_key is set only at creation and

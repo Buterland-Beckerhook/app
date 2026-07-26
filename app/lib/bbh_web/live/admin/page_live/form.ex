@@ -416,7 +416,7 @@ defmodule BbhWeb.Admin.PageLive.Form do
       field={@f[:display_style]}
       type="select"
       label="Darstellung"
-      options={[{"Tabelle", "table"}, {"Karten", "cards"}, {"Kompakt", "compact"}]}
+      options={display_style_options()}
     />
     <.input
       field={@f[:filter_honorary]}
@@ -424,7 +424,12 @@ defmodule BbhWeb.Admin.PageLive.Form do
       label="Ehrenmitglieder"
       options={[{"Alle", "all"}, {"Nur Ehrenmitglieder", "only"}, {"Ohne Ehrenmitglieder", "exclude"}]}
     />
-    <.input field={@f[:show_address]} type="checkbox" label="Adresse anzeigen" />
+    <.input
+      field={@f[:only_active]}
+      type="checkbox"
+      label="Nur aktive Personen (ohne „Amt bis“)"
+    />
+    <.input field={@f[:show_address]} type="checkbox" label="Adresse anzeigen (nur Tabelle)" />
     <fieldset class="fieldset">
       <legend class="label mb-1">Rollen (leer = alle)</legend>
       <input type="hidden" name="block[filter_roles][]" value="" />
@@ -448,6 +453,16 @@ defmodule BbhWeb.Admin.PageLive.Form do
     ~H"""
     <p class="text-sm text-base-content/60">Horizontale Trennlinie – keine Einstellungen.</p>
     """
+  end
+
+  # Same reasoning as the ratios below: read off the schema so the dropdown cannot offer a
+  # style the changeset rejects. „Kompakt" survived precisely because these two lists were
+  # maintained by hand and drifted.
+  @display_style_labels %{"table" => "Tabelle", "cards" => "Karten"}
+
+  defp display_style_options do
+    for style <- Bbh.Content.Blocks.PersonList.styles(),
+        do: {@display_style_labels[style] || style, style}
   end
 
   # Read off the schema so the dropdown cannot offer a ratio the changeset rejects. A

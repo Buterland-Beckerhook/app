@@ -2,6 +2,7 @@ defmodule BbhWeb.PageContentControllerTest do
   use BbhWeb.ConnCase, async: true
 
   import Bbh.ContentFixtures
+  import Bbh.ClubFixtures
 
   test "GET /verein lists published top-level pages", %{conn: conn} do
     page_fixture(slug: "ueber-uns", title: "Über uns", status: "published")
@@ -271,6 +272,156 @@ defmodule BbhWeb.PageContentControllerTest do
       refute markup =~ "data-slideshow"
       # The grid crops with a Tailwind class and emits no inline ratio at all.
       refute markup =~ "aspect-ratio:"
+    end
+  end
+
+  describe "person_list block" do
+    setup %{conn: conn} do
+      page = page_fixture(slug: "personen", title: "Personen", status: "published")
+      {:ok, _} = Bbh.Content.add_block(page, "person_list")
+      [{pb, _block}] = Bbh.Content.load_blocks(Bbh.Content.get_page!(page.id))
+
+      html = fn attrs ->
+        {:ok, _} = Bbh.Content.update_block(pb, attrs)
+        conn |> get(~p"/verein/personen") |> html_response(200)
+      end
+
+      %{html: html, pb: pb}
+    end
+
+    defp person_cards(markup) do
+      markup |> LazyHTML.from_document() |> LazyHTML.query(".bbh-person-card")
+    end
+
+    test "„Karten\" renders name, both date lines and the biography", %{html: html} do
+      person_fixture(
+        role: "vorstand",
+        name: "Heinrich Meyer",
+        birth_date: "1920 in Buterland",
+        death_date: "1998 in Ahaus",
+        biography: "<p>Gründungsmitglied und Fahnenträger.</p>"
+      )
+
+      # Queried inside the card, not across the page: the table renderer would also put
+      # the name somewhere on the page, so a page-wide assertion would pass even with
+      # the cards renderer never reached.
+      text = html.(%{"display_style" => "cards"}) |> person_cards() |> LazyHTML.text()
+
+      assert text =~ "Heinrich Meyer"
+      assert text =~ "1920 in Buterland"
+      assert text =~ "1998 in Ahaus"
+      assert text =~ "Gründungsmitglied und Fahnenträger."
+      # „†" announces as "dagger", so each date line carries a visually hidden label.
+      assert text =~ "geboren"
+      assert text =~ "gestorben"
+    end
+
+    test "a living person gets no death line at all", %{html: html} do
+      person_fixture(role: "vorstand", name: "Karl Bauer", birth_date: "1954 in Ahaus")
+
+      text = html.(%{"display_style" => "cards"}) |> person_cards() |> LazyHTML.text()
+
+      assert text =~ "1954 in Ahaus"
+      refute text =~ "†"
+      refute text =~ "gestorben"
+    end
+
+    test "an emptied biography draws no divider above a blank box", %{html: html} do
+      # Quill hands back "<p></p>" for an emptied editor — truthy, but nothing to show.
+      person_fixture(role: "vorstand", name: "Ohne Text", biography: "<p></p>")
+
+      cards = html.(%{"display_style" => "cards"}) |> person_cards()
+
+      assert LazyHTML.query(cards, ".prose") |> Enum.empty?()
+      assert LazyHTML.query(cards, ".h-px") |> Enum.empty?()
+    end
+
+    test "a biography that is only an image still renders", %{html: html} do
+      # `Bbh.Html.sanitize/1` keeps `<img>` on purpose — that is what the media picker
+      # inserts. Judging emptiness by text alone would drop a scanned document entirely.
+      person_fixture(
+        role: "vorstand",
+        name: "Nur Bild",
+        biography: ~s(<p><img src="/media/urkunde.webp"></p>)
+      )
+
+      cards = html.(%{"display_style" => "cards"}) |> person_cards()
+
+      assert LazyHTML.query(cards, ".prose img") |> Enum.any?()
+    end
+
+    test "the people are marked up as a list", %{html: html} do
+      person_fixture(role: "vorstand", name: "Eins")
+      person_fixture(role: "oberst", name: "Zwei")
+
+      markup = html.(%{"display_style" => "cards"})
+      document = LazyHTML.from_document(markup)
+
+      # A list, so assistive tech can announce how many people there are. And no heading
+      # per person: the block's own `h3` is optional, so one here would skip a level.
+      assert LazyHTML.query(document, "ul li.bbh-person-card") |> Enum.count() == 2
+      assert LazyHTML.query(person_cards(markup), "h1, h2, h3, h4, h5, h6") |> Enum.empty?()
+    end
+
+    test "the portrait is cropped server-side so the focal point is honoured", %{html: html} do
+      upload = upload_fixture(%{description: "Heinrich Meyer, 1988"})
+      person_fixture(role: "vorstand", name: "Heinrich Meyer", portrait_id: upload.id)
+
+      img = html.(%{"display_style" => "cards"}) |> person_cards() |> LazyHTML.query("img")
+
+      # Both dimensions have to be requested: media_url/2 only carries the focal point on
+      # a cover-crop URL, and that is what keeps a face in frame.
+      assert [src] = LazyHTML.attribute(img, "src")
+      assert src =~ "w=400&h=500"
+      assert LazyHTML.attribute(img, "alt") == ["Heinrich Meyer, 1988"]
+    end
+
+    test "a person without a portrait gets the generic placeholder", %{html: html} do
+      person_fixture(role: "vorstand", name: "Ohne Bild")
+
+      cards = html.(%{"display_style" => "cards"}) |> person_cards()
+
+      assert LazyHTML.query(cards, "img") |> Enum.empty?()
+      assert LazyHTML.query(cards, "span.hero-user") |> Enum.any?()
+    end
+
+    test "„Tabelle\" still renders the table and no cards", %{html: html} do
+      person_fixture(role: "vorstand", name: "Heinrich Meyer")
+
+      markup = html.(%{"display_style" => "table"})
+
+      assert markup =~ "Heinrich Meyer"
+      assert markup |> LazyHTML.from_document() |> LazyHTML.query("table") |> Enum.count() == 1
+      assert person_cards(markup) |> Enum.empty?()
+    end
+
+    test "an empty role filter lists everyone", %{html: html} do
+      person_fixture(role: "vorstand", name: "Im Vorstand")
+      person_fixture(role: "oberst", name: "Bei den Offizieren")
+
+      # The editor's legend promises „Rollen (leer = alle)"; `p.role in ^[]` used to
+      # match nobody, so an unfiltered block rendered an empty list.
+      text = html.(%{"display_style" => "cards"}) |> person_cards() |> LazyHTML.text()
+
+      assert text =~ "Im Vorstand"
+      assert text =~ "Bei den Offizieren"
+    end
+
+    test "„Nur aktive Personen\" drops anyone with an „Amt bis\"", %{html: html} do
+      person_fixture(role: "vorstand", name: "Amtierend")
+      person_fixture(role: "vorstand", name: "Ehemalig", year_end: 1998)
+
+      both = html.(%{"display_style" => "cards"}) |> person_cards() |> LazyHTML.text()
+      assert both =~ "Amtierend"
+      assert both =~ "Ehemalig"
+
+      only_active =
+        html.(%{"display_style" => "cards", "only_active" => "true"})
+        |> person_cards()
+        |> LazyHTML.text()
+
+      assert only_active =~ "Amtierend"
+      refute only_active =~ "Ehemalig"
     end
   end
 

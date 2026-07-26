@@ -155,27 +155,28 @@ defmodule BbhWeb.Admin.MediaPickerTest do
     end
   end
 
-  # The two Trix-only hosts deliberately handle *no* selection message: their picker is
-  # opened by the JS toolbar hook, which the component answers itself. That is the "or none
-  # at all" half of the host contract, and it only holds while they render no picker button
-  # of their own — a button there would be a silent no-op rather than a crash.
+  # The event form deliberately handles *no* selection message: its picker is opened by the
+  # JS toolbar hook, which the component answers itself. That is the "or none at all" half
+  # of the host contract, and it only holds while the form renders no picker button of its
+  # own — a button there would be a silent no-op rather than a crash.
+  #
+  # The person form used to be the second such host. It now has a Portrait button and a
+  # matching `handle_info/2`; its side of the contract is checked in `person_live_test.exs`.
   describe "Trix-only hosts" do
     setup :register_and_log_in_admin
 
-    test "the event and person forms mount the picker without any context button", ctx do
+    test "the event form mounts the picker without any context button", ctx do
       location = Bbh.CalendarFixtures.location_fixture()
       event = Bbh.CalendarFixtures.event_fixture(location_id: location.id)
 
-      for path <- [~p"/admin/termine/#{event.id}/bearbeiten", ~p"/admin/personen/neu"] do
-        {:ok, _lv, html} = live(ctx.conn, path)
-        document = LazyHTML.from_document(html)
+      {:ok, _lv, html} = live(ctx.conn, ~p"/admin/termine/#{event.id}/bearbeiten")
+      document = LazyHTML.from_document(html)
 
-        assert LazyHTML.query(document, "#media-picker") |> Enum.any?()
+      assert LazyHTML.query(document, "#media-picker") |> Enum.any?()
 
-        assert document
-               |> LazyHTML.query(~s([phx-target="#media-picker"][phx-click="open"]))
-               |> Enum.empty?()
-      end
+      assert document
+             |> LazyHTML.query(~s([phx-target="#media-picker"][phx-click="open"]))
+             |> Enum.empty?()
     end
   end
 end

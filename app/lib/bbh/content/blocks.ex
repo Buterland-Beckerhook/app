@@ -177,8 +177,15 @@ defmodule Bbh.Content.Blocks do
     use Bbh.Schema
 
     @honorary ~w(all only exclude)
-    @styles ~w(table cards compact)
+    @styles ~w(table cards)
+
     def honorary_options, do: @honorary
+
+    @doc """
+    How the list is drawn. The editor's dropdown is built from this, so an option cannot
+    be offered that the changeset would reject — „Kompakt" used to be offered, stored and
+    validated while the renderer always drew the table (see 20260726180000).
+    """
     def styles, do: @styles
 
     schema "block_person_list" do
@@ -187,12 +194,21 @@ defmodule Bbh.Content.Blocks do
       field :filter_honorary, :string, default: "all"
       field :display_style, :string, default: "table"
       field :show_address, :boolean, default: false
+      # „Amt bis" (Person.year_end) empty means still serving.
+      field :only_active, :boolean, default: false
       timestamps()
     end
 
     def changeset(block, attrs) do
       block
-      |> cast(attrs, [:title, :filter_roles, :filter_honorary, :display_style, :show_address])
+      |> cast(attrs, [
+        :title,
+        :filter_roles,
+        :filter_honorary,
+        :display_style,
+        :show_address,
+        :only_active
+      ])
       |> validate_inclusion(:filter_honorary, @honorary)
       |> validate_inclusion(:display_style, @styles)
     end

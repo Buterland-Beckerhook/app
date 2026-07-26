@@ -24,6 +24,15 @@
       Galerie und Trix (Ordner-Navigation, Suche ueber alle Ordner)
 - [x] eMail-Adressen gegen Harvester: beim Rendern in Fragmente + versteckte Decoys zerlegt.
       Ohne JS lesbar/kopierbar, mit JS wird ein mailto: daraus (siehe docs/adr/0005)
+- [x] Person: Portrait aus der Mediathek zuweisbar (gemeinsamer Picker, Vorschau im
+      Formular). Ein noch verwendetes Portrait laesst sich nicht loeschen
+- [x] Personenliste-Block 'Karten' funktioniert jetzt: Bild-Karte im Verhaeltnis 60/40,
+      links Name, '* geboren' und '† gestorben' (jede Zeile nur wenn gefuellt) sowie die
+      Biografie, rechts das Portrait - ohne Portrait ein generischer Platzhalter.
+      'Kompakt' entfernt (wurde nie gerendert), Auswahlliste kommt jetzt aus dem Schema
+- [x] Personenliste-Block: Schalter 'Nur aktive Personen' (ohne 'Amt bis')
+- [x] Personenliste-Block: 'Rollen (leer = alle)' stimmt jetzt - leere Auswahl lieferte
+      eine leere Liste statt aller Personen
 - [x] Galerie-Block 'Diashow' ueberarbeitet: alle Bilder auf ein waehlbares
       Seitenverhaeltnis beschnitten (quer und hoch) statt Leerraum neben dem Bild,
       seitliches Weiterschieben per CSS-Scroll-Snap (vorher ohne Animation umgeschaltet),

@@ -65,6 +65,10 @@ defmodule Bbh.Club.Person do
       :sort_order,
       :portrait_id
     ])
+    # The Personenliste's „Karten" style renders this through
+    # `BbhWeb.Format.render_richtext/1`, whose XSS exemption rests on the stored HTML
+    # already being sanitized — same contract as every block body.
+    |> update_change(:biography, &Bbh.Html.sanitize/1)
     |> validate_required([:name, :role])
     |> validate_inclusion(:role, @roles)
     |> validate_format(:email, ~r/^[^\s@]+@[^\s@]+\.[^\s@]+$/,
