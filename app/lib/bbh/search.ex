@@ -236,6 +236,10 @@ defmodule Bbh.Search do
     do: join([b.title, b.subtitle, Bbh.Html.to_text(b.body)])
 
   defp block_text(%Blocks.ImageGallery{} = b), do: join([b.title, gallery_files_text(b)])
+  # Only the title, deliberately. The „Karten" style publishes names, dates and biographies,
+  # but those live on `people` — indexing them here would make a page's document stale on
+  # every person edit, and `Bbh.Club` has no `reindex_after/1` hook the way
+  # `Content.update_block/2` does. Wiring that up is the price of making people searchable.
   defp block_text(%Blocks.PersonList{title: title}), do: title || ""
   defp block_text(_), do: ""
 

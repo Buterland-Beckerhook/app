@@ -421,6 +421,18 @@ defmodule Bbh.MediaTest do
       assert {:error, :in_use} = Media.delete_upload(upload)
       assert Media.get_upload!(upload.id)
     end
+
+    test "refuses to delete media that is still used as a person's portrait" do
+      upload = upload_fixture(%{})
+      Bbh.ClubFixtures.person_fixture(name: "Heinrich Meyer", portrait_id: upload.id)
+
+      # The FK nilifies on delete, so without this the picture would vanish from the
+      # person's card with nothing to warn the editor.
+      assert Media.in_use?(upload)
+      assert [{:portraits, 1}] = Media.usages(upload)
+      assert {:error, :in_use} = Media.delete_upload(upload)
+      assert Media.get_upload!(upload.id)
+    end
   end
 
   describe "folders" do

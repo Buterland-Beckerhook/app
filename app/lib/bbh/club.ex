@@ -4,10 +4,19 @@ defmodule Bbh.Club do
   alias Bbh.Repo
   alias Bbh.Club.Person
 
-  @doc "People holding any of the given roles, sorted, optionally filtered by honorary status."
-  def list_people(roles, honorary \\ "all") when is_list(roles) do
-    from(p in Person, where: p.role in ^roles, order_by: [asc: p.sort_order, asc: p.name])
-    |> filter_honorary(honorary)
+  @doc """
+  People holding any of the given roles, sorted. An **empty** role list means every role.
+
+  Options:
+
+    * `:honorary` — `"all"` (default), `"only"` or `"exclude"`
+    * `:only_active` — when true, drop everyone whose „Amt bis" is set
+  """
+  def list_people(roles, opts \\ []) when is_list(roles) do
+    from(p in Person, order_by: [asc: p.sort_order, asc: p.name])
+    |> filter_roles(roles)
+    |> filter_honorary(Keyword.get(opts, :honorary, "all"))
+    |> filter_active(Keyword.get(opts, :only_active, false))
     |> preload(:portrait)
     |> Repo.all()
   end
@@ -34,9 +43,23 @@ defmodule Bbh.Club do
   @doc "Current officers (Offiziere)."
   def list_offiziere, do: list_people(Person.offiziere_roles())
 
+  # The block editor's legend promises „Rollen (leer = alle)", but `p.role in ^[]` matches
+  # nobody — an unfiltered block used to render an empty list.
+  defp filter_roles(query, []), do: query
+  defp filter_roles(query, roles), do: where(query, [p], p.role in ^roles)
+
   defp filter_honorary(query, "only"), do: where(query, [p], p.honorary_member == true)
   defp filter_honorary(query, "exclude"), do: where(query, [p], p.honorary_member == false)
   defp filter_honorary(query, _all), do: query
+
+  # An empty „Amt bis" is the only signal the data carries for "still serving" — the same
+  # one `role_holder/1` orders by. `death_date` is free text and cannot be compared.
+  #
+  # No catch-all clause on purpose, unlike `filter_honorary/2` above: that one degrades to
+  # its documented widest default, while silently ignoring a truthy-but-not-`true` flag here
+  # would quietly publish people a page asked to hide. Better to raise at the call site.
+  defp filter_active(query, true), do: where(query, [p], is_nil(p.year_end))
+  defp filter_active(query, flag) when flag in [nil, false], do: query
 
   ## Admin CRUD
 
@@ -45,7 +68,8 @@ defmodule Bbh.Club do
   end
 
   def count_people, do: Repo.aggregate(Person, :count, :id)
-  def get_person!(id), do: Repo.get!(Person, id)
+  # The portrait rides along so the admin form can show the chosen picture.
+  def get_person!(id), do: Person |> Repo.get!(id) |> Repo.preload(:portrait)
   def create_person(attrs), do: %Person{} |> Person.changeset(attrs) |> Repo.insert()
   def update_person(%Person{} = p, attrs), do: p |> Person.changeset(attrs) |> Repo.update()
   def delete_person(%Person{} = p), do: Repo.delete(p)

@@ -165,6 +165,65 @@ defmodule BbhWeb.Admin.PageLiveTest do
     end
   end
 
+  describe "person_list block" do
+    setup %{conn: conn} do
+      page = page_fixture()
+      {:ok, _} = Content.add_block(page, "person_list")
+      [{pb, _block}] = Content.load_blocks(Content.get_page!(page.id))
+      {:ok, lv, _html} = live(conn, ~p"/admin/seiten/#{page.id}/bearbeiten")
+
+      %{page: page, pb: pb, lv: lv}
+    end
+
+    test "every style the schema allows is offered in the editor, and nothing else", ctx do
+      offered =
+        ctx.lv
+        |> render()
+        |> LazyHTML.from_document()
+        |> LazyHTML.query(~s(select[name="block[display_style]"] option))
+        |> LazyHTML.attribute("value")
+
+      # The dropdown and validate_inclusion have to agree. They did not: „Kompakt" was
+      # offered, stored, and then never rendered by anything.
+      assert offered == Bbh.Content.Blocks.PersonList.styles()
+    end
+
+    test "„compact\" is rejected by the changeset, not merely hidden from the dropdown", ctx do
+      # The other half of removing „Kompakt": the dropdown no longer offers it (above), and
+      # the schema no longer accepts it. A leftover row is normalised by 20260726180000.
+      refute Bbh.Content.Blocks.PersonList.changeset(
+               %Bbh.Content.Blocks.PersonList{},
+               %{"display_style" => "compact"}
+             ).valid?
+
+      {:error, _} = Content.update_block(ctx.pb, %{"display_style" => "compact"})
+    end
+
+    test "a freshly added block matches its schema defaults", ctx do
+      # 20260726170000 exists because a column default and @block_defaults had drifted for
+      # the gallery's `layout`. Same trap, three copies: schema, column, @block_defaults.
+      [{_pb, block}] = Content.load_blocks(Content.get_page!(ctx.page.id))
+      defaults = %Bbh.Content.Blocks.PersonList{}
+
+      for field <- [:display_style, :filter_honorary, :filter_roles, :show_address, :only_active] do
+        assert Map.fetch!(block, field) == Map.fetch!(defaults, field),
+               "@block_defaults disagrees with the schema default for #{field}"
+      end
+    end
+
+    test "the „Nur aktive Personen\" toggle is saved", ctx do
+      ctx.lv
+      |> form("#block-#{ctx.pb.id}", %{
+        "block" => %{"display_style" => "cards", "only_active" => "true"}
+      })
+      |> render_submit()
+
+      [{_pb, block}] = Content.load_blocks(Content.get_page!(ctx.page.id))
+      assert block.display_style == "cards"
+      assert block.only_active == true
+    end
+  end
+
   describe "media picker contract" do
     test "every picker button on this form has a matching handler", %{conn: conn} do
       page = page_fixture()

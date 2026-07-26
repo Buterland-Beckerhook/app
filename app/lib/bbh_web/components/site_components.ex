@@ -4,6 +4,8 @@ defmodule BbhWeb.SiteComponents do
   use BbhWeb, :verified_routes
 
   import BbhWeb.Format
+  # For the heroicon stand-in a person without a portrait gets.
+  import BbhWeb.CoreComponents, only: [icon: 1]
   alias Bbh.Club.Person
   alias Bbh.Content.Throne
   alias BbhWeb.EmailObfuscation
@@ -333,6 +335,99 @@ defmodule BbhWeb.SiteComponents do
     """
   end
 
+  @doc """
+  One card per person: portrait beside a Name / born / died / biography column.
+
+  Laid out like a `media_card` with the image on the right, but at 60/40 rather than
+  50/50 — the biography needs the room more than the portrait does. The portrait comes
+  first in the DOM and the row is reversed on `md+`, which is what puts it to the right on
+  a wide screen and above the text on a narrow one.
+
+  Those four fields are the **whole** set, by request. In particular the role label that
+  leads every `person_table/1` row is deliberately absent — a Karten block is for portraits
+  and biographies, and `person_table/1` remains the view that answers "who holds which
+  office". `show_address` is likewise table-only. The portrait shows no caption or copyright
+  line either, unlike every other public image surface (see `docs/adr/0004`); add one via
+  `image_credit/1` if a historical photo ever needs the credit.
+  """
+  attr :people, :list, required: true
+
+  def person_cards(assigns) do
+    ~H"""
+    <ul class="space-y-6">
+      <%!-- A list, so a screen reader announces how many people are in it. The name is
+            deliberately not a heading: the block's own title is an `h3` and it is optional,
+            so a heading here would skip a level on a titleless block. The table this
+            mirrors labels its rows with `th`, not headings, either. --%>
+      <%!-- `bbh-person-card` carries no CSS of its own (unlike the other `bbh-*` classes);
+            it is the stable hook the public-render tests scope their queries to. --%>
+      <li
+        :for={p <- @people}
+        class="bbh-person-card rounded-[18px] border border-base-300 bg-card p-6 sm:p-8"
+      >
+        <div class="flex flex-col gap-4 md:flex-row-reverse md:items-start">
+          <.person_portrait person={p} />
+          <div class="md:w-3/5">
+            <p class="text-lg font-semibold">{p.name}</p>
+            <%!-- Both dates are free text ("1920 in Buterland"), and plenty of people are
+                  still alive — hence two independent lines rather than one formatted
+                  string. „*" and „†" are the German convention but announce as "asterisk"
+                  and "dagger", so the label a screen reader needs is carried alongside. --%>
+            <p :if={p.birth_date} class="text-sm text-muted">
+              <span aria-hidden="true">*</span><span class="sr-only">geboren</span>
+              {p.birth_date}
+            </p>
+            <p :if={p.death_date} class="text-sm text-muted">
+              <span aria-hidden="true">†</span><span class="sr-only">gestorben</span>
+              {p.death_date}
+            </p>
+            <div :if={biography?(p.biography)}>
+              <div class="mt-3 h-px bg-base-300"></div>
+              <div class="prose prose-sm mt-3 max-w-none dark:prose-invert">
+                {BbhWeb.Format.render_richtext(p.biography)}
+              </div>
+            </div>
+          </div>
+        </div>
+      </li>
+    </ul>
+    """
+  end
+
+  # Quill leaves an emptied editor as `<p></p>`: truthy, but nothing to show — and it would
+  # draw the divider above a blank box. An `<img>` carries no text yet is still content, and
+  # `Bbh.Html.sanitize/1` deliberately keeps images (that is what the media picker inserts),
+  # so text-emptiness alone would silently drop a biography that is a scanned document.
+  # `to_text/1` already trims.
+  defp biography?(html) do
+    Bbh.Html.to_text(html) != "" or String.contains?(html || "", "<img")
+  end
+
+  # The portrait frame, or a generic stand-in when nobody picked a picture. Asking for
+  # both dimensions is the point: `media_url/2` only carries the focal point on a URL that
+  # requests a cover crop, and that is what keeps a face in frame rather than the middle
+  # of the photo.
+  attr :person, :any, required: true
+
+  defp person_portrait(%{person: %{portrait: %Bbh.Media.Upload{}}} = assigns) do
+    ~H"""
+    <img
+      src={media_url(@person.portrait, width: 400, height: 500)}
+      alt={image_alt(@person.portrait)}
+      loading="lazy"
+      class="aspect-[4/5] w-full rounded-lg object-cover md:w-2/5"
+    />
+    """
+  end
+
+  defp person_portrait(assigns) do
+    ~H"""
+    <div class="flex aspect-[4/5] w-full items-center justify-center rounded-lg bg-base-200 md:w-2/5">
+      <.icon name="hero-user" class="size-16 text-base-content/30" />
+    </div>
+    """
+  end
+
   @doc "Render an ordered list of resolved page blocks (`{page_block, struct}` tuples)."
   attr :blocks, :list, required: true
 
@@ -441,13 +536,21 @@ defmodule BbhWeb.SiteComponents do
       assign(
         assigns,
         :people,
-        Bbh.Club.list_people(assigns.block.filter_roles, assigns.block.filter_honorary)
+        Bbh.Club.list_people(assigns.block.filter_roles,
+          honorary: assigns.block.filter_honorary,
+          only_active: assigns.block.only_active
+        )
       )
 
     ~H"""
     <div>
       <h3 :if={@block.title} class="mb-2 text-lg font-semibold">{@block.title}</h3>
-      <.person_table people={@people} show_address={@block.show_address} />
+      <.person_cards :if={@block.display_style == "cards"} people={@people} />
+      <.person_table
+        :if={@block.display_style != "cards"}
+        people={@people}
+        show_address={@block.show_address}
+      />
     </div>
     """
   end
