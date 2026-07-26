@@ -18,6 +18,18 @@ defmodule BbhWeb.Admin.PersonLiveTest do
       assert html =~ person.name
     end
 
+    test "splits into active and former sections", %{conn: conn} do
+      active = person_fixture(name: "Amtierend Person", year_end: nil)
+      former = person_fixture(name: "Ehemalig Person", year_end: 1998)
+
+      {:ok, _lv, html} = live(conn, ~p"/admin/personen")
+
+      assert html =~ "Aktiv"
+      assert html =~ "Nicht mehr aktiv"
+      # The active person appears before the former one in the rendered page.
+      assert :binary.match(html, active.name) < :binary.match(html, former.name)
+    end
+
     test "deletes a person from the edit page with name confirmation", %{conn: conn} do
       person = person_fixture()
       {:ok, lv, _html} = live(conn, ~p"/admin/personen/#{person.id}/bearbeiten")

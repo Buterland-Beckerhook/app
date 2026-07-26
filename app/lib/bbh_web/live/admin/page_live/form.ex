@@ -418,6 +418,7 @@ defmodule BbhWeb.Admin.PageLive.Form do
       label="Darstellung"
       options={display_style_options()}
     />
+    <.input field={@f[:sort_by]} type="select" label="Sortierung" options={sort_by_options()} />
     <.input
       field={@f[:filter_honorary]}
       type="select"
@@ -463,6 +464,13 @@ defmodule BbhWeb.Admin.PageLive.Form do
   defp display_style_options do
     for style <- Bbh.Content.Blocks.PersonList.styles(),
         do: {@display_style_labels[style] || style, style}
+  end
+
+  # Same read-off-the-schema contract as display styles above.
+  @sort_by_labels %{"sort_order" => "Reihenfolge (manuell)", "year_start" => "Amtsantritt (Jahr)"}
+
+  defp sort_by_options do
+    for k <- Bbh.Content.Blocks.PersonList.sort_bys(), do: {@sort_by_labels[k] || k, k}
   end
 
   # Read off the schema so the dropdown cannot offer a ratio the changeset rejects. A
