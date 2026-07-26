@@ -156,7 +156,10 @@ if config_env() == :prod do
     contact_recipient: System.get_env("CONTACT_RECIPIENT") || "info@buterland-beckerhook.de",
     contact_sender: System.get_env("CONTACT_SENDER") || "noreply@buterland-beckerhook.de",
     contact_sender_name: System.get_env("CONTACT_SENDER_NAME") || "Buterland-Beckerhook.de",
-    altcha_hmac_key: System.get_env("ALTCHA_HMAC_KEY")
+    altcha_hmac_key: System.get_env("ALTCHA_HMAC_KEY"),
+    membership_min_age: String.to_integer(System.get_env("MEMBERSHIP_MIN_AGE") || "16"),
+    membership_max_child_age:
+      String.to_integer(System.get_env("MEMBERSHIP_MAX_CHILD_AGE") || "15")
 
   # Contact form email via the club's own SMTP server.
   smtp_relay = System.get_env("SMTP_RELAY")

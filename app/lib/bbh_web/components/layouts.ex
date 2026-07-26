@@ -311,6 +311,7 @@ defmodule BbhWeb.Layouts do
               <a href={~p"/kontakt"} class="text-[#cfe0d4] hover:text-white">Kontaktformular</a>
               <a href={~p"/impressum"} class="text-[#cfe0d4] hover:text-white">Impressum</a>
               <a href={~p"/datenschutz"} class="text-[#cfe0d4] hover:text-white">Datenschutz</a>
+              <a href="/verein/satzung" class="text-[#cfe0d4] hover:text-white">Satzung</a>
               <button
                 id="push-optin"
                 type="button"

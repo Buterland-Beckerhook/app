@@ -1,0 +1,348 @@
+<Layouts.app flash={@flash} current_scope={@current_scope} current_path={@conn.request_path}>
+  <div class="mx-auto max-w-2xl">
+    <h1 class="mb-6 text-3xl font-semibold">Mitglied werden</h1>
+
+    <div :if={@intro_blocks != []} class="mb-8">
+      <.blocks blocks={@intro_blocks} />
+    </div>
+
+    <form method="post" action={~p"/verein/mitglied-werden"} class="space-y-8">
+      <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+      <input type="hidden" name="form_ts" value={@form_token} />
+
+      <div
+        aria-hidden="true"
+        style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden"
+      >
+        <label for="website">Bitte dieses Feld leer lassen</label>
+        <input type="text" id="website" name="website" tabindex="-1" autocomplete="off" />
+      </div>
+
+      <fieldset class="space-y-4">
+        <legend class="mb-2 text-xl font-semibold">Aufnahmeantrag</legend>
+
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label for="nachname" class="mb-1 block text-sm font-medium">Name</label>
+            <input
+              type="text"
+              id="nachname"
+              name="nachname"
+              value={value_for(@params, "nachname")}
+              class="w-full rounded border border-base-300 px-3 py-2"
+            />
+            <p :if={error_for(@errors, :nachname)} class="mt-1 text-sm text-error">
+              {error_for(@errors, :nachname)}
+            </p>
+          </div>
+
+          <div>
+            <label for="vorname" class="mb-1 block text-sm font-medium">Vorname</label>
+            <input
+              type="text"
+              id="vorname"
+              name="vorname"
+              value={value_for(@params, "vorname")}
+              class="w-full rounded border border-base-300 px-3 py-2"
+            />
+            <p :if={error_for(@errors, :vorname)} class="mt-1 text-sm text-error">
+              {error_for(@errors, :vorname)}
+            </p>
+          </div>
+        </div>
+
+        <div>
+          <label for="strasse" class="mb-1 block text-sm font-medium">Straße und Hausnummer</label>
+          <input
+            type="text"
+            id="strasse"
+            name="strasse"
+            value={value_for(@params, "strasse")}
+            class="w-full rounded border border-base-300 px-3 py-2"
+          />
+          <p :if={error_for(@errors, :strasse)} class="mt-1 text-sm text-error">
+            {error_for(@errors, :strasse)}
+          </p>
+        </div>
+
+        <div class="grid gap-4 sm:grid-cols-3">
+          <div>
+            <label for="plz" class="mb-1 block text-sm font-medium">PLZ</label>
+            <input
+              type="text"
+              id="plz"
+              name="plz"
+              inputmode="numeric"
+              value={value_for(@params, "plz")}
+              class="w-full rounded border border-base-300 px-3 py-2"
+            />
+            <p :if={error_for(@errors, :plz)} class="mt-1 text-sm text-error">
+              {error_for(@errors, :plz)}
+            </p>
+          </div>
+
+          <div class="sm:col-span-2">
+            <label for="ort" class="mb-1 block text-sm font-medium">Ort</label>
+            <input
+              type="text"
+              id="ort"
+              name="ort"
+              value={value_for(@params, "ort")}
+              class="w-full rounded border border-base-300 px-3 py-2"
+            />
+            <p :if={error_for(@errors, :ort)} class="mt-1 text-sm text-error">
+              {error_for(@errors, :ort)}
+            </p>
+          </div>
+        </div>
+
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label for="geburtsdatum" class="mb-1 block text-sm font-medium">Geburtsdatum</label>
+            <input
+              type="text"
+              id="geburtsdatum"
+              name="geburtsdatum"
+              value={value_for(@params, "geburtsdatum")}
+              data-flatpickr
+              data-min-age={@min_age}
+              placeholder="TT.MM.JJJJ"
+              autocomplete="off"
+              class="w-full rounded border border-base-300 px-3 py-2"
+            />
+            <p :if={error_for(@errors, :geburtsdatum)} class="mt-1 text-sm text-error">
+              {error_for(@errors, :geburtsdatum)}
+            </p>
+            <p data-age-hint hidden class="mt-1 text-sm text-warning">
+              Das Mindestalter für eine Mitgliedschaft beträgt {@min_age} Jahre.
+            </p>
+          </div>
+
+          <div>
+            <label for="email" class="mb-1 block text-sm font-medium">E-Mail</label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              value={value_for(@params, "email")}
+              class="w-full rounded border border-base-300 px-3 py-2"
+            />
+            <p :if={error_for(@errors, :email)} class="mt-1 text-sm text-error">
+              {error_for(@errors, :email)}
+            </p>
+          </div>
+        </div>
+
+        <div>
+          <span class="mb-1 block text-sm font-medium">
+            Kinder unter {@max_child_age} Jahren (optional)
+          </span>
+          <%!-- One trailing empty row is always rendered; membership.js appends another
+                (cloned from the <template> below) as soon as the last row is filled. --%>
+          <div data-children class="space-y-2">
+            <div
+              :for={i <- child_row_indices(@params)}
+              data-child-row
+              class="grid gap-2 sm:grid-cols-2"
+            >
+              <div>
+                <input
+                  type="text"
+                  name="kind_vorname[]"
+                  value={value_at(@params, "kind_vorname", i)}
+                  placeholder="Vorname"
+                  aria-label="Vorname des Kindes"
+                  class="w-full rounded border border-base-300 px-3 py-2"
+                />
+              </div>
+              <div>
+                <input
+                  type="text"
+                  name="kind_geburtsdatum[]"
+                  value={value_at(@params, "kind_geburtsdatum", i)}
+                  data-flatpickr
+                  data-max-age={@max_child_age}
+                  placeholder="Geburtsdatum (TT.MM.JJJJ)"
+                  aria-label="Geburtsdatum des Kindes"
+                  autocomplete="off"
+                  class="w-full rounded border border-base-300 px-3 py-2"
+                />
+                <p data-age-hint hidden class="mt-1 text-sm text-warning">
+                  Hier werden nur Kinder unter {@max_child_age} Jahren erfasst.
+                </p>
+              </div>
+            </div>
+          </div>
+          <template data-child-template>
+            <div data-child-row class="grid gap-2 sm:grid-cols-2">
+              <div>
+                <input
+                  type="text"
+                  name="kind_vorname[]"
+                  placeholder="Vorname"
+                  aria-label="Vorname des Kindes"
+                  class="w-full rounded border border-base-300 px-3 py-2"
+                />
+              </div>
+              <div>
+                <input
+                  type="text"
+                  name="kind_geburtsdatum[]"
+                  data-flatpickr
+                  data-max-age={@max_child_age}
+                  placeholder="Geburtsdatum (TT.MM.JJJJ)"
+                  aria-label="Geburtsdatum des Kindes"
+                  autocomplete="off"
+                  class="w-full rounded border border-base-300 px-3 py-2"
+                />
+                <p data-age-hint hidden class="mt-1 text-sm text-warning">
+                  Hier werden nur Kinder unter {@max_child_age} Jahren erfasst.
+                </p>
+              </div>
+            </div>
+          </template>
+        </div>
+      </fieldset>
+
+      <fieldset class="space-y-4">
+        <legend class="mb-2 text-xl font-semibold">SEPA-Lastschriftmandat</legend>
+
+        <div>
+          <label for="kontoinhaber" class="mb-1 block text-sm font-medium">Kontoinhaber</label>
+          <input
+            type="text"
+            id="kontoinhaber"
+            name="kontoinhaber"
+            value={value_for(@params, "kontoinhaber")}
+            class="w-full rounded border border-base-300 px-3 py-2"
+          />
+          <p :if={error_for(@errors, :kontoinhaber)} class="mt-1 text-sm text-error">
+            {error_for(@errors, :kontoinhaber)}
+          </p>
+        </div>
+
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label for="iban" class="mb-1 block text-sm font-medium">IBAN</label>
+            <input
+              type="text"
+              id="iban"
+              name="iban"
+              value={value_for(@params, "iban")}
+              autocomplete="off"
+              class="w-full rounded border border-base-300 px-3 py-2"
+            />
+            <p :if={error_for(@errors, :iban)} class="mt-1 text-sm text-error">
+              {error_for(@errors, :iban)}
+            </p>
+          </div>
+
+          <div>
+            <label for="bic" class="mb-1 block text-sm font-medium">BIC (optional)</label>
+            <input
+              type="text"
+              id="bic"
+              name="bic"
+              value={value_for(@params, "bic")}
+              autocomplete="off"
+              class="w-full rounded border border-base-300 px-3 py-2"
+            />
+            <p :if={error_for(@errors, :bic)} class="mt-1 text-sm text-error">
+              {error_for(@errors, :bic)}
+            </p>
+          </div>
+        </div>
+
+        <div>
+          <label for="kreditinstitut" class="mb-1 block text-sm font-medium">
+            Bei Kreditinstitut (optional)
+          </label>
+          <input
+            type="text"
+            id="kreditinstitut"
+            name="kreditinstitut"
+            value={value_for(@params, "kreditinstitut")}
+            class="w-full rounded border border-base-300 px-3 py-2"
+          />
+          <p :if={error_for(@errors, :kreditinstitut)} class="mt-1 text-sm text-error">
+            {error_for(@errors, :kreditinstitut)}
+          </p>
+        </div>
+      </fieldset>
+
+      <div class="space-y-3">
+        <div>
+          <label class="flex items-start gap-2 text-sm">
+            <input type="checkbox" name="sepa" value="true" class="mt-1" />
+            <span>
+              Ich ermächtige den Schützenverein Buterland-Beckerhook e.V., den jeweils gültigen
+              Jahresbeitrag jährlich mittels SEPA-Lastschrift von meinem oben genannten Konto
+              einzuziehen (SEPA-Lastschriftmandat).
+            </span>
+          </label>
+          <p :if={error_for(@errors, :sepa)} class="mt-1 text-sm text-error">
+            {error_for(@errors, :sepa)}
+          </p>
+        </div>
+
+        <div>
+          <label class="flex items-start gap-2 text-sm">
+            <input type="checkbox" name="satzung" value="true" class="mt-1" />
+            <span>
+              Ich erkenne die jeweils gültige
+              <a href="/verein/satzung" class="text-primary hover:underline">Vereinssatzung</a>
+              als bindend an.
+            </span>
+          </label>
+          <p :if={error_for(@errors, :satzung)} class="mt-1 text-sm text-error">
+            {error_for(@errors, :satzung)}
+          </p>
+        </div>
+
+        <div>
+          <label class="flex items-start gap-2 text-sm">
+            <input type="checkbox" name="datenspeicherung" value="true" class="mt-1" />
+            <span>
+              Ich bin damit einverstanden, dass meine Daten für vereinsinterne Auswertungen
+              gespeichert werden.
+            </span>
+          </label>
+          <p :if={error_for(@errors, :datenspeicherung)} class="mt-1 text-sm text-error">
+            {error_for(@errors, :datenspeicherung)}
+          </p>
+        </div>
+
+        <div>
+          <label class="flex items-start gap-2 text-sm">
+            <input type="checkbox" name="privacy" value="true" class="mt-1" />
+            <span>
+              Ich habe die
+              <a href={~p"/datenschutz"} class="text-primary hover:underline">
+                Datenschutzerklärung
+              </a>
+              gelesen und stimme zu.
+            </span>
+          </label>
+          <p :if={error_for(@errors, :privacy)} class="mt-1 text-sm text-error">
+            {error_for(@errors, :privacy)}
+          </p>
+        </div>
+      </div>
+
+      <div :if={@altcha}>
+        <altcha-widget challengejson={Jason.encode!(@altcha)} auto="onload"></altcha-widget>
+      </div>
+
+      <button
+        type="submit"
+        class="rounded bg-primary px-4 py-2 font-medium text-primary-content hover:opacity-90"
+      >
+        Antrag absenden
+      </button>
+    </form>
+
+    <div :if={@download_blocks != []} class="mt-12 border-t border-base-300 pt-8">
+      <.blocks blocks={@download_blocks} />
+    </div>
+  </div>
+</Layouts.app>

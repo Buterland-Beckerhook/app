@@ -33,6 +33,12 @@ config :gettext, :default_locale, "de"
 # DST rules, so a non-CET zone also needs matching transition rules in Bbh.ICal.
 config :bbh, :time_zone, "Europe/Berlin"
 
+# Membership-application age thresholds (per the Satzung). These are *soft*: the
+# form only shows a hint and the club e-mail flags an out-of-range entry — nothing
+# is rejected. Overridable at runtime via MEMBERSHIP_MIN_AGE / MEMBERSHIP_MAX_CHILD_AGE.
+config :bbh, :membership_min_age, 16
+config :bbh, :membership_max_child_age, 15
+
 # Time-zone database used by DateTime/2 conversions (provided by the :tz package).
 config :elixir, :time_zone_database, Tz.TimeZoneDatabase
 

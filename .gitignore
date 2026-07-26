@@ -313,3 +313,7 @@ tmp/
 # Per-developer Claude Code permission allowlist. Targeted rather than a blanket
 # `.claude/` — `.claude/agent-memory/` is shared on purpose.
 .claude/settings.local.json
+
+# Raw Bundesbank BLZ source (large, Latin-1). Regenerate app/priv/data/blz.tsv
+# via `mix bbh.blz.strip`; only the stripped TSV is committed.
+blz-aktuell-csv-data.csv
