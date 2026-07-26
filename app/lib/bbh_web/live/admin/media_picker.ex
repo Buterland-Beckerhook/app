@@ -2,7 +2,7 @@ defmodule BbhWeb.Admin.MediaPicker do
   @moduledoc """
   One modal for picking a file from the media library — folder path, sub-folders, search
   and grid — shared by everything that inserts media: an article's images, the page
-  blocks (Bild-Karte, Galerie) and the Trix toolbar.
+  blocks (Bild-Karte, Galerie) and the rich-text editor toolbar.
 
   Browsing is folder-scoped, so a picture can be found by where it was filed instead of
   by remembering its name. Searching deliberately spans *all* folders, so an unfiled or
@@ -24,13 +24,13 @@ defmodule BbhWeb.Admin.MediaPicker do
   > #### Host contract {: .warning}
   >
   > A host must handle **every** context it renders a button for, or none at all (the
-  > Trix-only case, where the reply never leaves this component). An unmatched
+  > editor-only case, where the reply never leaves this component). An unmatched
   > `handle_info/2` clause takes the whole LiveView down, and nothing checks a
   > `phx-value-context` string against the host's patterns at compile time — so each form
   > that renders picker buttons has a test that opens every one of them and picks
   > (`page_live_test.exs`, `media_picker_test.exs`).
 
-  The Trix case is handled in here: its toolbar button is added by the `TrixEditor` JS
+  The editor case is handled in here: its toolbar button is added by the `QuillEditor` JS
   hook, which opens the modal with the editor's DOM id, and the reply is a `push_event`
   back to that hook rather than something the host cares about.
   """
@@ -78,7 +78,7 @@ defmodule BbhWeb.Admin.MediaPicker do
 
     socket =
       case params do
-        # Trix: reply straight to the editor hook that opened us.
+        # Editor pick: reply straight to the editor hook that opened us.
         %{"editor" => editor} ->
           push_event(socket, "media_picker:insert", %{
             editor: editor,
@@ -98,7 +98,7 @@ defmodule BbhWeb.Admin.MediaPicker do
   defp keep_open?(%{"context" => context}), do: context in ~w(article_image gallery)
   defp keep_open?(_params), do: false
 
-  # Only Trix can make use of a non-image (it inserts a download link for it).
+  # Only the rich-text editor can make use of a non-image (it inserts a download link).
   defp images_only?(%{"editor" => _}), do: false
   defp images_only?(_params), do: true
 
@@ -122,7 +122,7 @@ defmodule BbhWeb.Admin.MediaPicker do
   defp blank_to_nil(value), do: value
 
   @doc """
-  The snippet Trix inserts: an `<img>` for images, else a labelled download `<a>` link.
+  The snippet the editor inserts: an `<img>` for images, else a labelled download `<a>` link.
 
   The alt text comes from the media item (`BbhWeb.Format.image_alt/1`), so a picture
   described once in the library is described the same in rich text.
