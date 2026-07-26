@@ -275,21 +275,28 @@
   text-align: justify;
 }
 
-/* Image size presets from the editor's "Größe" dropdown (bbh-img-*). */
-.prose img.bbh-img-sm {
+/* Image size presets from the editor's "Größe" dropdown (bbh-img-*). Scoped to
+   both the public output (.prose) and the editor itself (.ql-editor) so the
+   chosen size is visible while editing, not only once published. */
+.prose img.bbh-img-sm,
+.ql-editor img.bbh-img-sm {
   width: 25%;
 }
-.prose img.bbh-img-md {
+.prose img.bbh-img-md,
+.ql-editor img.bbh-img-md {
   width: 50%;
 }
-.prose img.bbh-img-lg {
+.prose img.bbh-img-lg,
+.ql-editor img.bbh-img-lg {
   width: 75%;
 }
-.prose img.bbh-img-full {
+.prose img.bbh-img-full,
+.ql-editor img.bbh-img-full {
   width: 100%;
 }
 /* A centered block that wraps an image centers the image itself. */
-.prose .ql-align-center img {
+.prose .ql-align-center img,
+.ql-editor .ql-align-center img {
   display: block;
   margin-inline: auto;
 }
