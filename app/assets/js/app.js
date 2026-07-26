@@ -35,6 +35,8 @@ import "../vendor/altcha/altcha.js"
 import "./countdown.js"
 // Flash toast auto-hide countdown (plain JS so it works on dead pages too).
 import "./flash.js"
+// URL slug generation from a title — mirrors Mix.Tasks.Bbh.Import.slugify/1.
+import {slugify} from "./slug.js"
 
 // base64url <-> ArrayBuffer helpers for the WebAuthn ceremony (credential ids,
 // challenges and signatures cross the wire as pad-less base64url strings).
@@ -48,18 +50,6 @@ function bufToB64url(buffer) {
   let binary = ""
   for (const byte of new Uint8Array(buffer)) binary += String.fromCharCode(byte)
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
-}
-
-// URL slug from a title — mirrors Bbh's server-side slugify (German umlauts, then
-// non-alphanumerics collapse to dashes, edges trimmed). Kept in sync with
-// Mix.Tasks.Bbh.Import.slugify/1.
-const UMLAUTS = {ä: "ae", ö: "oe", ü: "ue", ß: "ss"}
-function slugify(s) {
-  return (s || "")
-    .toLowerCase()
-    .replace(/[äöüß]/g, c => UMLAUTS[c])
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
 }
 
 // Sync a Trix editor's content into its hidden input and notify LiveView.

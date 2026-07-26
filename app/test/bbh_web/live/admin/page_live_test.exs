@@ -33,6 +33,14 @@ defmodule BbhWeb.Admin.PageLiveTest do
   end
 
   describe "Form (new)" do
+    test "wires slug auto-generation from the title input", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, ~p"/admin/seiten/neu")
+      # The client-side hook (SlugFromTitle) fills the slug from the title; here we
+      # only guard that it stays wired to a title input with a slug target present.
+      assert has_element?(lv, "#page_title[phx-hook='SlugFromTitle']")
+      assert has_element?(lv, "#page_slug")
+    end
+
     test "creates a page and redirects to its editor", %{conn: conn} do
       {:ok, lv, _html} = live(conn, ~p"/admin/seiten/neu")
 

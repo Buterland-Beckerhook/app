@@ -54,6 +54,14 @@ defmodule BbhWeb.Admin.ArticleLiveTest do
       assert html =~ "Titel"
     end
 
+    test "wires slug auto-generation from the title input", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, ~p"/admin/artikel/neu")
+      # The client-side hook (SlugFromTitle) fills the slug from the title; here we
+      # only guard that it stays wired to a title input with a slug target present.
+      assert has_element?(lv, "#article_title[phx-hook='SlugFromTitle']")
+      assert has_element?(lv, "#article_slug")
+    end
+
     test "creates an article and redirects to its edit page", %{conn: conn} do
       {:ok, lv, _html} = live(conn, ~p"/admin/artikel/neu")
 
