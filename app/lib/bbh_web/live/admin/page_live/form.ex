@@ -255,7 +255,7 @@ defmodule BbhWeb.Admin.PageLive.Form do
         phx-submit="save_page"
         class="mt-6 space-y-4"
       >
-        <.input field={@form[:title]} label="Titel" required />
+        <.input field={@form[:title]} label="Titel" required phx-hook="SlugFromTitle" />
         <.input field={@form[:slug]} label="Slug" required />
         <.input
           field={@form[:parent_id]}
@@ -551,7 +551,7 @@ defmodule BbhWeb.Admin.PageLive.Form do
   end
 
   defp block_form(pb, block) do
-    # Namespace field ids per block so multiple Trix editors don't collide.
+    # Namespace field ids per block so multiple Quill editors don't collide.
     to_form(Blocks.schema_for(pb.block_type).changeset(block, %{}),
       as: "block",
       id: "block-#{pb.id}"

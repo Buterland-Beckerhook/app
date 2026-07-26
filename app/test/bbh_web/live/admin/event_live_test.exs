@@ -64,6 +64,14 @@ defmodule BbhWeb.Admin.EventLiveTest do
   end
 
   describe "Form (new)" do
+    test "wires slug auto-generation from the title input", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, ~p"/admin/termine/neu")
+      # The client-side hook (SlugFromTitle) fills the slug from the title; here we
+      # only guard that it stays wired to a title input with a slug target present.
+      assert has_element?(lv, "#event_title[phx-hook='SlugFromTitle']")
+      assert has_element?(lv, "#event_slug")
+    end
+
     test "creates an event and redirects", %{conn: conn} do
       {:ok, lv, _html} = live(conn, ~p"/admin/termine/neu")
 

@@ -24,8 +24,9 @@ import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/bbh"
 import topbar from "../vendor/topbar"
-// Trix rich text editor (self-hosted; registers the <trix-editor> element).
-import "../vendor/trix/trix.umd.min.js"
+// Quill 2 rich text editor (self-hosted, vendored — no npm). Default import
+// unwraps the UMD module.exports (the Quill constructor) via esbuild interop.
+import Quill from "../vendor/quill/quill.js"
 // flatpickr date/time picker (self-hosted; sets window.flatpickr + German locale).
 import "../vendor/flatpickr/flatpickr.min.js"
 import "../vendor/flatpickr/l10n/de.js"
@@ -35,6 +36,8 @@ import "../vendor/altcha/altcha.js"
 import "./countdown.js"
 // Flash toast auto-hide countdown (plain JS so it works on dead pages too).
 import "./flash.js"
+// URL slug generation from a title — mirrors Mix.Tasks.Bbh.Import.slugify/1.
+import {slugify} from "./slug.js"
 
 // base64url <-> ArrayBuffer helpers for the WebAuthn ceremony (credential ids,
 // challenges and signatures cross the wire as pad-less base64url strings).
@@ -50,8 +53,83 @@ function bufToB64url(buffer) {
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
 }
 
-// Sync a Trix editor's content into its hidden input and notify LiveView.
+// --- Quill setup: register custom formats once, before any editor mounts. ---
+// Default Quill strips class/alt from images; keep them so image size
+// (bbh-img-*) and alt text survive editing round-trips.
+const QuillImage = Quill.import("formats/image")
+const IMG_ATTRS = ["alt", "width", "height", "class"]
+class BbhImage extends QuillImage {
+  static formats(domNode) {
+    return IMG_ATTRS.reduce((formats, attr) => {
+      if (domNode.hasAttribute(attr)) formats[attr] = domNode.getAttribute(attr)
+      return formats
+    }, {})
+  }
+  format(name, value) {
+    if (IMG_ATTRS.includes(name)) {
+      if (value) this.domNode.setAttribute(name, value)
+      else this.domNode.removeAttribute(name)
+    } else {
+      super.format(name, value)
+    }
+  }
+}
+Quill.register(BbhImage, true)
+
+// Image size as a class attributor -> <img class="bbh-img-md"> etc. Drives the
+// "Größe" toolbar dropdown; the server sanitizer whitelists these class tokens.
+const Parchment = Quill.import("parchment")
+const ImageSize = new Parchment.ClassAttributor("bbhImgSize", "bbh-img", {
+  scope: Parchment.Scope.INLINE,
+  whitelist: ["sm", "md", "lg", "full"],
+})
+Quill.register(ImageSize, true)
+
+// Media-library toolbar button icon (Quill-styled 18x18 SVG so it inherits
+// hover/active colouring via .ql-stroke / .ql-fill).
+const MEDIA_ICON =
+  '<svg viewBox="0 0 18 18">' +
+  '<rect class="ql-stroke" height="10" width="12" x="3" y="4"></rect>' +
+  '<circle class="ql-fill" cx="6" cy="7" r="1"></circle>' +
+  '<polyline class="ql-even ql-fill" points="5 12 7 9 9 11 12 7 15 12"></polyline>' +
+  "</svg>"
+
+// Sync a Quill editor's content into its hidden input and notify LiveView.
 const Hooks = {
+  // Auto-fill the slug field from the title while creating content. Bound to the
+  // title input; it finds the sibling `[slug]` input in the same form. Generation
+  // stays active only while the slug is untouched — an existing value (editing a
+  // record) or a manual edit locks it; clearing the slug re-enables auto-fill.
+  // The field remains editable at all times.
+  SlugFromTitle: {
+    mounted() {
+      this.slug = this.el.form?.querySelector("input[name$='[slug]']")
+      if (!this.slug) return
+      this.locked = this.slug.value.trim() !== ""
+
+      this._onTitle = () => {
+        if (this.locked) return
+        const value = slugify(this.el.value)
+        if (this.slug.value === value) return
+        this.slug.value = value
+        // Serialize the new slug on this same change cycle so LiveView validation
+        // (and any re-render) keeps it. Guarded so it doesn't read as a manual edit.
+        this._programmatic = true
+        this.slug.dispatchEvent(new Event("input", {bubbles: true}))
+        this._programmatic = false
+      }
+      this._onSlug = () => {
+        if (!this._programmatic) this.locked = this.slug.value.trim() !== ""
+      }
+
+      this.el.addEventListener("input", this._onTitle)
+      this.slug.addEventListener("input", this._onSlug)
+    },
+    destroyed() {
+      this.el.removeEventListener("input", this._onTitle)
+      if (this.slug) this.slug.removeEventListener("input", this._onSlug)
+    },
+  },
   // WebAuthn passkeys: runs the credential ceremony synchronously inside the
   // user's gesture. Safari only delegates WebAuthn to a browser-extension
   // credential provider (Bitwarden/1Password) while transient user activation is
@@ -199,43 +277,66 @@ const Hooks = {
       input.dispatchEvent(new Event("input", {bubbles: true}))
     },
   },
-  TrixEditor: {
+  QuillEditor: {
     mounted() {
-      const editor = this.el.querySelector("trix-editor")
       const input = this.el.querySelector("input[type=hidden]")
-      // No direct uploads — files come from the media library via the picker below.
-      editor.addEventListener("trix-file-accept", (e) => e.preventDefault())
-      editor.addEventListener("trix-change", () => {
-        input.dispatchEvent(new Event("input", {bubbles: true}))
-      })
+      const target = this.el.querySelector("[data-quill-editor]")
 
-      // Add a "Aus Mediathek…" toolbar button that opens the shared media picker.
-      const addButton = () => this.addMediaButton(editor)
-      if (editor.toolbarElement) addButton()
-      else editor.addEventListener("trix-initialize", addButton, {once: true})
+      const quill = new Quill(target, {
+        theme: "snow",
+        modules: {
+          toolbar: {
+            container: [
+              [{header: [2, 3, 4, false]}],
+              ["bold", "italic", "underline", "strike"],
+              [{list: "ordered"}, {list: "bullet"}],
+              ["blockquote", "link"],
+              [{align: ""}, {align: "center"}, {align: "right"}],
+              [{bbhImgSize: ["sm", "md", "lg", "full"]}],
+              ["media"],
+              ["clean"],
+            ],
+            handlers: {
+              // Files come from the media library — no direct uploads.
+              media: () => this.pushEventTo("#media-picker", "open", {editor: this.el.id}),
+            },
+          },
+        },
+      })
+      this.quill = quill
+
+      // Label the custom media button (Quill renders it empty by default).
+      const mediaBtn = quill.getModule("toolbar").container.querySelector("button.ql-media")
+      if (mediaBtn) {
+        mediaBtn.innerHTML = MEDIA_ICON
+        mediaBtn.title = "Aus Mediathek einfügen"
+      }
+
+      // Load the stored HTML. Done before wiring text-change so restoring an
+      // existing value doesn't mark the form dirty on mount.
+      if (input.value) quill.clipboard.dangerouslyPasteHTML(input.value)
+
+      const serialize = () => {
+        // getSemanticHTML() yields portable HTML — real <ul>/<ol> lists and
+        // class-based alignment (ql-align-*) — unlike root.innerHTML, whose
+        // list markers are editor-only CSS. But it escapes *every* space as
+        // &nbsp;, which breaks {{ placeholder }} resolution and text wrapping,
+        // so restore normal spaces. An empty Quill doc is length 1 (the trailing
+        // newline); store "" then.
+        input.value =
+          quill.getLength() <= 1 ? "" : quill.getSemanticHTML().replaceAll("&nbsp;", " ")
+        input.dispatchEvent(new Event("input", {bubbles: true}))
+      }
+      quill.on("text-change", serialize)
 
       // The picker (a LiveComponent) pushes the chosen file back to this editor.
+      // Every mounted editor receives the event; only the addressed one inserts.
       this.handleEvent("media_picker:insert", ({editor: id, html}) => {
-        if (id === this.el.id) editor.editor.insertHTML(html)
+        if (id !== this.el.id) return
+        const range = quill.getSelection(true)
+        const index = range ? range.index : quill.getLength()
+        quill.clipboard.dangerouslyPasteHTML(index, html)
       })
-    },
-    addMediaButton(editor) {
-      const toolbar = editor.toolbarElement
-      const row = toolbar && toolbar.querySelector(".trix-button-row")
-      if (!row || row.querySelector(".trix-button--media")) return
-
-      const group = document.createElement("span")
-      group.className = "trix-button-group"
-      const btn = document.createElement("button")
-      btn.type = "button"
-      btn.className = "trix-button trix-button--media"
-      btn.title = "Aus Mediathek einfügen"
-      btn.textContent = "Mediathek"
-      btn.addEventListener("click", () =>
-        this.pushEventTo("#media-picker", "open", {editor: this.el.id}),
-      )
-      group.appendChild(btn)
-      row.appendChild(group)
     },
   },
 

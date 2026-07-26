@@ -323,7 +323,7 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
         phx-submit="save"
         class="mt-6 space-y-4"
       >
-        <.input field={@form[:title]} label="Titel" required />
+        <.input field={@form[:title]} label="Titel" required phx-hook="SlugFromTitle" />
         <.input field={@form[:subtitle]} label="Untertitel" />
         <.input field={@form[:slug]} label="Slug" required />
         <.input field={@form[:status]} type="select" label="Status" options={statuses()} />

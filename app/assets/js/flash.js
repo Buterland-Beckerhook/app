@@ -32,19 +32,42 @@ function dismissFlash(el) {
   window.setTimeout(() => el.remove(), 220)
 }
 
+function flashDuration(el) {
+  const raw = getComputedStyle(el).getPropertyValue("--flash-duration").trim()
+  const ms = parseFloat(raw)
+  if (!ms) return 6000
+  return raw.endsWith("ms") ? ms : ms * 1000
+}
+
 function armFlash(el) {
   const bar = el.querySelector(".flash-progress")
   if (!bar) return
 
-  // Restart the animation so a re-used toast node (same id, new message) counts
+  // Restart the visual bar so a re-used toast node (same id, new message) counts
   // down afresh rather than inheriting the previous, nearly-finished bar.
   bar.style.animation = "none"
   void bar.offsetWidth
   bar.style.animation = ""
 
-  if (el._flashOnEnd) bar.removeEventListener("animationend", el._flashOnEnd)
-  el._flashOnEnd = () => dismissFlash(el)
-  bar.addEventListener("animationend", el._flashOnEnd)
+  // Drive dismissal with a pause-aware timer rather than the bar's `animationend`.
+  // LiveView patches (e.g. a block save that re-renders a big subtree alongside
+  // the flash) can drop the animationend listener, leaving the toast stuck; a
+  // timer that we own survives that. It pauses while hovered/focused, mirroring
+  // the CSS bar. Every kind of flash uses this exact path.
+  clearInterval(el._flashTimer)
+  let remaining = flashDuration(el)
+  let last = Date.now()
+  el._flashTimer = setInterval(() => {
+    // Toast already gone (closed, navigated away) — stop ticking.
+    if (!el.isConnected) return clearInterval(el._flashTimer)
+    const now = Date.now()
+    if (!el.matches(":hover, :focus-within")) remaining -= now - last
+    last = now
+    if (remaining <= 0) {
+      clearInterval(el._flashTimer)
+      dismissFlash(el)
+    }
+  }, 100)
 }
 
 function scanForFlashes(node) {
