@@ -40,6 +40,8 @@ import "./flash.js"
 import "./mail.js"
 // URL slug generation from a title — mirrors Mix.Tasks.Bbh.Import.slugify/1.
 import {slugify} from "./slug.js"
+// Drop-target geometry and payload types for the admin media folder tree.
+import {dropIntent, FOLDER_TYPE, MEDIA_TYPE} from "./tree_dnd.js"
 
 // base64url <-> ArrayBuffer helpers for the WebAuthn ceremony (credential ids,
 // challenges and signatures cross the wire as pad-less base64url strings).
@@ -243,7 +245,6 @@ const Hooks = {
       this.xInput = document.getElementById(this.el.dataset.xInput)
       this.yInput = document.getElementById(this.el.dataset.yInput)
 
-      this._onPick = e => this.pick(e)
       this.el.addEventListener("pointerdown", e => {
         this._dragging = true
         this.pick(e)
@@ -374,6 +375,237 @@ const Hooks = {
         // Notify LiveView when the bound input changes.
         onChange: () => this.el.dispatchEvent(new Event("input", {bubbles: true})),
       })
+    },
+  },
+
+  // Drag & drop in the admin media folder tree: reorder folders among their siblings,
+  // nest one folder inside another, and drop media tiles onto a folder to file them.
+  //
+  // Every listener is delegated from the tree container. That is not a style choice —
+  // LiveView replaces the rows on each re-render, so listeners bound to individual rows
+  // would be dead after the first move. The container itself keeps its identity.
+  //
+  // The hook only draws the affordance and reports the move. Which moves are legal is
+  // decided server-side (Bbh.Media.Folder.move_changeset/4); the one rule mirrored here
+  // is the two-level cap, so an impossible nest is never offered in the first place
+  // rather than being flashed as an error after the drop.
+  MediaTree: {
+    mounted() {
+      this._listeners = {
+        dragstart: e => this.start(e),
+        dragover: e => this.over(e),
+        dragleave: e => this.leave(e),
+        drop: e => this.drop(e),
+        dragend: () => this.reset(),
+        keydown: e => this.key(e),
+      }
+
+      for (const [name, fn] of Object.entries(this._listeners)) {
+        this.el.addEventListener(name, fn)
+      }
+    },
+    destroyed() {
+      for (const [name, fn] of Object.entries(this._listeners || {})) {
+        this.el.removeEventListener(name, fn)
+      }
+    },
+
+    start(e) {
+      const row = e.target.closest("[data-drag-handle]")?.closest("[data-node]")
+      if (!row?.dataset.folderId) return
+
+      // Everything about the dragged folder is stashed as plain values, never as the
+      // node: a LiveView patch mid-drag (a flash dismissing, another admin's change)
+      // detaches `row`, and node-identity comparisons would then quietly stop matching —
+      // letting a folder be dropped on itself and skipping the index correction below.
+      this.draggingId = row.dataset.folderId
+      this.draggingLeaf = row.dataset.leaf === "true"
+      this.draggingParentId = row.dataset.parentId
+
+      e.dataTransfer.effectAllowed = "move"
+      e.dataTransfer.setData(FOLDER_TYPE, row.dataset.folderId)
+      // Firefox will not start a drag at all unless text/plain is set.
+      e.dataTransfer.setData("text/plain", row.dataset.folderId)
+      // Without this the drag ghost is just the grip icon.
+      e.dataTransfer.setDragImage(row, 0, 0)
+    },
+
+    over(e) {
+      const target = this.resolveTarget(e)
+      if (!target) return
+
+      e.preventDefault()
+      e.dataTransfer.dropEffect = "move"
+      this.clearMarkers()
+      target.row.dataset.drop = target.intent
+    },
+
+    leave(e) {
+      const row = e.target.closest?.("[data-node]")
+      // dragleave also fires when the pointer crosses into a child of the same row.
+      if (row && !row.contains(e.relatedTarget)) delete row.dataset.drop
+    },
+
+    drop(e) {
+      // Read the dragged folder out of hook state up front. destination() needs it, and
+      // resetting first would silently drop the same-level index adjustment below —
+      // the folder would then land one slot too low on every downward drag.
+      const dragging = this.draggingId
+      const target = this.resolveTarget(e)
+      this.reset()
+      if (!target) return
+      e.preventDefault()
+
+      if (target.kind === "media") {
+        const id = e.dataTransfer.getData(MEDIA_TYPE)
+        // A row with no folder id is "Ohne Ordner" — an empty string unfiles the item.
+        if (id) this.pushEvent("move_media", {id, folder_id: target.row.dataset.folderId || ""})
+        return
+      }
+
+      const id = e.dataTransfer.getData(FOLDER_TYPE)
+      if (id) this.pushEvent("move_folder", {id, ...this.destination(target, dragging)})
+    },
+
+    // The row under the pointer, what is being dragged, and where it would land — or
+    // null when this is not a target at all (wrong payload, own row, view-only node,
+    // or a move the two-level cap forbids). Reads the dragged folder from hook state;
+    // both callers run before reset(), so there is nothing to thread through.
+    resolveTarget(e) {
+      const row = e.target.closest?.("[data-node]")
+      if (!row) return null
+
+      const types = e.dataTransfer.types
+      const kind = types.includes(FOLDER_TYPE)
+        ? "folder"
+        : types.includes(MEDIA_TYPE)
+          ? "media"
+          : null
+
+      if (!kind) return null
+      if (!(row.dataset.accepts || "").split(" ").includes(kind)) return null
+      if (kind === "media") return {row, kind, intent: "into"}
+      if (row.dataset.folderId === this.draggingId) return null
+
+      // A folder that has sub-folders can never change level — only reorder among its
+      // own siblings. Refusing the whole row (not just the "into" third) is what makes
+      // the affordance honest: dropping between two sub-folders would otherwise draw an
+      // insertion line and then be rejected by the server, because landing there means
+      // taking their parent.
+      if (!this.draggingLeaf && row.dataset.parentId !== this.draggingParentId) return null
+
+      // Nesting additionally needs a top-level target: one level down is the limit.
+      const allowInto = row.dataset.parentId === "" && this.draggingLeaf
+
+      return {row, kind, intent: dropIntent(row.getBoundingClientRect(), e.clientY, {allowInto})}
+    },
+
+    // Translate a drop into the {parent_id, position} the server expects.
+    destination({row, intent}, draggingId) {
+      if (intent === "into") {
+        const parentId = row.dataset.folderId
+        return {parent_id: parentId, position: this.siblings(parentId).length}
+      }
+
+      const parentId = row.dataset.parentId
+      const siblings = this.siblings(parentId)
+      let position = siblings.indexOf(row) + (intent === "after" ? 1 : 0)
+
+      // The server takes the moved folder out of the level before inserting it, so an
+      // index counted while it is still in place sits one too high.
+      const from = siblings.findIndex(s => s.dataset.folderId === draggingId)
+      if (from !== -1 && from < position) position -= 1
+
+      return {parent_id: parentId, position}
+    },
+
+    // Folder rows on one level, in the order they are rendered.
+    siblings(parentId) {
+      const selector = `[data-node][data-folder-id][data-parent-id="${parentId ?? ""}"]`
+      return [...this.el.querySelectorAll(selector)]
+    },
+
+    // Keyboard equivalent of the two drag gestures, so the tree is not drag-only:
+    // Alt+Up/Down reorders among siblings, Alt+Right nests under the row above,
+    // Alt+Left lifts a sub-folder back to the top level.
+    key(e) {
+      if (!e.altKey) return
+      if (!["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) return
+
+      const row = e.target.closest?.("[data-tree-link]")?.closest("[data-node]")
+      if (!row?.dataset.folderId) return
+
+      // Swallow the key whether or not the move is possible. Alt+Left/Right are the
+      // browser's Back/Forward: returning early on a refused move would turn "this
+      // folder cannot be unnested" into "leave the page".
+      e.preventDefault()
+
+      const destination = this.keyDestination(e.key, row)
+      if (destination) this.pushEvent("move_folder", {id: row.dataset.folderId, ...destination})
+    },
+
+    keyDestination(key, row) {
+      const parentId = row.dataset.parentId
+      const siblings = this.siblings(parentId)
+      const index = siblings.indexOf(row)
+
+      switch (key) {
+        case "ArrowUp":
+          return index > 0 ? {parent_id: parentId, position: index - 1} : null
+
+        case "ArrowDown":
+          return index < siblings.length - 1 ? {parent_id: parentId, position: index + 1} : null
+
+        case "ArrowRight": {
+          const previous = siblings[index - 1]
+          if (parentId !== "" || !previous || row.dataset.leaf !== "true") return null
+          const target = previous.dataset.folderId
+          return {parent_id: target, position: this.siblings(target).length}
+        }
+
+        case "ArrowLeft": {
+          if (!parentId) return null
+          const roots = this.siblings("")
+          const parentRow = roots.find(r => r.dataset.folderId === parentId)
+          // Land directly below the folder it came out of, not at the bottom.
+          return {parent_id: "", position: roots.indexOf(parentRow) + 1}
+        }
+
+        default:
+          return null
+      }
+    },
+
+    reset() {
+      this.draggingId = null
+      this.draggingLeaf = false
+      this.draggingParentId = null
+      this.clearMarkers()
+    },
+
+    clearMarkers() {
+      this.el.querySelectorAll("[data-drop]").forEach(el => delete el.dataset.drop)
+    },
+  },
+
+  // Drag source for the media grid. Separate from MediaTree because the grid is a
+  // LiveView stream: the container survives patches, its tiles do not, so the listener
+  // has to be delegated from here rather than bound per tile.
+  MediaGrid: {
+    mounted() {
+      this._onDragStart = e => {
+        const tile = e.target.closest("[data-media-id]")
+        if (!tile) return
+
+        e.dataTransfer.effectAllowed = "move"
+        e.dataTransfer.setData(MEDIA_TYPE, tile.dataset.mediaId)
+        e.dataTransfer.setData("text/plain", tile.dataset.mediaId)
+      }
+
+      this.el.addEventListener("dragstart", this._onDragStart)
+    },
+    destroyed() {
+      this.el.removeEventListener("dragstart", this._onDragStart)
     },
   },
 }

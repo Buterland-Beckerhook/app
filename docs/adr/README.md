@@ -8,3 +8,4 @@ what (the code shows the what). One file per decision, numbered.
 - [0003](0003-altcha-replay-cache.md) — Altcha proof-of-work hardening (signed expiry + ETS replay cache)
 - [0004](0004-media-library-owns-image-metadata.md) — The media library owns image metadata; rotation rewrites the original
 - [0005](0005-email-obfuscation.md) — E-mail obfuscation with CSS decoys, not JavaScript assembly
+- [0006](0006-media-folder-tree-and-drag-and-drop.md) — The media library shows its whole folder tree, and moves happen by dragging

@@ -309,3 +309,7 @@ Temporary Items
 *.icloud
 
 tmp/
+
+# Per-developer Claude Code permission allowlist. Targeted rather than a blanket
+# `.claude/` — `.claude/agent-memory/` is shared on purpose.
+.claude/settings.local.json

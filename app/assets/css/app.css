@@ -401,4 +401,28 @@
   display: none;
 }
 
+/* Drop affordances in the admin media folder tree. `data-drop` is set on the row under
+   the pointer by the MediaTree hook (assets/js/app.js) and cleared when the drag ends —
+   a line between two rows means "file it here", a ring means "put it inside this
+   folder". Written as attribute selectors rather than toggled utility classes because
+   the insertion line is a pseudo-element. */
+#media-tree [data-drop="before"]::before,
+#media-tree [data-drop="after"]::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--color-primary);
+}
+
+#media-tree [data-drop="before"]::before { top: -1px; }
+#media-tree [data-drop="after"]::after { bottom: -1px; }
+
+#media-tree [data-drop="into"] {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+  border-radius: var(--radius-field);
+}
+
 /* This file is for your main application CSS */

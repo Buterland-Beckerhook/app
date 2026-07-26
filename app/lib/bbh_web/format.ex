@@ -100,10 +100,23 @@ defmodule BbhWeb.Format do
   reads the same wherever it is embedded.
   """
   def image_alt(%Upload{} = upload),
-    do: first_present([upload.description, upload.caption, upload.title]) || "Bild"
+    do: presence(upload.description) || alt_fallback(upload) || "Bild"
 
   def image_alt(%{media: %Upload{} = upload}), do: image_alt(upload)
   def image_alt(_), do: "Bild"
+
+  @doc """
+  What `image_alt/1` would fall back to if the Beschreibung were blank, or `nil` when
+  there is nothing to fall back to.
+
+  The media editor shows this as the Beschreibung field's placeholder, so an editor can
+  see what a picture will announce before deciding to leave the field empty. It reads
+  from here rather than restating the rule, which is how the title case — the *internal*
+  library label ending up as public alt text — stays visible instead of surprising.
+  """
+  def alt_fallback(%Upload{} = upload), do: first_present([upload.caption, upload.title])
+  def alt_fallback(%{media: %Upload{} = upload}), do: alt_fallback(upload)
+  def alt_fallback(_), do: nil
 
   @doc """
   The caption (Bildunterschrift) to render for an image, or `nil` for none.
