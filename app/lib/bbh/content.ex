@@ -457,7 +457,8 @@ defmodule Bbh.Content do
     "alert" => %{icon: "info", body: "<p></p>"},
     "media_card" => %{image_position: "right"},
     "image_gallery" => %{layout: "grid", lightbox: true},
-    "person_list" => %{display_style: "table", filter_honorary: "all", filter_roles: []}
+    "person_list" => %{display_style: "table", filter_honorary: "all", filter_roles: []},
+    "separator" => %{}
   }
 
   @doc "Append a new, empty block of the given type to a page."

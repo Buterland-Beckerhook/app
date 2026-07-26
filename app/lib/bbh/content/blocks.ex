@@ -11,7 +11,8 @@ defmodule Bbh.Content.Blocks do
     "alert" => __MODULE__.Alert,
     "media_card" => __MODULE__.MediaCard,
     "image_gallery" => __MODULE__.ImageGallery,
-    "person_list" => __MODULE__.PersonList
+    "person_list" => __MODULE__.PersonList,
+    "separator" => __MODULE__.Separator
   }
 
   def types, do: @types
@@ -125,6 +126,18 @@ defmodule Bbh.Content.Blocks do
       |> foreign_key_constraint(:gallery_id)
       |> foreign_key_constraint(:media_id)
     end
+  end
+
+  defmodule Separator do
+    @moduledoc "A field-less block rendering a horizontal rule between other blocks."
+    use Bbh.Schema
+
+    schema "block_separator" do
+      timestamps()
+    end
+
+    # No editable fields; the no-op changeset keeps the shared admin form/save path happy.
+    def changeset(block, _attrs), do: change(block)
   end
 
   defmodule PersonList do
