@@ -191,27 +191,44 @@
 .prose :where(p, li) {
   color: var(--tw-prose-body);
 }
+/* Headings are styled for both the published output (.prose) and the editor
+   (.ql-editor) so authoring is WYSIWYG. h2–h4 are semi-bold (600); h1 stays
+   bold to anchor the hierarchy. */
+.prose h1,
+.prose h2,
+.prose h3,
+.prose h4,
+.ql-editor h1,
+.ql-editor h2,
+.ql-editor h3,
+.ql-editor h4 {
+  font-weight: 600;
+  line-height: 1.25;
+  margin-block: 1.2em 0.5em;
+}
 .prose h1,
 .prose h2,
 .prose h3,
 .prose h4 {
   color: var(--tw-prose-headings);
-  font-weight: 700;
-  line-height: 1.25;
-  margin-block: 1.2em 0.5em;
 }
 /* Subordinate to the page title (text-3xl / 1.875rem). */
-.prose h1 {
+.prose h1,
+.ql-editor h1 {
   font-size: 1.5rem;
+  font-weight: 700;
 }
-.prose h2 {
+.prose h2,
+.ql-editor h2 {
+  font-size: 1.375rem;
+}
+.prose h3,
+.ql-editor h3 {
   font-size: 1.25rem;
 }
-.prose h3 {
+.prose h4,
+.ql-editor h4 {
   font-size: 1.125rem;
-}
-.prose h4 {
-  font-size: 1rem;
 }
 .prose a {
   color: var(--color-primary);
