@@ -37,6 +37,10 @@ defmodule Bbh.Html do
     ql-indent-1 ql-indent-2 ql-indent-3 ql-indent-4 ql-indent-5
     ql-indent-6 ql-indent-7 ql-indent-8 ql-indent-9
     bbh-img-sm bbh-img-md bbh-img-lg bbh-img-full
+    bbh-weight-100 bbh-weight-200 bbh-weight-300 bbh-weight-400 bbh-weight-500
+    bbh-weight-600 bbh-weight-700 bbh-weight-800 bbh-weight-900
+    bbh-size-xs bbh-size-sm bbh-size-lg bbh-size-xl bbh-size-2xl
+    bbh-muted-on
   )
 
   def sanitize(nil), do: nil

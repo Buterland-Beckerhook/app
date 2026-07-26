@@ -394,19 +394,28 @@ defmodule BbhWeb.SiteComponents do
             copyright={image_copyright(@block.image)}
           />
         </figure>
-        <div class="md:w-1/2">
+        <%!-- Inline layout (image left/right): the text column stretches to the image
+              height (md:self-stretch overrides the parent's md:items-center for this
+              item only) and a capped, collapsible spacer sits between the header and
+              body. The spacer grows to give the title/body room when the body is short,
+              and shrinks back to the mt-2 baseline when the body fills the column. --%>
+        <div class="md:flex md:w-1/2 md:flex-col md:self-stretch">
           <%!-- Inline header (title not above): aligned to the side opposite the image. --%>
           <div
             :if={!@block.title_above && (@block.title || @block.subtitle)}
-            class={@block.image_position == "left" && "text-right"}
+            class={["md:shrink-0", @block.image_position == "left" && "text-right"]}
           >
             <h3 :if={@block.title} class="text-lg">{@block.title}</h3>
             <p :if={@block.subtitle} class="text-sm text-muted">{@block.subtitle}</p>
             <div class="mt-3 h-px bg-base-300"></div>
           </div>
+          <div :if={!@block.title_above} class="hidden md:block md:max-h-10 md:grow"></div>
           <div
             :if={@block.body}
-            class={["prose prose-sm max-w-none dark:prose-invert", !@block.title_above && "mt-2"]}
+            class={[
+              "prose prose-sm max-w-none dark:prose-invert md:shrink-0",
+              !@block.title_above && "mt-2"
+            ]}
           >
             {BbhWeb.Format.render_richtext(@block.body)}
           </div>

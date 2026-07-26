@@ -91,6 +91,27 @@ const ImageSize = new Parchment.ClassAttributor("bbhImgSize", "bbh-img", {
 })
 Quill.register(ImageSize, true)
 
+// Font weight, text size and "muted" text as inline class attributors -> spans
+// like <span class="bbh-weight-500">. Same mechanism as image size; the server
+// sanitizer whitelists these class tokens (bbh-weight-*, bbh-size-*, bbh-muted).
+const TextWeight = new Parchment.ClassAttributor("bbhWeight", "bbh-weight", {
+  scope: Parchment.Scope.INLINE,
+  whitelist: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
+})
+Quill.register(TextWeight, true)
+
+const TextSize = new Parchment.ClassAttributor("bbhTextSize", "bbh-size", {
+  scope: Parchment.Scope.INLINE,
+  whitelist: ["xs", "sm", "lg", "xl", "2xl"],
+})
+Quill.register(TextSize, true)
+
+const MutedText = new Parchment.ClassAttributor("bbhMuted", "bbh-muted", {
+  scope: Parchment.Scope.INLINE,
+  whitelist: ["on"],
+})
+Quill.register(MutedText, true)
+
 // Media-library toolbar button icon (Quill-styled 18x18 SVG so it inherits
 // hover/active colouring via .ql-stroke / .ql-fill).
 const MEDIA_ICON =
@@ -98,6 +119,14 @@ const MEDIA_ICON =
   '<rect class="ql-stroke" height="10" width="12" x="3" y="4"></rect>' +
   '<circle class="ql-fill" cx="6" cy="7" r="1"></circle>' +
   '<polyline class="ql-even ql-fill" points="5 12 7 9 9 11 12 7 15 12"></polyline>' +
+  "</svg>"
+
+// Muted-text toolbar button icon: an "A" with a half-filled contrast disc, hinting
+// at a dimmed text colour. Quill-styled so it inherits hover/active colouring.
+const MUTED_ICON =
+  '<svg viewBox="0 0 18 18">' +
+  '<path class="ql-fill" d="M9 3a6 6 0 0 0 0 12V3z"></path>' +
+  '<circle class="ql-stroke" cx="9" cy="9" r="6"></circle>' +
   "</svg>"
 
 // Sync a Quill editor's content into its hidden input and notify LiveView.
@@ -292,8 +321,12 @@ const Hooks = {
         modules: {
           toolbar: {
             container: [
-              [{header: [1, 2, 3, 4, false]}],
-              ["bold", "italic", "underline", "strike"],
+              [
+                {header: [1, 2, 3, 4, false]},
+                {bbhWeight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"]},
+              ],
+              ["bold", "italic", "underline", "strike", "bbhMuted"],
+              [{bbhTextSize: ["xs", "sm", "", "lg", "xl", "2xl"]}],
               [{list: "ordered"}, {list: "bullet"}],
               ["blockquote", "link"],
               [{align: ""}, {align: "center"}, {align: "right"}],
@@ -304,6 +337,11 @@ const Hooks = {
             handlers: {
               // Files come from the media library — no direct uploads.
               media: () => this.pushEventTo("#media-picker", "open", {editor: this.el.id}),
+              // Muted text is a boolean class (bbh-muted); toggle it on the selection.
+              bbhMuted: () => {
+                const fmt = quill.getFormat()
+                quill.format("bbhMuted", fmt.bbhMuted ? false : "on")
+              },
             },
           },
         },
@@ -311,10 +349,18 @@ const Hooks = {
       this.quill = quill
 
       // Label the custom media button (Quill renders it empty by default).
-      const mediaBtn = quill.getModule("toolbar").container.querySelector("button.ql-media")
+      const toolbarEl = quill.getModule("toolbar").container
+      const mediaBtn = toolbarEl.querySelector("button.ql-media")
       if (mediaBtn) {
         mediaBtn.innerHTML = MEDIA_ICON
         mediaBtn.title = "Aus Mediathek einfügen"
+      }
+
+      // Label the custom muted-text toggle (also renders empty by default).
+      const mutedBtn = toolbarEl.querySelector("button.ql-bbhMuted")
+      if (mutedBtn) {
+        mutedBtn.innerHTML = MUTED_ICON
+        mutedBtn.title = "Gedämpfter Text"
       }
 
       // Load the stored HTML. Done before wiring text-change so restoring an
