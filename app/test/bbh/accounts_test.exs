@@ -268,6 +268,25 @@ defmodule Bbh.AccountsTest do
     end
   end
 
+  describe "delete_all_user_session_tokens/1" do
+    test "deletes every session token for the user and returns them" do
+      user = user_fixture()
+      other = user_fixture()
+      token1 = Accounts.generate_user_session_token(user)
+      token2 = Accounts.generate_user_session_token(user)
+      other_token = Accounts.generate_user_session_token(other)
+
+      deleted = Accounts.delete_all_user_session_tokens(user)
+
+      assert length(deleted) == 2
+      refute Accounts.get_user_by_session_token(token1)
+      refute Accounts.get_user_by_session_token(token2)
+      # Other users' sessions are untouched.
+      assert {session_user, _} = Accounts.get_user_by_session_token(other_token)
+      assert session_user.id == other.id
+    end
+  end
+
   describe "deliver_login_instructions/2" do
     setup do
       %{user: unconfirmed_user_fixture()}

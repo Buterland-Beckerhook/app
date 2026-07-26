@@ -92,6 +92,9 @@ defmodule Bbh.Notifications do
     :ok
   end
 
+  @doc "Number of stored (active) push subscriptions."
+  def count_subscriptions, do: Repo.aggregate(PushSubscription, :count, :id)
+
   @doc """
   Send a notification to all subscribers of `category`. `payload` is a map with
   `title`, `body`, and `url`. Expired subscriptions are pruned. Runs the sends

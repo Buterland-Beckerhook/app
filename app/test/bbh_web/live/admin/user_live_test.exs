@@ -84,4 +84,15 @@ defmodule BbhWeb.Admin.UserLiveTest do
 
     assert_raise Ecto.NoResultsError, fn -> Accounts.get_user!(other.id) end
   end
+
+  test "logs another user out on all devices", %{conn: conn} do
+    other = user_fixture()
+    token = Accounts.generate_user_session_token(other)
+    {:ok, lv, _html} = live(conn, ~p"/admin/benutzer")
+
+    html = render_click(lv, "logout_all", %{"id" => other.id})
+
+    assert html =~ "von allen Geräten abgemeldet"
+    refute Accounts.get_user_by_session_token(token)
+  end
 end

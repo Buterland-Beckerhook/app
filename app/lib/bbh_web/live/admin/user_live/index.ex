@@ -79,6 +79,12 @@ defmodule BbhWeb.Admin.UserLive.Index do
     end
   end
 
+  def handle_event("logout_all", %{"id" => id}, socket) do
+    user = Accounts.get_user!(id)
+    user |> Accounts.delete_all_user_session_tokens() |> BbhWeb.UserAuth.disconnect_sessions()
+    {:noreply, put_flash(socket, :info, "Benutzer von allen Geräten abgemeldet.")}
+  end
+
   def handle_event("list-" <> action, params, socket),
     do: {:noreply, AdminList.handle(action, params, socket, &load_users/1)}
 
@@ -170,16 +176,26 @@ defmodule BbhWeb.Admin.UserLive.Index do
           <.status_badge kind={:user} status={if u.confirmed_at, do: "confirmed", else: "pending"} />
         </:col>
         <:action :let={u}>
-          <.link
-            :if={u.id != @current_scope.user.id}
-            phx-click={JS.push("delete", value: %{id: u.id})}
-            data-confirm="Diesen Benutzer wirklich löschen?"
-            class="link link-error"
-            title="Löschen"
-            aria-label="Löschen"
-          >
-            <.icon name="hero-trash" class="size-5" />
-          </.link>
+          <div :if={u.id != @current_scope.user.id} class="flex items-center justify-end gap-2">
+            <.link
+              phx-click={JS.push("logout_all", value: %{id: u.id})}
+              data-confirm="Diesen Benutzer von allen Geräten abmelden?"
+              class="link"
+              title="Von allen Geräten abmelden"
+              aria-label="Von allen Geräten abmelden"
+            >
+              <.icon name="hero-arrow-left-start-on-rectangle" class="size-5" />
+            </.link>
+            <.link
+              phx-click={JS.push("delete", value: %{id: u.id})}
+              data-confirm="Diesen Benutzer wirklich löschen?"
+              class="link link-error"
+              title="Löschen"
+              aria-label="Löschen"
+            >
+              <.icon name="hero-trash" class="size-5" />
+            </.link>
+          </div>
         </:action>
       </.table>
 

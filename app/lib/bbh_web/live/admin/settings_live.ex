@@ -348,6 +348,20 @@ defmodule BbhWeb.Admin.SettingsLive do
         />
         <.button variant="primary" phx-disable-with="Changing...">Change Email</.button>
       </.form>
+
+      <div class="mt-6 border-t border-base-300 pt-4">
+        <p class="mb-2 text-sm text-base-content/70">
+          Meldet dich auf allen Geräten ab – auch in dieser Sitzung.
+        </p>
+        <.link
+          href={~p"/users/log-out-all"}
+          method="delete"
+          data-confirm="Auf allen Geräten (auch hier) abmelden?"
+          class="btn btn-outline btn-error btn-sm"
+        >
+          Auf allen Geräten abmelden
+        </.link>
+      </div>
     </div>
     """
   end

@@ -159,6 +159,7 @@ defmodule BbhWeb.Router do
 
     post "/users/log-in", UserSessionController, :create
     delete "/users/log-out", UserSessionController, :delete
+    delete "/users/log-out-all", UserSessionController, :delete_all
 
     # TOTP second-factor challenge (pending login held in the session).
     get "/users/totp", TotpController, :new

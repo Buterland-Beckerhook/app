@@ -65,6 +65,22 @@ defmodule BbhWeb.UserSessionController do
     |> UserAuth.log_out_user()
   end
 
+  # Log the current user out on every device: drop all their session tokens (and any
+  # live sockets), then clear this session's cookie and redirect via log_out_user/1.
+  def delete_all(conn, _params) do
+    case conn.assigns.current_scope do
+      %{user: %User{} = user} ->
+        user |> Accounts.delete_all_user_session_tokens() |> UserAuth.disconnect_sessions()
+
+        conn
+        |> put_flash(:info, "Auf allen Geräten abgemeldet.")
+        |> UserAuth.log_out_user()
+
+      _ ->
+        UserAuth.log_out_user(conn)
+    end
+  end
+
   # If the user has a TOTP second factor, hold the login and require a code first.
   defp maybe_require_totp(conn, %User{} = user, params, info) do
     if User.totp_enabled?(user) do
