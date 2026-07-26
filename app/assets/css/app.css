@@ -146,28 +146,171 @@
 /* flatpickr date/time picker styles (self-hosted). */
 @import "../vendor/flatpickr/flatpickr.min.css";
 
-/* Self-hosted webfonts (priv/static/fonts, GDPR — no font CDN).
-   Variable woff2 from Fontsource; latin subset covers German. */
+/* Self-hosted webfonts (priv/static/fonts, GDPR — no font CDN). Latin subset
+   covers German. Oranienbaum = display/headline face (the wordmark's original
+   font, single 400 weight). Barlow = body text; the full weight range is
+   declared so `font-*` utilities and the editor render true weights (browsers
+   only download the faces actually used). OFL licenses sit beside the fonts. */
 @font-face {
-  font-family: "Source Serif 4";
+  font-family: "Oranienbaum";
   font-style: normal;
-  font-weight: 200 900;
+  font-weight: 400;
   font-display: swap;
-  src: url("/fonts/source-serif-4-latin-vf.woff2") format("woff2");
+  src: url("/fonts/oranienbaum-latin-400-normal.woff2") format("woff2");
 }
 @font-face {
-  font-family: "Public Sans";
+  font-family: "Barlow";
   font-style: normal;
-  font-weight: 100 900;
+  font-weight: 100;
   font-display: swap;
-  src: url("/fonts/public-sans-latin-vf.woff2") format("woff2");
+  src: url("/fonts/barlow-latin-100-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Barlow";
+  font-style: italic;
+  font-weight: 100;
+  font-display: swap;
+  src: url("/fonts/barlow-latin-100-italic.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Barlow";
+  font-style: normal;
+  font-weight: 200;
+  font-display: swap;
+  src: url("/fonts/barlow-latin-200-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Barlow";
+  font-style: italic;
+  font-weight: 200;
+  font-display: swap;
+  src: url("/fonts/barlow-latin-200-italic.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Barlow";
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url("/fonts/barlow-latin-300-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Barlow";
+  font-style: italic;
+  font-weight: 300;
+  font-display: swap;
+  src: url("/fonts/barlow-latin-300-italic.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Barlow";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/barlow-latin-400-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Barlow";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/barlow-latin-400-italic.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Barlow";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/barlow-latin-500-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Barlow";
+  font-style: italic;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/barlow-latin-500-italic.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Barlow";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/fonts/barlow-latin-600-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Barlow";
+  font-style: italic;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/fonts/barlow-latin-600-italic.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Barlow";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/barlow-latin-700-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Barlow";
+  font-style: italic;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/barlow-latin-700-italic.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Barlow";
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("/fonts/barlow-latin-800-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Barlow";
+  font-style: italic;
+  font-weight: 800;
+  font-display: swap;
+  src: url("/fonts/barlow-latin-800-italic.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Barlow";
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url("/fonts/barlow-latin-900-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Barlow";
+  font-style: italic;
+  font-weight: 900;
+  font-display: swap;
+  src: url("/fonts/barlow-latin-900-italic.woff2") format("woff2");
 }
 
-/* Public Sans for body text, Source Serif 4 for the wordmark and display
-   headings (the existing `font-logo` utility). */
+/* Barlow for body text, Oranienbaum for the wordmark and display headings
+   (the existing `font-logo` utility). */
 @theme {
-  --font-sans: "Public Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-logo: "Source Serif 4", ui-serif, Georgia, serif;
+  --font-sans: "Barlow", ui-sans-serif, system-ui, sans-serif;
+  --font-logo: "Oranienbaum", ui-serif, Georgia, serif;
+}
+
+/* Body text defaults to Barlow Light. */
+body {
+  font-weight: 300;
+}
+
+/* Headlines site-wide use the display face (Oranienbaum). It ships a single 400
+   weight, so headings render at 400 — no faux-bold. Bare tag selectors, so any
+   element that sets its own `font-*` utility still wins. */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-logo);
+  font-weight: 400;
+}
+
+/* Oranienbaum has only a 400 weight, so anything in the display face renders at
+   400 — including elements that carry a `font-bold`/`font-semibold` utility (the
+   wordmark, homepage hero, section titles). This unlayered rule outranks
+   Tailwind's utilities layer, killing faux-bold everywhere `font-logo` is used. */
+.font-logo {
+  font-weight: 400;
 }
 
 /* Rich-text (Quill) output styling.
@@ -192,8 +335,8 @@
   color: var(--tw-prose-body);
 }
 /* Headings are styled for both the published output (.prose) and the editor
-   (.ql-editor) so authoring is WYSIWYG. h2–h4 are semi-bold (600); h1 stays
-   bold to anchor the hierarchy. */
+   (.ql-editor) so authoring is WYSIWYG. They render in Oranienbaum (single 400
+   weight, set globally on h1–h6), so hierarchy comes from size, not weight. */
 .prose h1,
 .prose h2,
 .prose h3,
@@ -202,7 +345,6 @@
 .ql-editor h2,
 .ql-editor h3,
 .ql-editor h4 {
-  font-weight: 600;
   line-height: 1.25;
   margin-block: 1.2em 0.5em;
 }
@@ -216,7 +358,6 @@
 .prose h1,
 .ql-editor h1 {
   font-size: 1.5rem;
-  font-weight: 700;
 }
 .prose h2,
 .ql-editor h2 {

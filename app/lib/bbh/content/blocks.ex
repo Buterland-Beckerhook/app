@@ -67,13 +67,25 @@ defmodule Bbh.Content.Blocks do
       field :subtitle, :string
       field :body, :string
       field :image_position, :string, default: "right"
+      field :shadow, :boolean, default: false
+      field :title_above, :boolean, default: false
+      field :show_credit, :boolean, default: false
       belongs_to :image, Bbh.Media.Upload
       timestamps()
     end
 
     def changeset(block, attrs) do
       block
-      |> cast(attrs, [:title, :subtitle, :body, :image_position, :image_id])
+      |> cast(attrs, [
+        :title,
+        :subtitle,
+        :body,
+        :image_position,
+        :shadow,
+        :title_above,
+        :show_credit,
+        :image_id
+      ])
       |> update_change(:body, &Bbh.Html.sanitize/1)
       |> validate_inclusion(:image_position, @positions)
       |> foreign_key_constraint(:image_id)

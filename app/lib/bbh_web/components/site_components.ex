@@ -118,7 +118,7 @@ defmodule BbhWeb.SiteComponents do
       </div>
       <div class="flex flex-1 flex-col p-5.5">
         <time class="text-[13px] font-medium text-muted">{de_date(@article.date_published)}</time>
-        <h3 class="font-logo mt-1.5 text-[22px] font-bold leading-snug group-hover:text-primary">
+        <h3 class="font-logo mt-1.5 text-[22px] leading-snug group-hover:text-primary">
           {@article.title}
         </h3>
         <p :if={@article.subtitle} class="mt-1.5 text-[15px] leading-relaxed text-muted">
@@ -147,7 +147,7 @@ defmodule BbhWeb.SiteComponents do
       class="flex flex-col rounded-lg border border-base-300 bg-card p-4 transition-shadow hover:shadow-md"
     >
       <div class="flex items-center gap-2">
-        <h3 class="font-semibold text-base-content">{@event.title}</h3>
+        <h3 class="text-base-content">{@event.title}</h3>
         <span
           :if={@event.status == "canceled"}
           class="rounded bg-error/10 px-2 py-0.5 text-xs font-medium text-error"
@@ -182,7 +182,7 @@ defmodule BbhWeb.SiteComponents do
           {de_date(@doc.document_date)}
         </time>
       </div>
-      <h3 class="font-logo mt-1.5 text-[20px] font-bold leading-snug text-base-content group-hover:text-primary">
+      <h3 class="font-logo mt-1.5 text-[20px] leading-snug text-base-content group-hover:text-primary">
         {@doc.title}
       </h3>
       <p
@@ -355,29 +355,48 @@ defmodule BbhWeb.SiteComponents do
 
   def block(%{type: "media_card"} = assigns) do
     ~H"""
-    <div class={[
-      "flex flex-col gap-4 md:items-center",
-      @block.image_position == "left" && "md:flex-row",
-      @block.image_position != "left" && "md:flex-row-reverse"
-    ]}>
-      <figure :if={@block.image} class="w-full md:w-1/2">
-        <img
-          src={media_url(@block.image, width: 480)}
-          alt={image_alt(@block.image)}
-          class="w-full rounded-lg object-cover"
-        />
-        <.image_credit
-          caption={image_caption(@block.image)}
-          copyright={image_copyright(@block.image)}
-        />
-      </figure>
-      <div class="md:w-1/2">
+    <div class={@block.shadow && "rounded-[18px] border border-base-300 bg-card p-6 shadow-lg sm:p-8"}>
+      <%!-- With "Titel über dem Bild" on, title/subtitle span the full width above the
+            image row (like the first card in the design). No left/right flip here — that
+            only applies to the inline header below. --%>
+      <div :if={@block.title_above && (@block.title || @block.subtitle)} class="mb-4">
         <h3 :if={@block.title} class="text-lg font-semibold">{@block.title}</h3>
-        <p :if={@block.subtitle} class="text-sm text-muted">
-          {@block.subtitle}
-        </p>
-        <div :if={@block.body} class="prose prose-sm mt-2 max-w-none dark:prose-invert">
-          {BbhWeb.Format.render_richtext(@block.body)}
+        <p :if={@block.subtitle} class="text-sm text-muted">{@block.subtitle}</p>
+        <div class="mt-3 h-px bg-base-300"></div>
+      </div>
+      <div class={[
+        "flex flex-col gap-4 md:items-center",
+        @block.image_position == "left" && "md:flex-row",
+        @block.image_position != "left" && "md:flex-row-reverse"
+      ]}>
+        <figure :if={@block.image} class="w-full md:w-1/2">
+          <img
+            src={media_url(@block.image, width: 480)}
+            alt={image_alt(@block.image)}
+            class="w-full rounded-lg object-cover"
+          />
+          <.image_credit
+            :if={@block.show_credit}
+            caption={image_caption(@block.image)}
+            copyright={image_copyright(@block.image)}
+          />
+        </figure>
+        <div class="md:w-1/2">
+          <%!-- Inline header (title not above): aligned to the side opposite the image. --%>
+          <div
+            :if={!@block.title_above && (@block.title || @block.subtitle)}
+            class={@block.image_position == "left" && "text-right"}
+          >
+            <h3 :if={@block.title} class="text-lg">{@block.title}</h3>
+            <p :if={@block.subtitle} class="text-sm text-muted">{@block.subtitle}</p>
+            <div class="mt-3 h-px bg-base-300"></div>
+          </div>
+          <div
+            :if={@block.body}
+            class={["prose prose-sm max-w-none dark:prose-invert", !@block.title_above && "mt-2"]}
+          >
+            {BbhWeb.Format.render_richtext(@block.body)}
+          </div>
         </div>
       </div>
     </div>

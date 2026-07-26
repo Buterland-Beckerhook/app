@@ -378,6 +378,9 @@ defmodule BbhWeb.Admin.PageLive.Form do
       label="Bildposition"
       options={[{"Rechts", "right"}, {"Links", "left"}]}
     />
+    <.input field={@f[:title_above]} type="checkbox" label="Titel über dem Bild anzeigen" />
+    <.input field={@f[:show_credit]} type="checkbox" label="Bildunterschrift und Copyright anzeigen" />
+    <.input field={@f[:shadow]} type="checkbox" label="Als Karte mit Schatten darstellen" />
     <.rich_text field={@f[:body]} label="Text" />
     """
   end
