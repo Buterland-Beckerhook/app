@@ -34,6 +34,73 @@ defmodule BbhWeb.FormatTest do
     test "no focal point means no fx/fy" do
       refute Format.media_url(upload(), width: 640, height: 380) =~ "fx="
     end
+
+    test "an untouched image carries no revision — existing URLs stay byte-identical" do
+      assert Format.media_url(upload(%{revision: 0}), width: 640) == "/media/2026/x.jpg?w=640"
+    end
+
+    test "a rotated image busts the browser cache with v=" do
+      assert Format.media_url(upload(%{revision: 2}), width: 640) =~ "v=2"
+      assert Format.media_url(upload(%{revision: 1})) == "/media/2026/x.jpg?v=1"
+    end
+  end
+
+  describe "image metadata" do
+    alias Bbh.Content.ArticleImage
+
+    test "alt text prefers the description, then caption, then title" do
+      assert Format.image_alt(%Upload{description: "Alt", caption: "Cap", title: "Titel"}) ==
+               "Alt"
+
+      assert Format.image_alt(%Upload{caption: "Cap", title: "Titel"}) == "Cap"
+      assert Format.image_alt(%Upload{title: "Titel"}) == "Titel"
+      assert Format.image_alt(%Upload{}) == "Bild"
+      assert Format.image_alt(%Upload{description: "   "}) == "Bild"
+      assert Format.image_alt(nil) == "Bild"
+    end
+
+    test "an embedding resolves through its media item" do
+      image = %ArticleImage{media: %Upload{caption: "Der Thron", copyright: "BBH e.V."}}
+
+      assert Format.image_alt(image) == "Der Thron"
+      assert Format.image_caption(image) == "Der Thron"
+      assert Format.image_copyright(image) == "BBH e.V."
+    end
+
+    test "an article image can suppress the caption without hiding the copyright" do
+      image = %ArticleImage{
+        show_caption: false,
+        media: %Upload{caption: "Der Thron", copyright: "BBH e.V."}
+      }
+
+      assert is_nil(Format.image_caption(image))
+      assert Format.image_copyright(image) == "BBH e.V."
+    end
+
+    test "the copyright gets a © unless it already labels itself" do
+      assert Format.copyright_label("Buterland-Beckerhook e.V.") == "© Buterland-Beckerhook e.V."
+      assert Format.copyright_label("Max Mustermann") == "© Max Mustermann"
+
+      # A rights holder whose name merely *starts* with one of the label words keeps its ©.
+      assert Format.copyright_label("Bildarchiv Stadt Münster") == "© Bildarchiv Stadt Münster"
+      assert Format.copyright_label("Fotoclub Nord") == "© Fotoclub Nord"
+      assert Format.copyright_label("Quellenhof Fotografie") == "© Quellenhof Fotografie"
+
+      # Already labelled — left exactly as the editor typed it.
+      for text <- ["© BBH", "(c) BBH", "Copyright BBH", "Foto: Max", "Bild : Max", "Quelle: WN"] do
+        assert Format.copyright_label(text) == text
+      end
+
+      assert is_nil(Format.copyright_label(nil))
+      assert is_nil(Format.copyright_label("   "))
+    end
+
+    test "blank metadata counts as none" do
+      image = %ArticleImage{media: %Upload{caption: "  ", copyright: ""}}
+      assert is_nil(Format.image_caption(image))
+      assert is_nil(Format.image_copyright(image))
+      assert is_nil(Format.image_caption(%ArticleImage{}))
+    end
   end
 
   describe "render_richtext/1" do

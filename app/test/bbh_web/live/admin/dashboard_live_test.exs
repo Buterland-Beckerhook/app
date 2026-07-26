@@ -54,13 +54,19 @@ defmodule BbhWeb.Admin.DashboardLiveTest do
 
     # The range selector re-runs the analytics query.
     assert lv |> element("button", "7 Tage") |> render_click() =~ "Zugriffe"
+    # Drain that second round of async assigns too, so the LiveView is not killed
+    # mid-query at test teardown (which logs a Postgrex disconnect).
+    render_async(lv, 2000)
   end
 
   test "the account nav links to the settings modal for sign-in methods", %{conn: conn} do
-    {:ok, _lv, html} = live(conn, ~p"/admin")
+    {:ok, lv, html} = live(conn, ~p"/admin")
 
     # Passkey and 2FA enrollment live under the settings modal, which the account
     # footer links to.
     assert html =~ ~p"/admin/einstellungen"
+
+    # Let the dashboard's async assigns finish before teardown (see above).
+    render_async(lv, 2000)
   end
 end

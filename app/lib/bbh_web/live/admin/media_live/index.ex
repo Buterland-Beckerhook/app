@@ -5,6 +5,7 @@ defmodule BbhWeb.Admin.MediaLive.Index do
 
   alias Bbh.Media
   alias Bbh.Media.Folder
+  alias BbhWeb.Admin.MediaEditor
 
   @impl true
   def mount(_params, _session, socket) do
@@ -28,15 +29,10 @@ defmodule BbhWeb.Admin.MediaLive.Index do
     {:noreply,
      socket
      |> assign(folder: folder, editing: nil, new_folder: false)
-     |> assign(subfolders: subfolders_for(folder))
+     |> assign(subfolders: Media.child_folders(folder))
      |> assign(folder_options: folder_options())
      |> load_items()}
   end
-
-  # A folder shows its own sub-folders; the root shows all top-level folders.
-  defp subfolders_for(nil), do: Media.list_subfolders(nil)
-  defp subfolders_for(%Folder{parent_id: nil, id: id}), do: Media.list_subfolders(id)
-  defp subfolders_for(%Folder{}), do: []
 
   defp load_items(socket) do
     items =
@@ -108,24 +104,16 @@ defmodule BbhWeb.Admin.MediaLive.Index do
 
   def handle_event("cancel_edit", _params, socket), do: {:noreply, assign(socket, :editing, nil)}
 
-  def handle_event("save_meta", %{"upload" => params}, socket) do
-    upload = socket.assigns.editing
-    params = Map.update(params, "folder_id", nil, &blank_to_nil/1)
+  # `:keep` means the editor stays open on the returned upload — that is how a rotation
+  # shows its result and can be repeated (see BbhWeb.Admin.MediaEditor.submit/2).
+  def handle_event("save_meta", %{"upload" => _} = params, socket) do
+    {action, updated, {kind, message}} = MediaEditor.submit(socket.assigns.editing, params)
 
-    case Media.update_upload(upload, params) do
-      {:ok, updated} ->
-        socket = socket |> assign(editing: nil) |> put_flash(:info, "Gespeichert.")
-
-        # If it moved out of the folder currently shown, drop it from the grid.
-        if updated.folder_id == folder_scope_id(socket.assigns.folder) do
-          {:noreply, stream_insert(socket, :items, updated)}
-        else
-          {:noreply, stream_delete(socket, :items, updated)}
-        end
-
-      {:error, _changeset} ->
-        {:noreply, put_flash(socket, :error, "Konnte nicht gespeichert werden.")}
-    end
+    {:noreply,
+     socket
+     |> assign(:editing, if(action == :keep, do: updated, else: nil))
+     |> put_flash(kind, message)
+     |> refresh(updated)}
   end
 
   def handle_event("toggle_new_folder", _params, socket),
@@ -138,7 +126,7 @@ defmodule BbhWeb.Admin.MediaLive.Index do
       {:ok, _folder} ->
         {:noreply,
          socket
-         |> assign(new_folder: false, subfolders: subfolders_for(socket.assigns.folder))
+         |> assign(new_folder: false, subfolders: Media.child_folders(socket.assigns.folder))
          |> assign(folder_options: folder_options())
          |> put_flash(:info, "Ordner erstellt.")}
 
@@ -170,8 +158,15 @@ defmodule BbhWeb.Admin.MediaLive.Index do
   defp folder_scope_id(nil), do: nil
   defp folder_scope_id(%Folder{id: id}), do: id
 
-  defp blank_to_nil(""), do: nil
-  defp blank_to_nil(v), do: v
+  # Keep the grid in step with an edit: if the item moved out of the folder being
+  # shown, drop it, otherwise re-render it in place.
+  defp refresh(socket, updated) do
+    if updated.folder_id == folder_scope_id(socket.assigns.folder) do
+      stream_insert(socket, :items, updated)
+    else
+      stream_delete(socket, :items, updated)
+    end
+  end
 
   defp folder_options, do: Media.folder_options()
 

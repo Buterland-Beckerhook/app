@@ -319,7 +319,7 @@ defmodule Bbh.Content do
     Repo.all(
       from i in ArticleImage,
         where: i.article_id == ^article_id,
-        order_by: i.sort,
+        order_by: [asc: i.sort, asc: i.inserted_at],
         preload: :media
     )
   end
@@ -367,6 +367,51 @@ defmodule Bbh.Content do
     (Repo.one(from i in ArticleImage, where: i.article_id == ^article_id, select: max(i.sort)) ||
        -1) +
       1
+  end
+
+  ## Admin — gallery block files (edited in the context of their page)
+
+  @doc "A gallery's images in display order, with their media preloaded."
+  def list_gallery_files(gallery_id) do
+    Repo.all(
+      from f in Blocks.GalleryFile,
+        where: f.gallery_id == ^gallery_id,
+        order_by: [asc: f.sort, asc: f.inserted_at],
+        preload: :media
+    )
+  end
+
+  @doc "Append a media item to a gallery block."
+  def add_gallery_file(%Blocks.ImageGallery{id: gallery_id}, media_id) do
+    %Blocks.GalleryFile{}
+    |> Blocks.GalleryFile.changeset(%{
+      "gallery_id" => gallery_id,
+      "media_id" => media_id,
+      "sort" => next_gallery_sort(gallery_id)
+    })
+    |> Repo.insert()
+    |> Bbh.Search.reindex_after()
+  end
+
+  def get_gallery_file!(id), do: Repo.get!(Blocks.GalleryFile, id)
+
+  def delete_gallery_file(%Blocks.GalleryFile{} = file),
+    do: file |> Repo.delete() |> Bbh.Search.reindex_after()
+
+  @doc "Move a gallery image one step in the given direction (:up | :down)."
+  def move_gallery_file(gallery_id, %Blocks.GalleryFile{} = file, direction) do
+    files = list_gallery_files(gallery_id)
+    reorder(files, Enum.find_index(files, &(&1.id == file.id)), direction, &set_gallery_sort!/2)
+  end
+
+  defp next_gallery_sort(gallery_id) do
+    (Repo.one(
+       from f in Blocks.GalleryFile, where: f.gallery_id == ^gallery_id, select: max(f.sort)
+     ) || -1) + 1
+  end
+
+  defp set_gallery_sort!(id, sort) do
+    Repo.update_all(from(f in Blocks.GalleryFile, where: f.id == ^id), set: [sort: sort])
   end
 
   ## Admin — thrones (edited in the context of their article)
@@ -444,24 +489,44 @@ defmodule Bbh.Content do
     Repo.transaction(fn -> delete_block!(pb) end) |> Bbh.Search.reindex_after()
   end
 
-  @doc "Swap a block with its neighbour in the given direction (:up | :down)."
+  @doc "Move a block one step in the given direction (:up | :down)."
   def move_block(page_id, %PageBlock{} = pb, direction) do
     blocks = Repo.all(from x in PageBlock, where: x.page_id == ^page_id, order_by: x.position)
-    idx = Enum.find_index(blocks, &(&1.id == pb.id))
-    swap = if direction == :up, do: idx - 1, else: idx + 1
+    reorder(blocks, Enum.find_index(blocks, &(&1.id == pb.id)), direction, &set_position!/2)
+  end
 
-    if (idx && swap >= 0) and swap < length(blocks) do
-      other = Enum.at(blocks, swap)
+  # Move the row at `idx` one step and renumber the whole list to 0..n-1.
+  #
+  # Renumbering rather than swapping the two stored values is what keeps this correct on
+  # real data: neither column is renumbered on delete, so the values can have gaps or an
+  # offset (delete the first row and they start at 1), and `sort` is nullable on top of
+  # that. Swapping values then either does nothing or writes a duplicate that makes the
+  # order ambiguous. The lists are a handful of rows, so rewriting all of them is free.
+  #
+  # `idx` is nil when the row is not in the list at all — a stale id, or a row belonging
+  # to another page/gallery — which must not blow up on the arithmetic.
+  #
+  # Note the renumber writes row by row, so two rows briefly share a value inside the
+  # transaction. Both ordering columns are covered by plain indexes only; adding a unique
+  # index on (page_id, position) or (gallery_id, sort) would break this.
+  defp reorder(items, idx, direction, write_position) when is_integer(idx) do
+    to = if direction == :up, do: idx - 1, else: idx + 1
 
+    if to >= 0 and to < length(items) do
       Repo.transaction(fn ->
-        set_position!(pb.id, other.position)
-        set_position!(other.id, pb.position)
+        items
+        |> List.delete_at(idx)
+        |> List.insert_at(to, Enum.at(items, idx))
+        |> Enum.with_index()
+        |> Enum.each(fn {item, position} -> write_position.(item.id, position) end)
       end)
     else
       # Already at the top/bottom edge — nothing to do.
       {:ok, :noop}
     end
   end
+
+  defp reorder(_items, _idx, _direction, _write_position), do: {:error, :not_found}
 
   defp delete_block!(%PageBlock{} = pb) do
     schema = Blocks.schema_for(pb.block_type)

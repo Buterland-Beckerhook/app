@@ -12,8 +12,11 @@ defmodule Bbh.Media.Upload do
     field :focal_point_x, :float
     field :focal_point_y, :float
     field :title, :string
+    field :caption, :string
     field :description, :string
     field :copyright, :string
+    # Incremented whenever the stored original is rewritten (see Bbh.Media.rotate_upload/2).
+    field :revision, :integer, default: 0
 
     belongs_to :folder, Bbh.Media.Folder
 
@@ -22,9 +25,18 @@ defmodule Bbh.Media.Upload do
 
   # Derived server-side at upload time (magic-byte sniffing, dimensions, the
   # generated storage key) — never settable from client params after creation.
+  # `revision` is bumped only by Bbh.Media.rotate_upload/2, so it is in neither list.
   @system_fields [:storage_key, :filename, :content_type, :byte_size, :width, :height]
   # User-editable metadata, safe to cast from admin form params.
-  @user_fields [:focal_point_x, :focal_point_y, :title, :description, :copyright, :folder_id]
+  @user_fields [
+    :focal_point_x,
+    :focal_point_y,
+    :title,
+    :caption,
+    :description,
+    :copyright,
+    :folder_id
+  ]
 
   # storage_key is a relative path under uploads_dir (e.g. "<year>/<uuid><ext>",
   # see Bbh.Media.do_store_file/3). Each segment must start with an alphanumeric,

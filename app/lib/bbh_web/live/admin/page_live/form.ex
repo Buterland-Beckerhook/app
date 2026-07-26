@@ -3,7 +3,6 @@ defmodule BbhWeb.Admin.PageLive.Form do
 
   alias Bbh.Content
   alias Bbh.Content.{Page, Blocks}
-  alias Bbh.Media
 
   @statuses [{"Entwurf", "draft"}, {"Veröffentlicht", "published"}]
   @block_types [
@@ -16,11 +15,7 @@ defmodule BbhWeb.Admin.PageLive.Form do
 
   @impl true
   def mount(params, _session, socket) do
-    socket =
-      socket
-      |> assign(statuses: @statuses, block_types: @block_types)
-      |> assign(image_picker_for: nil, media_search: "")
-      |> assign(media_library: Media.list_uploads(images_only: true))
+    socket = assign(socket, statuses: @statuses, block_types: @block_types)
 
     {:ok, apply_action(socket, socket.assigns.live_action, params)}
   end
@@ -93,27 +88,27 @@ defmodule BbhWeb.Admin.PageLive.Form do
     {:noreply, reload_blocks(socket)}
   end
 
-  def handle_event("open_image_picker", %{"pb_id" => pb_id}, socket),
-    do: {:noreply, assign(socket, image_picker_for: pb_id, media_search: "")}
-
-  def handle_event("close_image_picker", _params, socket),
-    do: {:noreply, assign(socket, :image_picker_for, nil)}
-
-  def handle_event("search_media", %{"search" => search}, socket) do
-    {:noreply,
-     socket
-     |> assign(media_search: search)
-     |> assign(media_library: Media.list_uploads(images_only: true, search: search))}
-  end
-
-  def handle_event("set_block_image", %{"pb_id" => pb_id, "media_id" => media_id}, socket) do
-    {:ok, _} = Content.update_block(find_pb(socket, pb_id), %{"image_id" => media_id})
-    {:noreply, socket |> assign(:image_picker_for, nil) |> reload_blocks()}
-  end
-
   def handle_event("clear_block_image", %{"pb_id" => pb_id}, socket) do
     {:ok, _} = Content.update_block(find_pb(socket, pb_id), %{"image_id" => nil})
     {:noreply, reload_blocks(socket)}
+  end
+
+  def handle_event("remove_gallery_file", %{"file_id" => file_id}, socket) do
+    {:ok, _} = file_id |> Content.get_gallery_file!() |> Content.delete_gallery_file()
+    {:noreply, reload_blocks(socket)}
+  end
+
+  def handle_event("move_gallery_file", %{"file_id" => file_id, "dir" => dir}, socket) do
+    file = Content.get_gallery_file!(file_id)
+    direction = if dir == "up", do: :up, else: :down
+
+    case Content.move_gallery_file(file.gallery_id, file, direction) do
+      {:ok, _} ->
+        {:noreply, reload_blocks(socket)}
+
+      {:error, _reason} ->
+        {:noreply, put_flash(socket, :error, "Bild konnte nicht verschoben werden.")}
+    end
   end
 
   def handle_event("move", %{"pb_id" => pb_id, "dir" => dir}, socket) do
@@ -125,6 +120,33 @@ defmodule BbhWeb.Admin.PageLive.Form do
 
       {:error, _reason} ->
         {:noreply, put_flash(socket, :error, "Block konnte nicht verschoben werden.")}
+    end
+  end
+
+  # Picks from the shared media picker (BbhWeb.Admin.MediaPicker). The `pb_id` the modal
+  # was opened with tells us which block the choice belongs to.
+  @impl true
+  def handle_info({:media_selected, %{"context" => "media_card", "pb_id" => pb_id}, id}, socket) do
+    case find_pb(socket, pb_id) do
+      nil ->
+        {:noreply, put_flash(socket, :error, "Dieser Block existiert nicht mehr.")}
+
+      pb ->
+        {:ok, _} = Content.update_block(pb, %{"image_id" => id})
+        {:noreply, reload_blocks(socket)}
+    end
+  end
+
+  def handle_info({:media_selected, %{"context" => "gallery", "pb_id" => pb_id}, id}, socket) do
+    # The block can be gone by the time the pick lands (deleted here or in another tab),
+    # and a MatchError here would take the whole editor — and every unsaved block — down.
+    case find_block(socket, pb_id) do
+      {_pb, gallery} ->
+        {:ok, _} = Content.add_gallery_file(gallery, id)
+        {:noreply, reload_blocks(socket)}
+
+      nil ->
+        {:noreply, put_flash(socket, :error, "Dieser Block existiert nicht mehr.")}
     end
   end
 
@@ -158,6 +180,10 @@ defmodule BbhWeb.Admin.PageLive.Form do
 
   defp find_pb(socket, pb_id) do
     Enum.find_value(socket.assigns.blocks, fn {pb, _} -> pb.id == pb_id && pb end)
+  end
+
+  defp find_block(socket, pb_id) do
+    Enum.find(socket.assigns.blocks, fn {pb, _} -> pb.id == pb_id end)
   end
 
   defp assign_meta_form(socket, changeset),
@@ -281,14 +307,10 @@ defmodule BbhWeb.Admin.PageLive.Form do
               </div>
             </div>
 
-            <.media_card_image
-              :if={pb.block_type == "media_card"}
-              pb={pb}
-              block={block}
-              open={@image_picker_for == pb.id}
-              media_library={@media_library}
-              media_search={@media_search}
-            />
+            <%!-- Image management sits outside the block's <.form> so its buttons can't
+                  submit it; every change persists immediately. --%>
+            <.media_card_image :if={pb.block_type == "media_card"} pb={pb} block={block} />
+            <.gallery_files :if={pb.block_type == "image_gallery"} pb={pb} block={block} />
 
             <.form :let={f} for={block_form(pb, block)} id={"block-#{pb.id}"} phx-submit="save_block">
               <input type="hidden" name="pb_id" value={pb.id} />
@@ -317,7 +339,7 @@ defmodule BbhWeb.Admin.PageLive.Form do
       >
         Die Seite „{@page.title}" und alle ihre Blöcke werden dauerhaft gelöscht.
       </.danger_zone>
-      <.live_component module={BbhWeb.Admin.MediaPickerComponent} id="media-picker" />
+      <.live_component module={BbhWeb.Admin.MediaPicker} id="media-picker" />
     </Layouts.admin>
     """
   end
@@ -369,7 +391,6 @@ defmodule BbhWeb.Admin.PageLive.Form do
       options={[{"Raster", "grid"}, {"Diashow", "slideshow"}]}
     />
     <.input field={@f[:lightbox]} type="checkbox" label="Lightbox aktivieren" />
-    <p class="text-xs text-base-content/50">Bilderverwaltung folgt über die Medienbibliothek.</p>
     """
   end
 
@@ -408,13 +429,9 @@ defmodule BbhWeb.Admin.PageLive.Form do
     """
   end
 
-  # Image selection for a media_card block. Rendered outside the block's <.form> so
-  # its buttons/search don't submit that form; changes persist immediately.
+  # The single image of a media_card block.
   attr :pb, :map, required: true
   attr :block, :any, required: true
-  attr :open, :boolean, required: true
-  attr :media_library, :list, required: true
-  attr :media_search, :string, required: true
 
   defp media_card_image(assigns) do
     ~H"""
@@ -423,7 +440,7 @@ defmodule BbhWeb.Admin.PageLive.Form do
         <img
           :if={@block.image}
           src={media_url(@block.image, width: 160, height: 100)}
-          alt=""
+          alt={image_alt(@block.image)}
           class="aspect-video w-28 rounded object-cover"
         />
         <span
@@ -435,7 +452,9 @@ defmodule BbhWeb.Admin.PageLive.Form do
         <div class="flex flex-wrap gap-2">
           <button
             type="button"
-            phx-click="open_image_picker"
+            phx-click="open"
+            phx-target="#media-picker"
+            phx-value-context="media_card"
             phx-value-pb_id={@pb.id}
             class="btn btn-outline btn-sm"
           >
@@ -452,45 +471,81 @@ defmodule BbhWeb.Admin.PageLive.Form do
           </button>
         </div>
       </div>
+    </div>
+    """
+  end
 
-      <div :if={@open} class="mt-3">
-        <form phx-change="search_media" id={"media-card-search-#{@pb.id}"} class="mb-2">
-          <input
-            type="text"
-            name="search"
-            value={@media_search}
-            placeholder="Mediathek durchsuchen…"
-            phx-debounce="300"
-            class="input input-bordered input-sm w-full max-w-xs"
+  # The images of a gallery block, in display order.
+  attr :pb, :map, required: true
+  attr :block, :any, required: true
+
+  defp gallery_files(assigns) do
+    ~H"""
+    <div class="mb-3 rounded-box bg-base-200/50 p-3">
+      <p class="mb-2 text-sm font-medium">Bilder ({length(@block.files)})</p>
+
+      <div :if={@block.files != []} class="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+        <div
+          :for={{file, i} <- Enum.with_index(@block.files)}
+          class="overflow-hidden rounded border border-base-300 bg-base-100"
+        >
+          <img
+            src={media_url(file.media, width: 200, height: 200)}
+            alt={image_alt(file)}
+            loading="lazy"
+            class="aspect-square w-full object-cover"
           />
-        </form>
-        <div class="grid max-h-64 grid-cols-3 gap-2 overflow-y-auto rounded-box border border-base-300 p-2 sm:grid-cols-4 md:grid-cols-6">
-          <button
-            :for={m <- @media_library}
-            type="button"
-            phx-click="set_block_image"
-            phx-value-pb_id={@pb.id}
-            phx-value-media_id={m.id}
-            title={m.filename}
-            class="group relative"
-          >
-            <img
-              src={media_url(m, width: 120, height: 120)}
-              alt={m.filename}
-              class="aspect-square w-full rounded object-cover"
-            />
-            <span class="absolute inset-0 flex items-center justify-center rounded bg-black/50 text-xs text-white opacity-0 group-hover:opacity-100">
-              wählen
-            </span>
-          </button>
-          <p :if={@media_library == []} class="col-span-full p-2 text-sm text-base-content/60">
-            Keine Bilder gefunden.
+          <p class="truncate px-1.5 pt-1 text-xs" title={file.media.filename}>
+            {image_caption(file.media) || file.media.title || file.media.filename}
           </p>
+          <div class="flex items-center justify-between px-1 pb-1">
+            <div class="flex">
+              <button
+                type="button"
+                class="btn btn-ghost btn-xs"
+                phx-click="move_gallery_file"
+                phx-value-file_id={file.id}
+                phx-value-dir="up"
+                disabled={i == 0}
+                aria-label="Nach vorne"
+              >↑</button>
+              <button
+                type="button"
+                class="btn btn-ghost btn-xs"
+                phx-click="move_gallery_file"
+                phx-value-file_id={file.id}
+                phx-value-dir="down"
+                disabled={i == length(@block.files) - 1}
+                aria-label="Nach hinten"
+              >↓</button>
+            </div>
+            <button
+              type="button"
+              class="btn btn-ghost btn-xs text-error"
+              phx-click="remove_gallery_file"
+              phx-value-file_id={file.id}
+              data-confirm="Bild aus der Galerie entfernen?"
+              aria-label="Entfernen"
+            >✕</button>
+          </div>
         </div>
-        <button type="button" phx-click="close_image_picker" class="btn btn-ghost btn-xs mt-2">
-          Schließen
-        </button>
       </div>
+
+      <button
+        type="button"
+        phx-click="open"
+        phx-target="#media-picker"
+        phx-value-context="gallery"
+        phx-value-pb_id={@pb.id}
+        class="btn btn-outline btn-sm mt-2 gap-1"
+      >
+        <.icon name="hero-photo" class="size-4" /> Bild hinzufügen
+      </button>
+      <p class="mt-1 text-xs text-base-content/60">
+        Bildunterschrift und Copyright kommen aus der
+        <.link navigate={~p"/admin/medien"} class="link">Mediathek</.link>
+        und erscheinen beim Vergrößern.
+      </p>
     </div>
     """
   end

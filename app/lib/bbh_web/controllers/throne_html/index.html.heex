@@ -12,12 +12,14 @@
     </h2>
 
     <% pic = throne_picture(throne) %>
-    <img
-      :if={pic}
-      src={media_url(pic.media, width: 1024)}
-      alt={image_alt(pic)}
-      class="mb-6 w-full rounded-lg object-cover"
-    />
+    <figure :if={pic} class="mb-6">
+      <img
+        src={media_url(pic.media, width: 1024)}
+        alt={image_alt(pic)}
+        class="w-full rounded-lg object-cover"
+      />
+      <.image_credit caption={image_caption(pic)} copyright={image_copyright(pic)} />
+    </figure>
     <div class="rounded-lg border border-base-300 p-4">
       <.throne_table throne={throne} show_caption={false} />
       <a

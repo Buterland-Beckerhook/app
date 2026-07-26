@@ -239,10 +239,19 @@ defmodule Bbh.Search do
   defp block_text(%Blocks.PersonList{title: title}), do: title || ""
   defp block_text(_), do: ""
 
+  # A gallery file's searchable text lives on its media item (caption/title/copyright),
+  # which is where it is edited — the file row itself only carries its position.
   defp gallery_files_text(%{files: files}) when is_list(files),
-    do: Enum.map_join(files, " ", fn f -> join([f.title, f.copyright]) end)
+    do: Enum.map_join(files, " ", fn f -> join(media_text(f.media)) end)
 
   defp gallery_files_text(_), do: ""
+
+  # Copyright included so a photographer's name still finds the gallery page — it used to
+  # be indexed via the (now dropped) block_gallery_files.copyright column.
+  defp media_text(%Bbh.Media.Upload{} = upload),
+    do: [upload.caption, upload.title, upload.copyright]
+
+  defp media_text(_), do: []
 
   # Join a list of text fragments into one space-separated string, dropping
   # nils/blanks. Fragments may themselves be lists (e.g. tags) — flattened first.

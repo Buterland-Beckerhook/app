@@ -5,6 +5,7 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
 
   alias Bbh.Content
   alias Bbh.Content.{Article, ArticleImage, Throne}
+  alias BbhWeb.Admin.MediaEditor
 
   @statuses [{"Entwurf", "draft"}, {"Veröffentlicht", "published"}, {"Archiviert", "archived"}]
 
@@ -26,7 +27,7 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
 
     socket
     |> assign(page_title: "Neuer Artikel", article: article)
-    |> assign(images: [], picker_search: "", show_throne: false)
+    |> assign(images: [], show_throne: false)
     |> assign_form(Content.change_article(article))
   end
 
@@ -36,11 +37,8 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
     socket
     |> assign(page_title: "Artikel bearbeiten", article: article, throne: article.throne)
     |> assign(show_throne: not is_nil(article.throne))
-    |> assign(images: Content.list_article_images(id), picker_search: "")
+    |> assign(images: Content.list_article_images(id))
     |> assign(folder_options: Bbh.Media.folder_options())
-    |> assign_async(:media_library, fn ->
-      {:ok, %{media_library: Bbh.Media.list_uploads(images_only: true)}}
-    end)
     |> assign_throne_form(Content.change_throne(throne_or_new(article)))
     |> assign_form(Content.change_article(article))
   end
@@ -77,11 +75,6 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
     end
   end
 
-  def handle_event("add_image", %{"media_id" => media_id}, socket) do
-    {:ok, _} = Content.add_article_image(socket.assigns.article, media_id)
-    {:noreply, reload_images(socket)}
-  end
-
   def handle_event("validate_upload", _params, socket), do: {:noreply, socket}
 
   def handle_event("cancel_upload", %{"ref" => ref}, socket),
@@ -110,15 +103,6 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
     {:noreply, socket |> put_upload_result_flash(stored, rejected) |> reload_images()}
   end
 
-  def handle_event("search_media", %{"search" => search}, socket) do
-    {:noreply,
-     socket
-     |> assign(:picker_search, search)
-     |> assign_async(:media_library, fn ->
-       {:ok, %{media_library: Bbh.Media.list_uploads(images_only: true, search: search)}}
-     end)}
-  end
-
   def handle_event("add_throne_section", _params, socket) do
     {:noreply, assign(socket, :show_throne, true)}
   end
@@ -139,20 +123,16 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
   def handle_event("cancel_edit", _params, socket),
     do: {:noreply, assign(socket, :editing_media, nil)}
 
-  def handle_event("save_meta", %{"upload" => params}, socket) do
-    params = Map.update(params, "folder_id", nil, &blank_to_nil/1)
+  # `:keep` means the editor stays open on the returned upload — that is how a rotation
+  # shows its result and can be repeated (see BbhWeb.Admin.MediaEditor.submit/2).
+  def handle_event("save_meta", %{"upload" => _} = params, socket) do
+    {action, updated, {kind, message}} = MediaEditor.submit(socket.assigns.editing_media, params)
 
-    case Bbh.Media.update_upload(socket.assigns.editing_media, params) do
-      {:ok, _updated} ->
-        {:noreply,
-         socket
-         |> assign(:editing_media, nil)
-         |> put_flash(:info, "Bild gespeichert.")
-         |> reload_images()}
-
-      {:error, _changeset} ->
-        {:noreply, put_flash(socket, :error, "Bild konnte nicht gespeichert werden.")}
-    end
+    {:noreply,
+     socket
+     |> assign(:editing_media, if(action == :keep, do: updated, else: nil))
+     |> put_flash(kind, message)
+     |> reload_images()}
   end
 
   def handle_event("set_preview_image", %{"img_id" => id}, socket) do
@@ -186,11 +166,16 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
     {:noreply, socket |> put_flash(:info, "Thron entfernt.") |> reload_article()}
   end
 
+  # A pick from the shared media picker (BbhWeb.Admin.MediaPicker); the modal stays open
+  # so several images can be added in a row.
+  @impl true
+  def handle_info({:media_selected, %{"context" => "article_image"}, media_id}, socket) do
+    {:ok, _} = Content.add_article_image(socket.assigns.article, media_id)
+    {:noreply, reload_images(socket)}
+  end
+
   defp reload_images(socket),
     do: assign(socket, :images, Content.list_article_images(socket.assigns.article.id))
-
-  defp blank_to_nil(""), do: nil
-  defp blank_to_nil(v), do: v
 
   defp put_upload_result_flash(socket, stored, 0) when stored > 0,
     do: put_flash(socket, :info, "#{stored} Bild(er) hochgeladen und hinzugefügt.")
@@ -365,20 +350,36 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
       <section :if={@live_action == :edit} class="mt-10">
         <h2 class="text-xl font-semibold">Bilder</h2>
 
+        <p class="mt-1 text-sm text-base-content/60">
+          Bildunterschrift, Alt-Text und Copyright gehören zum Bild selbst und werden in der
+          <.link navigate={~p"/admin/medien"} class="link">Mediathek</.link>
+          gepflegt — hier steht nur, wie das Bild in diesem Artikel verwendet wird.
+        </p>
+
         <div class="mt-4 grid gap-4 sm:grid-cols-2">
           <div :for={img <- @images} class="rounded-box border border-base-300 p-3">
             <img
               src={media_url(img.media, width: 320, height: 200)}
-              alt={img.title || ""}
+              alt={image_alt(img)}
               class="mb-2 aspect-video w-full rounded object-cover"
             />
+            <dl class="mb-2 space-y-0.5 text-xs text-base-content/70">
+              <div class="flex gap-1">
+                <dt class="shrink-0 font-medium">Unterschrift:</dt>
+                <dd class="truncate">{image_caption(img.media) || "—"}</dd>
+              </div>
+              <div class="flex gap-1">
+                <dt class="shrink-0 font-medium">Copyright:</dt>
+                <dd class="truncate">{image_copyright(img.media) || "—"}</dd>
+              </div>
+            </dl>
             <button
               type="button"
               phx-click="edit_media"
               phx-value-upload_id={img.media.id}
               class="btn btn-outline btn-sm mb-2 w-full gap-1"
             >
-              <.icon name="hero-scissors" class="size-4" /> Bild bearbeiten (Zuschnitt)
+              <.icon name="hero-pencil-square" class="size-4" /> Bild bearbeiten (Mediathek)
             </button>
             <button
               type="button"
@@ -394,8 +395,7 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
             </button>
             <.form :let={f} for={image_form(img)} id={"image-#{img.id}"} phx-submit="save_image">
               <input type="hidden" name="img_id" value={img.id} />
-              <.input field={f[:title]} label="Bildunterschrift" />
-              <.input field={f[:copyright]} label="Copyright" />
+              <.input field={f[:show_caption]} type="checkbox" label="Bildunterschrift anzeigen" />
               <.input field={f[:use_as_throne_picture]} type="checkbox" label="Thronbild" />
               <.input field={f[:sort]} type="number" label="Sortierung" />
               <div class="mt-2 flex gap-2">
@@ -461,55 +461,22 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
         </form>
 
         <div class="mt-6">
-          <p class="mb-2 text-sm font-medium">Bild aus Mediathek hinzufügen</p>
-          <form phx-change="search_media" id="media-picker-search" class="mb-2">
-            <input
-              type="text"
-              name="search"
-              value={@picker_search}
-              placeholder="Mediathek durchsuchen…"
-              phx-debounce="300"
-              class="input input-bordered w-full max-w-xs"
-            />
-          </form>
-          <div class="grid max-h-72 grid-cols-3 gap-2 overflow-y-auto rounded-box border border-base-300 p-2 sm:grid-cols-4 md:grid-cols-6">
-            <.async_result :let={media_library} assign={@media_library}>
-              <:loading>
-                <p class="col-span-full p-2 text-sm text-base-content/60">Lädt…</p>
-              </:loading>
-              <:failed :let={_reason}>
-                <p class="col-span-full p-2 text-sm text-error">
-                  Mediathek konnte nicht geladen werden.
-                </p>
-              </:failed>
-
-              <button
-                :for={m <- media_library}
-                type="button"
-                phx-click="add_image"
-                phx-value-media_id={m.id}
-                title={m.filename}
-                class="group relative"
-              >
-                <img
-                  src={media_url(m, width: 120, height: 120)}
-                  alt={m.filename}
-                  class="aspect-square w-full rounded object-cover"
-                />
-                <span class="absolute inset-0 flex items-center justify-center rounded bg-black/50 text-xs text-white opacity-0 group-hover:opacity-100">
-                  + hinzufügen
-                </span>
-              </button>
-              <p :if={media_library == []} class="col-span-full p-2 text-sm text-base-content/60">
-                Keine Bilder gefunden.
-              </p>
-            </.async_result>
-          </div>
+          <button
+            type="button"
+            phx-click="open"
+            phx-target="#media-picker"
+            phx-value-context="article_image"
+            class="btn btn-outline gap-1"
+          >
+            <.icon name="hero-photo" class="size-4" /> Bild aus Mediathek hinzufügen
+          </button>
           <p class="mt-1 text-xs text-base-content/50">
-            Hochgeladene Bilder landen automatisch in der <.link
+            Im Auswahlfenster durch die Ordner der
+            <.link
               navigate={~p"/admin/medien"}
               class="link"
-            >Mediathek</.link>.
+            >Mediathek</.link>
+            navigieren. Hochgeladene Bilder landen dort automatisch.
           </p>
         </div>
       </section>
@@ -584,7 +551,7 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
       >
         Der Artikel „{@article.title}" wird mit allen Bildern dauerhaft gelöscht.
       </.danger_zone>
-      <.live_component module={BbhWeb.Admin.MediaPickerComponent} id="media-picker" />
+      <.live_component module={BbhWeb.Admin.MediaPicker} id="media-picker" />
       <.media_editor
         :if={@editing_media}
         upload={@editing_media}

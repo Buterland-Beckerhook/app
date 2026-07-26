@@ -49,6 +49,7 @@ defmodule BbhWeb.Format do
     query =
       [w: opts[:width], h: opts[:height]]
       |> Enum.concat(focal_params(upload, opts))
+      |> Enum.concat(revision_param(upload))
       |> Enum.reject(fn {_k, v} -> is_nil(v) end)
 
     case query do
@@ -69,6 +70,13 @@ defmodule BbhWeb.Format do
 
   defp focal_params(_upload, _opts), do: []
 
+  # Rotating an image rewrites the original in place, so the URL has to change or a
+  # browser cache (max-age=604800) would keep the old orientation. Only carried once
+  # something actually changed, which keeps every untouched URL — and the variant
+  # cache entries derived from it — exactly as before. The server ignores `v`.
+  defp revision_param(%Upload{revision: rev}) when is_integer(rev) and rev > 0, do: [v: rev]
+  defp revision_param(_upload), do: []
+
   @doc "The best hero image for an article (flagged one, else first), as an ArticleImage."
   def article_hero(%Article{images: images}) when is_list(images) do
     Enum.find(images, & &1.use_as_article_image) || List.first(images)
@@ -83,9 +91,65 @@ defmodule BbhWeb.Format do
 
   def throne_picture(_), do: nil
 
-  @doc "Alt text for an article image (its title, falling back to a generic label)."
-  def image_alt(%ArticleImage{title: title}) when is_binary(title) and title != "", do: title
+  @doc """
+  Alt text for an image: the media item's Beschreibung — the field that exists for it
+  — falling back to caption, then title, then a generic label.
+
+  Accepts an embedding with a preloaded `:media` (article image, gallery file) or the
+  upload itself. Caption/copyright/alt all resolve through this module so a picture
+  reads the same wherever it is embedded.
+  """
+  def image_alt(%Upload{} = upload),
+    do: first_present([upload.description, upload.caption, upload.title]) || "Bild"
+
+  def image_alt(%{media: %Upload{} = upload}), do: image_alt(upload)
   def image_alt(_), do: "Bild"
+
+  @doc """
+  The caption (Bildunterschrift) to render for an image, or `nil` for none.
+
+  An article image can suppress it (`show_caption`) without touching the media item —
+  the caption itself is only ever edited in the media library.
+  """
+  def image_caption(%ArticleImage{show_caption: false}), do: nil
+  def image_caption(%Upload{caption: caption}), do: presence(caption)
+  def image_caption(%{media: %Upload{} = upload}), do: image_caption(upload)
+  def image_caption(_), do: nil
+
+  @doc "The copyright line to render for an image, or `nil` for none."
+  def image_copyright(%Upload{copyright: copyright}), do: presence(copyright)
+  def image_copyright(%{media: %Upload{} = upload}), do: image_copyright(upload)
+  def image_copyright(_), do: nil
+
+  @doc ~S"""
+  A copyright as it is shown: prefixed with „©" unless the text already labels itself
+  („© …", „Foto: …"), so an editor's own wording is never doubled up.
+
+  The label forms require their separator on purpose — a rights holder whose *name* opens
+  with one of those words („Bildarchiv Stadt Münster", „Fotoclub Nord") still gets its ©.
+  """
+  def copyright_label(nil), do: nil
+
+  def copyright_label(text) when is_binary(text) do
+    case presence(text) do
+      nil -> nil
+      trimmed -> if labelled?(trimmed), do: trimmed, else: "© " <> trimmed
+    end
+  end
+
+  defp labelled?(text),
+    do: Regex.match?(~r/^(©|\(c\)|copyright\b|(foto|bild|quelle)\s*:)/iu, text)
+
+  defp presence(value) when is_binary(value) do
+    case String.trim(value) do
+      "" -> nil
+      trimmed -> trimmed
+    end
+  end
+
+  defp presence(_), do: nil
+
+  defp first_present(values), do: Enum.find_value(values, &presence/1)
 
   @doc """
   Render a stored rich-text body for output: resolve `{{ role.field }}` placeholders,

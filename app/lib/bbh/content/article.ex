@@ -21,7 +21,9 @@ defmodule Bbh.Content.Article do
     field :no_article, :boolean, default: false
     field :aliases, {:array, :string}, default: []
 
-    has_many :images, Bbh.Content.ArticleImage
+    # `preload_order` so every preload — article page, homepage, /thron, search —
+    # honours the editor's sort order instead of returning rows in insert order.
+    has_many :images, Bbh.Content.ArticleImage, preload_order: [asc: :sort, asc: :inserted_at]
     has_one :throne, Bbh.Content.Throne
 
     timestamps()

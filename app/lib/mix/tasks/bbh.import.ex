@@ -226,10 +226,13 @@ defmodule Mix.Tasks.Bbh.Import do
         name = res["name"] || ""
 
         if File.exists?(path) do
+          # Caption/copyright belong to the media item — the article image only records
+          # how it is embedded.
           {:ok, upload} =
             Bbh.Media.store_file(path, %{
               filename: res["src"],
               title: res["title"],
+              caption: res["title"],
               copyright: get_in(res, ["params", "copy"]) || "Buterland-Beckerhook e.V."
             })
 
@@ -238,8 +241,6 @@ defmodule Mix.Tasks.Bbh.Import do
             "article_id" => article.id,
             "media_id" => upload.id,
             "logical_name" => name,
-            "title" => res["title"],
-            "copyright" => get_in(res, ["params", "copy"]) || "Buterland-Beckerhook e.V.",
             "sort" => i,
             "use_as_throne_picture" => String.starts_with?(name, "thron"),
             "use_as_article_image" =>

@@ -1,13 +1,17 @@
 defmodule Bbh.Content.ArticleImage do
-  @moduledoc "Join between an article and an uploaded image, with hero/throne flags."
+  @moduledoc """
+  Join between an article and an uploaded image.
+
+  Carries only the *embedding* decisions. Caption, alt text and copyright belong to
+  the media item itself and are edited in the media library (`Bbh.Media.Upload`), so
+  the same picture reads the same wherever it is embedded.
+  """
   use Bbh.Schema
 
   schema "article_images" do
     field :logical_name, :string
-    field :title, :string
-    field :description, :string
-    field :copyright, :string, default: "Buterland-Beckerhook e.V."
     field :sort, :integer
+    field :show_caption, :boolean, default: true
     field :use_as_throne_picture, :boolean, default: false
     field :use_as_article_image, :boolean, default: false
 
@@ -22,10 +26,8 @@ defmodule Bbh.Content.ArticleImage do
     image
     |> cast(attrs, [
       :logical_name,
-      :title,
-      :description,
-      :copyright,
       :sort,
+      :show_caption,
       :use_as_throne_picture,
       :use_as_article_image,
       :article_id,

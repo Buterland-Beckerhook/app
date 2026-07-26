@@ -37,6 +37,14 @@ defmodule Bbh.Media do
   # PDFs are stored as-is (documents), so they are excluded here.
   @image_types ~w(image/jpeg image/png image/gif image/webp image/avif image/svg+xml)
 
+  # Types we may rewrite in place when rotating. GIF is out (a rewrite would drop the
+  # animation), SVG is out (vector markup, not pixels), PDFs are not images at all.
+  @rotatable_types ~w(image/jpeg image/png image/webp image/avif)
+
+  # Rotation is offered in quarter turns only — that is what editors ask for, and vips
+  # does it as a discrete pixel shuffle rather than a resampling pass.
+  @rotations [90, 180, 270]
+
   # Reject absurdly large images up front (a "decompression bomb": small on disk,
   # gigapixels decoded). Well above any real camera (~50 MP) but far below the
   # sizes that blow up native memory. The byte-size limit lives in the LiveView.
@@ -53,6 +61,12 @@ defmodule Bbh.Media do
 
   @doc "True if the upload is a displayable image (has an image thumbnail)."
   def image?(%Upload{content_type: type}), do: image_type?(type)
+
+  @doc "True if the upload's original may be rewritten by a rotation."
+  def rotatable?(%Upload{content_type: type}), do: type in @rotatable_types
+
+  @doc "The rotation angles the editor offers (quarter turns, clockwise)."
+  def rotations, do: @rotations
 
   def uploads_dir, do: Application.fetch_env!(:bbh, :uploads_dir)
   def cache_dir, do: Application.fetch_env!(:bbh, :media_cache_dir)
@@ -96,12 +110,145 @@ defmodule Bbh.Media do
 
   def change_upload(%Upload{} = upload, attrs \\ %{}), do: Upload.update_changeset(upload, attrs)
 
+  # Reindexed like the content writers in Bbh.Content: a gallery block's searchable text
+  # is now the caption/title of its media items, so editing one here changes what the
+  # site search should find.
   def update_upload(%Upload{} = upload, attrs),
-    do: upload |> Upload.update_changeset(attrs) |> Repo.update()
+    do: upload |> Upload.update_changeset(attrs) |> Repo.update() |> Bbh.Search.reindex_after()
 
   @doc "Move an upload into a folder (`nil` moves it back to the unfiled/root level)."
   def move_upload(%Upload{} = upload, folder_id),
     do: upload |> Upload.update_changeset(%{folder_id: folder_id}) |> Repo.update()
+
+  ## Rotation
+
+  @doc """
+  Rotate the stored original clockwise by 90, 180 or 270 degrees.
+
+  The original file is rewritten (EXIF orientation is baked in first, so the result
+  cannot be double-rotated by a viewer), which is what makes the new orientation show
+  up everywhere — variants, downloads, and images embedded in rich text alike. The new
+  bytes are written to a temporary file and only moved into place once vips succeeded,
+  so a failure leaves the original untouched.
+
+  Dimensions and byte size are re-read from the written file and the focal point is turned
+  with the image. `revision` is bumped, which busts two caches at once: it rides on media
+  URLs as `?v=` (the browser) and joins the variant cache key (the disk). The upload's
+  cached variant directory is dropped too — that only frees the space, the key change is
+  what makes a stale variant unreachable.
+
+  Returns `{:error, :not_rotatable}` for GIF/SVG/PDF and `{:error, :invalid_angle}` for
+  anything that is not a quarter turn.
+  """
+  def rotate_upload(%Upload{} = upload, degrees) when degrees in @rotations do
+    if rotatable?(upload), do: do_rotate(upload, degrees), else: {:error, :not_rotatable}
+  end
+
+  def rotate_upload(%Upload{}, _degrees), do: {:error, :invalid_angle}
+
+  # sobelow_skip ["Traversal.FileModule"]
+  # source is uploads_dir/<db storage_key> (format-validated at creation, not
+  # user-updatable — see Upload.changeset/2); temp is that path plus a generated suffix.
+  defp do_rotate(%Upload{} = upload, degrees) do
+    source = Path.join(uploads_dir(), upload.storage_key)
+
+    # Same directory as the original, so the move is a rename within one filesystem and
+    # therefore atomic — a half-written original is never visible. It also means the temp
+    # file is briefly reachable under /media/<key>.rot-<n>.<ext>; harmless, since the
+    # original it is derived from is public at the neighbouring path anyway.
+    temp = "#{source}.rot-#{System.unique_integer([:positive])}#{Path.extname(source)}"
+
+    with {:ok, image} <- Image.open(source),
+         {:ok, {upright, _flags}} <- Image.autorotate(image),
+         {:ok, rotated} <- Image.rotate(upright, degrees),
+         {:ok, _} <- Image.write(rotated, temp, quality: 90),
+         :ok <- File.rename(temp, source) do
+      flush_vips_cache()
+      purge_variants(upload)
+      store_rotation(upload, source, degrees)
+    else
+      _ ->
+        File.rm(temp)
+        {:error, :rotate_failed}
+    end
+  end
+
+  # The rename above is the point of no return, so nothing in here may raise: read the
+  # new size defensively and keep the old one if the stat fails.
+  # sobelow_skip ["Traversal.FileModule"]
+  # source is the app-derived path from do_rotate/2 above.
+  defp store_rotation(%Upload{} = upload, source, degrees) do
+    {focal_x, focal_y} = rotate_focal(upload.focal_point_x, upload.focal_point_y, degrees)
+
+    # Keep the old values if the file cannot be read back rather than storing nils —
+    # templates size their aspect boxes from these.
+    {width, height} =
+      case dimensions(source) do
+        {nil, nil} -> {upload.width, upload.height}
+        dimensions -> dimensions
+      end
+
+    byte_size =
+      case File.stat(source) do
+        {:ok, %File.Stat{size: size}} -> size
+        _ -> upload.byte_size
+      end
+
+    upload
+    |> Ecto.Changeset.change(%{
+      width: width,
+      height: height,
+      byte_size: byte_size,
+      focal_point_x: focal_x,
+      focal_point_y: focal_y,
+      revision: upload.revision + 1
+    })
+    |> Repo.update()
+  end
+
+  # libvips memoizes operations by their arguments — the source *filename* among them —
+  # and has no idea the bytes underneath changed. The consumer that needs this is
+  # `dimensions/1` in store_rotation/3: without the flush its `Image.open` returns the
+  # pre-rotation size, and we store the wrong width/height. Variant generation is *not*
+  # at risk (measured): `Image.thumbnail` on a path uses a sequential-access loader, which
+  # libvips marks non-cacheable, so it always reads the file. Setting the limit to 0 trims
+  # the cache; the previous limit is restored right after, so this costs a cold cache once
+  # per rotation, nothing more.
+  defp flush_vips_cache do
+    max = Vix.Vips.cache_get_max()
+    :ok = Vix.Vips.cache_set_max(0)
+    :ok = Vix.Vips.cache_set_max(max)
+  end
+
+  # Where the focal point ends up after the image turns under it. Rounded like the
+  # fractions on media URLs (BbhWeb.Format), so repeated turns can't drift.
+  defp rotate_focal(x, y, degrees) when is_number(x) and is_number(y) do
+    case degrees do
+      90 -> {frac(1.0 - y), frac(x)}
+      180 -> {frac(1.0 - x), frac(1.0 - y)}
+      270 -> {frac(y), frac(1.0 - x)}
+    end
+  end
+
+  defp rotate_focal(_x, _y, _degrees), do: {nil, nil}
+
+  defp frac(value), do: Float.round(value * 1.0, 4)
+
+  @doc """
+  Drop every cached variant of one upload.
+
+  Variants live in a per-upload directory (named after a hash of the storage key)
+  precisely so they can be discarded as a unit: their file names are content hashes of
+  the requested size, so there is no other way to find them all. Called after a
+  rotation and when the upload is deleted.
+  """
+  # sobelow_skip ["Traversal.FileModule"]
+  # The path is media_cache_dir/<hex sha256> — no user input reaches it.
+  def purge_variants(%Upload{storage_key: key}), do: File.rm_rf(variant_dir(key))
+
+  defp variant_dir(key), do: Path.join(cache_dir(), hash(key))
+
+  defp hash(value), do: :crypto.hash(:sha256, value) |> Base.encode16(case: :lower)
 
   ## Folders
 
@@ -128,6 +275,15 @@ defmodule Bbh.Media do
           Enum.map(root.children, fn child -> {"#{root.name} / #{child.name}", child.id} end)
       end)
   end
+
+  @doc """
+  The sub-folders to offer while browsing `folder`: the root lists all top-level
+  folders, a top-level folder lists its children, and a second-level folder has none
+  (nesting is capped at two levels).
+  """
+  def child_folders(nil), do: list_subfolders(nil)
+  def child_folders(%Folder{parent_id: nil, id: id}), do: list_subfolders(id)
+  def child_folders(%Folder{}), do: []
 
   @doc "Direct sub-folders of `parent_id` (nil = top level), alphabetical."
   def list_subfolders(nil),
@@ -178,7 +334,7 @@ defmodule Bbh.Media do
   end
 
   @doc """
-  Delete an upload record and its original file (variant cache is regenerable).
+  Delete an upload record, its original file and its cached variants.
   Refuses with `{:error, :in_use}` while the media is still referenced by an article,
   media card, or gallery.
   """
@@ -191,6 +347,7 @@ defmodule Bbh.Media do
       {:error, :in_use}
     else
       File.rm(Path.join(uploads_dir(), upload.storage_key))
+      purge_variants(upload)
       Repo.delete(upload)
     end
   end
@@ -331,10 +488,8 @@ defmodule Bbh.Media do
   end
 
   defp variant(source, key, width, height, focal) do
-    name =
-      :crypto.hash(:sha256, cache_seed(key, width, height, focal)) |> Base.encode16(case: :lower)
-
-    dest = Path.join(cache_dir(), "#{name}.webp")
+    seed = key |> cache_seed(width, height, focal) |> revision_seed(revision_for(key))
+    dest = Path.join(variant_dir(key), "#{hash(seed)}.webp")
 
     cond do
       File.regular?(dest) ->
@@ -353,6 +508,21 @@ defmodule Bbh.Media do
   # existing (center-cropped) cache files stay valid for the common no-focal case.
   defp cache_seed(key, width, height, nil), do: "#{key}|#{width}|#{height}"
   defp cache_seed(key, width, height, {x, y}), do: "#{key}|#{width}|#{height}|#{x}|#{y}"
+
+  # The revision joins the key so that after a rotation every earlier entry is
+  # *unreachable*, not merely deleted. Purging alone is not enough: a generation already
+  # in flight when the rotation purges the directory finishes afterwards and writes the
+  # pre-rotation image back under the very name the next request looks up — and that
+  # sideways thumbnail would then be served from disk forever. Only folded in once it is
+  # non-zero, so every cache entry written before rotation existed stays valid.
+  defp revision_seed(seed, 0), do: seed
+  defp revision_seed(seed, revision), do: "#{seed}|r#{revision}"
+
+  # Read from the database, never from the request: taking it from the client's `?v=`
+  # would let anyone mint unbounded cache entries.
+  defp revision_for(key) do
+    Repo.one(from u in Upload, where: u.storage_key == ^key, select: u.revision) || 0
+  end
 
   # Bound concurrent generation so a cold-cache burst (the media library/picker
   # requests one variant per image at once) can't pile up native image decodes.

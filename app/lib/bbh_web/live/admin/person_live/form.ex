@@ -125,7 +125,7 @@ defmodule BbhWeb.Admin.PersonLive.Form do
       >
         Die Person „{@person.name}" wird dauerhaft gelöscht.
       </.danger_zone>
-      <.live_component module={BbhWeb.Admin.MediaPickerComponent} id="media-picker" />
+      <.live_component module={BbhWeb.Admin.MediaPicker} id="media-picker" />
     </Layouts.admin>
     """
   end
