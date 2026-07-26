@@ -21,3 +21,5 @@
 - [x] Seiten-Edit: Galerie-Block erlaubt Bilder waehlen, sortieren, entfernen
 - [x] Bildauswahl beachtet die Ordnerstruktur — ein gemeinsamer Picker fuer Artikel, Bild-Karte,
       Galerie und Trix (Ordner-Navigation, Suche ueber alle Ordner)
+- [x] eMail-Adressen gegen Harvester: beim Rendern in Fragmente + versteckte Decoys zerlegt.
+      Ohne JS lesbar/kopierbar, mit JS wird ein mailto: daraus (siehe docs/adr/0005)

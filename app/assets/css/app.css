@@ -390,4 +390,15 @@
   animation-play-state: paused;
 }
 
+/* Obfuscated e-mail addresses (see BbhWeb.EmailObfuscation + assets/js/mail.js).
+   `.eml-x` are the decoy fragments woven between the real chunks, `.eml-h` is the
+   address container of a link that carries its own label. display:none — not
+   visually-hidden — is the point: it keeps both out of the text selection, out of a
+   copy-paste and out of the accessibility tree, so what a human reads, copies or
+   hears is exactly the address. */
+.eml-x,
+.eml-h {
+  display: none;
+}
+
 /* This file is for your main application CSS */

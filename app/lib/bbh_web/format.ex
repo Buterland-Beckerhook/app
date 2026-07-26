@@ -153,11 +153,17 @@ defmodule BbhWeb.Format do
 
   @doc """
   Render a stored rich-text body for output: resolve `{{ role.field }}` placeholders,
-  retarget external/media links to open in a new tab, and mark the result safe.
+  retarget external/media links to open in a new tab, obfuscate e-mail addresses, and
+  mark the result safe.
 
   Links to another host or to a `/media/...` asset get `target="_blank"` (with
   `rel="noopener noreferrer"`); internal page links (relative, or absolute to our
-  own host) open in place. `mailto:`/`tel:` links are left untouched.
+  own host) open in place. `tel:` links are left untouched.
+
+  `mailto:` links and addresses typed into the copy are rewritten by
+  `BbhWeb.EmailObfuscation.rewrite/1` — the address may be *stored* in the clear, it
+  just never reaches the page that way. This runs last, on the finished HTML, so it
+  also covers whatever `{{ role.email }}` resolved to.
 
   The stored HTML is already sanitized on write (`Bbh.Html.sanitize/1`), which
   strips `target`/`rel` — so retargeting must happen here, at render time.
@@ -169,7 +175,11 @@ defmodule BbhWeb.Format do
   def render_richtext(body) when is_binary(body) do
     body
     |> Bbh.Placeholders.render()
+    # Order matters: obfuscation rewrites a mailto: anchor's href to /kontakt, which
+    # `new_tab?/1` reads as an internal link. Retargeting afterwards would still be
+    # correct, but only by accident — keep it ahead, where the schemes are intact.
     |> retarget_links()
+    |> BbhWeb.EmailObfuscation.rewrite()
     |> Phoenix.HTML.raw()
   end
 

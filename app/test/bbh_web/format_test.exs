@@ -142,11 +142,24 @@ defmodule BbhWeb.FormatTest do
       assert html =~ ~s(target="_blank")
     end
 
-    test "mailto/tel links are left untouched" do
-      assert render(~s(<a href="mailto:info@example.com">Mail</a>)) |> String.contains?("target") ==
-               false
+    test "tel links are left untouched" do
+      refute render(~s(<a href="tel:+491234">Tel</a>)) =~ "target"
+    end
 
-      assert render(~s(<a href="tel:+491234">Tel</a>)) |> String.contains?("target") == false
+    test "a mailto link is obfuscated and never retargeted" do
+      html = render(~s(<a href="mailto:info@example.com">Mail</a>))
+
+      refute html =~ "target"
+      refute html =~ "mailto"
+      refute html =~ "info@example.com"
+      assert html =~ "data-eml"
+    end
+
+    test "an address typed into the copy is obfuscated" do
+      html = render(~s(<p>Schreib an info@example.com.</p>))
+
+      refute html =~ "info@example.com"
+      assert html =~ ~s(class="eml")
     end
 
     test "resolves placeholders alongside link retargeting" do

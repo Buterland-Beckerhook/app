@@ -77,6 +77,18 @@ Copyright are fields on `media`; an embedding (article image, gallery file) only
 and not merely deleted), and the libvips operation cache — libvips memoizes by file name
 and would otherwise keep serving the old orientation from memory.
 
+## E-mail addresses
+
+Addresses are stored in the clear and obfuscated **at render time** — never write one
+into a public template as plain text or a `mailto:` link. `BbhWeb.Format.render_richtext/1`
+pipes the finished HTML through `BbhWeb.EmailObfuscation.rewrite/1`, which covers
+editor-authored `mailto:` links, addresses typed into the copy, and resolved
+`{{ role.email }}` placeholders. For an address set in a template use the
+`<.email_link address={...} />` component. The address is split into chunks with hidden
+decoy fragments between them, so it stays readable and copyable **without** JavaScript;
+`assets/js/mail.js` upgrades the anchor to a real `mailto:` on first interaction. See
+`docs/adr/0005-email-obfuscation.md`.
+
 ## Data snapshots — seeding & restore
 
 There is no hand-written sample seed; dev data is a **real snapshot**.
