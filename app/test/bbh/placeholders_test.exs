@@ -49,4 +49,25 @@ defmodule Bbh.PlaceholdersTest do
       assert Placeholders.render(nil) == nil
     end
   end
+
+  describe "the full render path" do
+    test "a resolved e-mail placeholder reaches the page obfuscated" do
+      person_fixture(role: "geschaeftsfuehrer", name: "Erika Beispiel", email: "gf@example.org")
+
+      html =
+        "Kontakt: {{ geschaeftsfuehrer.email }}"
+        |> BbhWeb.Format.render_richtext()
+        |> Phoenix.HTML.safe_to_string()
+
+      refute html =~ "gf@example.org"
+
+      # Not just "something got wrapped" — the address a reader sees must still be right.
+      visible =
+        html
+        |> String.replace(~r|<span class="eml-x"[^>]*>.*?</span>|s, "")
+        |> String.replace(~r/<[^>]*>/, "")
+
+      assert visible == "Kontakt: gf@example.org"
+    end
+  end
 end

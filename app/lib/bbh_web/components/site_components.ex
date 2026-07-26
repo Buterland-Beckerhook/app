@@ -6,6 +6,7 @@ defmodule BbhWeb.SiteComponents do
   import BbhWeb.Format
   alias Bbh.Club.Person
   alias Bbh.Content.Throne
+  alias BbhWeb.EmailObfuscation
 
   @doc """
   An article's hero image, sized as requested. Falls back to the club logo
@@ -67,6 +68,35 @@ defmodule BbhWeb.SiteComponents do
     </figcaption>
     """
   end
+
+  @doc """
+  Ein E-Mail-Link, der für Harvester unlesbar ist (siehe `BbhWeb.EmailObfuscation`).
+
+  Für fest im Template gesetzte Adressen. Adressen im Redaktionstext werden beim
+  Rendern automatisch verschleiert und brauchen diese Komponente nicht.
+
+  Ohne JavaScript zeigt der Link die Adresse und führt zum Kontaktformular;
+  `assets/js/mail.js` macht bei der ersten Interaktion ein `mailto:` daraus.
+  """
+  attr :address, :string, required: true
+
+  attr :label, :string,
+    default: nil,
+    doc:
+      "Linktext statt der Adresse. Versteckt die Adresse komplett — ohne JS gar nicht " <>
+        "erreichbar, deshalb nicht im Impressum verwenden (siehe docs/adr/0005)."
+
+  attr :class, :any, default: nil
+  attr :subject, :string, default: nil
+
+  def email_link(assigns) do
+    ~H"""
+    {EmailObfuscation.link(@address, label: @label, class: @class, query: subject_query(@subject))}
+    """
+  end
+
+  defp subject_query(nil), do: ""
+  defp subject_query(subject), do: "?subject=" <> URI.encode_www_form(subject)
 
   @doc "Preview card for an article in a listing."
   attr :article, :map, required: true
@@ -173,6 +203,12 @@ defmodule BbhWeb.SiteComponents do
   # The snippet arrives with neutral @@M@@/@@E@@ markers around matches. Escape
   # the (plain-text) content first, then reinstate <mark> — so nothing in the
   # indexed text can inject markup.
+  #
+  # The index is built from the stored body (before placeholders resolve), so an
+  # address hardcoded in the copy would otherwise surface here in the clear — this
+  # is the second way out onto a public page besides `Format.render_richtext/1`.
+  # Known gap: a match marker landing inside an address keeps it in the clear,
+  # because the pattern no longer matches. Rare enough to live with.
   # sobelow_skip ["XSS.Raw"]
   defp mark_headline(text) when is_binary(text) do
     text
@@ -180,6 +216,7 @@ defmodule BbhWeb.SiteComponents do
     |> Phoenix.HTML.safe_to_string()
     |> String.replace("@@M@@", "<mark>")
     |> String.replace("@@E@@", "</mark>")
+    |> EmailObfuscation.rewrite()
     |> Phoenix.HTML.raw()
   end
 

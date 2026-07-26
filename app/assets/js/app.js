@@ -36,6 +36,8 @@ import "../vendor/altcha/altcha.js"
 import "./countdown.js"
 // Flash toast auto-hide countdown (plain JS so it works on dead pages too).
 import "./flash.js"
+// Obfuscated e-mail links -> mailto: on first interaction (see BbhWeb.EmailObfuscation).
+import "./mail.js"
 // URL slug generation from a title — mirrors Mix.Tasks.Bbh.Import.slugify/1.
 import {slugify} from "./slug.js"
 

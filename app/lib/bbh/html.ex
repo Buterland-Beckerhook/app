@@ -13,6 +13,10 @@ defmodule Bbh.Html do
   and download links point at our own scheme-less `/media/...` paths. `javascript:`
   and `data:` URLs and inline handlers (e.g. `onerror`) are still stripped.
 
+  A `mailto:` link may be *stored* in the clear; it never reaches the page that way.
+  `BbhWeb.Format.render_richtext/1` hands the finished HTML to
+  `BbhWeb.EmailObfuscation.rewrite/1` — see `docs/adr/0005-email-obfuscation.md`.
+
   Quill encodes alignment and image size as CSS classes (`ql-align-*`,
   `ql-indent-*`, `bbh-img-*`). The scrubber allows the `class` attribute; this
   module then narrows the values to `@allowed_classes` so no other class can be
