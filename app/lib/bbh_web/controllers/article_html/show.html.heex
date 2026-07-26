@@ -1,11 +1,12 @@
-<Layouts.app flash={@flash} current_path={@conn.request_path}>
+<Layouts.app flash={@flash} current_scope={@current_scope} current_path={@conn.request_path}>
   <article class="mx-auto max-w-3xl">
     <div
       :if={assigns[:preview]}
       class="mb-4 rounded-box border border-warning bg-warning/10 px-4 py-2 text-sm"
     >
       <span class="font-medium">Vorschau</span>
-      — dieser Artikel ist derzeit nicht öffentlich sichtbar.
+      — dieser Artikel ist derzeit nicht öffentlich sichtbar.<span :if={article_status_label(@article)}>
+        {article_status_label(@article)}.</span>
     </div>
 
     <div class="flex items-center justify-between gap-3">

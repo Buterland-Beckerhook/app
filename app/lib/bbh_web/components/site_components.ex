@@ -117,6 +117,8 @@ defmodule BbhWeb.SiteComponents do
   attr :article, :map, required: true
 
   def article_card(assigns) do
+    assigns = assign(assigns, :status_label, article_status_label(assigns.article))
+
     ~H"""
     <a
       href={~p"/aktuell/#{@article.year}/#{@article.slug}"}
@@ -132,7 +134,15 @@ defmodule BbhWeb.SiteComponents do
         />
       </div>
       <div class="flex flex-1 flex-col p-5.5">
-        <time class="text-[13px] font-medium text-muted">{de_date(@article.date_published)}</time>
+        <div class="flex flex-wrap items-center gap-2">
+          <time class="text-[13px] font-medium text-muted">{de_date(@article.date_published)}</time>
+          <span
+            :if={@status_label}
+            class="rounded bg-warning/15 px-1.5 py-0.5 text-[10px] font-semibold text-warning uppercase"
+          >
+            {@status_label}
+          </span>
+        </div>
         <h3 class="font-logo mt-1.5 text-[22px] leading-snug group-hover:text-primary">
           {@article.title}
         </h3>

@@ -12,6 +12,16 @@ defmodule BbhWeb.ArticleControllerTest do
       assert html =~ shown.title
       refute html =~ hidden.title
     end
+
+    test "hides drafts and shows the login link for anonymous visitors", %{conn: conn} do
+      draft = article_fixture(title: "Geheimer Entwurf", status: "draft")
+
+      html = conn |> get(~p"/aktuell") |> html_response(200)
+      refute html =~ draft.title
+      assert html =~ ~p"/users/log-in"
+      assert html =~ "Anmelden"
+      refute html =~ ~p"/admin"
+    end
   end
 
   describe "GET /aktuell/:year/:slug" do
@@ -148,6 +158,16 @@ defmodule BbhWeb.ArticleControllerTest do
       html = conn |> get(~p"/aktuell/#{article.year}/#{article.slug}") |> html_response(200)
       assert html =~ "Noch Entwurf"
       assert html =~ "Vorschau"
+    end
+
+    test "lists drafts with a badge and links the footer to the admin area", %{conn: conn} do
+      draft = article_fixture(title: "Entwurf im Listing", status: "draft")
+
+      html = conn |> get(~p"/aktuell") |> html_response(200)
+      assert html =~ draft.title
+      assert html =~ "Entwurf"
+      assert html =~ ~p"/admin"
+      assert html =~ "Administration"
     end
   end
 

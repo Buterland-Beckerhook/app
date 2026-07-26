@@ -37,12 +37,15 @@ defmodule BbhWeb.Layouts do
   end
 
   # Full public nav. The "Verein" dropdown is built from the page tree
-  # (top-level, published, show_in_menu pages) so editors control it.
-  defp nav_links do
+  # (top-level, published, show_in_menu pages) so editors control it. A logged-in
+  # editor additionally sees unpublished menu pages, each flagged as a draft.
+  defp nav_links(current_scope) do
+    preview? = BbhWeb.Authz.can_preview?(current_scope, :pages)
+
     verein =
       case Enum.map(
-             Bbh.Content.menu_tree(),
-             &%{href: &1.path, label: &1.title, depth: &1.depth}
+             Bbh.Content.menu_tree(preview?),
+             &%{href: &1.path, label: &1.title, depth: &1.depth, draft: &1.status != "published"}
            ) do
         [] -> %{href: "/verein", label: "Verein"}
         children -> %{href: "/verein", label: "Verein", children: children}
@@ -81,7 +84,7 @@ defmodule BbhWeb.Layouts do
   slot :inner_block, required: true
 
   def app(assigns) do
-    nav = nav_links()
+    nav = nav_links(assigns.current_scope)
 
     assigns =
       assigns
@@ -168,6 +171,12 @@ defmodule BbhWeb.Layouts do
                         ]}
                       >
                         {child.label}
+                        <span
+                          :if={child[:draft]}
+                          class="ml-1.5 rounded bg-warning/15 px-1.5 py-0.5 text-[10px] font-semibold text-warning uppercase"
+                        >
+                          Entwurf
+                        </span>
                       </a>
                     </div>
                   </div>
@@ -239,6 +248,12 @@ defmodule BbhWeb.Layouts do
                         style={"padding-left: calc(1rem + #{child[:depth] || 0} * 0.75rem)"}
                       >
                         {child.label}
+                        <span
+                          :if={child[:draft]}
+                          class="rounded bg-warning/15 px-1.5 py-0.5 text-[10px] font-semibold text-warning uppercase"
+                        >
+                          Entwurf
+                        </span>
                       </a>
                     </li>
                   </ul>
@@ -312,7 +327,18 @@ defmodule BbhWeb.Layouts do
               &copy; {Date.utc_today().year} Schützenverein Buterland-Beckerhook e.V.
             </p>
             <div class="flex items-center gap-4">
-              <.link navigate={~p"/users/log-in"} class="text-[13px] text-[#8ba597] hover:text-white">
+              <.link
+                :if={@current_scope && @current_scope.user}
+                navigate={~p"/admin"}
+                class="text-[13px] text-[#8ba597] hover:text-white"
+              >
+                Administration
+              </.link>
+              <.link
+                :if={!(@current_scope && @current_scope.user)}
+                navigate={~p"/users/log-in"}
+                class="text-[13px] text-[#8ba597] hover:text-white"
+              >
                 Anmelden
               </.link>
               <.theme_toggle />

@@ -6,18 +6,27 @@ defmodule BbhWeb.PageContentController do
 
   @doc "Section overview: the dynamic list of top-level Verein pages (replaces the old tiles)."
   def verein(conn, _params) do
-    render(conn, :verein, page_title: "Verein", menu_pages: Content.list_menu_pages())
+    preview? = BbhWeb.Authz.can_preview?(conn.assigns[:current_scope], :pages)
+
+    render(conn, :verein,
+      page_title: "Verein",
+      preview: preview?,
+      menu_pages: Content.list_menu_pages(preview?)
+    )
   end
 
   @doc "A single nested page under /verein/*path, with breadcrumb + section sidebar."
   def verein_page(conn, %{"path" => segments}) do
-    case Content.get_page_by_path(segments) do
+    preview? = BbhWeb.Authz.can_preview?(conn.assigns[:current_scope], :pages)
+
+    case Content.get_page_by_path(segments, preview?) do
       {page, ancestors} ->
         render(conn, :verein_page,
           page_title: page.title,
           page: page,
+          preview: preview? and page.status != "published",
           ancestors: ancestors,
-          section_links: Content.section_links(List.first(ancestors)),
+          section_links: Content.section_links(List.first(ancestors), preview?),
           current_path: conn.request_path,
           blocks: Content.load_blocks(page)
         )

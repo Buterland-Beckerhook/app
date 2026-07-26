@@ -4,14 +4,24 @@ defmodule Bbh.Content do
   alias Bbh.Repo
   alias Bbh.Content.{Article, ArticleImage, Throne, Page, PageBlock, Blocks}
 
-  @doc "Published, real articles (excludes throne-only entries), newest first, paginated."
-  def list_published_articles(page \\ 1, per_page \\ 10) do
+  @doc """
+  Published, real articles (excludes throne-only entries), newest first, paginated.
+
+  With `include_unpublished: true` (logged-in editor preview) the publish-status and
+  future-date filters are dropped, so drafts / scheduled / archived articles are listed
+  too; throne-only entries stay excluded.
+  """
+  def list_published_articles(page \\ 1, per_page \\ 10, opts \\ []) do
     now = Bbh.Time.now()
 
     base =
-      from a in Article,
-        where: a.status == "published" and a.no_article == false and a.date_published <= ^now,
-        order_by: [desc: a.date_published]
+      if Keyword.get(opts, :include_unpublished, false) do
+        from a in Article, where: a.no_article == false, order_by: [desc: a.date_published]
+      else
+        from a in Article,
+          where: a.status == "published" and a.no_article == false and a.date_published <= ^now,
+          order_by: [desc: a.date_published]
+      end
 
     paginate(base, page, per_page, preload: [images: :media])
   end
@@ -202,23 +212,28 @@ defmodule Bbh.Content do
   Published top-level pages (`parent_id` nil) flagged for the menu, ordered by
   `sort_order`. Drives the dynamic "Verein" dropdown and the /verein overview.
   Excludes Impressum/Datenschutz (their `show_in_menu` is false).
+
+  With `include_unpublished` (logged-in editor) draft menu pages are listed too.
   """
-  def list_menu_pages do
-    Repo.all(
-      from p in Page,
-        where: is_nil(p.parent_id) and p.status == "published" and p.show_in_menu == true,
-        order_by: [asc: p.sort_order, asc: p.title]
+  def list_menu_pages(include_unpublished \\ false) do
+    from(p in Page,
+      where: is_nil(p.parent_id) and p.show_in_menu == true,
+      order_by: [asc: p.sort_order, asc: p.title]
     )
+    |> maybe_published(include_unpublished)
+    |> Repo.all()
   end
 
   @doc "Published direct children of `parent_id`, ordered by `sort_order`."
-  def list_child_pages(parent_id) do
-    Repo.all(
-      from p in Page,
-        where: p.parent_id == ^parent_id and p.status == "published",
-        order_by: [asc: p.sort_order, asc: p.title]
-    )
+  def list_child_pages(parent_id, include_unpublished \\ false) do
+    from(p in Page, where: p.parent_id == ^parent_id, order_by: [asc: p.sort_order, asc: p.title])
+    |> maybe_published(include_unpublished)
+    |> Repo.all()
   end
+
+  # Restricts a page query to published rows, unless previewing (logged-in editor).
+  defp maybe_published(query, true), do: query
+  defp maybe_published(query, false), do: where(query, [p], p.status == "published")
 
   @doc """
   Resolve a nested `/verein/*path` (a list of slug segments) to
@@ -229,8 +244,10 @@ defmodule Bbh.Content do
   This rejects wrong nesting (e.g. `/verein/vereinsgeschichte`) and legal pages
   (e.g. `/verein/impressum`).
   """
-  def get_page_by_path([_ | _] = segments) do
-    case find_menu_page(List.last(segments)) do
+  def get_page_by_path(segments, include_unpublished \\ false)
+
+  def get_page_by_path([_ | _] = segments, include_unpublished) do
+    case find_menu_page(List.last(segments), include_unpublished) do
       {_leaf, ancestors} = result ->
         if Enum.map(ancestors, & &1.slug) == segments, do: result, else: nil
 
@@ -239,7 +256,7 @@ defmodule Bbh.Content do
     end
   end
 
-  def get_page_by_path(_), do: nil
+  def get_page_by_path(_, _), do: nil
 
   @doc """
   A published page by (globally unique) slug together with its root → leaf
@@ -248,11 +265,11 @@ defmodule Bbh.Content do
 
   Used to build canonical `/verein/...` redirects for non-canonical paths.
   """
-  def find_menu_page(slug) do
+  def find_menu_page(slug, include_unpublished \\ false) do
     with %Page{} = leaf <-
-           Repo.one(from p in Page, where: p.slug == ^slug and p.status == "published"),
+           from(p in Page, where: p.slug == ^slug) |> maybe_published(include_unpublished) |> Repo.one(),
          ancestors = page_ancestors(leaf),
-         true <- Enum.all?(ancestors, &(&1.status == "published")),
+         true <- include_unpublished or Enum.all?(ancestors, &(&1.status == "published")),
          %Page{show_in_menu: true} <- List.first(ancestors) do
       {leaf, ancestors}
     else
@@ -277,7 +294,8 @@ defmodule Bbh.Content do
   page first, then its published descendants in DFS order. Each entry is
   `%{path: canonical_path, title: title, depth: 0-based}`.
   """
-  def section_links(%Page{} = root), do: page_links(root, "/verein/" <> root.slug, 0)
+  def section_links(%Page{} = root, include_unpublished \\ false),
+    do: page_links(root, "/verein/" <> root.slug, 0, include_unpublished)
 
   @doc """
   Depth-annotated menu tree for the "Verein" dropdown: each published menu page
@@ -285,13 +303,11 @@ defmodule Bbh.Content do
   Entries are `%{path:, title:, depth:}`; top-level pages keep `depth: 0`. Built
   from a single query.
   """
-  def menu_tree do
+  def menu_tree(include_unpublished \\ false) do
     by_parent =
-      Repo.all(
-        from p in Page,
-          where: p.status == "published",
-          order_by: [asc: p.sort_order, asc: p.title]
-      )
+      from(p in Page, order_by: [asc: p.sort_order, asc: p.title])
+      |> maybe_published(include_unpublished)
+      |> Repo.all()
       |> Enum.group_by(& &1.parent_id)
 
     (by_parent[nil] || [])
@@ -301,18 +317,20 @@ defmodule Bbh.Content do
 
   defp menu_links(by_parent, %Page{} = page, path, depth) do
     [
-      %{path: path, title: page.title, depth: depth}
+      %{path: path, title: page.title, depth: depth, status: page.status}
       | (by_parent[page.id] || [])
         |> Enum.flat_map(&menu_links(by_parent, &1, path <> "/" <> &1.slug, depth + 1))
     ]
   end
 
-  defp page_links(%Page{} = page, path, depth) do
+  defp page_links(%Page{} = page, path, depth, include_unpublished) do
     [
-      %{path: path, title: page.title, depth: depth}
+      %{path: path, title: page.title, depth: depth, status: page.status}
       | page.id
-        |> list_child_pages()
-        |> Enum.flat_map(fn child -> page_links(child, path <> "/" <> child.slug, depth + 1) end)
+        |> list_child_pages(include_unpublished)
+        |> Enum.flat_map(fn child ->
+          page_links(child, path <> "/" <> child.slug, depth + 1, include_unpublished)
+        end)
     ]
   end
 

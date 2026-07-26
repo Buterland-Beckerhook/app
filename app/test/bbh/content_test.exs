@@ -36,6 +36,20 @@ defmodule Bbh.ContentTest do
              |> Enum.map(& &1.id)
              |> Enum.all?(&(&1 not in Enum.map(page2.entries, fn e -> e.id end)))
     end
+
+    test "include_unpublished: true also lists drafts and scheduled, but not throne-only" do
+      published = article_fixture(date_published: days_ago(1))
+      draft = article_fixture(status: "draft")
+      scheduled = article_fixture(status: "published", date_published: from_now(2))
+      _throne_only = article_fixture(no_article: true)
+
+      ids = Content.list_published_articles(1, 10, include_unpublished: true).entries |> Enum.map(& &1.id)
+
+      assert published.id in ids
+      assert draft.id in ids
+      assert scheduled.id in ids
+      assert length(ids) == 3
+    end
   end
 
   describe "latest_articles/1" do
@@ -257,6 +271,37 @@ defmodule Bbh.ContentTest do
                %{path: "/verein/ueber-uns/geschichte", title: "Geschichte", depth: 1},
                %{path: "/verein/ueber-uns/geschichte/detail", title: "Detail", depth: 2}
              ] = Content.section_links(root)
+    end
+
+    test "include_unpublished: true surfaces draft pages for editor preview" do
+      published = page_fixture(slug: "sichtbar", status: "published", sort_order: 1)
+      draft = page_fixture(slug: "entwurf", status: "draft", sort_order: 2)
+      child = page_fixture(slug: "kind", status: "draft", parent_id: published.id)
+
+      # Default (public) view excludes drafts.
+      assert Content.list_menu_pages() |> Enum.map(& &1.slug) == ["sichtbar"]
+      refute Content.get_page_by_path(["entwurf"])
+      refute Content.get_page_by_path(["sichtbar", "kind"])
+
+      # Editor preview includes them.
+      preview_slugs = Content.list_menu_pages(true) |> Enum.map(& &1.slug)
+      assert "entwurf" in preview_slugs
+      assert {%{id: id}, _} = Content.get_page_by_path(["entwurf"], true)
+      assert id == draft.id
+      assert {%{id: cid}, _} = Content.get_page_by_path(["sichtbar", "kind"], true)
+      assert cid == child.id
+    end
+
+    test "menu_tree/1 tags each entry with its publish status" do
+      page_fixture(slug: "live", status: "published", sort_order: 1)
+      page_fixture(slug: "draft", status: "draft", sort_order: 2)
+
+      by_slug =
+        Content.menu_tree(true)
+        |> Map.new(&{Path.basename(&1.path), &1.status})
+
+      assert by_slug["live"] == "published"
+      assert by_slug["draft"] == "draft"
     end
   end
 
