@@ -290,7 +290,7 @@ const Hooks = {
         modules: {
           toolbar: {
             container: [
-              [{header: [2, 3, 4, false]}],
+              [{header: [1, 2, 3, 4, false]}],
               ["bold", "italic", "underline", "strike"],
               [{list: "ordered"}, {list: "bullet"}],
               ["blockquote", "link"],
