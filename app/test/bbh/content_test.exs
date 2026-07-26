@@ -43,7 +43,9 @@ defmodule Bbh.ContentTest do
       scheduled = article_fixture(status: "published", date_published: from_now(2))
       _throne_only = article_fixture(no_article: true)
 
-      ids = Content.list_published_articles(1, 10, include_unpublished: true).entries |> Enum.map(& &1.id)
+      ids =
+        Content.list_published_articles(1, 10, include_unpublished: true).entries
+        |> Enum.map(& &1.id)
 
       assert published.id in ids
       assert draft.id in ids

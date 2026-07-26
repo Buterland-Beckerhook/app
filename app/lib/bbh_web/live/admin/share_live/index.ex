@@ -11,6 +11,7 @@ defmodule BbhWeb.Admin.ShareLive.Index do
      socket
      |> assign(:page_title, "Kalender teilen")
      |> assign(:new_share, nil)
+     |> assign(:form_version, 0)
      |> assign_form()
      |> load_shares()}
   end
@@ -36,6 +37,9 @@ defmodule BbhWeb.Admin.ShareLive.Index do
            socket
            |> assign(:new_share, new_share(share, webcal, https))
            |> put_flash(level, message)
+           # Bump the version so LiveView replaces the expiry wrapper; this remounts the
+           # `datetime_field` picker (its DOM is `phx-update="ignore"`) with the reset value.
+           |> update(:form_version, &(&1 + 1))
            |> assign_form()
            |> load_shares()}
 
@@ -202,8 +206,8 @@ defmodule BbhWeb.Admin.ShareLive.Index do
   defp blank_to_nil(v) when v in [nil, ""], do: nil
   defp blank_to_nil(v), do: v
 
-  # Native date input → end-of-day so the link stays valid *through* that date;
-  # blank → nil (no expiry).
+  # Date picker submits "YYYY-MM-DD" → end-of-day so the link stays valid *through*
+  # that date; blank → nil (no expiry).
   defp parse_date(v) when v in [nil, ""], do: nil
   defp parse_date(v) when is_binary(v), do: v <> "T23:59:59Z"
 
@@ -251,7 +255,15 @@ defmodule BbhWeb.Admin.ShareLive.Index do
           label="Empfänger (E-Mail oder Bezeichnung)"
           placeholder="z. B. kassierer@example.com"
         />
-        <.input field={@form[:expires_at]} type="date" label="Ablauf (optional, leer = unbegrenzt)" />
+        <%!-- Version-keyed so a successful create replaces this subtree, remounting the
+          `datetime_field` picker (its DOM is `phx-update="ignore"`) with the reset value. --%>
+        <div id={"expires-wrap-#{@form_version}"}>
+          <.datetime_field
+            field={@form[:expires_at]}
+            label="Ablauf (optional, leer = unbegrenzt)"
+            enable_time={false}
+          />
+        </div>
         <.input
           field={@form[:notify]}
           type="checkbox"

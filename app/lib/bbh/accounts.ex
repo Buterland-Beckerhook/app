@@ -274,6 +274,19 @@ defmodule Bbh.Accounts do
     :ok
   end
 
+  @doc """
+  Deletes all session tokens for a user (log out everywhere). Returns the deleted
+  tokens so callers can drop the live sockets via `UserAuth.disconnect_sessions/1`.
+  Scoped to the "session" context so email-change / magic-link tokens are untouched.
+  """
+  def delete_all_user_session_tokens(%User{} = user) do
+    tokens =
+      Repo.all(from(t in UserToken, where: t.user_id == ^user.id and t.context == "session"))
+
+    Repo.delete_all(from(t in UserToken, where: t.id in ^Enum.map(tokens, & &1.id)))
+    tokens
+  end
+
   ## Token helper
 
   defp update_user_and_delete_all_tokens(changeset) do

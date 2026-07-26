@@ -47,6 +47,7 @@ defmodule BbhWeb.Admin.DashboardLive do
            summary: Bbh.Analytics.summary(from, to),
            by_day: Bbh.Analytics.views_by_day(from, to),
            ical: Bbh.Analytics.ical_summary(from, to),
+           push_subscriptions: Bbh.Notifications.count_subscriptions(),
            top_pages: Bbh.Analytics.top_pages(from, to),
            top_referrers: Bbh.Analytics.top_referrers(from, to)
          }
@@ -145,6 +146,12 @@ defmodule BbhWeb.Admin.DashboardLive do
                 title="Verschiedene Kalender-Clients am aktivsten Tag"
               >
                 iCal-Abos
+              </div>
+            </div>
+            <div class="rounded-box border border-base-300 bg-base-200 p-4">
+              <div class="text-3xl font-semibold text-primary">{a.push_subscriptions}</div>
+              <div class="text-sm text-base-content/70" title="Aktive Push-Benachrichtigungs-Abos">
+                Push-Abos
               </div>
             </div>
           </div>

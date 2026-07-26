@@ -84,6 +84,15 @@ defmodule Bbh.NotificationsTest do
     end
   end
 
+  describe "count_subscriptions/0" do
+    test "counts stored subscriptions" do
+      assert Notifications.count_subscriptions() == 0
+      push_subscription_fixture()
+      push_subscription_fixture()
+      assert Notifications.count_subscriptions() == 2
+    end
+  end
+
   describe "notify/2" do
     test "prunes stored subscriptions whose endpoint is no longer trusted" do
       bogus =

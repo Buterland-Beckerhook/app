@@ -267,7 +267,9 @@ defmodule Bbh.Content do
   """
   def find_menu_page(slug, include_unpublished \\ false) do
     with %Page{} = leaf <-
-           from(p in Page, where: p.slug == ^slug) |> maybe_published(include_unpublished) |> Repo.one(),
+           from(p in Page, where: p.slug == ^slug)
+           |> maybe_published(include_unpublished)
+           |> Repo.one(),
          ancestors = page_ancestors(leaf),
          true <- include_unpublished or Enum.all?(ancestors, &(&1.status == "published")),
          %Page{show_in_menu: true} <- List.first(ancestors) do

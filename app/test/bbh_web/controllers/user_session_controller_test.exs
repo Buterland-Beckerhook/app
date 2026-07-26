@@ -140,4 +140,25 @@ defmodule BbhWeb.UserSessionControllerTest do
       assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "Logged out successfully"
     end
   end
+
+  describe "DELETE /users/log-out-all" do
+    test "logs the user out on every device", %{conn: conn, user: user} do
+      # A second session for the same user, plus the current one.
+      other_token = Accounts.generate_user_session_token(user)
+
+      conn = conn |> log_in_user(user) |> delete(~p"/users/log-out-all")
+
+      assert redirected_to(conn) == ~p"/"
+      refute get_session(conn, :user_token)
+      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "Auf allen Geräten abgemeldet"
+      # The other session's token is invalidated too.
+      refute Accounts.get_user_by_session_token(other_token)
+    end
+
+    test "succeeds even if the user is not logged in", %{conn: conn} do
+      conn = delete(conn, ~p"/users/log-out-all")
+      assert redirected_to(conn) == ~p"/"
+      refute get_session(conn, :user_token)
+    end
+  end
 end
