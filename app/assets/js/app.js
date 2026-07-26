@@ -389,6 +389,11 @@ const Hooks = {
   // decided server-side (Bbh.Media.Folder.move_changeset/4); the one rule mirrored here
   // is the two-level cap, so an impossible nest is never offered in the first place
   // rather than being flashed as an error after the drop.
+  //
+  // Moving a folder needs "Ordner sortieren" on. For drags that needs no check: start()
+  // begins at [data-drag-handle], and the grip is only rendered in that mode. The keys
+  // hang off the row's link instead, which is always there, so key() checks explicitly.
+  // Filing a media tile works in either mode — it never touches a grip.
   MediaTree: {
     mounted() {
       this._listeners = {
@@ -530,6 +535,11 @@ const Hooks = {
     // Alt+Left lifts a sub-folder back to the top level.
     key(e) {
       if (!e.altKey) return
+      // Only while sorting is on. Not merely to match the grips: outside that mode folded
+      // branches sit on `hidden`, and siblings() counts them all the same — a position
+      // worked out against a half-invisible level is not the one the editor is looking at.
+      // Read per event, so it follows every render without an updated() hook.
+      if (this.el.dataset.editMode !== "true") return
       if (!["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) return
 
       const row = e.target.closest?.("[data-tree-link]")?.closest("[data-node]")

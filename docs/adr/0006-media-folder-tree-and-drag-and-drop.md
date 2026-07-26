@@ -1,6 +1,14 @@
 # ADR 0006 — The media library shows its whole folder tree, and moves happen by dragging
 
-**Status:** Accepted (2026-07-26)
+**Status:** Accepted (2026-07-26), partly superseded by
+[ADR 0007](0007-media-tree-edit-mode-and-collapsing.md)
+
+> ADR 0007 replaces two decisions below. "The tree is always on screen and always
+> fully expanded" now holds only while the "Ordner sortieren" mode is on; outside it
+> the grips are gone and branches fold. And a count is no longer of direct contents:
+> a folder lists its sub-folders' files too, so its number covers the branch. The
+> rest of this record — the `:scope`, `position`, the hand-written HTML5 drag & drop,
+> the advisory lock, the payload hardening — stands unchanged.
 
 ## Context
 

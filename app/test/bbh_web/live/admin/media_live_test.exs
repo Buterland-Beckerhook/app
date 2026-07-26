@@ -103,18 +103,21 @@ defmodule BbhWeb.Admin.MediaLiveTest do
       assert html =~ "Satzungen"
     end
 
-    test "the tree shows both levels at once, without navigating", %{conn: conn} do
+    test "the tree shows every top-level folder, sub-folders folded away", %{conn: conn} do
       {:ok, presse} = Media.create_folder(%{"name" => "Presse"})
       {:ok, _} = Media.create_folder(%{"name" => "2026", "parent_id" => presse.id})
       {:ok, _} = Media.create_folder(%{"name" => "Satzungen"})
 
       {:ok, lv, html} = live(conn, ~p"/admin/medien")
 
-      # Everything is on the page from the start — no expanding, no drilling in.
       assert html =~ "Presse"
-      assert html =~ "2026"
       assert html =~ "Satzungen"
-      assert has_element?(lv, ~s(#media-tree ul ul[data-subfolders]))
+      # The branch is rendered but folded: `hidden` keeps aria-controls resolvable and
+      # spares the toggle a structural patch.
+      assert has_element?(
+               lv,
+               ~s(#media-tree ul ul#subfolders-#{presse.id}[data-subfolders][hidden])
+             )
     end
 
     test "the tree follows the editor's order, not the alphabet", %{conn: conn} do
@@ -201,6 +204,188 @@ defmodule BbhWeb.Admin.MediaLiveTest do
     end
   end
 
+  describe "expanding" do
+    setup do
+      {:ok, presse} = Media.create_folder(%{"name" => "Presse"})
+      {:ok, child} = Media.create_folder(%{"name" => "2026", "parent_id" => presse.id})
+      {:ok, satzung} = Media.create_folder(%{"name" => "Satzungen"})
+
+      %{presse: presse, child: child, satzung: satzung}
+    end
+
+    test "the toggle opens a branch and closes it again", ctx do
+      {:ok, lv, _html} = live(ctx.conn, ~p"/admin/medien")
+
+      assert has_element?(lv, ~s(button[phx-value-id="#{ctx.presse.id}"][aria-expanded="false"]))
+
+      render_click(lv, "toggle_folder", %{"id" => ctx.presse.id})
+
+      refute has_element?(lv, ~s(ul#subfolders-#{ctx.presse.id}[hidden]))
+      assert has_element?(lv, ~s(ul#subfolders-#{ctx.presse.id}))
+      assert has_element?(lv, ~s(button[phx-value-id="#{ctx.presse.id}"][aria-expanded="true"]))
+
+      render_click(lv, "toggle_folder", %{"id" => ctx.presse.id})
+
+      assert has_element?(lv, ~s(ul#subfolders-#{ctx.presse.id}[hidden]))
+    end
+
+    test "the toggle points at the list it controls", ctx do
+      {:ok, lv, _html} = live(ctx.conn, ~p"/admin/medien")
+
+      # aria-expanded without aria-controls tells a screen reader *that* something opens
+      # but not what — and the id has to be the one the list actually carries.
+      assert has_element?(
+               lv,
+               ~s([data-node][data-folder-id="#{ctx.presse.id}"] button[aria-controls="subfolders-#{ctx.presse.id}"])
+             )
+    end
+
+    test "a folder without sub-folders has no toggle", ctx do
+      {:ok, lv, _html} = live(ctx.conn, ~p"/admin/medien")
+
+      refute has_element?(
+               lv,
+               ~s([data-node][data-folder-id="#{ctx.satzung.id}"] button[phx-click="toggle_folder"])
+             )
+    end
+
+    test "opening a sub-folder by URL unfolds the branch it sits in", ctx do
+      # Default-folded plus a deep link would otherwise select a row nobody can see.
+      {:ok, lv, _html} = live(ctx.conn, ~p"/admin/medien?#{[folder: ctx.child.id]}")
+
+      refute has_element?(lv, ~s(ul#subfolders-#{ctx.presse.id}[hidden]))
+      assert has_element?(lv, ~s(a#tree-node-#{ctx.child.id}[aria-current="page"]))
+    end
+
+    test "nesting a folder unfolds its new parent", ctx do
+      {:ok, lv, _html} = live(ctx.conn, ~p"/admin/medien")
+
+      render_hook(lv, "move_folder", %{
+        "id" => ctx.satzung.id,
+        "parent_id" => ctx.presse.id,
+        "position" => 0
+      })
+
+      # Otherwise the folder just dragged in vanishes the moment edit mode goes off. The
+      # positive half matters as much as the refute: with no list rendered at all, "not
+      # folded" would be true for the wrong reason.
+      refute has_element?(lv, ~s(ul#subfolders-#{ctx.presse.id}[hidden]))
+      assert has_element?(lv, ~s(ul#subfolders-#{ctx.presse.id} a#tree-node-#{ctx.satzung.id}))
+    end
+  end
+
+  describe "edit mode" do
+    setup do
+      {:ok, presse} = Media.create_folder(%{"name" => "Presse"})
+      {:ok, child} = Media.create_folder(%{"name" => "2026", "parent_id" => presse.id})
+      # A second branch nobody opens, so "restores the previous state" can be told apart
+      # from "everything stays unfolded once sorting has been used".
+      {:ok, satzung} = Media.create_folder(%{"name" => "Satzungen"})
+      {:ok, _} = Media.create_folder(%{"name" => "alt", "parent_id" => satzung.id})
+
+      %{presse: presse, child: child, satzung: satzung}
+    end
+
+    test "the checkbox itself drives the mode", ctx do
+      {:ok, lv, _html} = live(ctx.conn, ~p"/admin/medien")
+
+      # Every other test in here pushes `toggle_edit` directly, which would keep passing
+      # if the form lost its binding and the box went inert. This one goes through it.
+      html = lv |> form("#tree-edit-mode", %{"edit" => "on"}) |> render_change()
+
+      assert html =~ "data-drag-handle"
+
+      # A checkbox does not block implicit submission, so Enter on it submits the form.
+      # Without phx-submit that is a browser GET which remounts the LiveView, losing both
+      # the mode and the open folder.
+      assert has_element?(lv, ~s(form#tree-edit-mode[phx-submit="toggle_edit"]))
+    end
+
+    test "the drag grips appear only once sorting is switched on", ctx do
+      {:ok, lv, html} = live(ctx.conn, ~p"/admin/medien")
+
+      refute html =~ "data-drag-handle"
+
+      html = render_change(lv, "toggle_edit", %{"edit" => "on"})
+
+      assert html =~ "data-drag-handle"
+
+      assert has_element?(
+               lv,
+               ~s([data-node][data-folder-id="#{ctx.presse.id}"] [data-drag-handle])
+             )
+
+      assert has_element?(
+               lv,
+               ~s([data-node][data-folder-id="#{ctx.child.id}"] [data-drag-handle])
+             )
+    end
+
+    test "sorting unfolds every branch and drops the toggles", ctx do
+      {:ok, lv, _html} = live(ctx.conn, ~p"/admin/medien")
+      render_change(lv, "toggle_edit", %{"edit" => "on"})
+
+      # A folded branch is where a dragged file lands by accident (ADR 0006), so while
+      # dragging is possible nothing is folded — and nothing offers to fold.
+      refute has_element?(lv, ~s(ul#subfolders-#{ctx.presse.id}[hidden]))
+      refute has_element?(lv, ~s(#media-tree button[phx-click="toggle_folder"]))
+    end
+
+    test "leaving sorting restores what was unfolded before it", ctx do
+      {:ok, lv, _html} = live(ctx.conn, ~p"/admin/medien")
+
+      render_click(lv, "toggle_folder", %{"id" => ctx.presse.id})
+      render_change(lv, "toggle_edit", %{"edit" => "on"})
+      # An unchecked box is simply absent from a phx-change payload.
+      html = render_change(lv, "toggle_edit", %{})
+
+      # The mode really is off — asserted on its own consequences, because `hidden` alone
+      # reads the same whether the branch is open or the mode never went off.
+      refute html =~ "data-drag-handle"
+      assert has_element?(lv, ~s(#media-tree[data-edit-mode="false"]))
+
+      refute has_element?(lv, ~s(ul#subfolders-#{ctx.presse.id}[hidden]))
+      # And the branch nobody opened is folded again, not left open by the mode.
+      assert has_element?(lv, ~s(ul#subfolders-#{ctx.satzung.id}[hidden]))
+    end
+
+    test "the mode survives picking a folder", ctx do
+      {:ok, lv, _html} = live(ctx.conn, ~p"/admin/medien")
+      render_change(lv, "toggle_edit", %{"edit" => "on"})
+
+      # Picking a folder is a patch, so it runs handle_params — where `editing` and
+      # `new_folder` are deliberately reset. Resetting the mode there too would drop it
+      # on every click in the tree.
+      html = render_patch(lv, ~p"/admin/medien?#{[folder: ctx.presse.id]}")
+
+      assert html =~ "data-drag-handle"
+      assert has_element?(lv, ~s(input[name="edit"][checked]))
+    end
+
+    test "the tree tells the hook which mode it is in", ctx do
+      {:ok, lv, _html} = live(ctx.conn, ~p"/admin/medien")
+
+      # The attribute MediaTree.key() reads to refuse Alt+arrow outside edit mode.
+      assert has_element?(lv, ~s(#media-tree[data-edit-mode="false"]))
+
+      render_change(lv, "toggle_edit", %{"edit" => "on"})
+
+      assert has_element?(lv, ~s(#media-tree[data-edit-mode="true"]))
+    end
+
+    test "the Alt+arrow help is there exactly when the keys work", ctx do
+      {:ok, lv, _html} = live(ctx.conn, ~p"/admin/medien")
+
+      refute has_element?(lv, ~s(#tree-keys))
+      refute has_element?(lv, ~s(#media-tree[aria-describedby]))
+
+      render_change(lv, "toggle_edit", %{"edit" => "on"})
+
+      assert has_element?(lv, ~s(#tree-keys))
+      assert has_element?(lv, ~s(#media-tree[aria-describedby="tree-keys"]))
+    end
+  end
+
   describe "scope" do
     setup do
       {:ok, folder} = Media.create_folder(%{"name" => "Presse"})
@@ -226,11 +411,26 @@ defmodule BbhWeb.Admin.MediaLiveTest do
       refute html =~ ctx.filed.filename
     end
 
-    test "a folder lists only its own files", ctx do
+    test "a folder lists its own files and those of its sub-folders", ctx do
+      {:ok, child} = Media.create_folder(%{"name" => "2026", "parent_id" => ctx.folder.id})
+      nested = upload_fixture(folder_id: child.id, filename: "im-unterordner.webp")
+
       {:ok, _lv, html} = live(ctx.conn, ~p"/admin/medien?#{[folder: ctx.folder.id]}")
 
+      # This is what makes folding the branch lossless: everything inside is one click in.
       assert html =~ ctx.filed.filename
+      assert html =~ nested.filename
       refute html =~ ctx.unfiled.filename
+    end
+
+    test "a sub-folder lists only its own files", ctx do
+      {:ok, child} = Media.create_folder(%{"name" => "2026", "parent_id" => ctx.folder.id})
+      nested = upload_fixture(folder_id: child.id, filename: "im-unterordner.webp")
+
+      {:ok, _lv, html} = live(ctx.conn, ~p"/admin/medien?#{[folder: child.id]}")
+
+      assert html =~ nested.filename
+      refute html =~ ctx.filed.filename
     end
 
     test "the tree counts what each node will show", ctx do
@@ -242,6 +442,27 @@ defmodule BbhWeb.Admin.MediaLiveTest do
       # Child-of-the-outer-list, so it cannot drift onto the first row of a nested
       # sub-folder list once the fixture grows one.
       assert has_element?(lv, ~s(#media-tree > ul > li:first-child [data-count="2"]))
+    end
+
+    test "a folder's count covers its sub-folders, like the grid does", ctx do
+      {:ok, child} = Media.create_folder(%{"name" => "2026", "parent_id" => ctx.folder.id})
+      upload_fixture(folder_id: child.id, filename: "im-unterordner.webp")
+
+      {:ok, lv, _html} = live(ctx.conn, ~p"/admin/medien")
+
+      assert has_element?(lv, ~s([data-node][data-folder-id="#{ctx.folder.id}"] [data-count="2"]))
+      assert has_element?(lv, ~s([data-node][data-folder-id="#{child.id}"] [data-count="1"]))
+    end
+
+    test "filing a tile into a sub-folder keeps it in the open parent's grid", ctx do
+      {:ok, child} = Media.create_folder(%{"name" => "2026", "parent_id" => ctx.folder.id})
+
+      {:ok, lv, _html} = live(ctx.conn, ~p"/admin/medien?#{[folder: ctx.folder.id]}")
+      html = render_hook(lv, "move_media", %{"id" => ctx.filed.id, "folder_id" => child.id})
+
+      # The scope still lists it, so dropping it from the stream would make it look gone.
+      assert html =~ ctx.filed.filename
+      assert Media.get_upload!(ctx.filed.id).folder_id == child.id
     end
   end
 
@@ -413,6 +634,59 @@ defmodule BbhWeb.Admin.MediaLiveTest do
       refute Media.get_folder(child.id).parent_id
     end
 
+    test "nesting a folder into the open one brings its files into the grid", %{conn: conn} do
+      {:ok, presse} = Media.create_folder(%{"name" => "Presse"})
+      {:ok, satzung} = Media.create_folder(%{"name" => "Satzungen"})
+      nested = upload_fixture(folder_id: satzung.id, filename: "wird-eingehaengt.webp")
+
+      {:ok, lv, html} = live(conn, ~p"/admin/medien?#{[folder: presse.id]}")
+      refute html =~ nested.filename
+
+      html =
+        render_hook(lv, "move_folder", %{
+          "id" => satzung.id,
+          "parent_id" => presse.id,
+          "position" => 0
+        })
+
+      # A folder move used to be unable to change which files the scope covers — with the
+      # branch scope it can, so the grid has to be reloaded and not just the tree.
+      assert html =~ nested.filename
+      assert has_element?(lv, ~s([data-node][data-folder-id="#{presse.id}"] [data-count="1"]))
+    end
+
+    test "un-nesting a folder out of the open one takes its files with it", %{conn: conn} do
+      {:ok, presse} = Media.create_folder(%{"name" => "Presse"})
+      {:ok, child} = Media.create_folder(%{"name" => "2026", "parent_id" => presse.id})
+      nested = upload_fixture(folder_id: child.id, filename: "verlaesst-den-ordner.webp")
+
+      {:ok, lv, html} = live(conn, ~p"/admin/medien?#{[folder: presse.id]}")
+      assert html =~ nested.filename
+
+      html =
+        render_hook(lv, "move_folder", %{"id" => child.id, "parent_id" => "", "position" => 1})
+
+      refute html =~ nested.filename
+      assert has_element?(lv, ~s([data-node][data-folder-id="#{presse.id}"] [data-count="0"]))
+    end
+
+    test "a crafted expand id does not take the LiveView down", %{conn: conn} do
+      {:ok, folder} = Media.create_folder(%{"name" => "Presse"})
+      {:ok, _} = Media.create_folder(%{"name" => "2026", "parent_id" => folder.id})
+
+      {:ok, lv, _html} = live(conn, ~p"/admin/medien")
+
+      # `toggle_folder` is reachable by pushEvent, not only from the button the server
+      # rendered, so it has to tolerate an id that never was one.
+      render_click(lv, "toggle_folder", %{"id" => "not-a-uuid"})
+      render_click(lv, "toggle_folder", %{"id" => Ecto.UUID.generate()})
+
+      # Still alive, and the real branch still folds.
+      assert has_element?(lv, ~s(ul#subfolders-#{folder.id}[hidden]))
+      render_click(lv, "toggle_folder", %{"id" => folder.id})
+      refute has_element?(lv, ~s(ul#subfolders-#{folder.id}[hidden]))
+    end
+
     test "tiles and folder rows carry what the hooks need", %{conn: conn} do
       {:ok, folder} = Media.create_folder(%{"name" => "Presse"})
       upload = upload_fixture(%{})
@@ -432,6 +706,8 @@ defmodule BbhWeb.Admin.MediaLiveTest do
                ~s([data-node][data-folder-id="#{folder.id}"][data-parent-id=""][data-accepts="folder media"])
              )
 
+      # The grip is what a folder drag starts from, and it only exists in edit mode.
+      render_change(lv, "toggle_edit", %{"edit" => "on"})
       assert has_element?(lv, ~s([data-node][data-folder-id="#{folder.id}"] [data-drag-handle]))
 
       # A stable id per row is what keeps keyboard focus on the folder — not the slot —
@@ -446,9 +722,11 @@ defmodule BbhWeb.Admin.MediaLiveTest do
 
       {:ok, lv, html} = live(conn, ~p"/admin/medien")
 
-      # The editor modal and the drop-target states are not in the initial render, so
-      # scanning only that would miss a handler added to either.
+      # The editor modal, the expand toggle and the drop-target states are not all in one
+      # render, so scanning a single one would miss a handler added to any of the others.
       html = html <> render_click(lv, "edit", %{"id" => upload.id})
+      html = html <> render_click(lv, "toggle_folder", %{"id" => folder.id})
+      html = html <> render_change(lv, "toggle_edit", %{"edit" => "on"})
       html = html <> render_hook(lv, "move_media", %{"id" => upload.id, "folder_id" => folder.id})
 
       # Production CSP is nonce + strict-dynamic with no 'unsafe-inline', so an
