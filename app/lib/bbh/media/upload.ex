@@ -50,6 +50,7 @@ defmodule Bbh.Media.Upload do
     |> cast(attrs, @system_fields ++ @user_fields)
     |> validate_required([:storage_key, :filename])
     |> validate_format(:storage_key, @storage_key_format)
+    |> validate_folder_id()
     |> foreign_key_constraint(:folder_id)
     |> unique_constraint(:storage_key)
   end
@@ -62,6 +63,21 @@ defmodule Bbh.Media.Upload do
   def update_changeset(upload, attrs) do
     upload
     |> cast(attrs, @user_fields)
+    |> validate_folder_id()
     |> foreign_key_constraint(:folder_id)
+  end
+
+  # Ecto casts `:binary_id` without checking the shape, so a malformed id survives the
+  # changeset and only blows up in `Repo.update` as an `Ecto.ChangeError` — an exception
+  # rather than a changeset error, i.e. a crashed LiveView instead of a flash. This value
+  # arrives from a drag & drop payload (`move_media`) and from the editor's form post, so
+  # the check belongs here rather than at one of the call sites.
+  defp validate_folder_id(changeset) do
+    validate_change(changeset, :folder_id, fn :folder_id, value ->
+      case Ecto.UUID.cast(value) do
+        {:ok, _uuid} -> []
+        :error -> [folder_id: "ist kein gültiger Ordner"]
+      end
+    end)
   end
 end

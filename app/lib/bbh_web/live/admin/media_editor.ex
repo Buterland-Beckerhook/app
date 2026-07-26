@@ -40,7 +40,7 @@ defmodule BbhWeb.Admin.MediaEditor do
       bytes are only moved into place on success, the original file untouched.
   """
   def submit(%Upload{} = upload, %{"upload" => attrs} = params) do
-    case Media.update_upload(upload, normalize(attrs)) do
+    case Media.update_upload(upload, attrs) do
       {:ok, saved} ->
         maybe_rotate(saved, params["rotate"])
 
@@ -73,12 +73,6 @@ defmodule BbhWeb.Admin.MediaEditor do
         {:keep, upload, {:error, "Bild konnte nicht gedreht werden."}}
     end
   end
-
-  # The folder select submits "" for "no folder"; the column is nullable.
-  defp normalize(attrs), do: Map.update(attrs, "folder_id", nil, &blank_to_nil/1)
-
-  defp blank_to_nil(""), do: nil
-  defp blank_to_nil(value), do: value
 
   attr :upload, :map, required: true
   attr :folder_options, :list, required: true
@@ -191,12 +185,21 @@ defmodule BbhWeb.Admin.MediaEditor do
             value={@upload.caption}
             label="Bildunterschrift (öffentlich unter dem Bild)"
           />
+          <%!-- BbhWeb.Format.image_alt/1 already falls back description → caption →
+                title, so an empty alt text is a decision, not a gap. Nothing in the form
+                used to say so. The fallback *value* is read from alt_fallback/1 rather
+                than restated here, so the title case — the internal library label going
+                out as public alt text — is visible rather than surprising. --%>
           <.input
             name="upload[description]"
             value={@upload.description}
+            placeholder={alt_fallback(@upload)}
             label="Beschreibung (Alt-Text für Screenreader)"
             type="textarea"
           />
+          <p :if={alt_fallback(@upload)} class="-mt-1 mb-2 text-xs text-base-content/60">
+            Leer lassen: „{alt_fallback(@upload)}“ wird als Alt-Text benutzt.
+          </p>
           <.input name="upload[copyright]" value={@upload.copyright} label="Copyright" />
           <.input
             name="upload[folder_id]"

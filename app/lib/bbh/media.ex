@@ -7,6 +7,7 @@ defmodule Bbh.Media do
   excluded from backups). Replaces Directus asset transforms.
   """
   import Ecto.Query
+  alias Bbh.Ordering
   alias Bbh.Repo
   alias Bbh.Media.{Folder, Upload}
 
@@ -108,17 +109,51 @@ defmodule Bbh.Media do
   defp sort_uploads(query, _newest), do: from(u in query, order_by: [desc: u.inserted_at])
   def get_upload!(id), do: Repo.get!(Upload, id)
 
+  @doc """
+  Fetch an upload by id, or `nil`.
+
+  The tolerant twin of `get_upload!/1`, for ids that arrive from a drag & drop payload
+  rather than from markup the server rendered: a non-UUID is a miss instead of an
+  `Ecto.Query.CastError` that would take the LiveView down.
+  """
+  def get_upload(id) do
+    case cast_uuid(id) do
+      {:ok, uuid} -> Repo.get(Upload, uuid)
+      :error -> nil
+    end
+  end
+
   def change_upload(%Upload{} = upload, attrs \\ %{}), do: Upload.update_changeset(upload, attrs)
 
   # Reindexed like the content writers in Bbh.Content: a gallery block's searchable text
   # is now the caption/title of its media items, so editing one here changes what the
   # site search should find.
-  def update_upload(%Upload{} = upload, attrs),
-    do: upload |> Upload.update_changeset(attrs) |> Repo.update() |> Bbh.Search.reindex_after()
+  def update_upload(%Upload{} = upload, attrs) do
+    # The folder select submits "" for "no folder" and the column is nullable, so the
+    # blank→nil is folded in here rather than repeated at each caller.
+    upload
+    |> Upload.update_changeset(normalize_folder_id(attrs))
+    |> Repo.update()
+    |> Bbh.Search.reindex_after()
+  end
 
-  @doc "Move an upload into a folder (`nil` moves it back to the unfiled/root level)."
-  def move_upload(%Upload{} = upload, folder_id),
-    do: upload |> Upload.update_changeset(%{folder_id: folder_id}) |> Repo.update()
+  defp normalize_folder_id(%{"folder_id" => _} = attrs),
+    do: Map.update!(attrs, "folder_id", &blank_to_nil/1)
+
+  defp normalize_folder_id(%{folder_id: _} = attrs),
+    do: Map.update!(attrs, :folder_id, &blank_to_nil/1)
+
+  defp normalize_folder_id(attrs), do: attrs
+
+  @doc """
+  Move an upload into a folder. `nil` — or the `""` the "Ohne Ordner" drop target sends —
+  moves it back to the unfiled level.
+  """
+  def move_upload(%Upload{} = upload, folder_id) do
+    upload
+    |> Upload.update_changeset(%{folder_id: blank_to_nil(folder_id)})
+    |> Repo.update()
+  end
 
   ## Rotation
 
@@ -252,25 +287,55 @@ defmodule Bbh.Media do
 
   ## Folders
 
-  @doc "Top-level folders (parent_id nil), alphabetical, with their sub-folders preloaded."
+  # Editor order first, name only to break ties between folders that have never been
+  # dragged (they all sit at the position the migration gave them).
+  @folder_order [asc: :position, asc: :name]
+
+  @doc "Top-level folders (parent_id nil), in editor order, with their sub-folders preloaded."
   def list_root_folders do
-    children = from(c in Folder, order_by: [asc: c.name])
+    children = from(c in Folder, order_by: ^@folder_order)
 
     Repo.all(
       from f in Folder,
         where: is_nil(f.parent_id),
-        order_by: [asc: f.name],
+        order_by: ^@folder_order,
         preload: [children: ^children]
     )
   end
 
   @doc """
+  The whole folder tree in one go, for the media library's permanent tree view:
+  root folders with their children (both in editor order) plus the file counts
+  shown on every node.
+
+  Counts are of *direct* contents — the number the node actually lists when
+  clicked — so a parent whose files all live in sub-folders reads 0. One grouped
+  query covers every folder at once; per-node counting would be N+1.
+  """
+  def list_folder_tree do
+    counts =
+      Repo.all(from u in Upload, group_by: u.folder_id, select: {u.folder_id, count(u.id)})
+      |> Map.new()
+
+    %{
+      roots: list_root_folders(),
+      counts: counts,
+      total: counts |> Map.values() |> Enum.sum(),
+      unfiled: Map.get(counts, nil, 0)
+    }
+  end
+
+  @doc """
   A flat, indented `{label, value}` option list of all folders (plus a "no folder"
   entry) for a folder-select. Value `""` means the root.
+
+  Takes already-loaded roots when the caller has them — the media library renders the
+  tree and this select from the same data, and re-querying would double the preload on
+  every folder change, upload, edit and drop.
   """
-  def folder_options do
+  def folder_options(roots \\ list_root_folders()) do
     [{"— Kein Ordner —", ""}] ++
-      Enum.flat_map(list_root_folders(), fn root ->
+      Enum.flat_map(roots, fn root ->
         [{root.name, root.id}] ++
           Enum.map(root.children, fn child -> {"#{root.name} / #{child.name}", child.id} end)
       end)
@@ -285,15 +350,42 @@ defmodule Bbh.Media do
   def child_folders(%Folder{parent_id: nil, id: id}), do: list_subfolders(id)
   def child_folders(%Folder{}), do: []
 
-  @doc "Direct sub-folders of `parent_id` (nil = top level), alphabetical."
+  @doc """
+  Direct sub-folders of `parent_id` (nil = top level), in editor order.
+
+  Like `get_folder/1`, a non-UUID is an empty result rather than an `Ecto.Query.CastError`
+  — folder ids in this module reach it from URLs and drag payloads.
+  """
   def list_subfolders(nil),
-    do: Repo.all(from f in Folder, where: is_nil(f.parent_id), order_by: [asc: f.name])
+    do: Repo.all(from f in Folder, where: is_nil(f.parent_id), order_by: ^@folder_order)
 
-  def list_subfolders(parent_id),
-    do: Repo.all(from f in Folder, where: f.parent_id == ^parent_id, order_by: [asc: f.name])
+  def list_subfolders(parent_id) do
+    case cast_uuid(parent_id) do
+      {:ok, uuid} ->
+        Repo.all(from f in Folder, where: f.parent_id == ^uuid, order_by: ^@folder_order)
 
-  def get_folder(nil), do: nil
-  def get_folder(id), do: Repo.get(Folder, id) |> Repo.preload(:parent)
+      :error ->
+        []
+    end
+  end
+
+  @doc """
+  Fetch a folder by id, with its parent preloaded, or `nil`.
+
+  The id reaches this straight from a URL query string and from drag & drop payloads,
+  so anything that is not a UUID is a miss rather than an `Ecto.Query.CastError`.
+  """
+  def get_folder(id) do
+    with {:ok, uuid} <- cast_uuid(id),
+         %Folder{} = folder <- Repo.get(Folder, uuid) do
+      Repo.preload(folder, :parent)
+    else
+      _ -> nil
+    end
+  end
+
+  defp cast_uuid(id) when is_binary(id), do: Ecto.UUID.cast(id)
+  defp cast_uuid(_id), do: :error
 
   def get_folder!(id), do: Repo.get!(Folder, id)
 
@@ -302,12 +394,168 @@ defmodule Bbh.Media do
 
   @doc "Create a folder. `parent_id` nil = top level; nesting under a sub-folder is rejected."
   def create_folder(attrs) do
-    parent = get_folder(attrs["parent_id"] || attrs[:parent_id])
-    %Folder{} |> Folder.changeset(attrs, parent) |> Repo.insert()
+    case normalize_parent_id(attrs["parent_id"] || attrs[:parent_id]) do
+      {:ok, parent_id} -> do_create_folder(attrs, parent_id)
+      :error -> {:error, unknown_parent(%Folder{})}
+    end
+  end
+
+  defp do_create_folder(attrs, parent_id) do
+    unwrap(
+      Repo.transaction(fn ->
+        lock_folder_tree()
+
+        # Re-read under the lock rather than trusting a value read before it:
+        # move_folder/3 may be turning this very folder into a sub-folder, and the
+        # depth check has to see the outcome of that race, not the state before it.
+        parent = parent_id && Repo.get(Folder, parent_id)
+
+        %Folder{}
+        |> Folder.changeset(attrs, parent)
+        # Neither is cast from `attrs`: the position is ours to assign (a new folder
+        # belongs at the bottom of its level, not jumping to the top), and parent_id has
+        # been through normalize_parent_id/1, which cast/3 would undo.
+        |> Ecto.Changeset.put_change(:parent_id, parent_id)
+        |> Ecto.Changeset.put_change(:position, next_folder_position(parent_id))
+        |> Repo.insert()
+        |> or_rollback()
+      end)
+    )
   end
 
   def rename_folder(%Folder{} = folder, name),
     do: folder |> Folder.changeset(%{name: name}) |> Repo.update()
+
+  @doc """
+  Re-hang `folder` under `parent_id` (`nil` = top level) at `index` among its new
+  siblings — the write behind dragging a folder in the media tree.
+
+  Both affected levels are renumbered: the target so the folder lands where it was
+  dropped, the old one so it does not keep a gap. All of it in one transaction, so a
+  move the two-level cap forbids (`Folder.move_changeset/4`) leaves the tree untouched
+  and returns `{:error, changeset}`.
+  """
+  def move_folder(%Folder{} = folder, parent_id, index) do
+    case normalize_parent_id(parent_id) do
+      {:ok, parent_id} -> do_move_folder(folder, parent_id, index)
+      :error -> {:error, unknown_parent(folder)}
+    end
+  end
+
+  # `nil`/`""` mean the top level; anything else has to be a real UUID *before* it
+  # reaches Repo.update. `cast/3` waves a malformed :binary_id through and the failure
+  # then surfaces as an `Ecto.ChangeError` at dump time — an exception, not a changeset
+  # error, so a hand-crafted drop payload would be a 500 rather than a flash. Casting
+  # here also canonicalises the case, which matters because the id doubles as the map
+  # key for the locked rows.
+  defp normalize_parent_id(id) do
+    case blank_to_nil(id) do
+      nil -> {:ok, nil}
+      value -> cast_uuid(value)
+    end
+  end
+
+  defp unknown_parent(folder) do
+    folder
+    |> Ecto.Changeset.change()
+    |> Ecto.Changeset.add_error(:parent_id, "Zielordner nicht gefunden")
+  end
+
+  defp do_move_folder(%Folder{} = folder, parent_id, index) do
+    unwrap(
+      Repo.transaction(fn ->
+        lock_folder_tree()
+
+        # Deleted between the caller's read and now — nothing left to move.
+        locked = Repo.get(Folder, folder.id) || Repo.rollback(:not_found)
+
+        moved =
+          locked
+          |> Folder.move_changeset(
+            %{parent_id: parent_id},
+            parent_id && Repo.get(Folder, parent_id),
+            children?(locked)
+          )
+          |> Repo.update()
+          |> or_rollback()
+
+        renumber_level(parent_id, moved, index)
+        if locked.parent_id != parent_id, do: renumber_level(locked.parent_id, nil, nil)
+
+        # renumber_level/3 writes positions through update_all, which does not touch the
+        # struct above — returning `moved` would report the pre-move position.
+        Repo.get!(Folder, moved.id)
+      end)
+    )
+  end
+
+  # One transaction-scoped advisory lock guarding every write to the folder tree.
+  #
+  # Row locks on the pair {moved folder, new parent} are *not* enough, and sorting that
+  # pair by id does not save it: renumber_level/3 rewrites the position of every sibling
+  # in a level, taking a row lock on each in list order — and two concurrent moves build
+  # different lists, so they reach the same rows in opposite orders. Postgres breaks the
+  # cycle by killing one transaction (40P01), which surfaces as a raise, not an
+  # `{:error, _}`, and takes the LiveView down with it. Reproduced before this was added.
+  #
+  # Locking the whole tree instead is the boring fix: it is a handful of rows, edits are
+  # rare and human-paced, so the contention this serialises away costs nothing
+  # measurable. It also covers the top-level create, which has no parent row to lock and
+  # was therefore unprotected against a concurrent create racing on `max(position)`.
+  @folder_tree_lock 0xBBF01D
+
+  defp lock_folder_tree, do: Repo.query!("SELECT pg_advisory_xact_lock($1)", [@folder_tree_lock])
+
+  defp or_rollback({:ok, value}), do: value
+  defp or_rollback({:error, changeset}), do: Repo.rollback(changeset)
+
+  # Repo.transaction/1 wraps whatever the function returned; the callers of these
+  # writers expect the plain {:ok, folder} | {:error, changeset | reason} of a Repo call.
+  defp unwrap({:ok, folder}), do: {:ok, folder}
+  defp unwrap({:error, reason}), do: {:error, reason}
+
+  # Renumber one level from 0. `moved` + `index` place a folder inside it; both nil just
+  # closes the gap a departing folder left behind. `moved` is already stored under its
+  # new parent at this point, so it is pulled out of the list before being re-inserted.
+  defp renumber_level(parent_id, moved, index) do
+    siblings =
+      parent_id
+      |> list_subfolders()
+      |> Enum.reject(&(moved && &1.id == moved.id))
+
+    ordered =
+      if moved,
+        do: List.insert_at(siblings, clamp(index, length(siblings)), moved),
+        else: siblings
+
+    Ordering.renumber(ordered, &set_folder_position!/2)
+  end
+
+  # The index comes from the browser. List.insert_at/3 would read a negative as "from
+  # the end" and silently place the folder somewhere nobody dropped it.
+  defp clamp(index, max) when is_integer(index), do: index |> max(0) |> min(max)
+  defp clamp(_index, max), do: max
+
+  defp set_folder_position!(id, position),
+    do: Repo.update_all(from(f in Folder, where: f.id == ^id), set: [position: position])
+
+  defp children?(%Folder{id: id}), do: Repo.exists?(from f in Folder, where: f.parent_id == ^id)
+
+  defp next_folder_position(parent_id) do
+    query = from f in Folder, select: max(f.position)
+
+    query =
+      case cast_uuid(parent_id) do
+        {:ok, uuid} -> where(query, [f], f.parent_id == ^uuid)
+        # nil, or a malformed id the changeset is about to reject anyway.
+        :error -> where(query, [f], is_nil(f.parent_id))
+      end
+
+    (Repo.one(query) || -1) + 1
+  end
+
+  defp blank_to_nil(value) when value in [nil, ""], do: nil
+  defp blank_to_nil(value), do: value
 
   @doc "Delete a folder. Its media move back to unfiled; sub-folders are removed (cascade)."
   def delete_folder(%Folder{} = folder), do: Repo.delete(folder)

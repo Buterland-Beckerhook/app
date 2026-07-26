@@ -495,38 +495,11 @@ defmodule Bbh.Content do
     reorder(blocks, Enum.find_index(blocks, &(&1.id == pb.id)), direction, &set_position!/2)
   end
 
-  # Move the row at `idx` one step and renumber the whole list to 0..n-1.
-  #
-  # Renumbering rather than swapping the two stored values is what keeps this correct on
-  # real data: neither column is renumbered on delete, so the values can have gaps or an
-  # offset (delete the first row and they start at 1), and `sort` is nullable on top of
-  # that. Swapping values then either does nothing or writes a duplicate that makes the
-  # order ambiguous. The lists are a handful of rows, so rewriting all of them is free.
-  #
-  # `idx` is nil when the row is not in the list at all — a stale id, or a row belonging
-  # to another page/gallery — which must not blow up on the arithmetic.
-  #
-  # Note the renumber writes row by row, so two rows briefly share a value inside the
-  # transaction. Both ordering columns are covered by plain indexes only; adding a unique
-  # index on (page_id, position) or (gallery_id, sort) would break this.
-  defp reorder(items, idx, direction, write_position) when is_integer(idx) do
-    to = if direction == :up, do: idx - 1, else: idx + 1
-
-    if to >= 0 and to < length(items) do
-      Repo.transaction(fn ->
-        items
-        |> List.delete_at(idx)
-        |> List.insert_at(to, Enum.at(items, idx))
-        |> Enum.with_index()
-        |> Enum.each(fn {item, position} -> write_position.(item.id, position) end)
-      end)
-    else
-      # Already at the top/bottom edge — nothing to do.
-      {:ok, :noop}
-    end
-  end
-
-  defp reorder(_items, _idx, _direction, _write_position), do: {:error, :not_found}
+  # Both ordering columns here share their write path with media folders — see
+  # Bbh.Ordering for why the whole list is renumbered instead of two values swapped,
+  # and for the unique-index constraint that follows from it.
+  defp reorder(items, idx, direction, write_position),
+    do: Bbh.Ordering.move_step(items, idx, direction, write_position)
 
   defp delete_block!(%PageBlock{} = pb) do
     schema = Blocks.schema_for(pb.block_type)

@@ -48,6 +48,14 @@ jobs:
         with:
           persist-credentials: false
 
+      # The app ships no package.json — esbuild is a standalone binary from the :esbuild
+      # Hex package. Node is here purely to run the dependency-free `node --test` suites
+      # under assets/js (they were previously only runnable by hand).
+      - name: Set up Node
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
+        with:
+          node-version: "22"
+
       - name: Set up Elixir/OTP
         uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
@@ -87,6 +95,17 @@ jobs:
 
       - name: Security static analysis (Sobelow)
         run: mix sobelow --config
+
+      # Glob quoted so Node expands it, not the shell: that recurses into future
+      # subdirectories. A bare `assets/js` does not work — Node reads a positional
+      # argument as a module to load, not a directory to scan. The find guard is the
+      # point of the step: Node exits 0 on a glob that matches nothing, so a renamed
+      # convention or a moved directory would report success having run no tests.
+      - name: Run JavaScript tests
+        run: |
+          test -n "$(find assets/js -name '*.test.js' -print -quit)" \
+            || { echo "No JS test files matched — check the glob in this step."; exit 1; }
+          node --test 'assets/js/**/*.test.js'
 
       - name: Run tests
         run: mix test
