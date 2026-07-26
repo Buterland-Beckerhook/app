@@ -41,8 +41,8 @@ defmodule BbhWeb.Layouts do
   defp nav_links do
     verein =
       case Enum.map(
-             Bbh.Content.list_menu_pages(),
-             &%{href: "/verein/#{&1.slug}", label: &1.title}
+             Bbh.Content.menu_tree(),
+             &%{href: &1.path, label: &1.title, depth: &1.depth}
            ) do
         [] -> %{href: "/verein", label: "Verein"}
         children -> %{href: "/verein", label: "Verein", children: children}
@@ -158,8 +158,9 @@ defmodule BbhWeb.Layouts do
                       <a
                         :for={child <- link.children}
                         href={child.href}
+                        style={"padding-left: calc(1rem + #{child[:depth] || 0} * 0.75rem)"}
                         class={[
-                          "block px-4 py-2 text-sm transition-colors",
+                          "block py-2 pr-4 text-sm transition-colors",
                           child_active?(@current_path, child.href, link.href) &&
                             "bg-base-200 font-medium text-primary",
                           !child_active?(@current_path, child.href, link.href) &&
@@ -233,7 +234,12 @@ defmodule BbhWeb.Layouts do
                   <a href={link.href} class="font-medium">{link.label}</a>
                   <ul :if={link[:children]}>
                     <li :for={child <- link.children}>
-                      <a href={child.href}>{child.label}</a>
+                      <a
+                        href={child.href}
+                        style={"padding-left: calc(1rem + #{child[:depth] || 0} * 0.75rem)"}
+                      >
+                        {child.label}
+                      </a>
                     </li>
                   </ul>
                 </li>

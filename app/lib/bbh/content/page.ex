@@ -12,6 +12,9 @@ defmodule Bbh.Content.Page do
     field :sort_order, :integer, default: 0
     field :show_in_menu, :boolean, default: true
 
+    # Set by Content.list_pages_tree/0 for indented tree rendering; not persisted.
+    field :depth, :integer, virtual: true
+
     belongs_to :parent, Bbh.Content.Page
     has_many :children, Bbh.Content.Page, foreign_key: :parent_id
     has_many :page_blocks, Bbh.Content.PageBlock, preload_order: [asc: :position]

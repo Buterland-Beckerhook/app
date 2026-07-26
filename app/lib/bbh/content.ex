@@ -279,6 +279,34 @@ defmodule Bbh.Content do
   """
   def section_links(%Page{} = root), do: page_links(root, "/verein/" <> root.slug, 0)
 
+  @doc """
+  Depth-annotated menu tree for the "Verein" dropdown: each published menu page
+  (top-level, `show_in_menu`) followed by its published descendants in DFS order.
+  Entries are `%{path:, title:, depth:}`; top-level pages keep `depth: 0`. Built
+  from a single query.
+  """
+  def menu_tree do
+    by_parent =
+      Repo.all(
+        from p in Page,
+          where: p.status == "published",
+          order_by: [asc: p.sort_order, asc: p.title]
+      )
+      |> Enum.group_by(& &1.parent_id)
+
+    (by_parent[nil] || [])
+    |> Enum.filter(& &1.show_in_menu)
+    |> Enum.flat_map(&menu_links(by_parent, &1, "/verein/" <> &1.slug, 0))
+  end
+
+  defp menu_links(by_parent, %Page{} = page, path, depth) do
+    [
+      %{path: path, title: page.title, depth: depth}
+      | (by_parent[page.id] || [])
+        |> Enum.flat_map(&menu_links(by_parent, &1, path <> "/" <> &1.slug, depth + 1))
+    ]
+  end
+
   defp page_links(%Page{} = page, path, depth) do
     [
       %{path: path, title: page.title, depth: depth}
@@ -428,6 +456,24 @@ defmodule Bbh.Content do
   ## Admin CRUD — pages
 
   def list_pages, do: Repo.all(from p in Page, order_by: [asc: p.sort_order, asc: p.title])
+
+  @doc """
+  All pages in DFS/tree order — each parent immediately followed by its children,
+  siblings by `sort_order` then `title` (inherited from `list_pages/0`). Every page
+  carries `:depth` (0-based) for indented rendering. Built from a single query.
+  """
+  def list_pages_tree do
+    by_parent = list_pages() |> Enum.group_by(& &1.parent_id)
+    flatten_page_tree(by_parent, nil, 0)
+  end
+
+  defp flatten_page_tree(by_parent, parent_id, depth) do
+    (by_parent[parent_id] || [])
+    |> Enum.flat_map(fn p ->
+      [%{p | depth: depth} | flatten_page_tree(by_parent, p.id, depth + 1)]
+    end)
+  end
+
   def count_pages, do: Repo.aggregate(Page, :count, :id)
   def get_page!(id), do: Repo.get!(Page, id)
 
