@@ -35,9 +35,6 @@ defmodule BbhWeb.Admin.ArticleLiveTest do
     test "deletes an article from the edit page with slug confirmation", %{conn: conn} do
       article = article_fixture()
       {:ok, lv, _html} = live(conn, ~p"/admin/artikel/#{article.id}/bearbeiten")
-      # Drain the edit page's assign_async (media library) so navigating away on
-      # delete doesn't kill an in-flight DB task on the test's sandbox connection.
-      render_async(lv)
 
       {:ok, _lv, html} =
         lv
@@ -76,7 +73,6 @@ defmodule BbhWeb.Admin.ArticleLiveTest do
     test "saving an edit stays on the edit page", %{conn: conn} do
       article = article_fixture(title: "Alt")
       {:ok, lv, _html} = live(conn, ~p"/admin/artikel/#{article.id}/bearbeiten")
-      render_async(lv)
 
       html =
         lv
@@ -108,7 +104,6 @@ defmodule BbhWeb.Admin.ArticleLiveTest do
       article = article_fixture(date_published: published, title: "Alt")
 
       {:ok, lv, _html} = live(conn, ~p"/admin/artikel/#{article.id}/bearbeiten")
-      render_async(lv)
 
       # Submit a change that omits date_published from the params entirely.
       lv
@@ -121,6 +116,43 @@ defmodule BbhWeb.Admin.ArticleLiveTest do
     end
   end
 
+  describe "article images (edit)" do
+    test "an image carries only embedding options — text lives in the media library", ctx do
+      article = article_fixture()
+      upload = upload_fixture(%{caption: "Der Thron 2025", copyright: "BBH e.V."})
+      {:ok, image} = Content.add_article_image(article, upload.id)
+
+      {:ok, lv, html} = live(ctx.conn, ~p"/admin/artikel/#{article.id}/bearbeiten")
+
+      # The media item's text is shown for orientation …
+      assert html =~ "Der Thron 2025"
+      assert html =~ "BBH e.V."
+      # … but is not editable here.
+      refute has_element?(lv, ~s(#image-#{image.id} input[name="image[title]"]))
+      refute has_element?(lv, ~s(#image-#{image.id} input[name="image[copyright]"]))
+      assert has_element?(lv, ~s(#image-#{image.id} input[name="image[show_caption]"]))
+    end
+
+    test "the caption can be switched off for this article only", ctx do
+      article = article_fixture()
+      upload = upload_fixture(%{caption: "Der Thron 2025"})
+      {:ok, image} = Content.add_article_image(article, upload.id)
+      assert image.show_caption
+
+      {:ok, lv, _html} = live(ctx.conn, ~p"/admin/artikel/#{article.id}/bearbeiten")
+
+      html =
+        lv
+        |> form("#image-#{image.id}", image: %{show_caption: false})
+        |> render_submit()
+
+      assert html =~ "Bild gespeichert"
+      refute Content.get_article_image!(image.id).show_caption
+      # The media item itself is untouched.
+      assert Bbh.Media.get_upload!(upload.id).caption == "Der Thron 2025"
+    end
+  end
+
   describe "media editor (edit)" do
     test "opens the focal-point editor and saves it without leaving the form", %{conn: conn} do
       article = article_fixture()
@@ -128,7 +160,6 @@ defmodule BbhWeb.Admin.ArticleLiveTest do
       {:ok, _} = Content.add_article_image(article, upload.id)
 
       {:ok, lv, _html} = live(conn, ~p"/admin/artikel/#{article.id}/bearbeiten")
-      render_async(lv)
 
       html =
         lv
@@ -160,7 +191,6 @@ defmodule BbhWeb.Admin.ArticleLiveTest do
       {:ok, b} = Content.add_article_image(article, upload_fixture().id)
 
       {:ok, lv, _html} = live(conn, ~p"/admin/artikel/#{article.id}/bearbeiten")
-      render_async(lv)
 
       # Click the actual per-image button, not just the raw event.
       html =

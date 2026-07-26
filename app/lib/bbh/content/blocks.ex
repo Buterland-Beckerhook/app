@@ -89,7 +89,11 @@ defmodule Bbh.Content.Blocks do
       field :title, :string
       field :layout, :string, default: "slideshow"
       field :lightbox, :boolean, default: true
-      has_many :files, Bbh.Content.Blocks.GalleryFile, foreign_key: :gallery_id
+
+      has_many :files, Bbh.Content.Blocks.GalleryFile,
+        foreign_key: :gallery_id,
+        preload_order: [asc: :sort, asc: :inserted_at]
+
       timestamps()
     end
 
@@ -101,11 +105,13 @@ defmodule Bbh.Content.Blocks do
   end
 
   defmodule GalleryFile do
+    @moduledoc """
+    One image inside a gallery block. Caption and copyright come from the media item
+    (edited in the media library); the file itself only carries its position.
+    """
     use Bbh.Schema
 
     schema "block_gallery_files" do
-      field :title, :string
-      field :copyright, :string
       field :sort, :integer
       belongs_to :gallery, Bbh.Content.Blocks.ImageGallery
       belongs_to :media, Bbh.Media.Upload
@@ -114,7 +120,7 @@ defmodule Bbh.Content.Blocks do
 
     def changeset(file, attrs) do
       file
-      |> cast(attrs, [:title, :copyright, :sort, :gallery_id, :media_id])
+      |> cast(attrs, [:sort, :gallery_id, :media_id])
       |> validate_required([:gallery_id, :media_id])
       |> foreign_key_constraint(:gallery_id)
       |> foreign_key_constraint(:media_id)

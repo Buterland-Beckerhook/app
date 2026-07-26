@@ -12,3 +12,12 @@
 - [x] Person: eMail-Feld ergaenzt
 - [x] Personendaten im Text referenzierbar: {{ rolle.feld }} (aktuell/letzter Amtsinhaber, nach 'Amt bis')
 - [x] Trix: Datei aus Mediathek einfuegbar (Bild -> <img>, sonst Datei-Link)
+- [x] Mediathek-Editor: Bilder in 90-Grad-Schritten drehen (schreibt das Original, EXIF-Lage inklusive)
+- [x] Bildtexte nur noch in der Mediathek: Titel, Bildunterschrift, Beschreibung (Alt-Text), Copyright.
+      Am Artikelbild bleiben nur 'Bildunterschrift anzeigen' (Standard an), Thronbild, Sortierung
+- [x] Galerie im Artikel beachtet die Sortierung (preload_order auf article_images/gallery_files)
+- [x] Bildunterschrift + Copyright werden angezeigt: schmale, gedaempfte Zeile unter dem Bild
+      (Copyright rechts); bei Galeriebildern erst beim Vergroessern in der Lightbox
+- [x] Seiten-Edit: Galerie-Block erlaubt Bilder waehlen, sortieren, entfernen
+- [x] Bildauswahl beachtet die Ordnerstruktur — ein gemeinsamer Picker fuer Artikel, Bild-Karte,
+      Galerie und Trix (Ordner-Navigation, Suche ueber alle Ordner)

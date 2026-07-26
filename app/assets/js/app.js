@@ -297,13 +297,15 @@ liveSocket.connect()
 window.liveSocket = liveSocket
 
 // --- Navigable image lightbox for public galleries (plain JS — no LiveView) ---
-// Triggers carry `data-lightbox-src`, `data-lightbox-alt`, and (for galleries)
+// Triggers carry `data-lightbox-src`, `data-lightbox-alt`, optional
+// `data-lightbox-caption` / `data-lightbox-copyright`, and (for galleries)
 // `data-lightbox-group="<id>"`. Clicking one opens a native <dialog> and lets the
 // visitor move through every image sharing that group via on-screen arrows, keyboard
-// (←/→ and h/l, Esc to close), and touch swipe. Delegated so it works on
+// (←/→ and h/l, Esc to close), and touch swipe. Gallery thumbnails stay bare, so the
+// enlarged view is where caption and copyright are shown. Delegated so it works on
 // server-rendered pages too.
 ;(function initLightbox() {
-  let dialog, imgEl, counterEl, prevBtn, nextBtn
+  let dialog, imgEl, barEl, captionEl, counterEl, copyrightEl, prevBtn, nextBtn
   let group = []
   let index = 0
 
@@ -320,7 +322,14 @@ window.liveSocket = liveSocket
       "dialog.lightbox .lb-prev{left:1rem;top:50%;transform:translateY(-50%)}" +
       "dialog.lightbox .lb-next{right:1rem;top:50%;transform:translateY(-50%)}" +
       "dialog.lightbox .lb-close{right:1rem;top:1rem;width:2.5rem;height:2.5rem;font-size:1.25rem}" +
-      "dialog.lightbox .lb-counter{position:absolute;bottom:1rem;left:50%;transform:translateX(-50%);color:#fff;background:rgba(0,0,0,.45);padding:.25rem .75rem;border-radius:9999px;font-size:.875rem}"
+      // Caption left, counter centered, copyright right — wrapping instead of
+      // overlapping when they don't fit side by side.
+      "dialog.lightbox .lb-bar{position:absolute;bottom:0;left:0;right:0;display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:.15rem .75rem;padding:.6rem 1rem;color:#fff;font-size:.8125rem;line-height:1.3;background:linear-gradient(to top,rgba(0,0,0,.7),rgba(0,0,0,0))}" +
+      // display:flex above would otherwise beat the UA's [hidden] rule.
+      "dialog.lightbox .lb-bar[hidden]{display:none}" +
+      "dialog.lightbox .lb-caption{min-width:0}" +
+      "dialog.lightbox .lb-counter{margin-inline:auto;opacity:.7;white-space:nowrap}" +
+      "dialog.lightbox .lb-copyright{margin-left:auto;opacity:.7;white-space:nowrap}"
     document.head.appendChild(style)
 
     dialog = document.createElement("dialog")
@@ -331,10 +340,17 @@ window.liveSocket = liveSocket
       '<button class="lb-prev" aria-label="Vorheriges Bild">‹</button>' +
       '<img alt="">' +
       '<button class="lb-next" aria-label="Nächstes Bild">›</button>' +
-      '<div class="lb-counter"></div>' +
+      '<div class="lb-bar">' +
+      '<span class="lb-caption"></span>' +
+      '<span class="lb-counter"></span>' +
+      '<span class="lb-copyright"></span>' +
+      "</div>" +
       "</div>"
     imgEl = dialog.querySelector("img")
+    barEl = dialog.querySelector(".lb-bar")
+    captionEl = dialog.querySelector(".lb-caption")
     counterEl = dialog.querySelector(".lb-counter")
+    copyrightEl = dialog.querySelector(".lb-copyright")
     prevBtn = dialog.querySelector(".lb-prev")
     nextBtn = dialog.querySelector(".lb-next")
 
@@ -366,7 +382,11 @@ window.liveSocket = liveSocket
     imgEl.src = t.getAttribute("data-lightbox-src")
     imgEl.alt = t.getAttribute("data-lightbox-alt") || ""
     const multi = group.length > 1
+    captionEl.textContent = t.getAttribute("data-lightbox-caption") || ""
+    copyrightEl.textContent = t.getAttribute("data-lightbox-copyright") || ""
     counterEl.textContent = multi ? `${index + 1} / ${group.length}` : ""
+    // No caption, no copyright and a single image — nothing to put in the bar.
+    barEl.hidden = !captionEl.textContent && !copyrightEl.textContent && !multi
     prevBtn.style.display = nextBtn.style.display = multi ? "flex" : "none"
   }
 

@@ -274,7 +274,7 @@ defmodule BbhWeb.Admin.EventLive.Form do
       >
         Der Termin „{@event.title}" wird dauerhaft gelöscht. Dies kann nicht rückgängig gemacht werden.
       </.danger_zone>
-      <.live_component module={BbhWeb.Admin.MediaPickerComponent} id="media-picker" />
+      <.live_component module={BbhWeb.Admin.MediaPicker} id="media-picker" />
     </Layouts.admin>
     """
   end

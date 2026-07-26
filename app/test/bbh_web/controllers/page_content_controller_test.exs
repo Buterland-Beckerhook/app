@@ -49,6 +49,35 @@ defmodule BbhWeb.PageContentControllerTest do
     assert html =~ "Mitglied werden"
   end
 
+  test "a gallery block renders its images in order, with lightbox metadata", %{conn: conn} do
+    page = page_fixture(slug: "bilder", title: "Bilder", status: "published")
+    {:ok, _} = Bbh.Content.add_block(page, "image_gallery")
+    [{_pb, gallery}] = Bbh.Content.load_blocks(Bbh.Content.get_page!(page.id))
+
+    first = upload_fixture(%{caption: "Antreten", copyright: "BBH e.V."})
+    second = upload_fixture(%{caption: "Fahnenschwenken"})
+    {:ok, _} = Bbh.Content.add_gallery_file(gallery, first.id)
+    {:ok, file} = Bbh.Content.add_gallery_file(gallery, second.id)
+
+    html = conn |> get(~p"/verein/bilder") |> html_response(200)
+
+    # Caption and copyright come from the media library and ride along for the
+    # enlarged view; the thumbnails themselves stay bare.
+    assert html =~ ~s(data-lightbox-caption="Antreten")
+    assert html =~ ~s(data-lightbox-copyright="© BBH e.V.")
+    # Both must actually be present — see the note in article_controller_test.exs.
+    assert {antreten, _} = :binary.match(html, "Antreten")
+    assert {schwenken, _} = :binary.match(html, "Fahnenschwenken")
+    assert antreten < schwenken
+
+    # Reordering in the admin reorders the public gallery.
+    {:ok, _} = Bbh.Content.move_gallery_file(gallery.id, file, :up)
+    html = conn |> get(~p"/verein/bilder") |> html_response(200)
+    assert {schwenken, _} = :binary.match(html, "Fahnenschwenken")
+    assert {antreten, _} = :binary.match(html, "Antreten")
+    assert schwenken < antreten
+  end
+
   test "GET an unknown page returns 404", %{conn: conn} do
     assert conn |> get(~p"/verein/gibt-es-nicht") |> response(404)
   end

@@ -41,8 +41,10 @@ test: ## Run the test suite (in the phoenix container)
 format: ## Auto-format code with mix format (in the phoenix container)
 	$(MIX) format
 
-precommit: ## Format check + compile (warnings as errors) + tests (in the phoenix container)
-	$(MIX) precommit
+precommit: ## Format check + compile (warnings as errors) + audits + tests (in the phoenix container)
+	# MIX_ENV must be forced: the container sets MIX_ENV=dev, which overrides the
+	# alias' preferred_envs, and the suite then dies on the missing SQL sandbox.
+	$(COMPOSE) exec -e MIX_ENV=test phoenix mix precommit
 
 import: ## One-time Hugo content import (mix bbh.import) (in the phoenix container)
 	$(MIX) bbh.import

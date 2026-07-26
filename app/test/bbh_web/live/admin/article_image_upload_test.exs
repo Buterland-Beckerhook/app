@@ -31,7 +31,6 @@ defmodule BbhWeb.Admin.ArticleImageUploadTest do
   test "uploading an image stores it and attaches it to the article", %{conn: conn} do
     article = article_fixture()
     {:ok, lv, _html} = live(conn, ~p"/admin/artikel/#{article.id}/bearbeiten")
-    render_async(lv)
 
     file =
       file_input(lv, "#article-image-upload", :image, [
@@ -49,7 +48,6 @@ defmodule BbhWeb.Admin.ArticleImageUploadTest do
   test "rejects bytes that are not a real image", %{conn: conn} do
     article = article_fixture()
     {:ok, lv, _html} = live(conn, ~p"/admin/artikel/#{article.id}/bearbeiten")
-    render_async(lv)
 
     file =
       file_input(lv, "#article-image-upload", :image, [

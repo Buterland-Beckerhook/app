@@ -41,6 +41,10 @@ defmodule Bbh.MediaTest do
     path
   end
 
+  # WebP is lossy, so a "red" pixel is only nearly red — compare by dominance.
+  defp red?([r, g, b | _]), do: r > 150 and g < 100 and b < 100
+  defp blue?([r, g, b | _]), do: b > 150 and r < 100 and g < 100
+
   # A real w×h PNG, so focal crops actually have pixels to reposition.
   defp write_image(w, h) do
     {:ok, img} = Image.new(w, h, color: [200, 50, 50])
@@ -97,13 +101,31 @@ defmodule Bbh.MediaTest do
         Media.update_upload(upload, %{
           "title" => "Neu",
           "storage_key" => "../../../../etc/passwd",
-          "content_type" => "text/html"
+          "content_type" => "text/html",
+          # revision drives cache busting and is bumped only by rotate_upload/2.
+          "revision" => 99
         })
 
       assert updated.title == "Neu"
       assert updated.storage_key == original_key
       assert updated.content_type == "image/png"
+      assert updated.revision == 0
       assert Path.join(tmp, updated.storage_key) |> File.regular?()
+    end
+
+    test "edits the caption (Bildunterschrift) along with the other metadata" do
+      upload = upload_fixture(%{})
+
+      assert {:ok, updated} =
+               Media.update_upload(upload, %{
+                 "title" => "Schützenfest",
+                 "caption" => "Der Thron 2025",
+                 "description" => "Vier Personen in Uniform",
+                 "copyright" => "BBH e.V."
+               })
+
+      assert updated.caption == "Der Thron 2025"
+      assert updated.description == "Vier Personen in Uniform"
     end
   end
 
@@ -136,6 +158,194 @@ defmodule Bbh.MediaTest do
       assert {:ok, _} = Media.delete_upload(upload)
       refute File.regular?(stored)
       refute Repo.get(Upload, upload.id)
+    end
+
+    test "also drops the cached variants (no orphans left behind)" do
+      src = write_image(60, 40)
+      {:ok, upload} = Media.store_file(src, %{filename: "x.png"})
+      assert {:ok, variant, _} = Media.resolve_variant(upload.storage_key, 20, 20)
+      assert File.regular?(variant)
+
+      assert {:ok, _} = Media.delete_upload(upload)
+      refute File.regular?(variant)
+    end
+  end
+
+  describe "rotate_upload/2" do
+    test "turns a landscape image portrait and bumps the revision", %{tmp: tmp} do
+      src = write_image(400, 200)
+      {:ok, upload} = Media.store_file(src, %{filename: "wide.png"})
+      assert {upload.width, upload.height} == {400, 200}
+
+      assert {:ok, rotated} = Media.rotate_upload(upload, 90)
+
+      # The database …
+      assert {rotated.width, rotated.height} == {200, 400}
+      assert rotated.revision == upload.revision + 1
+
+      # … and the stored original itself.
+      {:ok, img} = Image.open(Path.join(tmp, rotated.storage_key))
+      assert {Image.width(img), Image.height(img)} == {200, 400}
+    end
+
+    test "carries the focal point around with the image" do
+      src = write_image(400, 200)
+      {:ok, upload} = Media.store_file(src, %{filename: "wide.png"})
+      {:ok, upload} = Media.update_upload(upload, %{focal_point_x: 0.9, focal_point_y: 0.5})
+
+      # 90° clockwise maps (x, y) -> (1 - y, x).
+      assert {:ok, cw} = Media.rotate_upload(upload, 90)
+      assert {cw.focal_point_x, cw.focal_point_y} == {0.5, 0.9}
+
+      assert {:ok, flipped} = Media.rotate_upload(upload, 180)
+      assert {flipped.focal_point_x, flipped.focal_point_y} == {0.1, 0.5}
+    end
+
+    test "leaves a centered image without a focal point alone" do
+      src = write_image(40, 20)
+      {:ok, upload} = Media.store_file(src, %{filename: "wide.png"})
+
+      assert {:ok, rotated} = Media.rotate_upload(upload, 270)
+      assert is_nil(rotated.focal_point_x) and is_nil(rotated.focal_point_y)
+    end
+
+    test "turns the pixels clockwise, takes the focal point along, and serves the new bytes",
+         %{tmp: tmp} do
+      # Left half red, right half blue — so "which way did it turn?" is answerable.
+      {:ok, base} = Image.new(40, 20, color: [255, 0, 0])
+      {:ok, halves} = Image.Draw.rect(base, 20, 0, 20, 20, color: [0, 0, 255])
+      src = Path.join(System.tmp_dir!(), "halves_#{System.unique_integer([:positive])}.png")
+      {:ok, _} = Image.write(halves, src)
+      on_exit(fn -> File.rm(src) end)
+
+      {:ok, upload} = Media.store_file(src, %{filename: "halves.png"})
+      {:ok, upload} = Media.update_upload(upload, %{focal_point_x: 0.1, focal_point_y: 0.5})
+
+      # Warm the libvips operation cache on this filename — that cache is keyed by name
+      # and does not notice the bytes changing underneath.
+      assert {:ok, _, _} = Media.resolve_variant(upload.storage_key, 10, 10)
+
+      assert {:ok, rotated} = Media.rotate_upload(upload, 90)
+
+      # This is what pins flush_vips_cache/0: store_rotation/3 re-reads the size with
+      # Image.open, which without the flush hands back the pre-rotation image.
+      assert {rotated.width, rotated.height} == {20, 40}
+
+      # 90° clockwise: the red left half becomes the top half.
+      {:ok, on_disk} = Image.open(Path.join(tmp, rotated.storage_key))
+      assert red?(Image.get_pixel!(on_disk, 5, 2))
+      assert blue?(Image.get_pixel!(on_disk, 5, Image.height(on_disk) - 3))
+
+      # The focal point rode along with it: x=0.1 sat in the red half, now y=0.1 does.
+      assert {rotated.focal_point_x, rotated.focal_point_y} == {0.5, 0.1}
+
+      # A regenerated variant shows the new orientation — this pins purge_variants/1 plus
+      # the revision in the cache key, not the vips flush (Image.thumbnail on a path is
+      # non-cacheable, so it never served stale bytes).
+      assert {:ok, path, _} = Media.resolve_variant(rotated.storage_key, 10, 20)
+      {:ok, thumb} = Image.open(path)
+      assert red?(Image.get_pixel!(thumb, 5, 2))
+      assert blue?(Image.get_pixel!(thumb, 5, 17))
+    end
+
+    test "bakes in EXIF orientation instead of stacking a second rotation on it" do
+      # Orientation 6 = "display this rotated 90° clockwise", so a viewer shows the 40×20
+      # source as 20×40 before we touch it.
+      {:ok, base} = Image.new(40, 20, color: [200, 50, 50])
+
+      {:ok, oriented} =
+        Vix.Vips.Image.mutate(base, fn mut ->
+          :ok = Vix.Vips.MutableImage.set(mut, "orientation", :gint, 6)
+        end)
+
+      src = Path.join(System.tmp_dir!(), "exif_#{System.unique_integer([:positive])}.jpg")
+      {:ok, _} = Image.write(oriented, src)
+      on_exit(fn -> File.rm(src) end)
+
+      {:ok, upload} = Media.store_file(src, %{filename: "exif.jpg"})
+      assert {:ok, rotated} = Media.rotate_upload(upload, 90)
+
+      # Upright is 20×40; one more quarter turn makes it 40×20. Without autorotate the
+      # tag would survive and a viewer would apply it *again* on top of our rotation.
+      assert {rotated.width, rotated.height} == {40, 20}
+      # vips normalises the tag while baking it in; it must no longer ask a viewer to turn
+      # the image a second time.
+      path = Path.join(Media.uploads_dir(), rotated.storage_key)
+      assert {:ok, exif} = Image.exif(Image.open!(path))
+      assert Map.get(exif, :orientation) in [nil, 1, "Horizontal (normal)"]
+    end
+
+    test "purges the cached variants so nothing serves the old orientation" do
+      src = write_image(400, 200)
+      {:ok, upload} = Media.store_file(src, %{filename: "wide.png"})
+      assert {:ok, variant, _} = Media.resolve_variant(upload.storage_key, 100, 100)
+      assert File.regular?(variant)
+
+      assert {:ok, _} = Media.rotate_upload(upload, 90)
+      refute File.regular?(variant)
+
+      # The regenerated variant lands on a *different* path — the revision joins the
+      # cache key, so nothing can be served from the pre-rotation name again.
+      assert {:ok, regenerated, _} = Media.resolve_variant(upload.storage_key, 100, 100)
+      assert regenerated != variant
+      assert File.regular?(regenerated)
+    end
+
+    test "a variant written after the purge (a generation still in flight) is never served" do
+      src = write_image(400, 200)
+      {:ok, upload} = Media.store_file(src, %{filename: "wide.png"})
+      assert {:ok, stale, _} = Media.resolve_variant(upload.storage_key, 100, 100)
+
+      assert {:ok, _} = Media.rotate_upload(upload, 90)
+
+      # Replay the race: a generation that started before the rename finishes after the
+      # purge and writes the pre-rotation image back under its old name.
+      File.mkdir_p!(Path.dirname(stale))
+      File.write!(stale, "stale bytes from before the rotation")
+
+      assert {:ok, served, _} = Media.resolve_variant(upload.storage_key, 100, 100)
+      refute served == stale
+      # Whatever is served is a real image, not the resurrected file.
+      assert {:ok, _} = Image.open(served)
+    end
+
+    test "four quarter turns come back to the original dimensions" do
+      src = write_image(400, 200)
+      {:ok, upload} = Media.store_file(src, %{filename: "wide.png"})
+
+      final =
+        Enum.reduce(1..4, upload, fn _i, acc ->
+          {:ok, rotated} = Media.rotate_upload(acc, 90)
+          rotated
+        end)
+
+      assert {final.width, final.height} == {400, 200}
+      assert final.revision == 4
+    end
+
+    test "refuses types where a rewrite would destroy the file" do
+      # A GIF would lose its animation, an SVG its vector nature, a PDF is not an image.
+      gif = write_tmp("GIF89a" <> <<0::size(64)>>)
+
+      svg =
+        write_tmp(~s(<svg xmlns="http://www.w3.org/2000/svg"><rect width="1" height="1"/></svg>))
+
+      pdf = write_tmp(@pdf)
+
+      for {path, name} <- [{gif, "a.gif"}, {svg, "b.svg"}, {pdf, "c.pdf"}] do
+        {:ok, upload} = Media.store_file(path, %{filename: name})
+        refute Media.rotatable?(upload)
+        assert {:error, :not_rotatable} = Media.rotate_upload(upload, 90)
+      end
+    end
+
+    test "rejects angles that are not quarter turns" do
+      src = write_image(40, 20)
+      {:ok, upload} = Media.store_file(src, %{filename: "x.png"})
+
+      for angle <- [0, 45, 360, -90] do
+        assert {:error, :invalid_angle} = Media.rotate_upload(upload, angle)
+      end
     end
   end
 

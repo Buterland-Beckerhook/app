@@ -37,6 +37,37 @@ defmodule BbhWeb.SiteComponents do
     """
   end
 
+  @doc """
+  The credit line under an image: Bildunterschrift left, Copyright right — muted, one
+  line, as little room as it can take.
+
+  The row wraps rather than squeezes: when both do not fit side by side (a long caption,
+  a narrow phone), the copyright moves to its own right-aligned line. It is never
+  overlapped and never dropped — a rights notice you hide is worse than one extra line.
+
+  Renders nothing when there is neither caption nor copyright.
+  """
+  attr :caption, :string, default: nil
+  attr :copyright, :string, default: nil
+  attr :class, :any, default: nil
+
+  def image_credit(assigns) do
+    assigns = assign(assigns, :copyright, copyright_label(assigns.copyright))
+
+    ~H"""
+    <figcaption
+      :if={@caption || @copyright}
+      class={[
+        "mt-1 flex flex-wrap items-baseline justify-between gap-x-3 text-xs leading-snug text-muted",
+        @class
+      ]}
+    >
+      <span :if={@caption} class="min-w-0">{@caption}</span>
+      <span :if={@copyright} class="ml-auto shrink-0 whitespace-nowrap">{@copyright}</span>
+    </figcaption>
+    """
+  end
+
   @doc "Preview card for an article in a listing."
   attr :article, :map, required: true
 
@@ -292,12 +323,17 @@ defmodule BbhWeb.SiteComponents do
       @block.image_position == "left" && "md:flex-row",
       @block.image_position != "left" && "md:flex-row-reverse"
     ]}>
-      <img
-        :if={@block.image}
-        src={media_url(@block.image, width: 480)}
-        alt={@block.title || ""}
-        class="w-full rounded-lg object-cover md:w-1/2"
-      />
+      <figure :if={@block.image} class="w-full md:w-1/2">
+        <img
+          src={media_url(@block.image, width: 480)}
+          alt={image_alt(@block.image)}
+          class="w-full rounded-lg object-cover"
+        />
+        <.image_credit
+          caption={image_caption(@block.image)}
+          copyright={image_copyright(@block.image)}
+        />
+      </figure>
       <div class="md:w-1/2">
         <h3 :if={@block.title} class="text-lg font-semibold">{@block.title}</h3>
         <p :if={@block.subtitle} class="text-sm text-muted">
@@ -315,20 +351,24 @@ defmodule BbhWeb.SiteComponents do
     ~H"""
     <figure>
       <figcaption :if={@block.title} class="mb-2 font-semibold">{@block.title}</figcaption>
+      <%!-- Files arrive in the editor's order (ImageGallery.has_many :preload_order).
+            Thumbnails stay bare; caption and copyright appear on enlarging. --%>
       <div class="grid grid-cols-2 gap-2 md:grid-cols-3">
         <%= for f <- @block.files do %>
           <button
             :if={@block.lightbox}
             type="button"
             data-lightbox-src={media_url(f.media, width: 1600)}
-            data-lightbox-alt={f.title || ""}
+            data-lightbox-alt={image_alt(f)}
+            data-lightbox-caption={image_caption(f)}
+            data-lightbox-copyright={copyright_label(image_copyright(f))}
             data-lightbox-group={"gallery-#{@block.id}"}
             class="block cursor-zoom-in"
             aria-label="Bild vergrößern"
           >
             <img
               src={media_url(f.media, width: 400, height: 400)}
-              alt={f.title || ""}
+              alt={image_alt(f)}
               loading="lazy"
               class="aspect-square w-full rounded object-cover"
             />
@@ -336,7 +376,7 @@ defmodule BbhWeb.SiteComponents do
           <img
             :if={!@block.lightbox}
             src={media_url(f.media, width: 400, height: 400)}
-            alt={f.title || ""}
+            alt={image_alt(f)}
             loading="lazy"
             class="aspect-square w-full rounded object-cover"
           />

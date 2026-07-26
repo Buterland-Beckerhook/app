@@ -55,6 +55,28 @@ it to your system trust store. Everything works over HTTPS regardless.
 Elixir/Phoenix conventions (contexts, LiveView, Ecto, HEEx, testing) are
 documented in **`app/AGENTS.md`**.
 
+## Media pipeline
+
+Originals live under `:uploads_dir` keyed by `storage_key`; responsive WebP variants
+are generated on demand into `:media_cache_dir`, **one directory per upload**
+(`<cache>/<sha256(storage_key)>/<sha256(size…)>.webp`). That grouping is what lets
+`Bbh.Media.purge_variants/1` drop an upload's variants as a unit — their file names are
+content hashes, so there is no other way to find them all. The cache is regenerable and
+excluded from backups, so it can be deleted wholesale at any time.
+
+Image **metadata has exactly one home**: the media library (`/admin/medien`, or the same
+modal opened from the article form). Titel, Bildunterschrift, Beschreibung (Alt-Text) and
+Copyright are fields on `media`; an embedding (article image, gallery file) only records
+*how* the picture is used. Templates read them through `BbhWeb.Format.image_alt/1`,
+`image_caption/1` and `image_copyright/1` — never off the embedding. See
+`docs/adr/0004-media-library-owns-image-metadata.md`.
+
+**Rotation** (`Bbh.Media.rotate_upload/2`) rewrites the original in place and bumps
+`media.revision`, which busts three caches: the browser's (it rides on media URLs as
+`?v=`), the variant cache on disk (it joins the cache key, so a stale file is unreachable
+and not merely deleted), and the libvips operation cache — libvips memoizes by file name
+and would otherwise keep serving the old orientation from memory.
+
 ## Data snapshots — seeding & restore
 
 There is no hand-written sample seed; dev data is a **real snapshot**.

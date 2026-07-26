@@ -277,6 +277,29 @@ defmodule Bbh.ContentTest do
       assert Content.list_article_images(article.id) == []
     end
 
+    test "images come back in sort order, not insert order" do
+      article = article_fixture()
+      {:ok, third} = Content.add_article_image(article, upload_fixture().id)
+      {:ok, first} = Content.add_article_image(article, upload_fixture().id)
+      {:ok, second} = Content.add_article_image(article, upload_fixture().id)
+
+      # Sort deliberately against the insert order.
+      {:ok, _} = Content.update_article_image(third, %{sort: 2})
+      {:ok, _} = Content.update_article_image(first, %{sort: 0})
+      {:ok, _} = Content.update_article_image(second, %{sort: 1})
+
+      expected = [first.id, second.id, third.id]
+
+      # The admin listing …
+      assert Enum.map(Content.list_article_images(article.id), & &1.id) == expected
+
+      # … and every preload (article page, homepage, /thron) via preload_order.
+      assert Enum.map(Content.get_article!(article.id).images, & &1.id) == expected
+
+      published = Content.get_published_article(article.slug, article.year)
+      assert Enum.map(published.images, & &1.id) == expected
+    end
+
     test "set_article_preview_image/2 is exclusive — only one image is the preview" do
       article = article_fixture()
       {:ok, a} = Content.add_article_image(article, upload_fixture().id)
@@ -309,6 +332,123 @@ defmodule Bbh.ContentTest do
       assert {:error, changeset} = Content.update_article_image(b, %{use_as_article_image: true})
       assert %{use_as_article_image: [_]} = errors_on(changeset)
     end
+  end
+
+  describe "gallery files" do
+    setup do
+      page = page_fixture()
+      {:ok, _} = Content.add_block(page, "image_gallery")
+      [{pb, gallery}] = Content.load_blocks(Content.get_page!(page.id))
+      %{page: page, pb: pb, gallery: gallery}
+    end
+
+    test "adds images in order and lists them with their media", %{gallery: gallery} do
+      first = upload_fixture(filename: "a.webp")
+      second = upload_fixture(filename: "b.webp")
+
+      {:ok, added_first} = Content.add_gallery_file(gallery, first.id)
+      {:ok, added_second} = Content.add_gallery_file(gallery, second.id)
+
+      assert added_first.sort == 0
+      assert added_second.sort == 1
+
+      assert [a, b] = Content.list_gallery_files(gallery.id)
+      assert [a.media.filename, b.media.filename] == ["a.webp", "b.webp"]
+    end
+
+    test "moving a file swaps it with its neighbour", %{gallery: gallery} do
+      {:ok, a} = Content.add_gallery_file(gallery, upload_fixture().id)
+      {:ok, b} = Content.add_gallery_file(gallery, upload_fixture().id)
+      {:ok, c} = Content.add_gallery_file(gallery, upload_fixture().id)
+
+      assert {:ok, _} = Content.move_gallery_file(gallery.id, c, :up)
+      assert ids(gallery) == [a.id, c.id, b.id]
+
+      assert {:ok, _} = Content.move_gallery_file(gallery.id, a, :down)
+      assert ids(gallery) == [c.id, a.id, b.id]
+    end
+
+    test "moving past the edge is a no-op", %{gallery: gallery} do
+      {:ok, a} = Content.add_gallery_file(gallery, upload_fixture().id)
+      {:ok, b} = Content.add_gallery_file(gallery, upload_fixture().id)
+
+      assert {:ok, :noop} = Content.move_gallery_file(gallery.id, a, :up)
+      assert {:ok, :noop} = Content.move_gallery_file(gallery.id, b, :down)
+      assert ids(gallery) == [a.id, b.id]
+    end
+
+    test "a legacy row without a sort still moves the way the editor clicked", ctx do
+      {:ok, a} = Content.add_gallery_file(ctx.gallery, upload_fixture().id)
+      {:ok, b} = Content.add_gallery_file(ctx.gallery, upload_fixture().id)
+
+      # `sort` is nullable and predates add_gallery_file/2, so legacy rows can be NULL —
+      # and a gap in the sort values is enough to make a naive value swap a no-op.
+      Repo.update_all(from(f in Bbh.Content.Blocks.GalleryFile, where: f.id == ^a.id),
+        set: [sort: 5]
+      )
+
+      Repo.update_all(from(f in Bbh.Content.Blocks.GalleryFile, where: f.id == ^b.id),
+        set: [sort: nil]
+      )
+
+      # NULLs sort last, so b is at the end.
+      assert ids(ctx.gallery) == [a.id, b.id]
+
+      assert {:ok, _} =
+               Content.move_gallery_file(ctx.gallery.id, Content.get_gallery_file!(b.id), :up)
+
+      assert ids(ctx.gallery) == [b.id, a.id]
+    end
+
+    test "sort values that do not start at zero are renumbered instead of colliding", ctx do
+      {:ok, a} = Content.add_gallery_file(ctx.gallery, upload_fixture().id)
+      {:ok, b} = Content.add_gallery_file(ctx.gallery, upload_fixture().id)
+      {:ok, c} = Content.add_gallery_file(ctx.gallery, upload_fixture().id)
+
+      # What deleting the first image leaves behind: an offset run of sort values.
+      for {file, sort} <- [{a, 1}, {b, 2}, {c, 3}] do
+        Repo.update_all(from(f in Bbh.Content.Blocks.GalleryFile, where: f.id == ^file.id),
+          set: [sort: sort]
+        )
+      end
+
+      assert {:ok, _} =
+               Content.move_gallery_file(ctx.gallery.id, Content.get_gallery_file!(c.id), :up)
+
+      assert ids(ctx.gallery) == [a.id, c.id, b.id]
+      # Renumbered densely from zero, so no two rows share a position.
+      assert ctx.gallery.id |> Content.list_gallery_files() |> Enum.map(& &1.sort) == [0, 1, 2]
+    end
+
+    test "moving a file that is not in this gallery is refused, not a crash", ctx do
+      other_page = page_fixture()
+      {:ok, _} = Content.add_block(other_page, "image_gallery")
+      [{_pb, other_gallery}] = Content.load_blocks(Content.get_page!(other_page.id))
+      {:ok, stranger} = Content.add_gallery_file(other_gallery, upload_fixture().id)
+
+      assert {:error, :not_found} = Content.move_gallery_file(ctx.gallery.id, stranger, :up)
+    end
+
+    test "removing a file leaves the rest in order", %{gallery: gallery} do
+      {:ok, a} = Content.add_gallery_file(gallery, upload_fixture().id)
+      {:ok, b} = Content.add_gallery_file(gallery, upload_fixture().id)
+
+      assert {:ok, _} = Content.delete_gallery_file(a)
+      assert ids(gallery) == [b.id]
+    end
+
+    test "the block preload returns files in sort order", %{page: page, gallery: gallery} do
+      {:ok, second} = Content.add_gallery_file(gallery, upload_fixture(filename: "b.webp").id)
+      {:ok, first} = Content.add_gallery_file(gallery, upload_fixture(filename: "a.webp").id)
+      {:ok, _} = Content.move_gallery_file(gallery.id, first, :up)
+
+      [{_pb, loaded}] = Content.load_blocks(Content.get_page!(page.id))
+      assert Enum.map(loaded.files, & &1.id) == [first.id, second.id]
+      # media is preloaded for the renderer (caption/copyright/alt come from it)
+      assert Enum.all?(loaded.files, &match?(%Bbh.Media.Upload{}, &1.media))
+    end
+
+    defp ids(gallery), do: gallery.id |> Content.list_gallery_files() |> Enum.map(& &1.id)
   end
 
   describe "article date fields" do
