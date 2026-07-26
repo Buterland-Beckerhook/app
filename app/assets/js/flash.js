@@ -5,12 +5,13 @@
 // LiveView, where phx-hook never mounts. Same progressive-enhancement approach as
 // the lightbox/countdown enhancers.
 //
-// Hover/focus pausing is pure CSS (animation-play-state, see app.css). Dismissal:
-//   - LiveView pages: run the toast's own phx-click via liveSocket.execJS, which
-//     clears the flash on the server AND runs the hide transition.
-//   - Dead pages: liveSocket.execJS has no owning view and silently no-ops, so we
-//     fade the toast out directly instead. (The server flash is already consumed
-//     on the redirect, so there is nothing to clear server-side.)
+// Hover/focus pausing is pure CSS (animation-play-state, see app.css). Dismissal
+// always fades the node out and removes it directly, so the toast is guaranteed to
+// disappear when the countdown ends. On LiveView pages we additionally fire the
+// toast's own phx-click via liveSocket.execJS to clear the flash server-side (so a
+// later patch can't re-render it) — but we never rely on that round-trip for the
+// visual removal, because an interrupting patch or a not-yet-connected socket can
+// leave the toast stuck on screen.
 
 const FLASH_SELECTOR = "[role='alert']"
 // Elements rendered inside a LiveView carry one of these container attributes;
@@ -18,15 +19,18 @@ const FLASH_SELECTOR = "[role='alert']"
 const LIVEVIEW_CONTAINER = "[data-phx-main],[data-phx-session],[data-phx-root-id]"
 
 function dismissFlash(el) {
+  // Clear the server-side flash on LiveView pages so it can't reappear on the next
+  // patch. Fire-and-forget — the visual removal below runs regardless.
   if (window.liveSocket && el.closest(LIVEVIEW_CONTAINER)) {
     try {
       window.liveSocket.execJS(el, el.getAttribute("phx-click"))
-      return
     } catch (_err) {
-      // No usable owning view — fall through to a direct fade-out.
+      // No usable owning view — the direct fade-out below still hides the toast.
     }
   }
 
+  // Always fade out and remove the node directly. (Harmless no-op if a server
+  // re-render already removed it.)
   el.style.transition = "opacity 200ms ease-in"
   el.style.opacity = "0"
   window.setTimeout(() => el.remove(), 220)

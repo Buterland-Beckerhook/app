@@ -76,7 +76,7 @@ defmodule BbhWeb.CoreComponents do
       phx-click={JS.push("lv:clear-flash", value: %{key: @kind}) |> hide("##{@id}")}
       style={@autohide && "--flash-duration: #{@duration_ms}ms"}
       role="alert"
-      class="toast toast-top toast-end z-50"
+      class="toast toast-bottom toast-end z-50"
       {@rest}
     >
       <div class={[
