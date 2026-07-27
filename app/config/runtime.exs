@@ -28,6 +28,11 @@ if tz = System.get_env("TIME_ZONE") do
   config :bbh, :time_zone, tz
 end
 
+# Keep the public beta deployment out of search indexes. When true, BbhWeb.Plugs.NoIndex
+# stamps `X-Robots-Tag: noindex, nofollow` on every response — an app-level safety net
+# that is independent of the reverse-proxy `noindex` middleware. Leave unset in prod.
+config :bbh, :noindex, System.get_env("BETA_NOINDEX") in ~w(true 1)
+
 if config_env() == :dev do
   # Reload browser tabs when matching files change.
   config :bbh, BbhWeb.Endpoint,

@@ -15,6 +15,10 @@ defmodule BbhWeb.Endpoint do
     websocket: [connect_info: [:peer_data, :x_headers, session: @session_options]],
     longpoll: [connect_info: [:peer_data, :x_headers, session: @session_options]]
 
+  # First in the pipeline so its `register_before_send` covers every response,
+  # including the static assets Plug.Static halts on. No-op unless :noindex is set.
+  plug BbhWeb.Plugs.NoIndex
+
   # Serve at "/" the static files from "priv/static" directory.
   #
   # When code reloading is disabled (e.g., in production),
