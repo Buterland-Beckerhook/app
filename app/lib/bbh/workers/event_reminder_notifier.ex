@@ -19,14 +19,30 @@ defmodule Bbh.Workers.EventReminderNotifier do
     :ok
   end
 
-  @doc "Deliver one reminder's push and mark it as sent."
+  @doc """
+  Deliver one reminder's push and mark it as sent.
+
+  During quiet hours nothing is sent and the reminder is left unmarked, so the
+  next cron tick after the window ends picks it up (self-healing). The push always
+  deep-links to the event; a reminder without custom text falls back to the title.
+  """
   def notify(%EventReminder{event: event} = reminder) do
-    # Mark first so a retry after a crash mid-send doesn't double-notify.
-    {:ok, _} = Calendar.mark_reminder_sent(reminder)
+    if Bbh.Settings.quiet_now?() do
+      :ok
+    else
+      # Mark first so a retry after a crash mid-send doesn't double-notify.
+      {:ok, _} = Calendar.mark_reminder_sent(reminder)
 
-    url = BbhWeb.Endpoint.url() <> "/termine/#{event.year}/#{event.slug}"
-    Bbh.Notifications.notify("termine", %{title: event.title, body: reminder.text, url: url})
+      {title, body} =
+        case reminder.text do
+          t when t in [nil, ""] -> {"Erinnerung", event.title}
+          t -> {event.title, t}
+        end
 
-    :ok
+      url = BbhWeb.Endpoint.url() <> "/termine/#{event.year}/#{event.slug}"
+      Bbh.Notifications.notify("termine", %{title: title, body: body, url: url})
+
+      :ok
+    end
   end
 end

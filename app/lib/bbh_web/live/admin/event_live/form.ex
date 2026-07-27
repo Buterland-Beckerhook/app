@@ -121,17 +121,15 @@ defmodule BbhWeb.Admin.EventLive.Form do
     end
   end
 
-  # Notify subscribers the first time a public event becomes published.
+  # Notify subscribers the first time a public event becomes published. Routed
+  # through EventPublishNotifier so it marks the event (no repeat) and honours
+  # quiet hours — anything held back overnight is delivered by the cron tick.
   defp maybe_notify(
          old_status,
          %Event{status: "published", announce: true, calendar: nil} = event
        )
        when old_status != "published" do
-    url = url(~p"/termine/#{event.year}/#{event.slug}")
-
-    Bbh.Notifications.dispatch(fn ->
-      Bbh.Notifications.notify("termine", %{title: "Neuer Termin", body: event.title, url: url})
-    end)
+    Bbh.Notifications.dispatch(fn -> Bbh.Workers.EventPublishNotifier.notify(event) end)
   end
 
   defp maybe_notify(_old_status, _event), do: :ok
@@ -143,9 +141,23 @@ defmodule BbhWeb.Admin.EventLive.Form do
     params
     |> Map.update("starts_at", nil, &parse_dt/1)
     |> Map.update("ends_at", nil, &parse_dt/1)
+    |> normalize_reminders()
     |> blank_to_nil("calendar")
     |> blank_to_nil("location_id")
   end
+
+  # Reminders are nested (event[reminders][<idx>][...]); their absolute scheduled_at
+  # arrives as a datetime-local string and needs the same ISO8601 normalization.
+  defp normalize_reminders(%{"reminders" => reminders} = params) when is_map(reminders) do
+    normalized =
+      Map.new(reminders, fn {idx, reminder} ->
+        {idx, Map.update(reminder, "scheduled_at", nil, &parse_dt/1)}
+      end)
+
+    Map.put(params, "reminders", normalized)
+  end
+
+  defp normalize_reminders(params), do: params
 
   defp parse_dt(v) when v in [nil, ""], do: nil
 
@@ -180,19 +192,20 @@ defmodule BbhWeb.Admin.EventLive.Form do
         <.input field={@form[:slug]} label="Slug" required />
         <.input field={@form[:status]} type="select" label="Status" options={statuses()} />
         <div class="grid gap-4 sm:grid-cols-2">
-          <.datetime_field
-            field={@form[:starts_at]}
-            label="Beginn"
-            required
-            all_day_selector="[name='event[all_day]']"
-          />
+          <%!-- The start keeps its time even for all-day events: iCal exports only the
+                date, but the countdown still targets the entered start time. --%>
+          <.datetime_field field={@form[:starts_at]} label="Beginn" required />
           <.datetime_field
             field={@form[:ends_at]}
             label="Ende"
             all_day_selector="[name='event[all_day]']"
           />
         </div>
-        <.input field={@form[:all_day]} type="checkbox" label="Ganztägig" />
+        <.input
+          field={@form[:all_day]}
+          type="checkbox"
+          label="Ganztägig (im Kalender-Export nur das Datum)"
+        />
         <.input
           field={@form[:location_id]}
           type="select"
@@ -237,17 +250,23 @@ defmodule BbhWeb.Admin.EventLive.Form do
         <fieldset :if={public_calendar?(@form)} class="rounded-box border border-base-300 p-4">
           <legend class="px-1 text-sm font-medium">Erinnerungen (Push)</legend>
           <p class="mb-3 text-sm text-base-content/60">
-            Benachrichtigt Abonnenten die angegebene Anzahl Tage vor Beginn mit dem eingegebenen Text.
+            Benachrichtigt Abonnenten – entweder eine Anzahl Tage vor Beginn <strong>oder</strong>
+            zu einem festen Zeitpunkt. Ohne eigenen Text wird der Titel gesendet; die Nachricht
+            verlinkt immer auf den Termin.
           </p>
 
           <.inputs_for :let={rf} field={@form[:reminders]}>
             <input type="hidden" name="event[reminders_sort][]" value={rf.index} />
             <div class="mb-3 flex flex-wrap items-start gap-3">
-              <div class="w-32">
+              <div class="w-28">
                 <.input field={rf[:lead_days]} type="number" min="0" label="Tage vorher" />
               </div>
+              <span class="mt-8 text-sm text-base-content/50">oder</span>
+              <div class="w-56">
+                <.datetime_field field={rf[:scheduled_at]} label="Fester Zeitpunkt" />
+              </div>
               <div class="min-w-48 flex-1">
-                <.input field={rf[:text]} label="Nachricht" />
+                <.input field={rf[:text]} label="Nachricht (optional)" />
               </div>
               <label class="mt-8 cursor-pointer text-sm text-error hover:underline">
                 <input type="checkbox" name="event[reminders_drop][]" value={rf.index} class="hidden" />

@@ -47,7 +47,6 @@ defmodule Bbh.Content.Throne do
       :article_id
     ])
     |> validate_required([:type, :begin_year, :king, :article_id])
-    |> maybe_require_queen()
     |> validate_inclusion(:type, @types)
     |> validate_number(:begin_year, greater_than: 0)
     |> validate_end_after_begin()
@@ -57,13 +56,6 @@ defmodule Bbh.Content.Throne do
       name: :thrones_end_after_begin,
       message: "muss nach dem Beginn liegen"
     )
-  end
-
-  # A queen is required for every throne except the king-only types.
-  defp maybe_require_queen(changeset) do
-    if king_only?(get_field(changeset, :type)),
-      do: changeset,
-      else: validate_required(changeset, [:queen])
   end
 
   defp validate_end_after_begin(changeset) do

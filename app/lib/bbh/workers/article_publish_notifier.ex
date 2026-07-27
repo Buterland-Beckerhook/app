@@ -21,14 +21,23 @@ defmodule Bbh.Workers.ArticlePublishNotifier do
     :ok
   end
 
-  @doc "Push the publish notification for one article and mark it as notified."
+  @doc """
+  Push the publish notification for one article and mark it as notified.
+
+  During quiet hours nothing is sent and the article is left unmarked, so the next
+  cron tick after the window ends picks it up (self-healing).
+  """
   def notify(%Article{} = article) do
-    # Mark first so a retry after a crash mid-send doesn't double-notify.
-    {:ok, article} = Content.mark_article_notified(article)
+    if Bbh.Settings.quiet_now?() do
+      :ok
+    else
+      # Mark first so a retry after a crash mid-send doesn't double-notify.
+      {:ok, article} = Content.mark_article_notified(article)
 
-    url = BbhWeb.Endpoint.url() <> "/aktuell/#{article.year}/#{article.slug}"
-    Bbh.Notifications.notify("news", %{title: "Neuer Artikel", body: article.title, url: url})
+      url = BbhWeb.Endpoint.url() <> "/aktuell/#{article.year}/#{article.slug}"
+      Bbh.Notifications.notify("news", %{title: "Neuer Artikel", body: article.title, url: url})
 
-    :ok
+      :ok
+    end
   end
 end

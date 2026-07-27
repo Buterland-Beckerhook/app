@@ -12,10 +12,9 @@ defmodule Bbh.Content.ThroneTest do
     "article_id" => Ecto.UUID.generate()
   }
 
-  test "a normal throne requires a queen" do
+  test "a throne is valid without a queen (Königin is optional for every type)" do
     changeset = Throne.changeset(%Throne{}, Map.delete(@base, "queen"))
-    refute changeset.valid?
-    assert %{queen: ["can't be blank"]} = errors_on(changeset)
+    assert changeset.valid?
   end
 
   test "a Jungschützenkönig is valid without a queen" do

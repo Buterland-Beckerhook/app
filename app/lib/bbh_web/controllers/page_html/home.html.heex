@@ -2,6 +2,18 @@
   <%!-- The hero was dropped with the redesign; keep an h1 for the document outline. --%>
   <h1 class="sr-only">Schützenverein Buterland-Beckerhook e.V.</h1>
 
+  <%!-- ===== HINWEIS (admin-editable notice) ===== --%>
+  <div
+    :if={@settings.home_notice_enabled and @settings.home_notice_text not in [nil, ""]}
+    class="mt-2 flex items-start gap-3 rounded-2xl border border-primary/25 bg-primary/5 px-5 py-4 text-primary md:mt-6"
+    role="status"
+  >
+    <.icon name="hero-information-circle" class="mt-0.5 size-6 shrink-0" />
+    <div class="prose prose-sm max-w-none text-base-content">
+      {raw(@settings.home_notice_text)}
+    </div>
+  </div>
+
   <%!-- ===== NÄCHSTER TERMIN (highlight banner) ===== --%>
   <section :if={@next_event} id="termine" class="mt-2 scroll-mt-24 md:mt-6">
     <div class="relative overflow-hidden rounded-[22px] bg-[linear-gradient(120deg,#0f4d2c_0%,#15693c_58%,#1c7d47_100%)] text-white shadow-[0_30px_60px_-28px_rgba(15,77,44,0.6)]">

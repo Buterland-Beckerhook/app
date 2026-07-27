@@ -11,6 +11,10 @@ defmodule Bbh.Notifications.PushSubscription do
     field :keys_auth, :string
     field :categories, {:array, :string}, default: []
     field :last_used, :utc_datetime
+    # Consecutive non-fatal send failures (reset on success) + when the last one was.
+    # System-managed (see Bbh.Notifications.do_send/2), so not cast from params.
+    field :error_count, :integer, default: 0
+    field :last_error_at, :utc_datetime
 
     timestamps()
   end

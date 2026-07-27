@@ -9,6 +9,12 @@ defmodule Bbh.Workers.EventReminderNotifierTest do
 
   defp from_now(n), do: Bbh.Time.now() |> DateTime.add(n, :day) |> DateTime.truncate(:second)
 
+  # Keep these deterministic regardless of the wall-clock hour the suite runs at.
+  setup do
+    {:ok, _} = Bbh.Settings.update(%{"quiet_hours_enabled" => false})
+    :ok
+  end
+
   test "perform sends each due reminder once and marks it sent" do
     event = event_fixture(starts_at: from_now(2), reminders: [%{lead_days: 10, text: "Gleich!"}])
 
