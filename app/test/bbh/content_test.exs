@@ -381,6 +381,66 @@ defmodule Bbh.ContentTest do
     end
   end
 
+  describe "article content blocks (owner-generic block CRUD)" do
+    test "add_block/2, load_blocks/1 and move_block/2 work on an article owner" do
+      article = article_fixture(body: "")
+      assert Content.load_blocks(article) == []
+
+      {:ok, _} = Content.add_block(article, "richtext")
+      {:ok, _} = Content.add_block(article, "image_gallery")
+
+      blocks = Content.load_blocks(article)
+      assert Enum.map(blocks, fn {pb, _} -> pb.block_type end) == ["richtext", "image_gallery"]
+      assert Enum.map(blocks, fn {pb, _} -> pb.position end) == [0, 1]
+      assert Enum.all?(blocks, fn {_pb, block} -> not is_nil(block) end)
+
+      # Move the gallery to the front.
+      [{_rt, _}, {gallery_pb, _}] = blocks
+      assert {:ok, _} = Content.move_block(gallery_pb, :up)
+
+      assert Content.load_blocks(article) |> Enum.map(fn {pb, _} -> pb.block_type end) ==
+               ["image_gallery", "richtext"]
+    end
+
+    test "delete_article/1 removes the article's blocks and their concrete rows" do
+      article = article_fixture(body: "<p>Text</p>")
+      gallery_block_fixture(article, [upload_fixture()])
+
+      [{rt_pb, _}, {gal_pb, _}] = Content.load_blocks(article)
+
+      {:ok, _} = Content.delete_article(article)
+
+      assert Content.load_blocks(article) == []
+      refute Bbh.Repo.get(Bbh.Content.Blocks.RichText, rt_pb.block_id)
+      refute Bbh.Repo.get(Bbh.Content.Blocks.ImageGallery, gal_pb.block_id)
+    end
+  end
+
+  describe "article and throne image setters" do
+    test "set_article_image/2 sets and clears the article's single image" do
+      article = article_fixture()
+      upload = upload_fixture()
+
+      {:ok, _} = Content.set_article_image(article, upload.id)
+      assert Content.get_article!(article.id).image_id == upload.id
+
+      {:ok, _} = Content.set_article_image(article, nil)
+      assert is_nil(Content.get_article!(article.id).image_id)
+    end
+
+    test "set_throne_image/2 stores an own picture; nil means inherit" do
+      article = article_fixture()
+      throne = throne_fixture(%{article: article})
+      upload = upload_fixture()
+
+      {:ok, _} = Content.set_throne_image(throne, upload.id)
+      assert Bbh.Repo.get!(Bbh.Content.Throne, throne.id).image_id == upload.id
+
+      {:ok, _} = Content.set_throne_image(throne, nil)
+      assert is_nil(Bbh.Repo.get!(Bbh.Content.Throne, throne.id).image_id)
+    end
+  end
+
   # Both gallery describes want the same empty block on an empty page.
   defp gallery_block(_ctx) do
     page = page_fixture()

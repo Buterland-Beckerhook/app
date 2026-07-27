@@ -2,7 +2,7 @@ defmodule Bbh.Content do
   @moduledoc "Read/query API for articles, thrones, and block-based pages."
   import Ecto.Query
   alias Bbh.Repo
-  alias Bbh.Content.{Article, ArticleImage, Throne, Page, PageBlock, Blocks}
+  alias Bbh.Content.{Article, ArticleBlock, ArticleImage, Throne, Page, PageBlock, Blocks}
 
   @doc """
   Published, real articles (excludes throne-only entries), newest first, paginated.
@@ -23,7 +23,7 @@ defmodule Bbh.Content do
           order_by: [desc: a.date_published]
       end
 
-    paginate(base, page, per_page, preload: [images: :media])
+    paginate(base, page, per_page, preload: [:image, images: :media])
   end
 
   @doc "The N most recent published articles (for the homepage)."
@@ -34,7 +34,7 @@ defmodule Bbh.Content do
       where: a.status == "published" and a.no_article == false and a.date_published <= ^now,
       order_by: [desc: a.date_published],
       limit: ^n,
-      preload: [images: :media]
+      preload: [:image, images: :media]
     )
     |> Repo.all()
   end
@@ -48,7 +48,7 @@ defmodule Bbh.Content do
         where:
           a.slug == ^slug and a.year == ^year and a.status == "published" and
             a.date_published <= ^now,
-        preload: [:throne, images: :media]
+        preload: [:image, images: :media, throne: :image]
     )
   end
 
@@ -60,7 +60,7 @@ defmodule Bbh.Content do
     Repo.one(
       from a in Article,
         where: a.slug == ^slug and a.year == ^year,
-        preload: [:throne, images: :media]
+        preload: [:image, images: :media, throne: :image]
     )
   end
 
@@ -92,7 +92,7 @@ defmodule Bbh.Content do
       from t in Throne,
         order_by: [desc: t.begin_year],
         limit: 1,
-        preload: [article: [images: :media]]
+        preload: [:image, article: [:image, images: :media]]
     )
   end
 
@@ -121,7 +121,7 @@ defmodule Bbh.Content do
         where: t.type == ^type,
         order_by: [desc: t.begin_year],
         limit: 1,
-        preload: [article: [images: :media]]
+        preload: [:image, article: [:image, images: :media]]
     )
   end
 
@@ -132,14 +132,14 @@ defmodule Bbh.Content do
         where: t.type == ^type and is_nil(t.end_year),
         order_by: [desc: t.begin_year],
         limit: 1,
-        preload: [article: [images: :media]]
+        preload: [:image, article: [:image, images: :media]]
     )
   end
 
   @doc "Thrones of one type, newest first, paginated (the /thron gallery), with article + images."
   def list_thrones(type, page \\ 1, per_page \\ 1) do
     base = from t in Throne, where: t.type == ^type, order_by: [desc: t.begin_year]
-    paginate(base, page, per_page, preload: [article: [images: :media]])
+    paginate(base, page, per_page, preload: [:image, article: [:image, images: :media]])
   end
 
   @doc "Schlanke Liste der Throne eines Typs (neueste zuerst) für den /thron-Pager."
@@ -181,13 +181,19 @@ defmodule Bbh.Content do
     end
   end
 
-  @doc "Resolve a page's polymorphic blocks into `{page_block, block_struct}` tuples, in order."
-  def load_blocks(%Page{} = page) do
-    page_blocks =
-      Repo.all(from pb in PageBlock, where: pb.page_id == ^page.id, order_by: [asc: pb.position])
+  @doc """
+  Resolve an owner's polymorphic blocks into `{block_join, block_struct}` tuples, in order.
+  The owner is a `%Page{}` (page_blocks) or an `%Article{}` (article_blocks); both order
+  the same shared `block_*` tables.
+  """
+  def load_blocks(owner) do
+    {join, key} = block_join(owner)
+
+    joins =
+      Repo.all(from pb in join, where: field(pb, ^key) == ^owner.id, order_by: [asc: pb.position])
 
     # Batch-load each block table by the ids referenced for that type.
-    by_type = Enum.group_by(page_blocks, & &1.block_type, & &1.block_id)
+    by_type = Enum.group_by(joins, & &1.block_type, & &1.block_id)
 
     loaded =
       Map.new(by_type, fn {type, ids} ->
@@ -197,10 +203,19 @@ defmodule Bbh.Content do
         {type, Map.new(Repo.all(query), &{&1.id, &1})}
       end)
 
-    Enum.map(page_blocks, fn pb ->
+    Enum.map(joins, fn pb ->
       {pb, get_in(loaded, [pb.block_type, pb.block_id])}
     end)
   end
+
+  # Blocks attach to either a page (page_blocks) or an article (article_blocks), sharing
+  # the block_* tables. Map an owner — or one of its join rows — to its join schema and
+  # owner-id column.
+  defp block_join(%Page{}), do: {PageBlock, :page_id}
+  defp block_join(%Article{}), do: {ArticleBlock, :article_id}
+
+  defp block_join_of(%PageBlock{page_id: id}), do: {PageBlock, :page_id, id}
+  defp block_join_of(%ArticleBlock{article_id: id}), do: {ArticleBlock, :article_id, id}
 
   defp preload_block(query, "media_card"), do: preload(query, [:image])
   defp preload_block(query, "image_gallery"), do: preload(query, files: :media)
@@ -348,7 +363,8 @@ defmodule Bbh.Content do
 
   def count_articles, do: Repo.aggregate(Article, :count, :id)
 
-  def get_article!(id), do: Article |> Repo.get!(id) |> Repo.preload([:throne, images: :media])
+  def get_article!(id),
+    do: Article |> Repo.get!(id) |> Repo.preload([:image, images: :media, throne: :image])
 
   def create_article(attrs),
     do: %Article{} |> Article.changeset(attrs) |> Repo.insert() |> Bbh.Search.reindex_after()
@@ -356,10 +372,29 @@ defmodule Bbh.Content do
   def update_article(%Article{} = article, attrs),
     do: article |> Article.changeset(attrs) |> Repo.update() |> Bbh.Search.reindex_after()
 
-  def delete_article(%Article{} = article),
-    do: article |> Repo.delete() |> Bbh.Search.reindex_after()
+  @doc "Delete an article together with its content blocks (concrete block rows included)."
+  def delete_article(%Article{} = article) do
+    blocks = load_blocks(article)
+
+    Repo.transaction(fn ->
+      Enum.each(blocks, fn {pb, _} -> delete_block!(pb) end)
+      Repo.delete!(article)
+    end)
+    |> Bbh.Search.reindex_after()
+  end
 
   def change_article(%Article{} = article, attrs \\ %{}), do: Article.changeset(article, attrs)
+
+  @doc "Set (or clear with `nil`) the article's single image (the hero + throne default)."
+  def set_article_image(%Article{} = article, media_id) do
+    # force_change so "set to media_id" always writes, even if a stale struct already
+    # carries that value (cast would skip an unchanged field and leave the DB as-is).
+    article
+    |> Article.changeset(%{})
+    |> Ecto.Changeset.force_change(:image_id, media_id)
+    |> Repo.update()
+    |> Bbh.Search.reindex_after()
+  end
 
   ## Admin — article images
 
@@ -473,6 +508,17 @@ defmodule Bbh.Content do
   def delete_throne(%Throne{} = t), do: t |> Repo.delete() |> Bbh.Search.reindex_after()
   def change_throne(%Throne{} = t, attrs \\ %{}), do: Throne.changeset(t, attrs)
 
+  @doc "Set (or clear with `nil`) a throne's own picture. `nil` inherits the article image."
+  def set_throne_image(%Throne{} = throne, media_id) do
+    # force_change so a clear (nil) always writes even when the passed struct is stale —
+    # see set_article_image/2.
+    throne
+    |> Throne.changeset(%{})
+    |> Ecto.Changeset.force_change(:image_id, media_id)
+    |> Repo.update()
+    |> Bbh.Search.reindex_after()
+  end
+
   ## Admin CRUD — pages
 
   def list_pages, do: Repo.all(from p in Page, order_by: [asc: p.sort_order, asc: p.title])
@@ -516,7 +562,7 @@ defmodule Bbh.Content do
     |> Bbh.Search.reindex_after()
   end
 
-  ## Admin — page blocks
+  ## Admin — content blocks (pages and articles share the same block_* tables)
 
   @block_defaults %{
     "richtext" => %{body: "<p></p>"},
@@ -538,39 +584,49 @@ defmodule Bbh.Content do
     "separator" => %{}
   }
 
-  @doc "Append a new, empty block of the given type to a page."
-  def add_block(%Page{} = page, type) when is_map_key(@block_defaults, type) do
+  @doc "Append a new, empty block of the given type to an owner (page or article)."
+  def add_block(owner, type) when is_map_key(@block_defaults, type) do
+    {join, key} = block_join(owner)
     schema = Blocks.schema_for(type)
 
     Repo.transaction(fn ->
       block = Repo.insert!(struct(schema, Map.fetch!(@block_defaults, type)))
 
-      Repo.insert!(%PageBlock{
-        page_id: page.id,
-        position: next_position(page.id),
-        block_type: type,
-        block_id: block.id
-      })
+      Repo.insert!(
+        struct(join, %{
+          key => owner.id,
+          :position => next_position(owner),
+          :block_type => type,
+          :block_id => block.id
+        })
+      )
     end)
     |> Bbh.Search.reindex_after()
   end
 
-  @doc "Update the concrete block referenced by a page_block."
-  def update_block(%PageBlock{} = pb, attrs) do
+  @doc "Update the concrete block referenced by a block-join row."
+  def update_block(pb, attrs) do
     schema = Blocks.schema_for(pb.block_type)
     block = Repo.get!(schema, pb.block_id)
     block |> schema.changeset(attrs) |> Repo.update() |> Bbh.Search.reindex_after()
   end
 
-  @doc "Delete a page_block and its concrete block."
-  def delete_block(%PageBlock{} = pb) do
+  @doc "Delete a block-join row and its concrete block."
+  def delete_block(pb) do
     Repo.transaction(fn -> delete_block!(pb) end) |> Bbh.Search.reindex_after()
   end
 
-  @doc "Move a block one step in the given direction (:up | :down)."
-  def move_block(page_id, %PageBlock{} = pb, direction) do
-    blocks = Repo.all(from x in PageBlock, where: x.page_id == ^page_id, order_by: x.position)
-    reorder(blocks, Enum.find_index(blocks, &(&1.id == pb.id)), direction, &set_position!/2)
+  @doc "Move a block one step in the given direction (:up | :down) within its owner."
+  def move_block(pb, direction) do
+    {join, key, owner_id} = block_join_of(pb)
+    blocks = Repo.all(from x in join, where: field(x, ^key) == ^owner_id, order_by: x.position)
+
+    reorder(
+      blocks,
+      Enum.find_index(blocks, &(&1.id == pb.id)),
+      direction,
+      &set_position!(join, &1, &2)
+    )
   end
 
   # Both ordering columns here share their write path with media folders — see
@@ -579,19 +635,21 @@ defmodule Bbh.Content do
   defp reorder(items, idx, direction, write_position),
     do: Bbh.Ordering.move_step(items, idx, direction, write_position)
 
-  defp delete_block!(%PageBlock{} = pb) do
+  defp delete_block!(pb) do
     schema = Blocks.schema_for(pb.block_type)
     if block = Repo.get(schema, pb.block_id), do: Repo.delete!(block)
     Repo.delete!(pb)
   end
 
-  defp next_position(page_id) do
-    (Repo.one(from pb in PageBlock, where: pb.page_id == ^page_id, select: max(pb.position)) || -1) +
-      1
+  defp next_position(owner) do
+    {join, key} = block_join(owner)
+
+    (Repo.one(from pb in join, where: field(pb, ^key) == ^owner.id, select: max(pb.position)) ||
+       -1) + 1
   end
 
-  defp set_position!(pb_id, position) do
-    Repo.update_all(from(x in PageBlock, where: x.id == ^pb_id), set: [position: position])
+  defp set_position!(join, id, position) do
+    Repo.update_all(from(x in join, where: x.id == ^id), set: [position: position])
   end
 
   # Minimal offset pagination returning a map the templates/Pagination component use.

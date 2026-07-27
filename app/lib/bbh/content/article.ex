@@ -21,6 +21,15 @@ defmodule Bbh.Content.Article do
     field :no_article, :boolean, default: false
     field :aliases, {:array, :string}, default: []
 
+    # The single, first-class article image (hero + throne default). Assigned from the
+    # Mediathek; caption/copyright live on the Upload.
+    belongs_to :image, Bbh.Media.Upload
+
+    # Ordered content blocks (mixed text/images/galleries), the article body's new home.
+    has_many :article_blocks, Bbh.Content.ArticleBlock, preload_order: [asc: :position]
+
+    # Legacy: kept one release for rollback while `body`/blocks coexist. `images` and
+    # `body` are no longer surfaced in the editor; a follow-up migration drops them.
     # `preload_order` so every preload — article page, homepage, /thron, search —
     # honours the editor's sort order instead of returning rows in insert order.
     has_many :images, Bbh.Content.ArticleImage, preload_order: [asc: :sort, asc: :inserted_at]
@@ -42,7 +51,8 @@ defmodule Bbh.Content.Article do
       :tags,
       :body,
       :no_article,
-      :aliases
+      :aliases,
+      :image_id
     ])
     |> update_change(:body, &Bbh.Html.sanitize/1)
     |> validate_required([:status, :title, :slug, :date_published])
@@ -51,6 +61,7 @@ defmodule Bbh.Content.Article do
     |> put_date_modified()
     |> validate_number(:year, greater_than_or_equal_to: 1900)
     |> unique_constraint([:slug, :year], name: :articles_slug_year_unique)
+    |> foreign_key_constraint(:image_id)
     |> check_constraint(:year,
       name: :articles_year_range,
       message: "muss ab 1900 liegen"

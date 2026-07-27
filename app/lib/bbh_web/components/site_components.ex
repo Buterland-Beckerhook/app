@@ -38,7 +38,7 @@ defmodule BbhWeb.SiteComponents do
     ~H"""
     <img
       :if={@hero}
-      src={media_url(@hero.media, width: @width, height: @height)}
+      src={media_url(@hero, width: @width, height: @height)}
       alt={image_alt(@hero)}
       loading="lazy"
       class={["object-cover", @class]}

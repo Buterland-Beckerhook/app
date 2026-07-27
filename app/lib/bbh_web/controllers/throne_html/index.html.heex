@@ -14,7 +14,7 @@
     <% pic = throne_picture(throne) %>
     <figure :if={pic} class="mb-6">
       <img
-        src={media_url(pic.media, width: 1024)}
+        src={media_url(pic, width: 1024)}
         alt={image_alt(pic)}
         class="w-full rounded-lg object-cover"
       />
