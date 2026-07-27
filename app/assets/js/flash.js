@@ -12,6 +12,12 @@
 // later patch can't re-render it) — but we never rely on that round-trip for the
 // visual removal, because an interrupting patch or a not-yet-connected socket can
 // leave the toast stuck on screen.
+//
+// Dismissal is triggered by three independent, overlapping paths so a toast can
+// never get stranded: (1) an owned, pause-aware timer; (2) the bar's `animationend`
+// as a redundant backstop if that timer is ever lost; and (3) a hard lifetime
+// ceiling so hover/focus (e.g. a patch parking focus in the toast) can pause it but
+// never forever. dismissFlash is idempotent, so all three can fire safely.
 
 const FLASH_SELECTOR = "[role='alert']"
 // Elements rendered inside a LiveView carry one of these container attributes;
@@ -19,6 +25,12 @@ const FLASH_SELECTOR = "[role='alert']"
 const LIVEVIEW_CONTAINER = "[data-phx-main],[data-phx-session],[data-phx-root-id]"
 
 function dismissFlash(el) {
+  // Idempotent: multiple triggers (owned timer, animationend, hard ceiling) may all
+  // fire for the same toast — only the first does the work.
+  if (el._flashDismissed) return
+  el._flashDismissed = true
+  clearInterval(el._flashTimer)
+
   // Clear the server-side flash on LiveView pages so it can't reappear on the next
   // patch. Fire-and-forget — the visual removal below runs regardless.
   if (window.liveSocket && el.closest(LIVEVIEW_CONTAINER)) {
@@ -47,27 +59,41 @@ function armFlash(el) {
   const bar = el.querySelector(".flash-progress")
   if (!bar) return
 
+  // A toast that was already dismissed (node removed by us) but got resurrected by a
+  // LiveView patch — its server flash hasn't cleared yet. Dismiss it again straight
+  // away rather than granting a fresh countdown, so it can't linger cycle after cycle.
+  if (el._flashDismissed) return dismissFlash(el)
+
   // Restart the visual bar so a re-used toast node (same id, new message) counts
   // down afresh rather than inheriting the previous, nearly-finished bar.
   bar.style.animation = "none"
   void bar.offsetWidth
   bar.style.animation = ""
 
-  // Drive dismissal with a pause-aware timer rather than the bar's `animationend`.
-  // LiveView patches (e.g. a block save that re-renders a big subtree alongside
-  // the flash) can drop the animationend listener, leaving the toast stuck; a
-  // timer that we own survives that. It pauses while hovered/focused, mirroring
-  // the CSS bar. Every kind of flash uses this exact path.
+  // Redundant dismissal: whatever happens to the JS timer below (a LiveView patch
+  // dropping the node, a throttled background tab), when the CSS bar visibly finishes
+  // we also dismiss. One-shot, and re-attached on every (re)arm so a patch that
+  // replaces the bar node can't leave us without a listener.
+  if (bar._flashOnEnd) bar.removeEventListener("animationend", bar._flashOnEnd)
+  bar._flashOnEnd = () => dismissFlash(el)
+  bar.addEventListener("animationend", bar._flashOnEnd, {once: true})
+
+  // Drive dismissal with a pause-aware timer that mirrors the CSS bar's hover/focus
+  // pause. A hard ceiling (well past the normal duration) guarantees the toast can
+  // never hang forever if it stays hovered or a patch parks focus inside it — the
+  // usual failure that left toasts stuck on screen.
   clearInterval(el._flashTimer)
-  let remaining = flashDuration(el)
+  const duration = flashDuration(el)
+  let remaining = duration
   let last = Date.now()
+  const hardDeadline = last + duration * 4
   el._flashTimer = setInterval(() => {
     // Toast already gone (closed, navigated away) — stop ticking.
     if (!el.isConnected) return clearInterval(el._flashTimer)
     const now = Date.now()
     if (!el.matches(":hover, :focus-within")) remaining -= now - last
     last = now
-    if (remaining <= 0) {
+    if (remaining <= 0 || now >= hardDeadline) {
       clearInterval(el._flashTimer)
       dismissFlash(el)
     }
@@ -103,7 +129,13 @@ function initFlashAutoHide() {
   const observer = new MutationObserver((mutations) => {
     for (const mutation of mutations) {
       if (mutation.type === "childList") {
-        mutation.addedNodes.forEach(scanForFlashes)
+        mutation.addedNodes.forEach((node) => {
+          // A freshly added toast (top-level) or an inner part a patch re-created
+          // (e.g. the .flash-progress bar) — re-arm in both cases so the owned
+          // timer is never left dangling.
+          scanForFlashes(node)
+          armEnclosingFlash(node)
+        })
       } else {
         armEnclosingFlash(mutation.target)
       }
