@@ -314,6 +314,10 @@ tmp/
 # `.claude/` — `.claude/agent-memory/` is shared on purpose.
 .claude/settings.local.json
 
+# Transient Claude Code worktrees — must never be committed (they land as
+# gitlinks with no .gitmodules entry and break `actions/checkout`).
+.claude/worktrees/
+
 # Raw Bundesbank BLZ source (large, Latin-1). Regenerate app/priv/data/blz.tsv
 # via `mix bbh.blz.strip`; only the stripped TSV is committed.
 blz-aktuell-csv-data.csv
