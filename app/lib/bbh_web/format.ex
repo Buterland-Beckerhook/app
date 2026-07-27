@@ -92,18 +92,16 @@ defmodule BbhWeb.Format do
 
   def article_status_label(_), do: nil
 
-  @doc "The best hero image for an article (flagged one, else first), as an ArticleImage."
-  def article_hero(%Article{images: images}) when is_list(images) do
-    Enum.find(images, & &1.use_as_article_image) || List.first(images)
-  end
-
+  @doc "An article's single image (the hero), as an `%Upload{}`, or `nil`."
+  def article_hero(%Article{image: %Upload{} = image}), do: image
   def article_hero(_), do: nil
 
-  @doc "The throne picture for a throne (its article image flagged use_as_throne_picture)."
-  def throne_picture(%{article: %{images: images}}) when is_list(images) do
-    Enum.find(images, & &1.use_as_throne_picture) || List.first(images)
-  end
-
+  @doc """
+  The picture for a throne, as an `%Upload{}`, or `nil`. Its own image when set,
+  otherwise the linked article's image (the default).
+  """
+  def throne_picture(%{image: %Upload{} = image}), do: image
+  def throne_picture(%{article: %{image: %Upload{} = image}}), do: image
   def throne_picture(_), do: nil
 
   @doc """

@@ -103,6 +103,34 @@ defmodule BbhWeb.FormatTest do
     end
   end
 
+  describe "article_hero/1 and throne_picture/1" do
+    alias Bbh.Content.{Article, Throne}
+
+    test "article_hero/1 is the article's single image, or nil" do
+      img = %Upload{storage_key: "2026/hero.jpg"}
+      assert Format.article_hero(%Article{image: img}) == img
+      assert is_nil(Format.article_hero(%Article{image: nil}))
+    end
+
+    test "throne_picture/1 prefers the throne's own image" do
+      own = %Upload{storage_key: "2026/throne.jpg"}
+      article_img = %Upload{storage_key: "2026/article.jpg"}
+      throne = %Throne{image: own, article: %Article{image: article_img}}
+      assert Format.throne_picture(throne) == own
+    end
+
+    test "throne_picture/1 falls back to the article image when the throne has none" do
+      article_img = %Upload{storage_key: "2026/article.jpg"}
+      throne = %Throne{image: nil, article: %Article{image: article_img}}
+      assert Format.throne_picture(throne) == article_img
+    end
+
+    test "throne_picture/1 is nil when neither the throne nor its article has an image" do
+      throne = %Throne{image: nil, article: %Article{image: nil}}
+      assert is_nil(Format.throne_picture(throne))
+    end
+  end
+
   describe "render_richtext/1" do
     defp render(body), do: body |> BbhWeb.Format.render_richtext() |> safe_to_string()
 

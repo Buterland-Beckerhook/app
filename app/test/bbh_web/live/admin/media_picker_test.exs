@@ -111,15 +111,14 @@ defmodule BbhWeb.Admin.MediaPickerTest do
       refute html =~ "unsortiert.webp"
     end
 
-    test "picking a file adds it and keeps the modal open for the next one", ctx do
+    test "picking a file sets the article image and closes the modal", ctx do
       {lv, _html} = open_picker(ctx.conn, ctx.article)
 
       html = pick(lv, ctx.unfiled.id)
 
-      assert [image] = Bbh.Content.list_article_images(ctx.article.id)
-      assert image.media_id == ctx.unfiled.id
-      # Still open, because an article usually takes several pictures.
-      assert html =~ "Aus Mediathek wählen"
+      assert Bbh.Content.get_article!(ctx.article.id).image_id == ctx.unfiled.id
+      # Closed, because the article image is a single-image slot.
+      refute html =~ "Aus Mediathek wählen"
     end
 
     test "closing hides the modal", ctx do
@@ -150,7 +149,7 @@ defmodule BbhWeb.Admin.MediaPickerTest do
         |> element(~s(#media-picker button[phx-value-id="#{ctx.unfiled.id}"]))
         |> render_click()
 
-        assert render(lv) =~ "Bilder"
+        assert render(lv) =~ "Artikelbild"
       end
     end
   end

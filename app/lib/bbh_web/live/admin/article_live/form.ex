@@ -1,24 +1,15 @@
 defmodule BbhWeb.Admin.ArticleLive.Form do
   use BbhWeb, :live_view
 
-  import BbhWeb.Admin.MediaEditor, only: [media_editor: 1]
+  import BbhWeb.Admin.BlockEditor, only: [block_editor: 1, normalize_block: 2]
 
   alias Bbh.Content
-  alias Bbh.Content.{Article, ArticleImage, Throne}
-  alias BbhWeb.Admin.MediaEditor
+  alias Bbh.Content.{Article, Throne}
 
   @statuses [{"Entwurf", "draft"}, {"Veröffentlicht", "published"}, {"Archiviert", "archived"}]
 
   @impl true
   def mount(params, _session, socket) do
-    socket =
-      allow_upload(socket, :image,
-        accept: ~w(.jpg .jpeg .png .webp .gif),
-        max_entries: 5,
-        max_file_size: 20_000_000
-      )
-      |> assign(editing_media: nil)
-
     {:ok, apply_action(socket, socket.assigns.live_action, params)}
   end
 
@@ -26,8 +17,8 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
     article = %Article{status: "draft", date_published: Bbh.Time.now(), tags: []}
 
     socket
-    |> assign(page_title: "Neuer Artikel", article: article)
-    |> assign(images: [], show_throne: false)
+    |> assign(page_title: "Neuer Artikel", article: article, throne: nil)
+    |> assign(blocks: [], show_throne: false)
     |> assign_form(Content.change_article(article))
   end
 
@@ -37,8 +28,7 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
     socket
     |> assign(page_title: "Artikel bearbeiten", article: article, throne: article.throne)
     |> assign(show_throne: not is_nil(article.throne))
-    |> assign(images: Content.list_article_images(id))
-    |> assign(folder_options: Bbh.Media.folder_options())
+    |> assign(blocks: Content.load_blocks(article))
     |> assign_throne_form(Content.change_throne(throne_or_new(article)))
     |> assign_form(Content.change_article(article))
   end
@@ -75,74 +65,74 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
     end
   end
 
-  def handle_event("validate_upload", _params, socket), do: {:noreply, socket}
-
-  def handle_event("cancel_upload", %{"ref" => ref}, socket),
-    do: {:noreply, cancel_upload(socket, :image, ref)}
-
-  def handle_event("upload_images", _params, socket) do
-    article = socket.assigns.article
-
-    results =
-      consume_uploaded_entries(socket, :image, fn %{path: path}, entry ->
-        with {:ok, upload} <-
-               Bbh.Media.store_file(path, %{
-                 filename: entry.client_name,
-                 content_type: entry.client_type
-               }),
-             {:ok, _} <- Content.add_article_image(article, upload.id) do
-          {:ok, :stored}
-        else
-          {:error, reason} -> {:ok, {:rejected, reason}}
-        end
-      end)
-
-    stored = Enum.count(results, &(&1 == :stored))
-    rejected = Enum.count(results, &match?({:rejected, _}, &1))
-
-    {:noreply, socket |> put_upload_result_flash(stored, rejected) |> reload_images()}
+  def handle_event("clear_article_image", _params, socket) do
+    {:ok, _} = Content.set_article_image(socket.assigns.article, nil)
+    {:noreply, socket |> put_flash(:info, "Artikelbild entfernt.") |> reload_blocks()}
   end
+
+  ## Content blocks — handled by the shared BbhWeb.Admin.BlockEditor markup
+
+  def handle_event("add_block", %{"type" => type}, socket) do
+    {:ok, _} = Content.add_block(socket.assigns.article, type)
+    {:noreply, reload_blocks(socket)}
+  end
+
+  def handle_event("save_block", %{"pb_id" => pb_id, "block" => params}, socket) do
+    pb = find_pb(socket, pb_id)
+
+    case Content.update_block(pb, normalize_block(pb.block_type, params)) do
+      {:ok, _} ->
+        {:noreply, socket |> put_flash(:info, "Block gespeichert.") |> reload_blocks()}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Block konnte nicht gespeichert werden.")}
+    end
+  end
+
+  def handle_event("delete_block", %{"pb_id" => pb_id}, socket) do
+    socket |> find_pb(pb_id) |> Content.delete_block()
+    {:noreply, reload_blocks(socket)}
+  end
+
+  def handle_event("clear_block_image", %{"pb_id" => pb_id}, socket) do
+    {:ok, _} = Content.update_block(find_pb(socket, pb_id), %{"image_id" => nil})
+    {:noreply, reload_blocks(socket)}
+  end
+
+  def handle_event("remove_gallery_file", %{"file_id" => file_id}, socket) do
+    {:ok, _} = file_id |> Content.get_gallery_file!() |> Content.delete_gallery_file()
+    {:noreply, reload_blocks(socket)}
+  end
+
+  def handle_event("move_gallery_file", %{"file_id" => file_id, "dir" => dir}, socket) do
+    file = Content.get_gallery_file!(file_id)
+    direction = if dir == "up", do: :up, else: :down
+
+    case Content.move_gallery_file(file.gallery_id, file, direction) do
+      {:ok, _} ->
+        {:noreply, reload_blocks(socket)}
+
+      {:error, _reason} ->
+        {:noreply, put_flash(socket, :error, "Bild konnte nicht verschoben werden.")}
+    end
+  end
+
+  def handle_event("move", %{"pb_id" => pb_id, "dir" => dir}, socket) do
+    direction = if dir == "up", do: :up, else: :down
+
+    case Content.move_block(find_pb(socket, pb_id), direction) do
+      {:ok, _} ->
+        {:noreply, reload_blocks(socket)}
+
+      {:error, _reason} ->
+        {:noreply, put_flash(socket, :error, "Block konnte nicht verschoben werden.")}
+    end
+  end
+
+  ## Throne
 
   def handle_event("add_throne_section", _params, socket) do
     {:noreply, assign(socket, :show_throne, true)}
-  end
-
-  def handle_event("save_image", %{"img_id" => id, "image" => params}, socket) do
-    id |> Content.get_article_image!() |> Content.update_article_image(params)
-    {:noreply, socket |> put_flash(:info, "Bild gespeichert.") |> reload_images()}
-  end
-
-  def handle_event("delete_image", %{"img_id" => id}, socket) do
-    id |> Content.get_article_image!() |> Content.delete_article_image()
-    {:noreply, reload_images(socket)}
-  end
-
-  def handle_event("edit_media", %{"upload_id" => id}, socket),
-    do: {:noreply, assign(socket, :editing_media, Bbh.Media.get_upload!(id))}
-
-  def handle_event("cancel_edit", _params, socket),
-    do: {:noreply, assign(socket, :editing_media, nil)}
-
-  # `:keep` means the editor stays open on the returned upload — that is how a rotation
-  # shows its result and can be repeated (see BbhWeb.Admin.MediaEditor.submit/2).
-  def handle_event("save_meta", %{"upload" => _} = params, socket) do
-    {action, updated, {kind, message}} = MediaEditor.submit(socket.assigns.editing_media, params)
-
-    {:noreply,
-     socket
-     |> assign(:editing_media, if(action == :keep, do: updated, else: nil))
-     |> put_flash(kind, message)
-     |> reload_images()}
-  end
-
-  def handle_event("set_preview_image", %{"img_id" => id}, socket) do
-    case Content.set_article_preview_image(socket.assigns.article, id) do
-      {:ok, _} ->
-        {:noreply, socket |> put_flash(:info, "Vorschaubild festgelegt.") |> reload_images()}
-
-      {:error, _} ->
-        {:noreply, put_flash(socket, :error, "Bild konnte nicht gesetzt werden.")}
-    end
   end
 
   def handle_event("save_throne", %{"throne" => params}, socket) do
@@ -166,40 +156,83 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
     {:noreply, socket |> put_flash(:info, "Thron entfernt.") |> reload_article()}
   end
 
-  # A pick from the shared media picker (BbhWeb.Admin.MediaPicker); the modal stays open
-  # so several images can be added in a row.
-  @impl true
-  def handle_info({:media_selected, %{"context" => "article_image"}, media_id}, socket) do
-    {:ok, _} = Content.add_article_image(socket.assigns.article, media_id)
-    {:noreply, reload_images(socket)}
+  def handle_event("clear_throne_image", _params, socket) do
+    with %Throne{} = throne <- socket.assigns.article.throne do
+      {:ok, _} = Content.set_throne_image(throne, nil)
+    end
+
+    {:noreply,
+     socket |> put_flash(:info, "Thronbild auf Artikelbild zurückgesetzt.") |> reload_blocks()}
   end
 
-  defp reload_images(socket),
-    do: assign(socket, :images, Content.list_article_images(socket.assigns.article.id))
+  ## Media picks from the shared media picker (BbhWeb.Admin.MediaPicker)
 
-  defp put_upload_result_flash(socket, stored, 0) when stored > 0,
-    do: put_flash(socket, :info, "#{stored} Bild(er) hochgeladen und hinzugefügt.")
+  # The `pb_id` the modal was opened with tells us which block the choice belongs to.
+  @impl true
+  def handle_info({:media_selected, %{"context" => "media_card", "pb_id" => pb_id}, id}, socket) do
+    case find_pb(socket, pb_id) do
+      nil ->
+        {:noreply, put_flash(socket, :error, "Dieser Block existiert nicht mehr.")}
 
-  defp put_upload_result_flash(socket, 0, rejected) when rejected > 0,
-    do: put_flash(socket, :error, "#{rejected} Bild(er) konnten nicht hochgeladen werden.")
+      pb ->
+        {:ok, _} = Content.update_block(pb, %{"image_id" => id})
+        {:noreply, reload_blocks(socket)}
+    end
+  end
 
-  defp put_upload_result_flash(socket, stored, rejected) when stored > 0 and rejected > 0,
-    do: put_flash(socket, :warning, "#{stored} hochgeladen, #{rejected} abgelehnt.")
+  def handle_info({:media_selected, %{"context" => "gallery", "pb_id" => pb_id}, id}, socket) do
+    # The block can be gone by the time the pick lands (deleted here or in another tab).
+    case find_block(socket, pb_id) do
+      {_pb, gallery} ->
+        {:ok, _} = Content.add_gallery_file(gallery, id)
+        {:noreply, reload_blocks(socket)}
 
-  defp put_upload_result_flash(socket, _stored, _rejected), do: socket
+      nil ->
+        {:noreply, put_flash(socket, :error, "Dieser Block existiert nicht mehr.")}
+    end
+  end
 
-  defp upload_error_label(:too_large), do: "Datei ist zu groß (max. 20 MB)."
-  defp upload_error_label(:too_many_files), do: "Zu viele Dateien (max. 5)."
-  defp upload_error_label(:not_accepted), do: "Dateityp nicht erlaubt (nur Bilder)."
-  defp upload_error_label(_), do: "Fehler beim Hochladen."
+  def handle_info({:media_selected, %{"context" => "article_image"}, media_id}, socket) do
+    {:ok, _} = Content.set_article_image(socket.assigns.article, media_id)
+    {:noreply, socket |> put_flash(:info, "Artikelbild gesetzt.") |> reload_blocks()}
+  end
 
-  defp reload_article(socket) do
+  def handle_info({:media_selected, %{"context" => "throne_image"}, media_id}, socket) do
+    case socket.assigns.article.throne do
+      %Throne{} = throne ->
+        {:ok, _} = Content.set_throne_image(throne, media_id)
+        {:noreply, socket |> put_flash(:info, "Thronbild gesetzt.") |> reload_blocks()}
+
+      _ ->
+        {:noreply, put_flash(socket, :error, "Bitte zuerst den Thron speichern.")}
+    end
+  end
+
+  defp find_pb(socket, pb_id) do
+    Enum.find_value(socket.assigns.blocks, fn {pb, _} -> pb.id == pb_id && pb end)
+  end
+
+  defp find_block(socket, pb_id) do
+    Enum.find(socket.assigns.blocks, fn {pb, _} -> pb.id == pb_id end)
+  end
+
+  # Refresh the article (with its image + throne) and its blocks, leaving the throne form
+  # and its open/closed state untouched — used after block and image edits.
+  defp reload_blocks(socket) do
     article = Content.get_article!(socket.assigns.article.id)
+    assign(socket, article: article, throne: article.throne, blocks: Content.load_blocks(article))
+  end
 
+  # Full reload including the throne form and its visibility — used after a throne save or
+  # delete, which changes what the form is bound to.
+  defp reload_article(socket) do
     socket
-    |> assign(article: article, throne: article.throne, show_throne: not is_nil(article.throne))
-    |> assign(images: Content.list_article_images(article.id))
-    |> assign_throne_form(Content.change_throne(throne_or_new(article)))
+    |> reload_blocks()
+    |> then(fn s ->
+      s
+      |> assign(show_throne: not is_nil(s.assigns.article.throne))
+      |> assign_throne_form(Content.change_throne(throne_or_new(s.assigns.article)))
+    end)
   end
 
   defp assign_throne_form(socket, changeset),
@@ -213,7 +246,7 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
       {:ok, article} ->
         maybe_notify(nil, article)
 
-        # Land on the new article's edit page so images/throne can be added right away.
+        # Land on the new article's edit page so image/blocks/throne can be added right away.
         {:noreply,
          socket
          |> put_flash(:info, "Artikel erstellt.")
@@ -231,8 +264,7 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
       {:ok, article} ->
         maybe_notify(old_status, article)
 
-        # Stay on the edit page (reload the fresh record and rebuild the form).
-        socket = reload_article(socket)
+        socket = reload_blocks(socket)
 
         {:noreply,
          socket
@@ -339,7 +371,6 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
           label="Tags (kommagetrennt)"
         />
         <.input field={@form[:no_article]} type="checkbox" label="Nur Thron-Anzeige (kein Artikel)" />
-        <.rich_text field={@form[:body]} label="Text" />
 
         <div class="flex gap-2">
           <.button variant="primary" phx-disable-with="Speichern…">Speichern</.button>
@@ -347,139 +378,56 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
         </div>
       </.form>
 
-      <section :if={@live_action == :edit} class="mt-10">
-        <h2 class="text-xl font-semibold">Bilder</h2>
+      <p :if={@live_action == :new} class="mt-6 text-sm text-base-content/60">
+        Artikelbild, Inhaltsblöcke und Thron können nach dem ersten Speichern hinzugefügt werden.
+      </p>
 
+      <section :if={@live_action == :edit} class="mt-10">
+        <h2 class="text-xl font-semibold">Artikelbild</h2>
         <p class="mt-1 text-sm text-base-content/60">
-          Bildunterschrift, Alt-Text und Copyright gehören zum Bild selbst und werden in der
-          <.link navigate={~p"/admin/medien"} class="link">Mediathek</.link>
-          gepflegt — hier steht nur, wie das Bild in diesem Artikel verwendet wird.
+          Das Titelbild des Artikels — und, sofern der Thron kein eigenes Bild hat, dessen
+          Bild. Bildunterschrift und Copyright kommen aus der <.link
+            navigate={~p"/admin/medien"}
+            class="link"
+          >Mediathek</.link>.
         </p>
 
-        <div class="mt-4 grid gap-4 sm:grid-cols-2">
-          <div :for={img <- @images} class="rounded-box border border-base-300 p-3">
-            <img
-              src={media_url(img.media, width: 320, height: 200)}
-              alt={image_alt(img)}
-              class="mb-2 aspect-video w-full rounded object-cover"
-            />
-            <dl class="mb-2 space-y-0.5 text-xs text-base-content/70">
-              <div class="flex gap-1">
-                <dt class="shrink-0 font-medium">Unterschrift:</dt>
-                <dd class="truncate">{image_caption(img.media) || "—"}</dd>
-              </div>
-              <div class="flex gap-1">
-                <dt class="shrink-0 font-medium">Copyright:</dt>
-                <dd class="truncate">{image_copyright(img.media) || "—"}</dd>
-              </div>
-            </dl>
+        <div class="mt-3 flex items-center gap-3">
+          <img
+            :if={@article.image}
+            src={media_url(@article.image, width: 240, height: 150)}
+            alt={image_alt(@article.image)}
+            class="aspect-video w-40 rounded object-cover"
+          />
+          <span
+            :if={is_nil(@article.image)}
+            class="flex aspect-video w-40 items-center justify-center rounded bg-base-300 text-xs text-base-content/60"
+          >
+            Kein Bild
+          </span>
+          <div class="flex flex-wrap gap-2">
             <button
               type="button"
-              phx-click="edit_media"
-              phx-value-upload_id={img.media.id}
-              class="btn btn-outline btn-sm mb-2 w-full gap-1"
+              phx-click="open"
+              phx-target="#media-picker"
+              phx-value-context="article_image"
+              class="btn btn-outline btn-sm"
             >
-              <.icon name="hero-pencil-square" class="size-4" /> Bild bearbeiten (Mediathek)
+              {if @article.image, do: "Bild ändern", else: "Bild wählen"}
             </button>
             <button
+              :if={@article.image}
               type="button"
-              phx-click="set_preview_image"
-              phx-value-img_id={img.id}
-              disabled={img.use_as_article_image}
-              class={[
-                "btn btn-sm mb-2 w-full",
-                (img.use_as_article_image && "btn-primary") || "btn-outline"
-              ]}
+              phx-click="clear_article_image"
+              class="btn btn-ghost btn-sm text-error"
             >
-              {(img.use_as_article_image && "★ Vorschaubild") || "Als Vorschaubild festlegen"}
+              Entfernen
             </button>
-            <.form :let={f} for={image_form(img)} id={"image-#{img.id}"} phx-submit="save_image">
-              <input type="hidden" name="img_id" value={img.id} />
-              <.input field={f[:show_caption]} type="checkbox" label="Bildunterschrift anzeigen" />
-              <.input field={f[:use_as_throne_picture]} type="checkbox" label="Thronbild" />
-              <.input field={f[:sort]} type="number" label="Sortierung" />
-              <div class="mt-2 flex gap-2">
-                <.button variant="primary" class="btn btn-primary btn-sm" phx-disable-with="…">Speichern</.button>
-                <button
-                  type="button"
-                  class="btn btn-ghost btn-sm text-error"
-                  phx-click="delete_image"
-                  phx-value-img_id={img.id}
-                  data-confirm="Bild entfernen?"
-                >
-                  Entfernen
-                </button>
-              </div>
-            </.form>
           </div>
-
-          <p :if={@images == []} class="text-base-content/60">Noch keine Bilder.</p>
-        </div>
-
-        <form
-          id="article-image-upload"
-          phx-submit="upload_images"
-          phx-change="validate_upload"
-          class="mt-6"
-        >
-          <p class="mb-2 text-sm font-medium">Neues Bild hochladen</p>
-          <div
-            class="rounded-box border-2 border-dashed border-base-300 p-6 text-center"
-            phx-drop-target={@uploads.image.ref}
-          >
-            <.live_file_input upload={@uploads.image} class="file-input file-input-bordered" />
-            <p class="mt-2 text-sm text-base-content/60">
-              JPG, PNG, WebP oder GIF · bis 20&nbsp;MB · max. 5 Dateien
-            </p>
-          </div>
-
-          <div :if={@uploads.image.entries != []} class="mt-4 space-y-2">
-            <div
-              :for={entry <- @uploads.image.entries}
-              class="flex items-center gap-3 rounded-box border border-base-300 p-2"
-            >
-              <.live_img_preview entry={entry} class="size-14 rounded object-cover" />
-              <div class="flex-1">
-                <p class="truncate text-sm">{entry.client_name}</p>
-                <progress class="progress progress-primary w-full" value={entry.progress} max="100" />
-              </div>
-              <button
-                type="button"
-                phx-click="cancel_upload"
-                phx-value-ref={entry.ref}
-                class="btn btn-ghost btn-sm"
-                aria-label="Abbrechen"
-              >
-                ✕
-              </button>
-            </div>
-            <p :for={err <- upload_errors(@uploads.image)} class="text-sm text-error">
-              {upload_error_label(err)}
-            </p>
-            <.button variant="primary" phx-disable-with="Lädt hoch…">Hochladen &amp; hinzufügen</.button>
-          </div>
-        </form>
-
-        <div class="mt-6">
-          <button
-            type="button"
-            phx-click="open"
-            phx-target="#media-picker"
-            phx-value-context="article_image"
-            class="btn btn-outline gap-1"
-          >
-            <.icon name="hero-photo" class="size-4" /> Bild aus Mediathek hinzufügen
-          </button>
-          <p class="mt-1 text-xs text-base-content/50">
-            Im Auswahlfenster durch die Ordner der
-            <.link
-              navigate={~p"/admin/medien"}
-              class="link"
-            >Mediathek</.link>
-            navigieren. Hochgeladene Bilder landen dort automatisch.
-          </p>
         </div>
       </section>
+
+      <.block_editor :if={@live_action == :edit} blocks={@blocks} />
 
       <section :if={@live_action == :edit} class="mt-10">
         <h2 class="text-xl font-semibold">Thron</h2>
@@ -543,20 +491,60 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
             </button>
           </div>
         </.form>
+
+        <%!-- The throne picture is a persisted-throne concern: it needs a saved throne to
+              attach to. Until then it silently inherits the article image. --%>
+        <div :if={@show_throne && @throne} class="mt-4 rounded-box border border-base-300 p-3">
+          <% throne_pic = @throne.image || @article.image %>
+          <p class="mb-2 text-sm font-medium">Thronbild</p>
+          <div class="flex items-center gap-3">
+            <img
+              :if={throne_pic}
+              src={media_url(throne_pic, width: 200, height: 200)}
+              alt={image_alt(throne_pic)}
+              class="aspect-square w-28 rounded object-cover"
+            />
+            <span
+              :if={is_nil(throne_pic)}
+              class="flex aspect-square w-28 items-center justify-center rounded bg-base-300 text-center text-xs text-base-content/60"
+            >
+              Kein Bild
+            </span>
+            <div class="flex flex-col gap-1">
+              <p :if={is_nil(@throne.image)} class="text-xs text-base-content/60">
+                Erbt das Artikelbild.
+              </p>
+              <div class="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  phx-click="open"
+                  phx-target="#media-picker"
+                  phx-value-context="throne_image"
+                  class="btn btn-outline btn-sm"
+                >
+                  {if @throne.image, do: "Bild ändern", else: "Eigenes Bild wählen"}
+                </button>
+                <button
+                  :if={@throne.image}
+                  type="button"
+                  phx-click="clear_throne_image"
+                  class="btn btn-ghost btn-sm text-error"
+                >
+                  Auf Artikelbild zurücksetzen
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
 
       <.danger_zone
         :if={@live_action == :edit and BbhWeb.Authz.can_delete?(@current_scope.user, @article)}
         confirm_value={@article.slug}
       >
-        Der Artikel „{@article.title}" wird mit allen Bildern dauerhaft gelöscht.
+        Der Artikel „{@article.title}" wird mit allen Inhaltsblöcken dauerhaft gelöscht.
       </.danger_zone>
       <.live_component module={BbhWeb.Admin.MediaPicker} id="media-picker" />
-      <.media_editor
-        :if={@editing_media}
-        upload={@editing_media}
-        folder_options={@folder_options}
-      />
     </Layouts.admin>
     """
   end
@@ -569,9 +557,6 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
     do: DateTime.compare(dt, Bbh.Time.now()) != :gt
 
   defp article_live?(_), do: false
-
-  defp image_form(%ArticleImage{} = img),
-    do: to_form(ArticleImage.changeset(img, %{}), as: "image")
 
   defp tags_value(tags) when is_list(tags), do: Enum.join(tags, ", ")
   defp tags_value(str) when is_binary(str), do: str

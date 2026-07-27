@@ -153,7 +153,7 @@ defmodule Bbh.Search do
         url: "/aktuell/#{a.year}/#{a.slug}",
         content:
           join(
-            [a.subtitle, Bbh.Html.to_text(a.body), a.author] ++
+            [a.subtitle, a.author, blocks_text(a)] ++
               a.tags ++ a.aliases ++ throne_parts(a.throne)
           ),
         document_date: a.date_published
@@ -217,13 +217,14 @@ defmodule Bbh.Search do
       source_id: page.id,
       title: page.title,
       url: path,
-      content: page_content(page),
+      content: blocks_text(page),
       document_date: page.updated_at
     }
   end
 
-  defp page_content(page) do
-    page
+  # Joined plain text of an owner's content blocks (page or article), for the index.
+  defp blocks_text(owner) do
+    owner
     |> Content.load_blocks()
     |> Enum.map(fn {_pb, block} -> block_text(block) end)
     |> join()

@@ -14,7 +14,12 @@ defmodule BbhWeb.ArticleController do
   def show(conn, %{"year" => year, "slug" => slug}) do
     with y when not is_nil(y) <- parse_year(year),
          {article, preview} <- lookup_article(conn, slug, y) do
-      render(conn, :show, page_title: article.title, article: article, preview: preview)
+      render(conn, :show,
+        page_title: article.title,
+        article: article,
+        blocks: Bbh.Content.load_blocks(article),
+        preview: preview
+      )
     else
       _ -> not_found(conn)
     end

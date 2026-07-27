@@ -25,6 +25,10 @@ defmodule Bbh.Content.Throne do
 
     belongs_to :article, Bbh.Content.Article
 
+    # Optional throne picture. `nil` means "inherit the article image" (see
+    # BbhWeb.Format.throne_picture/1).
+    belongs_to :image, Bbh.Media.Upload
+
     timestamps()
   end
 
@@ -44,7 +48,8 @@ defmodule Bbh.Content.Throne do
       :loh2,
       :cupbearer,
       :courtmarshal,
-      :article_id
+      :article_id,
+      :image_id
     ])
     |> validate_required([:type, :begin_year, :king, :article_id])
     |> validate_inclusion(:type, @types)
@@ -52,6 +57,7 @@ defmodule Bbh.Content.Throne do
     |> validate_end_after_begin()
     |> unique_constraint(:article_id)
     |> foreign_key_constraint(:article_id)
+    |> foreign_key_constraint(:image_id)
     |> check_constraint(:end_year,
       name: :thrones_end_after_begin,
       message: "muss nach dem Beginn liegen"

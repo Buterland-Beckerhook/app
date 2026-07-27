@@ -2,9 +2,14 @@ defmodule Bbh.ContentFixtures do
   @moduledoc "Test helpers for creating articles, thrones, pages and media."
 
   alias Bbh.Content
+  alias Bbh.Content.Blocks
   alias Bbh.Media.Upload
   alias Bbh.Repo
 
+  @doc """
+  Create an article. Its `body` (unless blank) is stored as a richtext content block,
+  the article body's new home — so the article renders and is searchable like a real one.
+  """
   def article_fixture(attrs \\ %{}) do
     attrs =
       Enum.into(attrs, %{
@@ -16,8 +21,42 @@ defmodule Bbh.ContentFixtures do
       })
 
     {:ok, article} = Content.create_article(attrs)
+
+    case attrs[:body] do
+      body when is_binary(body) and body not in ["", "<p></p>"] ->
+        richtext_block_fixture(article, body)
+
+      _ ->
+        :ok
+    end
+
     article
   end
+
+  @doc "Attach a richtext content block carrying `body` to an owner (page or article)."
+  def richtext_block_fixture(owner, body \\ "<p>Inhalt</p>") do
+    {:ok, _} = Content.add_block(owner, "richtext")
+    {pb, _} = owner |> Content.load_blocks() |> List.last()
+    {:ok, block} = Content.update_block(pb, %{"body" => body})
+    block
+  end
+
+  @doc "Attach a grid image-gallery block with `uploads` (in order) to an owner."
+  def gallery_block_fixture(owner, uploads) do
+    {:ok, _} = Content.add_block(owner, "image_gallery")
+    {_pb, gallery} = owner |> Content.load_blocks() |> List.last()
+    Enum.each(uploads, fn u -> {:ok, _} = Content.add_gallery_file(gallery, upload_id(u)) end)
+    Blocks.ImageGallery |> Repo.get!(gallery.id) |> Repo.preload(files: :media)
+  end
+
+  @doc "Set an article's single image (accepts an `%Upload{}` or a media id)."
+  def set_article_image(article, upload) do
+    {:ok, article} = Content.set_article_image(article, upload_id(upload))
+    article
+  end
+
+  defp upload_id(%Upload{id: id}), do: id
+  defp upload_id(id) when is_binary(id), do: id
 
   def throne_fixture(attrs \\ %{}) do
     attrs = Map.new(attrs)

@@ -93,9 +93,9 @@ defmodule BbhWeb.Admin.MediaPicker do
     {:noreply, assign(socket, :open, keep_open?(params))}
   end
 
-  # Slots that usually take several pictures in a row (an article's images, a gallery)
-  # keep the modal open; a single-image slot is done after one pick.
-  defp keep_open?(%{"context" => context}), do: context in ~w(article_image gallery)
+  # A gallery usually takes several pictures in a row, so its modal stays open; every
+  # single-image slot (article image, throne image, media card) is done after one pick.
+  defp keep_open?(%{"context" => context}), do: context in ~w(gallery)
   defp keep_open?(_params), do: false
 
   # Only the rich-text editor can make use of a non-image (it inserts a download link).

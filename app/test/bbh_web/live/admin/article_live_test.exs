@@ -124,92 +124,54 @@ defmodule BbhWeb.Admin.ArticleLiveTest do
     end
   end
 
-  describe "article images (edit)" do
-    test "an image carries only embedding options — text lives in the media library", ctx do
+  describe "article image (edit)" do
+    test "shows the picker and current image, and can clear it", ctx do
       article = article_fixture()
-      upload = upload_fixture(%{caption: "Der Thron 2025", copyright: "BBH e.V."})
-      {:ok, image} = Content.add_article_image(article, upload.id)
+      set_article_image(article, upload_fixture(%{caption: "Der Thron 2025"}))
 
       {:ok, lv, html} = live(ctx.conn, ~p"/admin/artikel/#{article.id}/bearbeiten")
 
-      # The media item's text is shown for orientation …
-      assert html =~ "Der Thron 2025"
-      assert html =~ "BBH e.V."
-      # … but is not editable here.
-      refute has_element?(lv, ~s(#image-#{image.id} input[name="image[title]"]))
-      refute has_element?(lv, ~s(#image-#{image.id} input[name="image[copyright]"]))
-      assert has_element?(lv, ~s(#image-#{image.id} input[name="image[show_caption]"]))
-    end
+      # The media picker button is wired for the single article image …
+      assert has_element?(lv, ~s(button[phx-value-context="article_image"]))
+      assert html =~ "Bild ändern"
 
-    test "the caption can be switched off for this article only", ctx do
-      article = article_fixture()
-      upload = upload_fixture(%{caption: "Der Thron 2025"})
-      {:ok, image} = Content.add_article_image(article, upload.id)
-      assert image.show_caption
+      # … and clearing it removes the article image.
+      html = lv |> element(~s(button[phx-click="clear_article_image"])) |> render_click()
+
+      assert html =~ "Bild wählen"
+      assert is_nil(Content.get_article!(article.id).image_id)
+    end
+  end
+
+  describe "content blocks (edit)" do
+    test "adds a content block to the article", ctx do
+      article = article_fixture(body: "")
+      assert Content.load_blocks(article) == []
 
       {:ok, lv, _html} = live(ctx.conn, ~p"/admin/artikel/#{article.id}/bearbeiten")
 
       html =
         lv
-        |> form("#image-#{image.id}", image: %{show_caption: false})
+        |> form("form[phx-submit=add_block]", type: "richtext")
         |> render_submit()
 
-      assert html =~ "Bild gespeichert"
-      refute Content.get_article_image!(image.id).show_caption
-      # The media item itself is untouched.
-      assert Bbh.Media.get_upload!(upload.id).caption == "Der Thron 2025"
+      assert html =~ "Block speichern"
+      assert [{pb, _}] = Content.load_blocks(Content.get_article!(article.id))
+      assert pb.block_type == "richtext"
     end
   end
 
-  describe "media editor (edit)" do
-    test "opens the focal-point editor and saves it without leaving the form", %{conn: conn} do
+  describe "throne image (edit)" do
+    test "the throne image inherits the article image until its own is set", ctx do
       article = article_fixture()
-      upload = upload_fixture()
-      {:ok, _} = Content.add_article_image(article, upload.id)
+      set_article_image(article, upload_fixture())
+      throne_fixture(%{article: article})
 
-      {:ok, lv, _html} = live(conn, ~p"/admin/artikel/#{article.id}/bearbeiten")
+      {:ok, lv, html} = live(ctx.conn, ~p"/admin/artikel/#{article.id}/bearbeiten")
 
-      html =
-        lv
-        |> element(~s(button[phx-click="edit_media"][phx-value-upload_id="#{upload.id}"]))
-        |> render_click()
-
-      assert html =~ "Datei bearbeiten"
-
-      # The focal-point fields are hidden inputs driven by the JS hook, so submit
-      # the event directly with the values the hook would have set.
-      html =
-        render_submit(lv, "save_meta", %{
-          "upload" => %{"focal_point_x" => "0.25", "focal_point_y" => "0.75"}
-        })
-
-      assert html =~ "Bild gespeichert"
-      refute html =~ "Datei bearbeiten"
-
-      updated = Bbh.Media.get_upload!(upload.id)
-      assert updated.focal_point_x == 0.25
-      assert updated.focal_point_y == 0.75
-    end
-  end
-
-  describe "preview image (edit)" do
-    test "setting a preview image is exclusive", %{conn: conn} do
-      article = article_fixture()
-      {:ok, a} = Content.add_article_image(article, upload_fixture().id)
-      {:ok, b} = Content.add_article_image(article, upload_fixture().id)
-
-      {:ok, lv, _html} = live(conn, ~p"/admin/artikel/#{article.id}/bearbeiten")
-
-      # Click the actual per-image button, not just the raw event.
-      html =
-        lv
-        |> element(~s(button[phx-click="set_preview_image"][phx-value-img_id="#{b.id}"]))
-        |> render_click()
-
-      assert html =~ "Vorschaubild festgelegt"
-      assert html =~ "★ Vorschaubild"
-      assert Content.get_article_image!(b.id).use_as_article_image
-      refute Content.get_article_image!(a.id).use_as_article_image
+      assert html =~ "Thronbild"
+      assert html =~ "Erbt das Artikelbild."
+      assert has_element?(lv, ~s(button[phx-value-context="throne_image"]))
     end
   end
 end
