@@ -20,9 +20,12 @@ defmodule BbhWeb.PageHTML do
   def countdown_target(%DateTime{} = dt), do: Calendar.strftime(dt, "%Y-%m-%dT%H:%M:%S")
 
   @doc """
-  Whether to render the countdown timer for an event: enabled per-event and within
-  the configured lead window. `starts_at >= now` is already guaranteed by
-  `Bbh.Calendar.next_event/0`, so only the upper (lead-days) bound is checked.
+  Whether to render the countdown timer for an event: enabled per-event, still in
+  the future, and within the configured lead window.
+
+  `Bbh.Calendar.next_event/0` now keeps an event on the homepage until it is over,
+  so the event may already have started — in that case there is nothing to count
+  down to ("Es beginnt in …" would sit at zero), and the countdown is hidden.
   """
   def countdown_visible?(%{
         show_countdown: true,
@@ -30,7 +33,10 @@ defmodule BbhWeb.PageHTML do
         starts_at: %DateTime{} = starts_at
       })
       when is_integer(lead) do
-    DateTime.diff(starts_at, Bbh.Time.now(), :day) <= lead
+    now = Bbh.Time.now()
+
+    DateTime.compare(starts_at, now) == :gt and
+      DateTime.diff(starts_at, now, :day) <= lead
   end
 
   def countdown_visible?(_), do: false
