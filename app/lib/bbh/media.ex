@@ -141,10 +141,23 @@ defmodule Bbh.Media do
   def update_upload(%Upload{} = upload, attrs) do
     # The folder select submits "" for "no folder" and the column is nullable, so the
     # blank→nil is folded in here rather than repeated at each caller.
-    upload
-    |> Upload.update_changeset(normalize_folder_id(attrs))
-    |> Repo.update()
-    |> Bbh.Search.reindex_after()
+    changeset = Upload.update_changeset(upload, normalize_folder_id(attrs))
+    result = Repo.update(changeset)
+
+    # A focal-point edit reframes every cover crop, so the cached variants are now stale —
+    # drop them like a rotation does (rotate_upload/2). Only fires when the value truly
+    # changed (Ecto omits unchanged fields from `changes`), so plain title/folder edits
+    # keep the warm cache. The correct crop already regenerates on demand via the fx/fy
+    # URL params; this just reclaims the orphaned files the edit would otherwise leave.
+    with {:ok, saved} <- result, true <- focal_changed?(changeset) do
+      purge_variants(saved)
+    end
+
+    Bbh.Search.reindex_after(result)
+  end
+
+  defp focal_changed?(%Ecto.Changeset{changes: changes}) do
+    Map.has_key?(changes, :focal_point_x) or Map.has_key?(changes, :focal_point_y)
   end
 
   defp normalize_folder_id(%{"folder_id" => _} = attrs),
