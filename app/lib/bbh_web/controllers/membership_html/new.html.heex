@@ -172,35 +172,35 @@
                 </p>
               </div>
             </div>
+            <template data-child-template>
+              <div data-child-row class="grid gap-2 sm:grid-cols-2">
+                <div>
+                  <input
+                    type="text"
+                    name="kind_vorname[]"
+                    placeholder="Vorname"
+                    aria-label="Vorname des Kindes"
+                    class="w-full rounded border border-base-300 px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <input
+                    type="text"
+                    name="kind_geburtsdatum[]"
+                    data-flatpickr
+                    data-max-age={@max_child_age}
+                    placeholder="Geburtsdatum (TT.MM.JJJJ)"
+                    aria-label="Geburtsdatum des Kindes"
+                    autocomplete="off"
+                    class="w-full rounded border border-base-300 px-3 py-2"
+                  />
+                  <p data-age-hint hidden class="mt-1 text-sm text-warning">
+                    Hier werden nur Kinder unter {@max_child_age} Jahren erfasst.
+                  </p>
+                </div>
+              </div>
+            </template>
           </div>
-          <template data-child-template>
-            <div data-child-row class="grid gap-2 sm:grid-cols-2">
-              <div>
-                <input
-                  type="text"
-                  name="kind_vorname[]"
-                  placeholder="Vorname"
-                  aria-label="Vorname des Kindes"
-                  class="w-full rounded border border-base-300 px-3 py-2"
-                />
-              </div>
-              <div>
-                <input
-                  type="text"
-                  name="kind_geburtsdatum[]"
-                  data-flatpickr
-                  data-max-age={@max_child_age}
-                  placeholder="Geburtsdatum (TT.MM.JJJJ)"
-                  aria-label="Geburtsdatum des Kindes"
-                  autocomplete="off"
-                  class="w-full rounded border border-base-300 px-3 py-2"
-                />
-                <p data-age-hint hidden class="mt-1 text-sm text-warning">
-                  Hier werden nur Kinder unter {@max_child_age} Jahren erfasst.
-                </p>
-              </div>
-            </div>
-          </template>
         </div>
       </fieldset>
 
