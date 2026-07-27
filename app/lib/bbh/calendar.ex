@@ -4,11 +4,33 @@ defmodule Bbh.Calendar do
   alias Bbh.Repo
   alias Bbh.Calendar.{CalendarShare, Event, EventReminder, Location}
 
-  @doc "The next upcoming public event (published, announced, no internal calendar)."
+  @doc """
+  The next public event to highlight (published, announced, no internal calendar).
+
+  An event stays selected until it is over — not just until it starts — so an
+  event in progress keeps its spot on the homepage. "Over" is the event's end
+  when set; otherwise (and for all-day events) the end of the relevant day, so a
+  same-day event without an explicit end time doesn't vanish the moment it begins.
+  """
   def next_event(now \\ Bbh.Time.now()) do
     Repo.one(
       from e in public_events(),
-        where: e.starts_at >= ^now,
+        where:
+          fragment(
+            """
+            (CASE
+               WHEN ? OR ? IS NULL
+                 THEN date_trunc('day', COALESCE(?, ?)) + interval '1 day'
+               ELSE ?
+             END) > ?
+            """,
+            e.all_day,
+            e.ends_at,
+            e.ends_at,
+            e.starts_at,
+            e.ends_at,
+            ^now
+          ),
         order_by: [asc: e.starts_at],
         limit: 1,
         preload: [:location]

@@ -25,6 +25,29 @@ defmodule Bbh.CalendarTest do
 
       refute Calendar.next_event()
     end
+
+    test "keeps an in-progress event over a later upcoming one" do
+      ongoing = event_fixture(starts_at: at(-1), ends_at: at(1))
+      _upcoming = event_fixture(starts_at: at(3))
+
+      assert Calendar.next_event().id == ongoing.id
+    end
+
+    test "drops an event once it has ended" do
+      _ended = event_fixture(starts_at: at(-2), ends_at: at(-1))
+      upcoming = event_fixture(starts_at: at(3))
+
+      assert Calendar.next_event().id == upcoming.id
+    end
+
+    test "keeps an all-day event through the end of its day" do
+      today = Bbh.Time.now() |> DateTime.to_date()
+      midnight = DateTime.new!(today, ~T[00:00:00], "Etc/UTC")
+      today_event = event_fixture(starts_at: midnight, all_day: true)
+      _upcoming = event_fixture(starts_at: at(3))
+
+      assert Calendar.next_event().id == today_event.id
+    end
   end
 
   describe "list_events_by_year/1 and event_years/0" do

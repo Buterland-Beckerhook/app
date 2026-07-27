@@ -58,4 +58,42 @@ defmodule BbhWeb.PageControllerTest do
       assert PageHTML.countdown_target(dt) == "2026-07-18T14:05:00"
     end
   end
+
+  describe "countdown_visible?/1" do
+    defp in_days(offset) do
+      Bbh.Time.now() |> DateTime.add(offset, :day)
+    end
+
+    test "shows for an upcoming event within the lead window" do
+      assert PageHTML.countdown_visible?(%{
+               show_countdown: true,
+               countdown_lead_days: 60,
+               starts_at: in_days(3)
+             })
+    end
+
+    test "hides once the event has started (nothing left to count down)" do
+      refute PageHTML.countdown_visible?(%{
+               show_countdown: true,
+               countdown_lead_days: 60,
+               starts_at: in_days(-1)
+             })
+    end
+
+    test "hides when the event is beyond the lead window" do
+      refute PageHTML.countdown_visible?(%{
+               show_countdown: true,
+               countdown_lead_days: 30,
+               starts_at: in_days(45)
+             })
+    end
+
+    test "hides when disabled for the event" do
+      refute PageHTML.countdown_visible?(%{
+               show_countdown: false,
+               countdown_lead_days: 60,
+               starts_at: in_days(3)
+             })
+    end
+  end
 end
