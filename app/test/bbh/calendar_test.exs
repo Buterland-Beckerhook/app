@@ -50,6 +50,48 @@ defmodule Bbh.CalendarTest do
     end
   end
 
+  describe "default end time" do
+    test "a timed event without an end defaults to 23:59 of its start day" do
+      {:ok, event} =
+        Calendar.create_event(%{
+          status: "published",
+          title: "Fest",
+          slug: "fest-#{System.unique_integer([:positive])}",
+          starts_at: ~U[2027-06-01 10:00:00Z]
+        })
+
+      assert event.ends_at == ~U[2027-06-01 23:59:00Z]
+    end
+
+    test "an all-day event keeps a nil end (and its start time)" do
+      {:ok, event} =
+        Calendar.create_event(%{
+          status: "published",
+          title: "Ganztag",
+          slug: "ganztag-#{System.unique_integer([:positive])}",
+          starts_at: ~U[2027-06-01 10:00:00Z],
+          all_day: true
+        })
+
+      assert event.all_day
+      assert is_nil(event.ends_at)
+      assert event.starts_at == ~U[2027-06-01 10:00:00Z]
+    end
+
+    test "an explicit end is left untouched" do
+      {:ok, event} =
+        Calendar.create_event(%{
+          status: "published",
+          title: "Mit Ende",
+          slug: "ende-#{System.unique_integer([:positive])}",
+          starts_at: ~U[2027-06-01 10:00:00Z],
+          ends_at: ~U[2027-06-01 14:00:00Z]
+        })
+
+      assert event.ends_at == ~U[2027-06-01 14:00:00Z]
+    end
+  end
+
   describe "list_events_by_year/1 and event_years/0" do
     test "lists a year's public events chronologically" do
       first = event_fixture(starts_at: ~U[2027-03-01 10:00:00Z])

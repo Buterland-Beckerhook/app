@@ -17,7 +17,9 @@ defmodule BbhWeb.Admin.AuthorizationTest do
     "/admin/medien",
     "/admin/seiten",
     "/admin/seiten/neu",
-    "/admin/benutzer"
+    "/admin/benutzer",
+    "/admin/website",
+    "/admin/push"
   ]
 
   describe "unauthenticated access" do
@@ -53,6 +55,24 @@ defmodule BbhWeb.Admin.AuthorizationTest do
 
       {:ok, _lv, html} = live(conn, ~p"/admin/artikel")
       assert html =~ "Artikel"
+    end
+  end
+
+  describe "admin-only site settings and push" do
+    for route <- ["/admin/website", "/admin/push"] do
+      test "an editor is redirected away from #{route}", %{conn: conn} do
+        editor = user_fixture()
+        conn = log_in_user(conn, editor)
+
+        assert {:error, {:redirect, %{to: "/admin"}}} = live(conn, unquote(route))
+      end
+
+      test "an admin can open #{route}", %{conn: conn} do
+        admin = admin_user_fixture()
+        conn = log_in_user(conn, admin)
+
+        assert {:ok, _lv, _html} = live(conn, unquote(route))
+      end
     end
   end
 end

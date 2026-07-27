@@ -9,6 +9,12 @@ defmodule Bbh.Workers.ArticlePublishNotifierTest do
 
   defp from_now(n), do: Bbh.Time.now() |> DateTime.add(n, :day) |> DateTime.truncate(:second)
 
+  # Keep these deterministic regardless of the wall-clock hour the suite runs at.
+  setup do
+    {:ok, _} = Bbh.Settings.update(%{"quiet_hours_enabled" => false})
+    :ok
+  end
+
   test "only due, published, non-throne, unnotified articles are pending" do
     due = article_fixture(status: "published", date_published: from_now(-1))
     _future = article_fixture(status: "published", date_published: from_now(2))

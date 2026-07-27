@@ -44,15 +44,27 @@ defmodule Bbh.Media.Upload do
   # operations (File.rm/cp!/send_file) can never escape uploads_dir.
   @storage_key_format ~r{\A[A-Za-z0-9][A-Za-z0-9._-]*(?:/[A-Za-z0-9][A-Za-z0-9._-]*)*\z}
 
+  # Applied only on create so freshly uploaded media carry the club as the default
+  # rights holder; admins can still clear or override it later (update_changeset).
+  @default_copyright "Buterland-Beckerhook e.V."
+
   @doc "Changeset for creating an upload (sets the server-derived system fields)."
   def changeset(upload, attrs) do
     upload
     |> cast(attrs, @system_fields ++ @user_fields)
+    |> put_default_copyright()
     |> validate_required([:storage_key, :filename])
     |> validate_format(:storage_key, @storage_key_format)
     |> validate_folder_id()
     |> foreign_key_constraint(:folder_id)
     |> unique_constraint(:storage_key)
+  end
+
+  defp put_default_copyright(changeset) do
+    case get_field(changeset, :copyright) do
+      value when value in [nil, ""] -> put_change(changeset, :copyright, @default_copyright)
+      _ -> changeset
+    end
   end
 
   @doc """

@@ -44,6 +44,28 @@ defmodule Bbh.CalendarRemindersTest do
 
       refute changeset.valid?
     end
+
+    test "a reminder needs exactly one of lead_days / scheduled_at" do
+      # Neither set.
+      assert %{lead_days: [_ | _]} = errors_on(EventReminder.changeset(%EventReminder{}, %{}))
+
+      # Both set.
+      both =
+        EventReminder.changeset(%EventReminder{}, %{
+          "lead_days" => 3,
+          "scheduled_at" => from_now(1)
+        })
+
+      refute both.valid?
+
+      # Just one is fine.
+      assert EventReminder.changeset(%EventReminder{}, %{"lead_days" => 3}).valid?
+      assert EventReminder.changeset(%EventReminder{}, %{"scheduled_at" => from_now(1)}).valid?
+    end
+
+    test "text is optional" do
+      assert EventReminder.changeset(%EventReminder{}, %{"lead_days" => 3}).valid?
+    end
   end
 
   describe "due_reminders/1" do
@@ -63,6 +85,27 @@ defmodule Bbh.CalendarRemindersTest do
       event_fixture(starts_at: from_now(2), reminders: [%{lead_days: 10, text: "x"}])
       [reminder] = Calendar.due_reminders()
       {:ok, _} = Calendar.mark_reminder_sent(reminder)
+      assert Calendar.due_reminders() == []
+    end
+
+    test "returns an absolute reminder once its scheduled_at has passed" do
+      event =
+        event_fixture(
+          starts_at: from_now(5),
+          reminders: [%{scheduled_at: from_now(-1), text: "Jetzt"}]
+        )
+
+      [reminder] = Calendar.due_reminders()
+      assert reminder.event.id == event.id
+      assert reminder.text == "Jetzt"
+    end
+
+    test "excludes an absolute reminder whose scheduled_at is still in the future" do
+      event_fixture(
+        starts_at: from_now(10),
+        reminders: [%{scheduled_at: from_now(2), text: "Später"}]
+      )
+
       assert Calendar.due_reminders() == []
     end
 

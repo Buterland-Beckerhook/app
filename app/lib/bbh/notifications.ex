@@ -95,15 +95,47 @@ defmodule Bbh.Notifications do
   @doc "Number of stored (active) push subscriptions."
   def count_subscriptions, do: Repo.aggregate(PushSubscription, :count, :id)
 
+  @doc "All subscriptions for the admin overview, most-errored first."
+  def list_subscriptions do
+    Repo.all(from s in PushSubscription, order_by: [desc: s.error_count, desc: s.last_used])
+  end
+
+  @doc "Delete one subscription by id (admin overview). Idempotent."
+  def delete_subscription(id) do
+    case Repo.get(PushSubscription, id) do
+      nil -> {:error, :not_found}
+      sub -> Repo.delete(sub)
+    end
+  end
+
+  @doc """
+  Send an ad-hoc push composed by an admin. `category` is `"termine"`, `"news"`,
+  or `"all"` (every subscription, regardless of category). `payload` is a map with
+  `title`, `body`, and `url`.
+  """
+  def send_manual(category, %{} = payload) when category in @categories,
+    do: notify(category, payload)
+
+  def send_manual("all", %{} = payload), do: notify_all(payload)
+  def send_manual(_category, _payload), do: {:error, :invalid_category}
+
   @doc """
   Send a notification to all subscribers of `category`. `payload` is a map with
   `title`, `body`, and `url`. Expired subscriptions are pruned. Runs the sends
   concurrently; safe to call from a Task.
   """
   def notify(category, %{} = payload) when category in @categories do
+    from(s in PushSubscription, where: fragment("? = ANY(?)", ^category, s.categories))
+    |> send_to(payload)
+  end
+
+  # Send to every subscription regardless of category (admin "all" broadcast).
+  defp notify_all(%{} = payload), do: send_to(PushSubscription, payload)
+
+  defp send_to(query, payload) do
     message = Jason.encode!(payload)
 
-    from(s in PushSubscription, where: fragment("? = ANY(?)", ^category, s.categories))
+    query
     |> Repo.all()
     |> Task.async_stream(&send_one(&1, message), max_concurrency: 10, on_timeout: :kill_task)
     |> Stream.run()
@@ -133,8 +165,21 @@ defmodule Bbh.Notifications do
       {:error, reason} ->
         Logger.warning("Web push failed for #{sub.endpoint}: #{inspect(reason)}")
 
+        sub
+        |> Ecto.Changeset.change(
+          error_count: sub.error_count + 1,
+          last_error_at: DateTime.utc_now(:second)
+        )
+        |> Repo.update()
+
       _ok ->
-        sub |> Ecto.Changeset.change(last_used: DateTime.utc_now(:second)) |> Repo.update()
+        sub
+        |> Ecto.Changeset.change(
+          last_used: DateTime.utc_now(:second),
+          error_count: 0,
+          last_error_at: nil
+        )
+        |> Repo.update()
     end
   rescue
     e -> Logger.warning("Web push error for #{sub.endpoint}: #{inspect(e)}")

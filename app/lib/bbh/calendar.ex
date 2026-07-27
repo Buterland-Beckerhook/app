@@ -256,9 +256,10 @@ defmodule Bbh.Calendar do
   ## Event reminders (push notifications ahead of an event)
 
   @doc """
-  Reminders that are due to be sent: not yet sent, whose event is still a
-  public, upcoming, published event, and whose lead time has been reached
-  (`starts_at - lead_days <= now`). Preloads the event.
+  Reminders that are due to be sent: not yet sent, whose event is still a public,
+  upcoming, published event, and which have come due — either the relative lead
+  time was reached (`starts_at - lead_days <= now`) or the absolute `scheduled_at`
+  has passed. Preloads the event.
   """
   def due_reminders(now \\ Bbh.Time.now()) do
     Repo.all(
@@ -267,7 +268,8 @@ defmodule Bbh.Calendar do
         where:
           is_nil(r.sent_at) and e.status == "published" and e.announce == true and
             is_nil(e.calendar) and e.starts_at > ^now and
-            fragment("? - make_interval(days => ?) <= ?", e.starts_at, r.lead_days, ^now),
+            (fragment("? - make_interval(days => ?) <= ?", e.starts_at, r.lead_days, ^now) or
+               r.scheduled_at <= ^now),
         preload: [event: e]
     )
   end
@@ -276,6 +278,30 @@ defmodule Bbh.Calendar do
   def mark_reminder_sent(%EventReminder{} = reminder) do
     reminder
     |> Ecto.Changeset.change(sent_at: Bbh.Time.now())
+    |> Repo.update()
+  end
+
+  ## Event publish notifications ("Neuer Termin" push)
+
+  @doc """
+  Public, published, still-upcoming events whose "Neuer Termin" push has not been
+  sent yet. Mirrors `Content.articles_pending_notification/0`; the notifier marks
+  each via `mark_event_notified/1` so it is pushed at most once.
+  """
+  def events_pending_notification(now \\ Bbh.Time.now()) do
+    Repo.all(
+      from e in Event,
+        where:
+          is_nil(e.notified_at) and e.status == "published" and e.announce == true and
+            is_nil(e.calendar) and e.starts_at > ^now,
+        order_by: [asc: e.starts_at]
+    )
+  end
+
+  @doc "Mark an event's publish push as sent so it is not delivered again."
+  def mark_event_notified(%Event{} = event) do
+    event
+    |> Ecto.Changeset.change(notified_at: Bbh.Time.now())
     |> Repo.update()
   end
 end
