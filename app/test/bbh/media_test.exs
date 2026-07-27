@@ -142,6 +142,26 @@ defmodule Bbh.MediaTest do
       assert updated.caption == "Der Thron 2025"
       assert updated.description == "Vier Personen in Uniform"
     end
+
+    test "a focal-point change drops the cached variants (no orphans left behind)" do
+      src = write_image(60, 40)
+      {:ok, upload} = Media.store_file(src, %{filename: "x.png"})
+      assert {:ok, variant, _} = Media.resolve_variant(upload.storage_key, 20, 20)
+      assert File.regular?(variant)
+
+      assert {:ok, _} = Media.update_upload(upload, %{focal_point_x: 0.9, focal_point_y: 0.1})
+      refute File.regular?(variant)
+    end
+
+    test "a plain metadata change keeps the warm cache" do
+      src = write_image(60, 40)
+      {:ok, upload} = Media.store_file(src, %{filename: "x.png"})
+      assert {:ok, variant, _} = Media.resolve_variant(upload.storage_key, 20, 20)
+      assert File.regular?(variant)
+
+      assert {:ok, _} = Media.update_upload(upload, %{"title" => "Neu"})
+      assert File.regular?(variant)
+    end
   end
 
   describe "Upload.changeset/2 storage_key validation" do
