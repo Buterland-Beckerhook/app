@@ -275,8 +275,12 @@ defmodule BbhWeb.Admin.EventLive.Form do
             </div>
           </.inputs_for>
 
+          <%!-- Required so dropping the last reminder still sends a reminders_drop param
+                (otherwise Ecto keeps it). See phoenix_component inputs_for docs. --%>
+          <input type="hidden" name="event[reminders_drop][]" />
+
           <label class="mt-1 inline-block cursor-pointer text-sm font-medium text-primary hover:underline">
-            <input type="checkbox" name="event[reminders_sort][]" class="hidden" />
+            <input type="checkbox" name="event[reminders_sort][]" value="new" class="hidden" />
             + Erinnerung hinzufügen
           </label>
         </fieldset>

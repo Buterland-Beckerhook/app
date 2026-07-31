@@ -83,9 +83,21 @@ defmodule Bbh.ICal do
   defp dtstart(%Event{all_day: true, starts_at: s}), do: "DTSTART;VALUE=DATE:#{date(s)}"
   defp dtstart(%Event{starts_at: s}), do: "DTSTART;TZID=#{time_zone()}:#{local_stamp(s)}"
 
-  defp dtend(%Event{ends_at: nil}), do: nil
+  defp dtend(%Event{all_day: true, ends_at: nil}), do: nil
   defp dtend(%Event{all_day: true, ends_at: e}), do: "DTEND;VALUE=DATE:#{date(e)}"
+
+  # A timed event without an explicit end gets start + 6h so calendar apps render a
+  # sensible block instead of a zero-length event — but never past the start's day.
+  defp dtend(%Event{ends_at: nil, starts_at: s}),
+    do: "DTEND;TZID=#{time_zone()}:#{local_stamp(capped_end(s))}"
+
   defp dtend(%Event{ends_at: e}), do: "DTEND;TZID=#{time_zone()}:#{local_stamp(e)}"
+
+  defp capped_end(%DateTime{} = s) do
+    six = DateTime.add(s, 6, :hour)
+    end_of_day = %{s | hour: 23, minute: 59, second: 59}
+    if DateTime.compare(six, end_of_day) == :gt, do: end_of_day, else: six
+  end
 
   # DTSTAMP is a genuine UTC timestamp → keep the Z form.
   defp stamp(%DateTime{} = dt) do

@@ -67,6 +67,44 @@ defmodule Bbh.ICalTest do
     end
   end
 
+  describe "events without an explicit end" do
+    test "a timed event gets DTEND = start + 6h" do
+      ics =
+        event_fixture(slug: "ohne-ende", starts_at: ~U[2027-06-01 12:00:00Z], ends_at: nil)
+        |> ics()
+
+      assert ics =~ "DTSTART;TZID=Europe/Berlin:20270601T120000"
+      assert ics =~ "DTEND;TZID=Europe/Berlin:20270601T180000"
+    end
+
+    test "the +6h DTEND is capped at 23:59:59 of the start day" do
+      ics =
+        event_fixture(slug: "spaet", starts_at: ~U[2027-06-01 20:00:00Z], ends_at: nil)
+        |> ics()
+
+      assert ics =~ "DTSTART;TZID=Europe/Berlin:20270601T200000"
+      assert ics =~ "DTEND;TZID=Europe/Berlin:20270601T235959"
+    end
+
+    test "an all-day event without an end emits no DTEND" do
+      ics =
+        event_fixture(
+          slug: "ganztag",
+          all_day: true,
+          starts_at: ~U[2027-06-01 00:00:00Z],
+          ends_at: nil
+        )
+        |> ics()
+
+      assert ics =~ "DTSTART;VALUE=DATE:20270601"
+      refute ics =~ "DTEND"
+    end
+
+    defp ics(event) do
+      event.id |> Calendar.get_event!() |> ICal.single("https://example.de")
+    end
+  end
+
   describe "single/2" do
     test "wraps one event in a feed", %{event: event} do
       assert ICal.single(event, "https://example.de") == ICal.feed([event], "https://example.de")
