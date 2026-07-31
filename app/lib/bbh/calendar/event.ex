@@ -80,7 +80,6 @@ defmodule Bbh.Calendar.Event do
       drop_param: :reminders_drop
     )
     |> reset_internal_public_fields()
-    |> put_default_end()
     |> validate_end_after_start()
     |> unique_constraint([:slug, :year], name: :events_slug_year_unique)
     |> foreign_key_constraint(:location_id)
@@ -125,22 +124,6 @@ defmodule Bbh.Calendar.Event do
         match?(%Ecto.Association.NotLoaded{}, changeset.data.reminders)
 
     if persisted_unloaded?, do: changeset, else: put_assoc(changeset, :reminders, [])
-  end
-
-  # A timed event without an explicit end defaults to end of its start day (23:59).
-  # Event times are stored as local wall-clock (see Bbh.Time), so the components are
-  # set directly. All-day events keep their end untouched — iCal uses only the date
-  # and `next_event` already treats them as running through the day.
-  defp put_default_end(changeset) do
-    ends_at = get_field(changeset, :ends_at)
-    all_day = get_field(changeset, :all_day)
-    starts_at = get_field(changeset, :starts_at)
-
-    if is_nil(ends_at) and all_day != true and match?(%DateTime{}, starts_at) do
-      put_change(changeset, :ends_at, %{starts_at | hour: 23, minute: 59, second: 0})
-    else
-      changeset
-    end
   end
 
   defp put_year(changeset) do

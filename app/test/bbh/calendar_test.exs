@@ -50,8 +50,8 @@ defmodule Bbh.CalendarTest do
     end
   end
 
-  describe "default end time" do
-    test "a timed event without an end defaults to 23:59 of its start day" do
+  describe "end time" do
+    test "a timed event without an end keeps a nil end" do
       {:ok, event} =
         Calendar.create_event(%{
           status: "published",
@@ -60,7 +60,7 @@ defmodule Bbh.CalendarTest do
           starts_at: ~U[2027-06-01 10:00:00Z]
         })
 
-      assert event.ends_at == ~U[2027-06-01 23:59:00Z]
+      assert is_nil(event.ends_at)
     end
 
     test "an all-day event keeps a nil end (and its start time)" do
