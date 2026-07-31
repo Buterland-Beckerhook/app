@@ -39,9 +39,14 @@ defmodule BbhWeb.Admin.EventLive.FormTest do
 
   test "dropping all reminders (incl. the last) removes them", %{conn: conn} do
     event =
-      Bbh.CalendarFixtures.event_fixture(slug: "mit-erinnerungen", starts_at: ~U[2027-06-01 10:00:00Z])
+      Bbh.CalendarFixtures.event_fixture(
+        slug: "mit-erinnerungen",
+        starts_at: ~U[2027-06-01 10:00:00Z]
+      )
 
-    for lead <- [7, 14], do: %EventReminder{event_id: event.id, lead_days: lead} |> Bbh.Repo.insert!()
+    for lead <- [7, 14],
+        do: %EventReminder{event_id: event.id, lead_days: lead} |> Bbh.Repo.insert!()
+
     assert length(Bbh.Repo.all(Ecto.assoc(event, :reminders))) == 2
 
     {:ok, lv, html} = live(conn, ~p"/admin/termine/#{event.id}/bearbeiten")
