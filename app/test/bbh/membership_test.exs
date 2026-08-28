@@ -18,7 +18,6 @@ defmodule Bbh.MembershipTest do
     "bic" => " cobadeffxxx ",
     "kreditinstitut" => " Commerzbank ",
     "sepa" => "true",
-    "satzung" => "true",
     "datenspeicherung" => "true",
     "privacy" => "true"
   }
@@ -33,7 +32,7 @@ defmodule Bbh.MembershipTest do
       assert data.iban == "DE89370400440532013000"
       assert data.bic == "COBADEFFXXX"
       assert data.children == []
-      assert data.sepa and data.satzung and data.datenspeicherung and data.privacy
+      assert data.sepa and data.datenspeicherung and data.privacy
     end
 
     test "accepts alternative consent truthy values" do
@@ -104,7 +103,6 @@ defmodule Bbh.MembershipTest do
 
     test "requires all consents" do
       assert {:error, %{sepa: _}} = Membership.validate(Map.delete(@valid, "sepa"))
-      assert {:error, %{satzung: _}} = Membership.validate(Map.delete(@valid, "satzung"))
 
       assert {:error, %{datenspeicherung: _}} =
                Membership.validate(Map.delete(@valid, "datenspeicherung"))

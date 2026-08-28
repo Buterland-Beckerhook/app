@@ -17,7 +17,6 @@ defmodule BbhWeb.MembershipControllerTest do
     "bic" => "COBADEFFXXX",
     "kreditinstitut" => "Commerzbank",
     "sepa" => "true",
-    "satzung" => "true",
     "datenspeicherung" => "true",
     "privacy" => "true"
   }
