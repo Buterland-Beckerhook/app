@@ -287,20 +287,6 @@
 
         <div>
           <label class="flex items-start gap-2 text-sm">
-            <input type="checkbox" name="satzung" value="true" class="mt-1" />
-            <span>
-              Ich erkenne die jeweils gültige
-              <a href="/verein/satzung" class="text-primary hover:underline">Vereinssatzung</a>
-              als bindend an.
-            </span>
-          </label>
-          <p :if={error_for(@errors, :satzung)} class="mt-1 text-sm text-error">
-            {error_for(@errors, :satzung)}
-          </p>
-        </div>
-
-        <div>
-          <label class="flex items-start gap-2 text-sm">
             <input type="checkbox" name="datenspeicherung" value="true" class="mt-1" />
             <span>
               Ich bin damit einverstanden, dass meine Daten für vereinsinterne Auswertungen

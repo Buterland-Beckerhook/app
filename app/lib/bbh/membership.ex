@@ -55,7 +55,6 @@ defmodule Bbh.Membership do
 
     consents = %{
       sepa: consented?(params, "sepa"),
-      satzung: consented?(params, "satzung"),
       datenspeicherung: consented?(params, "datenspeicherung"),
       privacy: consented?(params, "privacy")
     }
@@ -87,7 +86,6 @@ defmodule Bbh.Membership do
         :sepa,
         "Bitte erteilen Sie das SEPA-Lastschriftmandat."
       )
-      |> put_if(not consents.satzung, :satzung, "Bitte erkennen Sie die Vereinssatzung an.")
       |> put_if(
         not consents.datenspeicherung,
         :datenspeicherung,
@@ -192,7 +190,6 @@ defmodule Bbh.Membership do
     Erteilte Zustimmungen
     ---------------------
     SEPA-Mandat erteilt:        #{yes_no(data.sepa)}
-    Vereinssatzung anerkannt:   #{yes_no(data.satzung)}
     Datenspeicherung zugestimmt: #{yes_no(data.datenspeicherung)}
     Datenschutz zugestimmt:     #{yes_no(data.privacy)}
     """
