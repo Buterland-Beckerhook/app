@@ -89,6 +89,34 @@ decoy fragments between them, so it stays readable and copyable **without** Java
 `assets/js/mail.js` upgrades the anchor to a real `mailto:` on first interaction. See
 `docs/adr/0005-email-obfuscation.md`.
 
+## MCP server (AI content access)
+
+`POST /mcp` exposes the article and media contexts to an MCP client (the Claude app,
+Claude Code) so an editor can draft an article from their phone. See
+`docs/adr/0009-mcp-server.md` for the reasoning; the rules that constrain changes:
+
+- **Tools delegate, never persist.** Every handler in `lib/bbh_web/mcp/tools/` calls
+  `Bbh.Content` / `Bbh.Media`. Adding a write path that bypasses those changesets would
+  bypass `Bbh.Html.sanitize/1` and the search reindex with it.
+- **Nothing deletes.** No tool removes an article, block, media item or gallery entry, and
+  none may be added. Deleting stays a deliberate act in `/admin`.
+- **Permissions come from the user, not the token.** `BbhWeb.Plugs.ApiAuth` assigns the
+  same `Bbh.Accounts.Scope` the admin LiveViews use; `BbhWeb.MCP.Tools` authorizes through
+  `BbhWeb.Authz`. The token's `mcp:read` / `mcp:write` scopes only narrow that.
+- **New articles default to `draft`.** Publishing triggers a web push to every subscriber
+  via `Bbh.Workers.ArticlePublishNotifier`.
+- **The endpoint is stateless.** No SSE, no `Mcp-Session-Id`; `GET`/`DELETE` answer `405`
+  on purpose. Keep it that way — it is why the route costs nothing at rest.
+
+Credentials are personal access tokens minted at `/admin/einstellungen` (Tab „Token"),
+stored SHA-256-hashed in `api_tokens`, expiring after a year and swept by
+`Bbh.Workers.ApiTokenPruner`. Connect a client with:
+
+```bash
+claude mcp add --transport http bbh https://buterland-beckerhook.de/mcp \
+  --header "Authorization: Bearer <token>"
+```
+
 ## Data snapshots — seeding & restore
 
 There is no hand-written sample seed; dev data is a **real snapshot**.

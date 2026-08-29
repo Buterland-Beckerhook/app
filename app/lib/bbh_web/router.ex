@@ -20,6 +20,29 @@ defmodule BbhWeb.Router do
     plug :accepts, ["json"]
   end
 
+  # The MCP endpoint. Deliberately not `:browser`: it must not touch the session, the
+  # CSRF token or the page-view tracker, and its only credential is a bearer token.
+  pipeline :mcp do
+    plug :accepts, ["json"]
+    plug BbhWeb.Plugs.CORS
+    plug BbhWeb.Plugs.ApiAuth
+  end
+
+  # Model Context Protocol server — lets an assistant draft articles on the user's
+  # behalf, with that user's own permissions. See docs/adr/0009-mcp-server.md.
+  scope "/mcp", BbhWeb.Api do
+    pipe_through :mcp
+
+    post "/", MCPController, :create
+    # The transport also defines GET (open an SSE stream) and DELETE (end the session) on
+    # the endpoint; this server offers neither, and 405 is how it says so.
+    get "/", MCPController, :no_stream
+    delete "/", MCPController, :no_session
+    # Preflight. The route only has to exist for the pipeline to run — BbhWeb.Plugs.CORS
+    # halts with 204 before the controller is ever reached.
+    options "/", MCPController, :no_session
+  end
+
   scope "/api", BbhWeb.Api do
     pipe_through :api
 
@@ -142,6 +165,7 @@ defmodule BbhWeb.Router do
       live "/einstellungen", SettingsLive, :account
       live "/einstellungen/passkeys", SettingsLive, :passkeys
       live "/einstellungen/2fa", SettingsLive, :totp
+      live "/einstellungen/tokens", SettingsLive, :tokens
       live "/einstellungen/confirm-email/:token", SettingsLive, :confirm_email
     end
   end

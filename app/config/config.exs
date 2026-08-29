@@ -122,7 +122,10 @@ config :bbh, Oban,
        {"*/5 * * * *", Bbh.Workers.EventPublishNotifier},
        {"*/5 * * * *", Bbh.Workers.EventReminderNotifier},
        # Rebuild the full-text search index; self-healing, so a coarse cadence is fine.
-       {"*/15 * * * *", Bbh.Workers.SearchReindexer}
+       {"*/15 * * * *", Bbh.Workers.SearchReindexer},
+       # Reclaim long-dead MCP tokens. Nightly is plenty — an expired token already
+       # fails verification, this only deletes the rows.
+       {"30 3 * * *", Bbh.Workers.ApiTokenPruner}
      ]}
   ]
 
