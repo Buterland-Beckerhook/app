@@ -433,6 +433,16 @@ h1, h2, h3, h4, h5, h6 {
   font-style: italic;
   color: var(--tw-prose-quotes);
 }
+/* Quill applies the quote format per line, so while editing a multi-line quote is a
+   stack of <blockquote> elements (the sanitizer merges them into one on save — see
+   `Bbh.Html`). Collapse the gap between adjacent ones so the editor already shows the
+   single quote block the published page renders. */
+.ql-editor blockquote:has(+ blockquote) {
+  margin-bottom: 0;
+}
+.ql-editor blockquote + blockquote {
+  margin-top: 0;
+}
 .prose pre {
   background: var(--tw-prose-pre-bg);
   color: var(--tw-prose-pre-code);
