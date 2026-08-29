@@ -121,6 +121,40 @@ defmodule Bbh.HtmlTest do
     end
   end
 
+  describe "sanitize/1 quote merging" do
+    test "joins a run of one-line quotes into a single blockquote" do
+      html = "<blockquote>Zeile 1</blockquote><blockquote>Zeile 2</blockquote>"
+      assert Html.sanitize(html) == "<blockquote>Zeile 1<br />Zeile 2</blockquote>"
+    end
+
+    test "a blank line ends the quote, so two quotes stay two quotes" do
+      html = "<blockquote>a</blockquote><p><br></p><blockquote>b</blockquote>"
+      assert Html.sanitize(html) == "<blockquote>a</blockquote><blockquote>b</blockquote>"
+    end
+
+    test "quotes and paragraphs are never merged into each other" do
+      html = "<p>vor</p><blockquote>a</blockquote><blockquote>b</blockquote><p>nach</p>"
+
+      assert Html.sanitize(html) ==
+               "<p>vor</p><blockquote>a<br />b</blockquote><p>nach</p>"
+    end
+
+    test "does not merge quotes with differing alignment" do
+      html = ~s(<blockquote class="ql-align-center">a</blockquote><blockquote>b</blockquote>)
+      assert Html.sanitize(html) == html
+    end
+
+    test "unwraps the <p> a Markdown quote carries, so its lines join" do
+      html = "<blockquote><p>a</p></blockquote><blockquote><p>b</p></blockquote>"
+      assert Html.sanitize(html) == "<blockquote>a<br />b</blockquote>"
+    end
+
+    test "leaves a quote holding several paragraphs untouched" do
+      html = "<blockquote><p>a</p><p>b</p></blockquote><blockquote>c</blockquote>"
+      assert Html.sanitize(html) == html
+    end
+  end
+
   describe "to_editor/1" do
     test "passes through nil and non-binaries" do
       assert Html.to_editor(nil) == nil
@@ -137,11 +171,25 @@ defmodule Bbh.HtmlTest do
                "<p>a</p><ul><li>x</li></ul>"
     end
 
+    test "inserts a blank paragraph between adjacent quotes too" do
+      assert Html.to_editor("<blockquote>a</blockquote><blockquote>b</blockquote>") ==
+               "<blockquote>a</blockquote><p></p><blockquote>b</blockquote>"
+    end
+
     test "round-trips through the editor stably (paste flattens <br /> to paragraphs)" do
       stored = "<p>intro</p><p>a<br />b<br />c</p><p>outro</p>"
 
       # Quill has no soft break: pasting turns each <br /> into its own paragraph.
       flattened = String.replace(Html.to_editor(stored), ~r{<br\s*/?>}, "</p><p>")
+
+      assert Html.sanitize(flattened) == stored
+    end
+
+    test "round-trips a multi-line quote stably (paste flattens it to one quote per line)" do
+      stored = "<p>intro</p><blockquote>a<br />b<br />c</blockquote><p>outro</p>"
+
+      flattened =
+        String.replace(Html.to_editor(stored), ~r{<br\s*/?>}, "</blockquote><blockquote>")
 
       assert Html.sanitize(flattened) == stored
     end

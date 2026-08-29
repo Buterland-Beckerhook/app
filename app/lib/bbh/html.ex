@@ -22,11 +22,13 @@ defmodule Bbh.Html do
   module then narrows the values to `@allowed_classes` so no other class can be
   stored, dropping the attribute entirely when nothing survives.
 
-  Finally it rewrites Quill's paragraph model: Quill emits one `<p>` per line, so
-  a single break already reads as a full paragraph. On write it collapses
-  consecutive paragraphs into one `<p>` joined by `<br />`, keeping a real `<p>`
-  only where the author left a blank line. `to_editor/1` reverses this for loading
-  content back into the editor; see it for the round-trip details.
+  Finally it rewrites Quill's line model: Quill emits one `<p>` — or one
+  `<blockquote>` — per line, so a single break already reads as a full block, and a
+  multi-line quote comes out as a stack of separate quote boxes. On write it
+  collapses a run of consecutive paragraphs (or quotes) into a single element whose
+  lines are joined by `<br />`, starting a new element only where the author left a
+  blank line. `to_editor/1` reverses this for loading content back into the editor;
+  see it for the round-trip details.
   """
 
   # The only class tokens allowed to survive sanitization. Everything Quill's
@@ -49,24 +51,33 @@ defmodule Bbh.Html do
     html
     |> Bbh.Html.RichScrubber.sanitize()
     |> filter_classes()
-    |> merge_paragraphs()
+    |> merge_blocks()
     |> normalize_spaces()
   end
 
   def sanitize(other), do: other
 
-  @doc """
-  Prepare stored HTML for editing in the Quill editor (inverse of the paragraph
-  merge that `sanitize/1` applies on write).
+  # Top-level block elements Quill emits. Its output is flat (no block nests
+  # inside another), so a non-greedy match per tag with a backreferenced close is
+  # enough to tokenize the whole body in order.
+  @block_re ~r{<(p|h[1-6]|ul|ol|blockquote|pre)\b([^>]*)>(.*?)</\1>}s
 
-  Quill's data model has no soft line break: every `<br>` becomes its own
-  paragraph when content is pasted in, and the editor can't tell a former `<br>`
-  apart from a real paragraph boundary. Left alone, re-saving would merge *every*
-  line into one paragraph. So before loading, insert an empty `<p></p>` between
-  each pair of adjacent real paragraphs. Quill keeps those blank lines, and the
-  next save collapses only the paragraphs that were joined by `<br>` — the
-  round-trip stays stable. Lines that were `<br>`-joined inside one `<p>` come
-  back as adjacent paragraphs (no blank between), so the merge rejoins them.
+  # The blocks Quill emits one of per line, and that therefore get merged back into
+  # one element per run. Headings, lists and code blocks are left alone.
+  @mergeable ~w(p blockquote)
+
+  @doc """
+  Prepare stored HTML for editing in the Quill editor (inverse of the block merge
+  that `sanitize/1` applies on write).
+
+  Quill's data model has no soft line break: every `<br>` becomes its own line when
+  content is pasted in, and the editor can't tell a former `<br>` apart from a real
+  block boundary. Left alone, re-saving would merge *every* line into one block. So
+  before loading, insert an empty `<p></p>` between each pair of adjacent blocks of
+  the same mergeable kind (two paragraphs, or two quotes). Quill keeps those blank
+  lines, and the next save collapses only the lines that were joined by `<br>` —
+  the round-trip stays stable. Lines that were `<br>`-joined inside one block come
+  back as adjacent lines (no blank between), so the merge rejoins them.
   """
   def to_editor(nil), do: nil
 
@@ -74,7 +85,7 @@ defmodule Bbh.Html do
     with_blocks(html, fn blocks ->
       blocks
       |> Enum.reduce({[], nil}, fn [full, tag, _attrs, _inner], {out, prev} ->
-        sep = if prev == "p" and tag == "p", do: "<p></p>", else: ""
+        sep = if tag == prev and tag in @mergeable, do: "<p></p>", else: ""
         {[full, sep | out], tag}
       end)
       |> then(fn {out, _prev} -> out |> Enum.reverse() |> Enum.join() end)
@@ -83,27 +94,30 @@ defmodule Bbh.Html do
 
   def to_editor(other), do: other
 
-  # Top-level block elements Quill emits. Its output is flat (no block nests
-  # inside another), so a non-greedy match per tag with a backreferenced close is
-  # enough to tokenize the whole body in order.
-  @block_re ~r{<(p|h[1-6]|ul|ol|blockquote|pre)\b([^>]*)>(.*?)</\1>}s
-
-  # Collapse runs of consecutive paragraphs into a single `<p>` whose lines are
-  # joined by `<br />`, treating an empty paragraph as a hard paragraph break.
-  # This is what turns the editor's "one `<p>` per line" output into the intended
-  # "single break -> `<br>`, blank line -> new `<p>`". Paragraphs with different
-  # attributes (e.g. a differing alignment class) are never merged, so per-line
-  # alignment survives. `to_editor/1` is the inverse.
-  defp merge_paragraphs(html) do
+  # Collapse runs of consecutive paragraphs (or quotes) into a single element whose
+  # lines are joined by `<br />`, treating an empty one as a hard block break. This
+  # is what turns the editor's "one `<p>`/`<blockquote>` per line" output into the
+  # intended "single break -> `<br>`, blank line -> new block" — without it a
+  # multi-line quote renders as one bordered box per line. Blocks of different tags,
+  # or with different attributes (e.g. a differing alignment class), are never
+  # merged, so per-line alignment survives. `to_editor/1` is the inverse.
+  defp merge_blocks(html) do
     with_blocks(html, fn blocks ->
       {out, run} =
         Enum.reduce(blocks, {[], nil}, fn [full, tag, attrs, inner], {out, run} ->
-          cond do
-            tag != "p" -> {[full, flush_run(run) | out], nil}
-            empty_paragraph?(inner) -> {[flush_run(run) | out], nil}
-            run == nil -> {out, {attrs, [inner]}}
-            match?({^attrs, _}, run) -> {out, {attrs, [inner | elem(run, 1)]}}
-            true -> {[flush_run(run) | out], {attrs, [inner]}}
+          case line(tag, inner) do
+            :none ->
+              {[full, flush_run(run) | out], nil}
+
+            :blank ->
+              {[flush_run(run) | out], nil}
+
+            {:line, text} ->
+              cond do
+                run == nil -> {out, {tag, attrs, [text]}}
+                match?({^tag, ^attrs, _}, run) -> {out, put_elem(run, 2, [text | elem(run, 2)])}
+                true -> {[flush_run(run) | out], {tag, attrs, [text]}}
+              end
           end
         end)
 
@@ -111,15 +125,41 @@ defmodule Bbh.Html do
     end)
   end
 
-  defp flush_run(nil), do: ""
+  # A quote written in Markdown (the MCP path) wraps its text in a `<p>`, which the
+  # editor drops on paste anyway. Unwrap it so such a quote is just another line and
+  # joins its neighbours cleanly.
+  @wrapped_re ~r{\A<p\b[^>]*>(?<text>(?:(?!</?p\b).)*)</p>\z}s
 
-  defp flush_run({attrs, lines}) do
-    "<p#{attrs}>" <> (lines |> Enum.reverse() |> Enum.join("<br />")) <> "</p>"
+  # Classify one tokenized block for the merge: `{:line, text}` — a line to join into
+  # the current run; `:blank` — an empty line, which ends the run (the author's hard
+  # break); `:none` — anything else, emitted untouched. A block still holding markup
+  # of its own after unwrapping (a multi-paragraph quote, say) is left alone rather
+  # than glued to a neighbour with a `<br />`.
+  defp line(tag, inner) when tag in @mergeable do
+    text =
+      case Regex.run(@wrapped_re, String.trim(inner), capture: ["text"]) do
+        [text] -> text
+        nil -> inner
+      end
+
+    cond do
+      Regex.match?(~r{<(p|div|blockquote|ul|ol|h[1-6]|pre)\b}i, text) -> :none
+      empty_block?(text) -> :blank
+      true -> {:line, text}
+    end
   end
 
-  # A paragraph carrying no text — only (self-closing or not) `<br>` and
-  # whitespace. Quill emits these for blank lines; they mark paragraph breaks.
-  defp empty_paragraph?(inner) do
+  defp line(_tag, _inner), do: :none
+
+  defp flush_run(nil), do: ""
+
+  defp flush_run({tag, attrs, lines}) do
+    "<#{tag}#{attrs}>" <> (lines |> Enum.reverse() |> Enum.join("<br />")) <> "</#{tag}>"
+  end
+
+  # A block carrying no text — only (self-closing or not) `<br>` and whitespace.
+  # Quill emits these for blank lines; they mark block breaks.
+  defp empty_block?(inner) do
     inner |> String.replace(~r{<br\s*/?>}i, "") |> String.trim() == ""
   end
 
