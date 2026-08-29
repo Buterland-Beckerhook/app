@@ -22,6 +22,7 @@ defmodule BbhWeb.Admin.SettingsLive do
   alias Bbh.Accounts.Passkeys
   alias Bbh.Accounts.User
   alias Bbh.ApiTokens
+  alias Bbh.OAuth
   alias BbhWeb.MCP.Args
 
   @rp_name "Buterland-Beckerhook"
@@ -49,7 +50,7 @@ defmodule BbhWeb.Admin.SettingsLive do
       |> assign(:email_form, to_form(email_changeset))
       |> assign(challenge: nil, passkey_options: nil, error: nil)
       |> assign(enabled: false, secret: nil, qr: nil)
-      |> assign(tokens: [], new_token: nil)
+      |> assign(tokens: [], new_token: nil, connections: [])
 
     {:ok, socket}
   end
@@ -75,6 +76,7 @@ defmodule BbhWeb.Admin.SettingsLive do
     assign(socket,
       page_title: "Zugriffstoken",
       tokens: ApiTokens.list_pats(socket.assigns.current_scope.user),
+      connections: OAuth.list_connections(socket.assigns.current_scope.user),
       # Drop any freshly minted plaintext: it is shown once, on the render that follows
       # its creation, and must not survive navigating back to this section.
       new_token: nil,
@@ -159,6 +161,21 @@ defmodule BbhWeb.Admin.SettingsLive do
          socket
          |> assign(tokens: ApiTokens.list_pats(user))
          |> put_flash(:info, "Token widerrufen.")}
+    end
+  end
+
+  def handle_event("disconnect", %{"client_id" => client_id}, socket) do
+    user = socket.assigns.current_scope.user
+
+    case OAuth.revoke_tokens(user.id, client_id) do
+      0 ->
+        {:noreply, put_flash(socket, :error, "Verbindung nicht gefunden.")}
+
+      _revoked ->
+        {:noreply,
+         socket
+         |> assign(connections: OAuth.list_connections(user))
+         |> put_flash(:info, "Verbindung getrennt.")}
     end
   end
 
@@ -388,6 +405,7 @@ defmodule BbhWeb.Admin.SettingsLive do
           <.tokens_section
             :if={@live_action == :tokens}
             tokens={@tokens}
+            connections={@connections}
             new_token={@new_token}
             error={@error}
           />
@@ -556,6 +574,7 @@ defmodule BbhWeb.Admin.SettingsLive do
   end
 
   attr :tokens, :list, required: true
+  attr :connections, :list, required: true
   attr :new_token, :string, required: true
   attr :error, :string, required: true
 
@@ -616,6 +635,38 @@ defmodule BbhWeb.Admin.SettingsLive do
           </button>
         </li>
       </ul>
+
+      <div :if={@connections != []} class="mt-8 border-t border-base-300 pt-4">
+        <p class="font-medium">Verbundene Apps</p>
+        <p class="mb-2 text-sm text-base-content/70">
+          Über OAuth verbunden, z. B. die Claude-App. Trennen entzieht den Zugriff sofort.
+        </p>
+
+        <ul class="divide-y divide-base-300">
+          <li :for={c <- @connections} class="flex items-center justify-between gap-3 py-3">
+            <div class="min-w-0">
+              <p class="truncate font-medium">{c.client_name}</p>
+              <p class="text-xs text-base-content/60">
+                {if "mcp:write" in c.scopes, do: "Lesen und Schreiben", else: "Nur Lesen"} · verbunden {Calendar.strftime(
+                  c.connected_at,
+                  "%d.%m.%Y"
+                )}
+                <span :if={c.last_used_at}>
+                  · zuletzt genutzt {Calendar.strftime(c.last_used_at, "%d.%m.%Y")}
+                </span>
+              </p>
+            </div>
+            <button
+              class="btn btn-sm btn-outline btn-error shrink-0"
+              phx-click="disconnect"
+              phx-value-client_id={c.client_id}
+              data-confirm="Diese Verbindung wirklich trennen?"
+            >
+              Trennen
+            </button>
+          </li>
+        </ul>
+      </div>
 
       <form id="token_form" phx-submit="create_token" class="mt-6 space-y-2">
         <.input

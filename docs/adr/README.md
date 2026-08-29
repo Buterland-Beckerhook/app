@@ -12,3 +12,4 @@ what (the code shows the what). One file per decision, numbered.
 - [0007](0007-media-tree-edit-mode-and-collapsing.md) — Sorting the media folder tree is a mode; outside it branches fold and a folder shows its whole branch
 - [0008](0008-gallery-slideshow.md) — The Diashow crops to one shared frame, and the strip that scrolls it is CSS
 - [0009](0009-mcp-server.md) — The MCP server is built into the app, stateless, and cannot delete
+- [0010](0010-mcp-oauth.md) — The app is its own OAuth authorization server, and the site login is the OAuth login

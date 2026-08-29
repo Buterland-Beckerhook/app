@@ -108,14 +108,37 @@ Claude Code) so an editor can draft an article from their phone. See
 - **The endpoint is stateless.** No SSE, no `Mcp-Session-Id`; `GET`/`DELETE` answer `405`
   on purpose. Keep it that way — it is why the route costs nothing at rest.
 
-Credentials are personal access tokens minted at `/admin/einstellungen` (Tab „Token"),
-stored SHA-256-hashed in `api_tokens`, expiring after a year and swept by
-`Bbh.Workers.ApiTokenPruner`. Connect a client with:
+Two credentials reach the endpoint, both rows in `api_tokens`, both stored
+SHA-256-hashed and swept by `Bbh.Workers.AuthPruner`:
 
-```bash
-claude mcp add --transport http bbh https://buterland-beckerhook.de/mcp \
-  --header "Authorization: Bearer <token>"
-```
+- **Personal access tokens**, minted at `/admin/einstellungen` (Tab „Token") and shown
+  once, expiring after a year. For Claude Code and anything else that can send a header:
+
+  ```bash
+  claude mcp add --transport http bbh https://buterland-beckerhook.de/mcp \
+    --header "Authorization: Bearer <token>"
+  ```
+
+- **OAuth access tokens**, for the Claude app, which offers no header field. The app is
+  its own authorization server (`Bbh.OAuth`, `docs/adr/0010-mcp-oauth.md`): add
+  `https://buterland-beckerhook.de/mcp` as a custom connector and it discovers the rest.
+
+What not to break in the OAuth half:
+
+- **`/oauth/authorize` stays on the browser pipeline behind `require_authenticated_user`.**
+  The site login *is* the OAuth login, including TOTP. A second credential path to the
+  same accounts is the thing this design avoids.
+- **Consent freezes the grant.** Client, redirect URI, PKCE challenge, audience and scopes
+  live on the `oauth_codes` row; redemption compares against those, never against what the
+  token request re-sends. The consent POST re-validates its own hidden fields for the same
+  reason.
+- **Redirect URIs match exactly**, and only HTTPS or loopback registers. No prefix rule,
+  no normalization.
+- **Replay revokes the family.** A spent code redeemed twice, or a rotated refresh token
+  presented again, revokes every token that client holds for that user.
+- **Token errors stay uniform.** Everything but an audience mismatch answers
+  `invalid_grant`; authorize-time errors redirect to the client *except* an unknown client
+  or an unregistered redirect URI, which must render locally.
 
 ## Data snapshots — seeding & restore
 

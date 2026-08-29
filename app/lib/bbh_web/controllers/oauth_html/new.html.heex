@@ -1,0 +1,47 @@
+<Layouts.app flash={@flash} current_scope={@current_scope} current_path="/oauth/authorize">
+  <div class="mx-auto max-w-md">
+    <.header>
+      Zugriff erlauben?
+      <:subtitle>
+        <span class="font-medium">{@client.client_name || @client.client_id}</span>
+        möchte in deinem Namen auf die Vereinswebseite zugreifen.
+      </:subtitle>
+    </.header>
+
+    <div class="mt-6 rounded-box border border-base-300 p-4">
+      <p class="mb-2 text-sm font-medium">Die Anwendung darf dann:</p>
+      <ul class="space-y-1 text-sm">
+        <li :for={scope <- @scopes} class="flex items-start gap-2">
+          <.icon name="hero-check" class="mt-0.5 size-4 shrink-0 text-success" />
+          <span>{BbhWeb.OAuthHTML.scope_label(scope)}</span>
+        </li>
+      </ul>
+
+      <p class="mt-3 flex items-start gap-2 text-sm">
+        <.icon name="hero-shield-check" class="mt-0.5 size-4 shrink-0 text-base-content/60" />
+        <span class="text-base-content/70">
+          Löschen ist nie möglich, und die Anwendung kann nur das, was du selbst darfst.
+        </span>
+      </p>
+    </div>
+
+    <p class="mt-4 text-sm text-base-content/70">
+      Angemeldet als <span class="font-medium">{@current_scope.user.email}</span>.
+      Du kannst den Zugriff jederzeit unter
+      <.link navigate={~p"/admin/einstellungen/tokens"} class="link">Einstellungen → Token</.link>
+      wieder entziehen.
+    </p>
+
+    <form method="post" action={~p"/oauth/authorize"} class="mt-6 flex gap-2">
+      <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+      <input :for={{key, value} <- @params} type="hidden" name={key} value={value} />
+
+      <button type="submit" name="decision" value="deny" class="btn btn-ghost flex-1">
+        Ablehnen
+      </button>
+      <button type="submit" name="decision" value="approve" class="btn btn-primary flex-1">
+        Erlauben
+      </button>
+    </form>
+  </div>
+</Layouts.app>

@@ -1,0 +1,15 @@
+<Layouts.app flash={@flash} current_scope={@current_scope} current_path="/oauth/authorize">
+  <div class="mx-auto max-w-md">
+    <.header>
+      Zugriff nicht möglich
+      <:subtitle>{@message}</:subtitle>
+    </.header>
+
+    <p class="mt-6 text-sm text-base-content/70">
+      Aus Sicherheitsgründen wird hier nicht zur anfragenden Anwendung zurückgeleitet.
+      Bitte richte die Verbindung in der App noch einmal ein.
+    </p>
+
+    <.link navigate={~p"/"} class="btn btn-ghost mt-6">Zur Startseite</.link>
+  </div>
+</Layouts.app>
