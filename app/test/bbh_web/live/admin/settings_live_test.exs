@@ -317,6 +317,119 @@ defmodule BbhWeb.Admin.SettingsLiveTest do
     end
   end
 
+  describe "Token section" do
+    setup :register_and_log_in_admin
+
+    test "shows the empty state and the tab", %{conn: conn} do
+      {:ok, _lv, html} = live(conn, ~p"/admin/einstellungen/tokens")
+
+      assert html =~ "Zugriffstoken"
+      assert html =~ "Du hast noch kein Zugriffstoken."
+    end
+
+    test "creates a token and shows the plaintext exactly once", %{conn: conn, user: user} do
+      {:ok, lv, _html} = live(conn, ~p"/admin/einstellungen/tokens")
+
+      html =
+        lv
+        |> form("form[phx-submit='create_token']", %{"name" => "iPhone", "access" => "rw"})
+        |> render_submit()
+
+      assert html =~ "jetzt kopieren"
+      assert html =~ "Lesen und Schreiben"
+
+      assert [token] = Bbh.ApiTokens.list_pats(user)
+      assert token.name == "iPhone"
+      assert token.scopes == ["mcp:read", "mcp:write"]
+
+      # The plaintext lives in the assign only; leaving the section drops it for good.
+      lv |> element("a[role='tab'][href='/admin/einstellungen/2fa']") |> render_click()
+      html = lv |> element("a[role='tab'][href='/admin/einstellungen/tokens']") |> render_click()
+
+      refute html =~ "jetzt kopieren"
+      assert html =~ "iPhone"
+    end
+
+    test "honours the read-only choice", %{conn: conn, user: user} do
+      {:ok, lv, _html} = live(conn, ~p"/admin/einstellungen/tokens")
+
+      lv
+      |> form("form[phx-submit='create_token']", %{"name" => "Nur lesen", "access" => "ro"})
+      |> render_submit()
+
+      assert [%{scopes: ["mcp:read"]}] = Bbh.ApiTokens.list_pats(user)
+    end
+
+    test "revoking another token does not wipe a freshly minted plaintext", %{
+      conn: conn,
+      user: user
+    } do
+      # Regression: `revoke_token` used to clear `:new_token`, so revoking an old token
+      # destroyed the one-time plaintext of a token minted moments earlier — unrecoverable.
+      {:ok, _plaintext, old} = Bbh.ApiTokens.create_pat(user, "Alt", ["mcp:read"])
+      {:ok, lv, _html} = live(conn, ~p"/admin/einstellungen/tokens")
+
+      lv
+      |> form("form[phx-submit='create_token']", %{"name" => "Neu", "access" => "rw"})
+      |> render_submit()
+
+      html = lv |> element("button[phx-value-id='#{old.id}']") |> render_click()
+
+      assert html =~ "jetzt kopieren"
+      assert [%{name: "Neu"}] = Bbh.ApiTokens.list_pats(user)
+    end
+
+    test "shows an interpolated changeset error, not a raw placeholder", %{conn: conn} do
+      # `validate_length(:name, max: 100)` yields "should be at most %{count} character(s)";
+      # the renderer must substitute the count. Reachable by any client that ignores the
+      # maxlength attribute.
+      {:ok, lv, _html} = live(conn, ~p"/admin/einstellungen/tokens")
+
+      html =
+        lv
+        |> form("form[phx-submit='create_token']", %{
+          "name" => String.duplicate("x", 101),
+          "access" => "rw"
+        })
+        |> render_submit()
+
+      assert html =~ "100"
+      refute html =~ "%{count}"
+    end
+
+    test "revokes a token", %{conn: conn, user: user} do
+      {:ok, _plaintext, token} = Bbh.ApiTokens.create_pat(user, "Alt", ["mcp:read"])
+      {:ok, lv, html} = live(conn, ~p"/admin/einstellungen/tokens")
+      assert html =~ "Alt"
+
+      html = lv |> element("button[phx-value-id='#{token.id}']") |> render_click()
+
+      assert html =~ "Du hast noch kein Zugriffstoken."
+      assert Bbh.ApiTokens.list_pats(user) == []
+    end
+
+    test "cannot revoke another user's token", %{conn: conn} do
+      other = user_fixture()
+      {:ok, _plaintext, foreign} = Bbh.ApiTokens.create_pat(other, "Fremd", ["mcp:read"])
+      {:ok, lv, _html} = live(conn, ~p"/admin/einstellungen/tokens")
+
+      assert render_click(lv, "revoke_token", %{"id" => foreign.id}) =~ "Token nicht gefunden."
+      assert [_still_there] = Bbh.ApiTokens.list_pats(other)
+    end
+
+    test "requires sudo mode", %{conn: conn} do
+      {:ok, conn} =
+        conn
+        |> log_in_user(admin_user_fixture(),
+          token_authenticated_at: DateTime.add(DateTime.utc_now(:second), -11, :minute)
+        )
+        |> live(~p"/admin/einstellungen/tokens")
+        |> follow_redirect(conn, ~p"/users/log-in")
+
+      assert conn.resp_body =~ "You must re-authenticate to access this page."
+    end
+  end
+
   # Pull the Base32-encoded secret out of the stable #totp-secret span.
   defp extract_secret(html) do
     [_, encoded] = Regex.run(~r{id="totp-secret"[^>]*>([A-Z2-7]+)<}, html)

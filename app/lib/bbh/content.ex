@@ -366,6 +366,20 @@ defmodule Bbh.Content do
   def get_article!(id),
     do: Article |> Repo.get!(id) |> Repo.preload([:image, images: :media, throne: :image])
 
+  @doc """
+  Fetch an article by id, or `nil`.
+
+  The tolerant twin of `get_article!/1`, for ids that arrive from the MCP tools rather
+  than from markup the server rendered: a non-UUID is a miss instead of an
+  `Ecto.Query.CastError`.
+  """
+  def get_article(id) do
+    case cast_uuid(id) do
+      {:ok, uuid} -> Article |> Repo.get(uuid) |> Repo.preload(:image)
+      :error -> nil
+    end
+  end
+
   def create_article(attrs),
     do: %Article{} |> Article.changeset(attrs) |> Repo.insert() |> Bbh.Search.reindex_after()
 
@@ -603,6 +617,33 @@ defmodule Bbh.Content do
     end)
     |> Bbh.Search.reindex_after()
   end
+
+  @doc """
+  Fetch an article's block-join row by id, or `nil`.
+
+  Scoped to `article_blocks` on purpose: a `page_blocks` id must not resolve here, or the
+  MCP article tools would reach into page content through a guessed id.
+  """
+  def get_article_block(id) do
+    case cast_uuid(id) do
+      {:ok, uuid} -> Repo.get(ArticleBlock, uuid)
+      :error -> nil
+    end
+  end
+
+  @doc """
+  The concrete block a join row points at, with the same associations `load_blocks/1`
+  preloads — the counterpart to that function for a single row.
+  """
+  def get_block(pb) do
+    Blocks.schema_for(pb.block_type)
+    |> from()
+    |> preload_block(pb.block_type)
+    |> Repo.get(pb.block_id)
+  end
+
+  defp cast_uuid(id) when is_binary(id), do: Ecto.UUID.cast(id)
+  defp cast_uuid(_id), do: :error
 
   @doc "Update the concrete block referenced by a block-join row."
   def update_block(pb, attrs) do

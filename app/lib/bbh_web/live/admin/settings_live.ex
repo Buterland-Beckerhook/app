@@ -7,6 +7,7 @@ defmodule BbhWeb.Admin.SettingsLive do
     * `:account`  — `/admin/einstellungen`
     * `:passkeys` — `/admin/einstellungen/passkeys`
     * `:totp`     — `/admin/einstellungen/2fa`
+    * `:tokens`   — `/admin/einstellungen/tokens`
 
   Closing the modal returns to `/admin`.
   """
@@ -20,6 +21,8 @@ defmodule BbhWeb.Admin.SettingsLive do
   alias Bbh.Accounts
   alias Bbh.Accounts.Passkeys
   alias Bbh.Accounts.User
+  alias Bbh.ApiTokens
+  alias BbhWeb.MCP.Args
 
   @rp_name "Buterland-Beckerhook"
 
@@ -46,6 +49,7 @@ defmodule BbhWeb.Admin.SettingsLive do
       |> assign(:email_form, to_form(email_changeset))
       |> assign(challenge: nil, passkey_options: nil, error: nil)
       |> assign(enabled: false, secret: nil, qr: nil)
+      |> assign(tokens: [], new_token: nil)
 
     {:ok, socket}
   end
@@ -65,6 +69,17 @@ defmodule BbhWeb.Admin.SettingsLive do
     # data attribute, so the "Passkey hinzufügen" submit calls WebAuthn
     # synchronously and Safari keeps the user-activation window (see app.js).
     if connected?(socket), do: assign_registration_challenge(socket), else: socket
+  end
+
+  defp apply_action(socket, :tokens) do
+    assign(socket,
+      page_title: "Zugriffstoken",
+      tokens: ApiTokens.list_pats(socket.assigns.current_scope.user),
+      # Drop any freshly minted plaintext: it is shown once, on the render that follows
+      # its creation, and must not survive navigating back to this section.
+      new_token: nil,
+      error: nil
+    )
   end
 
   defp apply_action(socket, :totp) do
@@ -105,6 +120,45 @@ defmodule BbhWeb.Admin.SettingsLive do
 
       changeset ->
         {:noreply, assign(socket, :email_form, to_form(changeset, action: :insert))}
+    end
+  end
+
+  ## Access tokens (MCP) -----------------------------------------------------
+
+  def handle_event("create_token", %{"name" => name, "access" => access}, socket) do
+    user = socket.assigns.current_scope.user
+    # `on_mount :require_sudo_mode` already gates this LiveView; assert it here too, the
+    # way update_email does, so minting a credential can never ride on a stale mount.
+    true = Accounts.sudo_mode?(user)
+
+    case ApiTokens.create_pat(user, name, scopes_for(access)) do
+      {:ok, plaintext, _token} ->
+        {:noreply,
+         socket
+         |> assign(new_token: plaintext, tokens: ApiTokens.list_pats(user), error: nil)}
+
+      {:error, changeset} ->
+        {:noreply, assign(socket, error: Args.errors(changeset))}
+    end
+  end
+
+  def handle_event("revoke_token", %{"id" => id}, socket) do
+    user = socket.assigns.current_scope.user
+
+    case ApiTokens.get_for_user(user, id) do
+      nil ->
+        {:noreply, put_flash(socket, :error, "Token nicht gefunden.")}
+
+      token ->
+        {:ok, _} = ApiTokens.revoke(token)
+
+        # Deliberately does NOT touch `new_token`: revoking an old token must not wipe a
+        # plaintext that was just minted and not yet copied — it is unrecoverable.
+        # Clearing on leaving the section is `apply_action(:tokens)`'s job.
+        {:noreply,
+         socket
+         |> assign(tokens: ApiTokens.list_pats(user))
+         |> put_flash(:info, "Token widerrufen.")}
     end
   end
 
@@ -200,6 +254,11 @@ defmodule BbhWeb.Admin.SettingsLive do
 
   ## Helpers -----------------------------------------------------------------
 
+  # "Nur Lesen" is the narrower grant; mcp:write implies mcp:read on the server, but the
+  # token records both so the admin list shows what was actually granted.
+  defp scopes_for("ro"), do: ["mcp:read"]
+  defp scopes_for(_rw), do: ["mcp:read", "mcp:write"]
+
   defp update_current_user(socket, user) do
     assign(socket, :current_scope, %{socket.assigns.current_scope | user: user})
   end
@@ -277,10 +336,11 @@ defmodule BbhWeb.Admin.SettingsLive do
             </.link>
           </div>
 
-          <div role="tablist" class="tabs tabs-border mb-4">
+          <div role="tablist" aria-label="Einstellungen" class="tabs tabs-border mb-4">
             <.link
               patch={~p"/admin/einstellungen"}
               role="tab"
+              aria-selected={to_string(@live_action == :account)}
               class={["tab", @live_action == :account && "tab-active"]}
             >
               Account
@@ -288,6 +348,7 @@ defmodule BbhWeb.Admin.SettingsLive do
             <.link
               patch={~p"/admin/einstellungen/passkeys"}
               role="tab"
+              aria-selected={to_string(@live_action == :passkeys)}
               class={["tab", @live_action == :passkeys && "tab-active"]}
             >
               Passkeys
@@ -295,9 +356,18 @@ defmodule BbhWeb.Admin.SettingsLive do
             <.link
               patch={~p"/admin/einstellungen/2fa"}
               role="tab"
+              aria-selected={to_string(@live_action == :totp)}
               class={["tab", @live_action == :totp && "tab-active"]}
             >
               2FA
+            </.link>
+            <.link
+              patch={~p"/admin/einstellungen/tokens"}
+              role="tab"
+              aria-selected={to_string(@live_action == :tokens)}
+              class={["tab", @live_action == :tokens && "tab-active"]}
+            >
+              Token
             </.link>
           </div>
 
@@ -313,6 +383,12 @@ defmodule BbhWeb.Admin.SettingsLive do
             enabled={@enabled}
             secret={@secret}
             qr={@qr}
+            error={@error}
+          />
+          <.tokens_section
+            :if={@live_action == :tokens}
+            tokens={@tokens}
+            new_token={@new_token}
             error={@error}
           />
         </div>
@@ -475,6 +551,94 @@ defmodule BbhWeb.Admin.SettingsLive do
           <button class="btn btn-primary">Aktivieren</button>
         </form>
       </div>
+    </div>
+    """
+  end
+
+  attr :tokens, :list, required: true
+  attr :new_token, :string, required: true
+  attr :error, :string, required: true
+
+  defp tokens_section(assigns) do
+    ~H"""
+    <div>
+      <.header>
+        Zugriffstoken
+        <:subtitle>
+          Für KI-Assistenten (MCP), z. B. um unterwegs einen Artikel zu diktieren.
+          Ein Token darf genau das, was du selbst darfst – aber niemals löschen.
+        </:subtitle>
+      </.header>
+
+      <div :if={@new_token} class="alert alert-success mt-6 flex-col items-start gap-2">
+        <p class="font-medium">Token erstellt – jetzt kopieren!</p>
+        <input
+          type="text"
+          readonly
+          value={@new_token}
+          aria-label="Neues Zugriffstoken"
+          class="input input-sm w-full bg-base-100 font-mono text-xs"
+        />
+        <p class="text-xs">
+          Er wird nur dieses eine Mal angezeigt. Danach ist er nicht mehr auslesbar.
+        </p>
+      </div>
+
+      <div :if={@tokens == []} class="alert alert-info mt-6">
+        Du hast noch kein Zugriffstoken.
+      </div>
+
+      <ul :if={@tokens != []} class="mt-6 divide-y divide-base-300">
+        <li :for={token <- @tokens} class="flex items-center justify-between gap-3 py-3">
+          <div class="min-w-0">
+            <p class="truncate font-medium">{token.name}</p>
+            <p class="text-xs text-base-content/60">
+              {if "mcp:write" in token.scopes, do: "Lesen und Schreiben", else: "Nur Lesen"} · erstellt {Calendar.strftime(
+                token.inserted_at,
+                "%d.%m.%Y"
+              )}
+              <span :if={token.expires_at}>
+                · gültig bis {Calendar.strftime(token.expires_at, "%d.%m.%Y")}
+              </span>
+              <span :if={token.last_used_at}>
+                · zuletzt genutzt {Calendar.strftime(token.last_used_at, "%d.%m.%Y")}
+              </span>
+              <span :if={is_nil(token.last_used_at)}>· noch nie genutzt</span>
+            </p>
+          </div>
+          <button
+            class="btn btn-sm btn-outline btn-error shrink-0"
+            phx-click="revoke_token"
+            phx-value-id={token.id}
+            data-confirm="Dieses Token wirklich widerrufen? Verbundene Apps verlieren sofort den Zugriff."
+          >
+            Widerrufen
+          </button>
+        </li>
+      </ul>
+
+      <form id="token_form" phx-submit="create_token" class="mt-6 space-y-2">
+        <.input
+          type="text"
+          name="name"
+          value=""
+          label="Name des Tokens"
+          placeholder="z. B. Claude auf dem iPhone"
+          maxlength="100"
+          required
+        />
+        <.input
+          type="select"
+          name="access"
+          value="rw"
+          label="Berechtigung"
+          options={[{"Lesen und Schreiben", "rw"}, {"Nur Lesen", "ro"}]}
+        />
+        <p :if={@error} class="text-sm text-error">{@error}</p>
+        <.button class="btn btn-primary w-full">
+          <.icon name="hero-key" class="size-5" /> Token erstellen
+        </.button>
+      </form>
     </div>
     """
   end

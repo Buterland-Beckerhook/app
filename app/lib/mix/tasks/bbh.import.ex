@@ -349,15 +349,7 @@ defmodule Mix.Tasks.Bbh.Import do
   defp location_id_for(nil), do: nil
   defp location_id_for(key), do: Repo.get_by(Location, key: key) |> then(&(&1 && &1.id))
 
-  defp slugify(s) do
-    s
-    |> String.downcase()
-    |> String.replace(~r/[äöüß]/u, fn c ->
-      %{"ä" => "ae", "ö" => "oe", "ü" => "ue", "ß" => "ss"}[c]
-    end)
-    |> String.replace(~r/[^a-z0-9]+/, "-")
-    |> String.trim("-")
-  end
+  defp slugify(s), do: Bbh.Slug.slugify(s)
 
   defp truthy(true), do: true
   defp truthy("true"), do: true
