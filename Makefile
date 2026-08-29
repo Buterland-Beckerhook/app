@@ -36,7 +36,9 @@ reset-db: ## Drop, recreate and migrate the dev DB (in the phoenix container)
 	$(MIX) ecto.reset
 
 test: ## Run the test suite (in the phoenix container)
-	$(MIX) test
+	# Same forcing as `precommit` below: the container sets MIX_ENV=dev, which wins over
+	# mix's own default for `mix test`, and the suite then dies on the missing SQL sandbox.
+	$(COMPOSE) exec -e MIX_ENV=test phoenix mix test
 
 format: ## Auto-format code with mix format (in the phoenix container)
 	$(MIX) format
