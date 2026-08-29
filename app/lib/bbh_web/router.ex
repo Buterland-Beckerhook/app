@@ -28,6 +28,37 @@ defmodule BbhWeb.Router do
     plug BbhWeb.Plugs.ApiAuth
   end
 
+  # The machine-facing half of the OAuth 2.1 authorization server (discovery, dynamic
+  # registration, token). Unauthenticated by construction — see the controller — and CORS
+  # is open for the same reason it is on /mcp: no cookie or session is read here.
+  pipeline :oauth_api do
+    plug :accepts, ["json"]
+    plug BbhWeb.Plugs.CORS
+  end
+
+  scope "/", BbhWeb.Api do
+    pipe_through :oauth_api
+
+    # RFC 9728. Both spellings: the spec derives the second by inserting the resource's
+    # path, and clients probe them in different orders.
+    get "/.well-known/oauth-protected-resource", OAuthController, :protected_resource
+    get "/.well-known/oauth-protected-resource/mcp", OAuthController, :protected_resource
+    # RFC 8414.
+    get "/.well-known/oauth-authorization-server", OAuthController, :authorization_server
+
+    post "/oauth/register", OAuthController, :register
+    post "/oauth/token", OAuthController, :token
+  end
+
+  # Consent. On the browser pipeline on purpose: the site's own login (magic link or
+  # passkey, plus TOTP) is the OAuth login. See docs/adr/0010-mcp-oauth.md.
+  scope "/oauth", BbhWeb do
+    pipe_through [:browser, :require_authenticated_user]
+
+    get "/authorize", OAuthController, :new
+    post "/authorize", OAuthController, :create
+  end
+
   # Model Context Protocol server — lets an assistant draft articles on the user's
   # behalf, with that user's own permissions. See docs/adr/0009-mcp-server.md.
   scope "/mcp", BbhWeb.Api do

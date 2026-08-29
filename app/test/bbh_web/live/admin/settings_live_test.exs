@@ -430,6 +430,101 @@ defmodule BbhWeb.Admin.SettingsLiveTest do
     end
   end
 
+  describe "Token section — connected apps" do
+    setup :register_and_log_in_admin
+
+    setup %{user: user} do
+      {:ok, client} =
+        Bbh.OAuth.register_client(%{
+          "client_name" => "Claude",
+          "redirect_uris" => ["https://claude.ai/api/mcp/auth_callback"]
+        })
+
+      %{client: client, tokens: oauth_connect(user, client)}
+    end
+
+    test "lists a connected app", %{conn: conn} do
+      {:ok, _lv, html} = live(conn, ~p"/admin/einstellungen/tokens")
+
+      assert html =~ "Verbundene Apps"
+      assert html =~ "Claude"
+      assert html =~ "Lesen und Schreiben"
+    end
+
+    test "disconnecting kills the app's tokens", %{conn: conn, user: user, tokens: tokens} do
+      {:ok, lv, _html} = live(conn, ~p"/admin/einstellungen/tokens")
+
+      html = lv |> element("button[phx-click='disconnect']") |> render_click()
+
+      assert html =~ "Verbindung getrennt."
+      refute html =~ "Verbundene Apps"
+      assert Bbh.OAuth.list_connections(user) == []
+
+      # Not merely hidden from the list: the credential itself must stop working.
+      assert {:error, :revoked} =
+               Bbh.ApiTokens.verify(tokens.access_token, BbhWeb.MCP.resource_uri())
+    end
+
+    test "cannot disconnect another user's app", %{conn: conn} do
+      other = user_fixture()
+
+      {:ok, foreign_client} =
+        Bbh.OAuth.register_client(%{
+          "client_name" => "Fremd",
+          "redirect_uris" => ["https://elsewhere.test/cb"]
+        })
+
+      oauth_connect(other, foreign_client)
+
+      # A client id is guessable from anywhere; the revocation is scoped to the caller.
+      assert render_click(lv_at(conn), "disconnect", %{"client_id" => foreign_client.client_id}) =~
+               "Verbindung nicht gefunden."
+
+      assert [_still_connected] = Bbh.OAuth.list_connections(other)
+    end
+
+    test "a personal access token is not a connected app", %{conn: conn, user: user} do
+      {:ok, _plaintext, _token} = Bbh.ApiTokens.create_pat(user, "iPhone", ["mcp:read"])
+      {:ok, _lv, html} = live(conn, ~p"/admin/einstellungen/tokens")
+
+      assert html =~ "iPhone"
+      # One disconnect button, for the one OAuth client — a PAT is revoked, not disconnected.
+      assert html |> String.split(~s(phx-click="disconnect")) |> length() == 2
+    end
+  end
+
+  # Walks a client through consent and redemption, so the connection under test is the one
+  # a real OAuth flow produces rather than hand-written rows.
+  defp oauth_connect(user, client) do
+    verifier = 32 |> :crypto.strong_rand_bytes() |> Base.url_encode64(padding: false)
+    challenge = :sha256 |> :crypto.hash(verifier) |> Base.url_encode64(padding: false)
+    redirect_uri = hd(client.redirect_uris)
+
+    {:ok, code} =
+      Bbh.OAuth.create_authorization_code(client, user, %{
+        redirect_uri: redirect_uri,
+        code_challenge: challenge,
+        resource: BbhWeb.MCP.resource_uri(),
+        scopes: ["mcp:read", "mcp:write"]
+      })
+
+    {:ok, tokens} =
+      Bbh.OAuth.exchange_code(
+        code: code,
+        client_id: client.client_id,
+        redirect_uri: redirect_uri,
+        code_verifier: verifier,
+        resource: BbhWeb.MCP.resource_uri()
+      )
+
+    tokens
+  end
+
+  defp lv_at(conn) do
+    {:ok, lv, _html} = live(conn, ~p"/admin/einstellungen/tokens")
+    lv
+  end
+
   # Pull the Base32-encoded secret out of the stable #totp-secret span.
   defp extract_secret(html) do
     [_, encoded] = Regex.run(~r{id="totp-secret"[^>]*>([A-Z2-7]+)<}, html)

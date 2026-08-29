@@ -71,6 +71,11 @@ defmodule Bbh.ApiTokens do
   tokens issued for themselves). Personal access tokens carry no audience and are
   accepted at any resource of this app.
 
+  `:any` skips the audience check, and only the OAuth token endpoint may pass it: on a
+  refresh the audience is a property of the grant, not of the request, so `Bbh.OAuth`
+  compares the request against the token's own `resource` after this returns. Never use it
+  where a token is being accepted as authorization for a resource.
+
   Returns `{:ok, user, api_token}` or `{:error, :invalid | :expired | :revoked |
   :wrong_audience}`. The error reason is for logging — callers answer every case with the
   same `401`, so a probing client learns nothing from it.
@@ -92,6 +97,7 @@ defmodule Bbh.ApiTokens do
   def verify(_token_string, _resource), do: {:error, :invalid}
 
   # A PAT is not bound to an audience; an OAuth token must match exactly.
+  defp audience_ok?(_api_token, :any), do: true
   defp audience_ok?(%ApiToken{resource: nil}, _resource), do: true
   defp audience_ok?(%ApiToken{resource: bound}, resource), do: bound == resource
 

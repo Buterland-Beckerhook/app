@@ -119,6 +119,7 @@ endpoint.
   This is not specific to MCP — the same helper guards login, TOTP and magic-link — but it
   is worth stating, since this ADR leans on that limit as the anti-flood control.
 - The endpoint is invisible to a client that cannot send a custom header. Claude Code can;
-  the Claude app's connector dialog offers OAuth fields only. Making the app work is the
-  next step, and the token table and the `WWW-Authenticate` challenge (which already
-  points at `/.well-known/oauth-protected-resource/mcp`) are in place for it.
+  the Claude app's connector dialog offers OAuth fields only. The token table and the
+  `WWW-Authenticate` challenge (which already points at
+  `/.well-known/oauth-protected-resource/mcp`) were built for that client, and
+  [ADR 0010](0010-mcp-oauth.md) makes it work.
