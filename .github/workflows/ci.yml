@@ -61,7 +61,7 @@ jobs:
         with:
           # Keep in sync with app/Dockerfile (Renovate updates all three together).
           # renovate: datasource=hexpm-bob depName=elixir
-          elixir-version: "1.20.2"
+          elixir-version: "1.20.4"
           # renovate: datasource=hexpm-bob depName=erlang versioning=semver-coerced
           otp-version: "29.0.3"
 
