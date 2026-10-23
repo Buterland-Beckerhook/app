@@ -19,7 +19,9 @@ defmodule BbhWeb.Admin.AuthorizationTest do
     "/admin/seiten/neu",
     "/admin/benutzer",
     "/admin/website",
-    "/admin/push"
+    "/admin/push",
+    "/admin/weiterleitungen",
+    "/admin/weiterleitungen/neu"
   ]
 
   describe "unauthenticated access" do
@@ -58,8 +60,8 @@ defmodule BbhWeb.Admin.AuthorizationTest do
     end
   end
 
-  describe "admin-only site settings and push" do
-    for route <- ["/admin/website", "/admin/push"] do
+  describe "admin-only site settings, push and redirects" do
+    for route <- ["/admin/website", "/admin/push", "/admin/weiterleitungen"] do
       test "an editor is redirected away from #{route}", %{conn: conn} do
         editor = user_fixture()
         conn = log_in_user(conn, editor)

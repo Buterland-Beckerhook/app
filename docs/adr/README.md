@@ -13,3 +13,4 @@ what (the code shows the what). One file per decision, numbered.
 - [0008](0008-gallery-slideshow.md) — The Diashow crops to one shared frame, and the strip that scrolls it is CSS
 - [0009](0009-mcp-server.md) — The MCP server is built into the app, stateless, and cannot delete
 - [0010](0010-mcp-oauth.md) — The app is its own OAuth authorization server, and the site login is the OAuth login
+- [0011](0011-redirects-on-the-404-path.md) — Redirects are resolved on the 404 path only; old Hugo URLs by rule, misses in a 404 log

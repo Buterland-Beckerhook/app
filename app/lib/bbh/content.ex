@@ -53,6 +53,28 @@ defmodule Bbh.Content do
   end
 
   @doc """
+  The published article that lists `path` among its `aliases` (old URLs carried over
+  from the Hugo front matter), or nil. `path` must be normalized
+  (`Bbh.Redirects.normalize_path/1`); the aliases are compared case-insensitively and
+  without a trailing slash.
+  """
+  def get_published_article_by_alias(path) when is_binary(path) do
+    now = Bbh.Time.now()
+
+    Repo.one(
+      from a in Article,
+        where:
+          a.status == "published" and a.date_published <= ^now and
+            fragment(
+              "EXISTS (SELECT 1 FROM unnest(?) AS al WHERE rtrim(lower(al), '/') = ?)",
+              a.aliases,
+              ^path
+            ),
+        limit: 1
+    )
+  end
+
+  @doc """
   A single article by slug + year regardless of publish state, with images and
   throne. For the logged-in editor preview only — never expose this to the public.
   """

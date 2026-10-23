@@ -125,7 +125,9 @@ config :bbh, Oban,
        {"*/15 * * * *", Bbh.Workers.SearchReindexer},
        # Reclaim dead MCP tokens and spent OAuth codes. Nightly is plenty — neither still
        # works by then, this only deletes the rows.
-       {"30 3 * * *", Bbh.Workers.AuthPruner}
+       {"30 3 * * *", Bbh.Workers.AuthPruner},
+       # Forget 404-log entries nobody has hit for 90 days.
+       {"45 3 * * *", Bbh.Workers.NotFoundPruner}
      ]}
   ]
 
