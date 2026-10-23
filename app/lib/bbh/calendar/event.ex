@@ -70,6 +70,7 @@ defmodule Bbh.Calendar.Event do
     ])
     |> update_change(:body, &Bbh.Html.sanitize/1)
     |> validate_required([:status, :title, :slug, :starts_at])
+    |> Bbh.Slug.validate()
     |> validate_inclusion(:status, @statuses)
     |> validate_inclusion(:calendar, @calendars, message: "ist kein gültiger Kalender")
     |> put_year()

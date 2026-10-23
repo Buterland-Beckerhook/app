@@ -289,6 +289,26 @@ defmodule Bbh.ContentTest do
     end
   end
 
+  describe "slug validation" do
+    test "articles, pages and events refuse slugs that are not URL-safe" do
+      cases = [
+        {Bbh.Content.Article, "a&b"},
+        {Bbh.Content.Page, "<x>"},
+        {Bbh.Calendar.Event, "A b"}
+      ]
+
+      for {schema, slug} <- cases do
+        changeset = schema.changeset(struct(schema), %{slug: slug})
+        assert %{slug: [_]} = errors_on(changeset), "#{inspect(schema)}: #{slug}"
+      end
+    end
+
+    test "a slugified title passes" do
+      changeset = Bbh.Content.Article.changeset(%Bbh.Content.Article{}, %{slug: "fest-2026"})
+      refute Map.has_key?(errors_on(changeset), :slug)
+    end
+  end
+
   describe "page placement validation" do
     test "rejects an unknown placement" do
       assert {:error, cs} = Content.create_page(%{title: "X", slug: "x", placement: "foo"})

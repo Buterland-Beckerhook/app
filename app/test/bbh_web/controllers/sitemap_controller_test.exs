@@ -36,4 +36,20 @@ defmodule BbhWeb.SitemapControllerTest do
     refute body =~ "/verein/intern"
     refute body =~ "baustein"
   end
+
+  test "XML-escapes locations, even for a slug saved before validation existed", %{
+    conn: conn
+  } do
+    article = article_fixture()
+
+    Bbh.Repo.update_all(
+      Ecto.Query.from(a in Bbh.Content.Article, where: a.id == ^article.id),
+      set: [slug: "a&b<x>"]
+    )
+
+    body = conn |> get(~p"/sitemap.xml") |> response(200)
+
+    assert body =~ "/aktuell/#{article.year}/a&amp;b&lt;x&gt;</loc>"
+    refute body =~ "a&b<x>"
+  end
 end

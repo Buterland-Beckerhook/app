@@ -10,7 +10,7 @@
   >
     <.icon name="hero-information-circle" class="mt-0.5 size-6 shrink-0" />
     <div class="prose prose-sm max-w-none text-base-content">
-      {raw(@settings.home_notice_text)}
+      {BbhWeb.Format.sanitized_html(@settings.home_notice_text)}
     </div>
   </div>
 

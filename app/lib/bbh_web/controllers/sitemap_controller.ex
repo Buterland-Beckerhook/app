@@ -9,6 +9,8 @@ defmodule BbhWeb.SitemapController do
   @static ~w(/ /aktuell /termine /thron /verein /kontakt)
   @legal ~w(impressum datenschutz)
 
+  # sobelow_skip ["XSS.SendResp"]
+  # Served as application/xml; every interpolated value is escaped in url_element/1.
   def index(conn, _params) do
     base = Application.get_env(:bbh, :site_url, "https://buterland-beckerhook.de")
 
@@ -96,9 +98,13 @@ defmodule BbhWeb.SitemapController do
     |> Enum.map(&{"#{base}/seite/#{&1.slug}", &1.updated_at})
   end
 
-  defp url_element({loc, nil}), do: "  <url><loc>#{loc}</loc></url>"
+  # Locations contain editor-chosen slugs, so they are XML-escaped: an unescaped `&`
+  # breaks the document, and markup would be live in a browser (XHTML namespace).
+  defp url_element({loc, nil}), do: "  <url><loc>#{xml_escape(loc)}</loc></url>"
 
   defp url_element({loc, %DateTime{} = dt}) do
-    "  <url><loc>#{loc}</loc><lastmod>#{DateTime.to_date(dt)}</lastmod></url>"
+    "  <url><loc>#{xml_escape(loc)}</loc><lastmod>#{DateTime.to_date(dt)}</lastmod></url>"
   end
+
+  defp xml_escape(text), do: text |> Plug.HTML.html_escape_to_iodata() |> IO.iodata_to_binary()
 end

@@ -209,6 +209,27 @@ defmodule BbhWeb.Format do
     |> Phoenix.HTML.raw()
   end
 
+  @doc """
+  Mark already-sanitized HTML as safe for output without the richtext rewrites.
+  Only for values that went through `Bbh.Html.sanitize/1` on write (e.g. the home
+  page notice in the site settings).
+  """
+  def sanitized_html(nil), do: nil
+
+  # sobelow_skip ["XSS.Raw"]
+  # Callers pass only HTML sanitized on write via Bbh.Html.sanitize/1 (see @doc).
+  def sanitized_html(html) when is_binary(html), do: Phoenix.HTML.raw(html)
+
+  @doc """
+  A QR code for `text` as inline SVG, ready to output in a template.
+  """
+  # sobelow_skip ["XSS.Raw"]
+  # The SVG is generated here by EQRCode from the encoded matrix; `text` only decides
+  # which modules are dark and never appears in the markup.
+  def qr_code(text, width) when is_binary(text) do
+    text |> EQRCode.encode() |> EQRCode.svg(width: width) |> Phoenix.HTML.raw()
+  end
+
   defp retarget_links(html), do: Regex.replace(~r/<a\b[^>]*>/i, html, &rewrite_anchor/1)
 
   defp rewrite_anchor(tag) do

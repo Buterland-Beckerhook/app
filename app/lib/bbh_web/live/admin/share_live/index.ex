@@ -201,7 +201,7 @@ defmodule BbhWeb.Admin.ShareLive.Index do
     |> Enum.reject(fn {_label, value} -> value == "" end)
   end
 
-  defp qr_svg(url), do: url |> EQRCode.encode() |> EQRCode.svg(width: 180)
+  defp qr_svg(url), do: BbhWeb.Format.qr_code(url, 180)
 
   defp blank_to_nil(v) when v in [nil, ""], do: nil
   defp blank_to_nil(v), do: v
@@ -311,7 +311,7 @@ defmodule BbhWeb.Admin.ShareLive.Index do
               </p>
             </div>
           </div>
-          <div class="shrink-0 bg-white p-3 rounded-box">{Phoenix.HTML.raw(@new_share.qr)}</div>
+          <div class="shrink-0 bg-white p-3 rounded-box">{@new_share.qr}</div>
         </div>
       </div>
 

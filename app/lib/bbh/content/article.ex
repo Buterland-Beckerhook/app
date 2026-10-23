@@ -56,6 +56,7 @@ defmodule Bbh.Content.Article do
     ])
     |> update_change(:body, &Bbh.Html.sanitize/1)
     |> validate_required([:status, :title, :slug, :date_published])
+    |> Bbh.Slug.validate()
     |> validate_inclusion(:status, @statuses)
     |> put_year()
     |> put_date_modified()
