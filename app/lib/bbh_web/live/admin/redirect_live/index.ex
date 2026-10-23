@@ -116,12 +116,10 @@ defmodule BbhWeb.Admin.RedirectLive.Index do
         <p :if={@check_result} id="check-result" class="mt-2 text-sm">
           <%= case @check_result do %>
             <% {:rule, path, target, status} -> %>
-              <span class="font-mono">{path}</span>
-              → <span class="font-mono">{target}</span>
+              <span class="font-mono">{path}</span> → <span class="font-mono">{target}</span>
               <span class="badge badge-sm ml-1">{status}, Weiterleitung</span>
             <% {:legacy, path, target} -> %>
-              <span class="font-mono">{path}</span>
-              → <span class="font-mono">{target}</span>
+              <span class="font-mono">{path}</span> → <span class="font-mono">{target}</span>
               <span class="badge badge-sm ml-1">301, alte Adresse (automatisch)</span>
             <% {:none, path} -> %>
               <span class="font-mono">{path}</span>: keine Weiterleitung – ohne Seite

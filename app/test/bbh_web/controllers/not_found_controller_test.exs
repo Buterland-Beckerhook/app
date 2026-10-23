@@ -16,6 +16,7 @@ defmodule BbhWeb.NotFoundControllerTest do
         |> get("/verein/vorstand/kontakt/alt")
 
       assert response(conn, 404)
+
       assert [%{path: "/verein/vorstand/kontakt/alt", referrer: "www.google.com/search"}] =
                Redirects.list_not_found()
     end
