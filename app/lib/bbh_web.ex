@@ -17,7 +17,15 @@ defmodule BbhWeb do
   those modules here.
   """
 
-  def static_paths, do: ~w(assets fonts images favicon.ico robots.txt sw.js manifest.webmanifest)
+  # Root-level files are listed one by one: iOS requests the apple-touch icons at
+  # these exact paths even without a <link>, so they cannot live under images/.
+  @static_paths ~w(
+    assets fonts images
+    favicon.ico robots.txt sw.js manifest.webmanifest
+    apple-touch-icon.png apple-touch-icon-precomposed.png
+  )
+
+  def static_paths, do: @static_paths
 
   def router do
     quote do
