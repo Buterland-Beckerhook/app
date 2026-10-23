@@ -157,6 +157,7 @@ defmodule BbhWeb.OAuthControllerTest do
     } do
       %{conn: conn} = register_and_log_in_user(%{conn: conn})
       {_verifier, challenge} = pkce()
+
       params =
         authorize_params(client, challenge, %{"redirect_uri" => "https://evil.example/cb"})
 
