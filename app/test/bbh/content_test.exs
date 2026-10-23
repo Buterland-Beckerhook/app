@@ -218,11 +218,11 @@ defmodule Bbh.ContentTest do
     test "list_menu_pages/0 returns published top-level menu pages, ordered" do
       page_fixture(slug: "b-seite", title: "B", status: "published", sort_order: 2)
       page_fixture(slug: "a-seite", title: "A", status: "published", sort_order: 1)
-      # excluded: a child, a draft, and a legal (show_in_menu false) page
+      # excluded: a child, a draft, and a system (Impressum) page
       root = page_fixture(slug: "root", status: "published", sort_order: 3)
       page_fixture(slug: "kind", status: "published", parent_id: root.id)
       page_fixture(slug: "entwurf", status: "draft")
-      page_fixture(slug: "impressum", status: "published", show_in_menu: false)
+      page_fixture(slug: "impressum", status: "published", placement: "system")
 
       slugs = Content.list_menu_pages() |> Enum.map(& &1.slug)
       assert slugs == ["a-seite", "b-seite", "root"]
@@ -249,10 +249,87 @@ defmodule Bbh.ContentTest do
     end
 
     test "get_page_by_path/1 rejects a tree rooted at a non-menu (legal) page" do
-      legal = page_fixture(slug: "impressum", status: "published", show_in_menu: false)
-      page_fixture(slug: "unterpunkt", status: "published", parent_id: legal.id)
+      legal = page_fixture(slug: "impressum", status: "published", placement: "system")
+
+      # Inserted directly: the changeset forbids nesting below a non-menu page,
+      # but the resolver must stay safe for data that predates that rule.
+      Bbh.Repo.insert!(%Bbh.Content.Page{
+        slug: "unterpunkt",
+        title: "Unterpunkt",
+        status: "published",
+        parent_id: legal.id
+      })
 
       refute Content.get_page_by_path(["impressum", "unterpunkt"])
+    end
+
+    test "get_unlisted_page/2 only resolves published, top-level unlisted pages" do
+      page_fixture(slug: "anfahrt", placement: "unlisted")
+      page_fixture(slug: "entwurf", placement: "unlisted", status: "draft")
+      page_fixture(slug: "chronik", placement: "menu")
+
+      assert {%{slug: "anfahrt"}, _blocks} = Content.get_unlisted_page("anfahrt")
+      refute Content.get_unlisted_page("entwurf")
+      assert {%{slug: "entwurf"}, _} = Content.get_unlisted_page("entwurf", true)
+      refute Content.get_unlisted_page("chronik")
+    end
+
+    test "public_path/1 follows the root's placement" do
+      menu = page_fixture(slug: "ueber-uns", placement: "menu")
+      child = page_fixture(slug: "geschichte", parent_id: menu.id)
+
+      unlisted = page_fixture(slug: "anfahrt", placement: "unlisted")
+      legal = page_fixture(slug: "impressum", placement: "system")
+      snippet = page_fixture(slug: "baustein", placement: "system")
+
+      assert Content.public_path(child) == "/verein/ueber-uns/geschichte"
+      assert Content.public_path(unlisted) == "/seite/anfahrt"
+      assert Content.public_path(legal) == "/impressum"
+      refute Content.public_path(snippet)
+    end
+  end
+
+  describe "page placement validation" do
+    test "rejects an unknown placement" do
+      assert {:error, cs} = Content.create_page(%{title: "X", slug: "x", placement: "foo"})
+      assert %{placement: [_]} = errors_on(cs)
+    end
+
+    test "a child page must stay in the menu tree" do
+      root = page_fixture(slug: "ueber-uns")
+
+      assert {:error, cs} =
+               Content.create_page(%{
+                 title: "Kind",
+                 slug: "kind",
+                 parent_id: root.id,
+                 placement: "unlisted"
+               })
+
+      assert %{placement: [_]} = errors_on(cs)
+    end
+
+    test "unlisted and system pages cannot get children" do
+      for placement <- ~w(unlisted system) do
+        parent = page_fixture(placement: placement)
+
+        assert {:error, cs} =
+                 Content.create_page(%{
+                   title: "Kind",
+                   slug: "kind-#{placement}",
+                   parent_id: parent.id
+                 })
+
+        assert %{parent_id: [_]} = errors_on(cs)
+      end
+    end
+
+    test "a page with children cannot leave the menu" do
+      root = page_fixture(slug: "ueber-uns")
+      page_fixture(slug: "geschichte", parent_id: root.id)
+
+      assert {:error, cs} = Content.update_page(root, %{placement: "unlisted"})
+      assert %{placement: [_]} = errors_on(cs)
     end
 
     test "section_links/1 flattens the section root-first with depth" do

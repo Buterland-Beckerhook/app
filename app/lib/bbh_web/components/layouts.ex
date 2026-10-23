@@ -37,7 +37,7 @@ defmodule BbhWeb.Layouts do
   end
 
   # Full public nav. The "Verein" dropdown is built from the page tree
-  # (top-level, published, show_in_menu pages) so editors control it. A logged-in
+  # (top-level, published, placement "menu" pages) so editors control it. A logged-in
   # editor additionally sees unpublished menu pages, each flagged as a draft.
   defp nav_links(current_scope) do
     preview? = BbhWeb.Authz.can_preview?(current_scope, :pages)

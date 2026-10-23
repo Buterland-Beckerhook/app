@@ -6,17 +6,20 @@ defmodule BbhWeb.SitemapController do
   alias Bbh.Content.{Article, Page}
   alias Bbh.Calendar.Event
 
-  @static ~w(/ /aktuell /termine /thron /verein /kontakt /impressum /datenschutz)
+  @static ~w(/ /aktuell /termine /thron /verein /kontakt)
+  @legal ~w(impressum datenschutz)
 
   def index(conn, _params) do
     base = Application.get_env(:bbh, :site_url, "https://buterland-beckerhook.de")
 
     entries =
       Enum.map(@static, &{base <> &1, nil}) ++
+        legal_entries(base) ++
         throne_entries(base) ++
         article_entries(base) ++
         event_entries(base) ++
-        page_entries(base)
+        page_entries(base) ++
+        unlisted_entries(base)
 
     body = """
     <?xml version="1.0" encoding="UTF-8"?>
@@ -58,20 +61,39 @@ defmodule BbhWeb.SitemapController do
     |> Enum.map(fn {year, slug, updated} -> {"#{base}/termine/#{year}/#{slug}", updated} end)
   end
 
-  # Published pages reachable under /verein: whole ancestor chain published and
-  # rooted at a menu page (legal pages are covered by @static).
+  # Impressum/Datenschutz, unless an editor opted them out of indexing.
+  defp legal_entries(base) do
+    indexable =
+      Repo.all(
+        from p in Page,
+          where: p.slug in @legal and p.status == "published" and p.noindex == false,
+          select: p.slug
+      )
+
+    for slug <- @legal, slug in indexable, do: {"#{base}/#{slug}", nil}
+  end
+
+  # Published, indexable pages reachable under /verein: whole ancestor chain
+  # published and rooted at a menu page.
   defp page_entries(base) do
-    Repo.all(from p in Page, where: p.status == "published")
+    Repo.all(from p in Page, where: p.status == "published" and p.noindex == false)
     |> Enum.flat_map(fn page ->
       ancestors = Content.page_ancestors(page)
 
-      if match?(%Page{show_in_menu: true}, List.first(ancestors)) and
+      if match?(%Page{placement: "menu"}, List.first(ancestors)) and
            Enum.all?(ancestors, &(&1.status == "published")) do
         [{base <> Content.page_path(ancestors), page.updated_at}]
       else
         []
       end
     end)
+  end
+
+  # Unlisted pages are link-only, not secret: they are listed unless marked noindex.
+  defp unlisted_entries(base) do
+    Content.list_unlisted_pages()
+    |> Enum.reject(& &1.noindex)
+    |> Enum.map(&{"#{base}/seite/#{&1.slug}", &1.updated_at})
   end
 
   defp url_element({loc, nil}), do: "  <url><loc>#{loc}</loc></url>"

@@ -167,6 +167,9 @@ defmodule BbhWeb.Router do
     get "/verein", PageContentController, :verein
     get "/verein/*path", PageContentController, :verein_page
 
+    # Pages outside the menu, reachable only through links (placement "unlisted").
+    get "/seite/:slug", PageContentController, :unlisted
+
     get "/impressum", PageContentController, :impressum
     get "/datenschutz", PageContentController, :datenschutz
 
