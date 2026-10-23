@@ -73,7 +73,7 @@ defmodule Bbh.MixProject do
        depth: 1},
       {:swoosh, "~> 1.16"},
       {:gen_smtp, "~> 1.2"},
-      {:image, "~> 0.54"},
+      {:image, "~> 0.72"},
       {:nimble_totp, "~> 1.0"},
       {:eqrcode, "~> 0.2"},
       {:web_push_elixir, "~> 0.4"},
