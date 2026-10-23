@@ -189,6 +189,7 @@ defmodule Bbh.NotificationsTest do
 
       # A re-subscribe (e.g. changed categories) keeps the name.
       {:ok, _} = Notifications.subscribe(Map.put(@params, "label", "Other"))
+
       assert {:ok, %{label: "Roberts iPhone"}} =
                Notifications.subscription_status(@device_endpoint)
 
