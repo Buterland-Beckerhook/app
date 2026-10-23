@@ -14,8 +14,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - name: Report available tags
+        run: |
+          ex=$(sed -n 's/^ARG ELIXIR_VERSION=//p' app/Dockerfile)
+          otp=$(sed -n 's/^ARG OTP_VERSION=//p' app/Dockerfile)
+          for q in "${ex}-erlang-${otp}" "${ex}-erlang-29" "1.20.2-erlang-${otp}-debian"; do
+            echo "== $q" >> tags-report.txt
+            curl -sS "https://hub.docker.com/v2/repositories/hexpm/elixir/tags?page_size=100&name=$q" \
+              | jq -r '.results[].name' | sort >> tags-report.txt || echo "curl failed" >> tags-report.txt
+          done
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tags-report.txt && git commit -m "chore: tags report (temporary)" && git push
       - name: Resolve and pin
         run: |
+          git pull --ff-only
           set -euo pipefail
           ex=$(sed -n 's/^ARG ELIXIR_VERSION=//p' app/Dockerfile)
           otp=$(sed -n 's/^ARG OTP_VERSION=//p' app/Dockerfile)
