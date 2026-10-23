@@ -21,14 +21,17 @@ defmodule BbhWeb.Router do
   end
 
   # Only for the final catch-all below. Like :browser minus what a 404 does not need:
-  # no CSRF check (GET only), no page-view tracking and no `accepts` (a bot asking for
-  # JSON still gets a 404, not a 406). No TrailingSlash either — BbhWeb.Redirector
-  # normalizes the path itself, so an old "/foo/" URL is redirected in one hop. Session,
-  # scope, root layout and CSP stay: the 404 page renders in the full site layout.
+  # no page-view tracking and no `accepts` (a bot asking for JSON still gets a 404, not
+  # a 406). No TrailingSlash either — BbhWeb.Redirector normalizes the path itself, so
+  # an old "/foo/" URL is redirected in one hop. Session, scope, root layout and CSP
+  # stay: the 404 page renders in the full site layout. protect_from_forgery is a no-op
+  # for the GET-only route, but a session-fetching pipeline must carry it (Sobelow
+  # Config.CSRF) and it keeps the layout's csrf meta tag backed by the session.
   pipeline :not_found do
     plug :fetch_session
     plug :fetch_live_flash
     plug :put_root_layout, html: {BbhWeb.Layouts, :root}
+    plug :protect_from_forgery
     plug :put_secure_browser_headers
     plug BbhWeb.Plugs.CSP
     plug :fetch_current_scope_for_user
