@@ -48,6 +48,16 @@ defmodule BbhWeb.Router do
     plug :fetch_current_scope_for_user
   end
 
+  # iCalendar feeds, fetched by calendar clients rather than browsers. No `accepts`:
+  # Apple Calendar (dataaccessd) validates a subscription with `Accept: text/calendar`,
+  # which `accepts ["html"]` answers with 406, so the subscription fails. No session,
+  # CSRF, layout or CSP either — a feed needs none of them. Page-view tracking stays:
+  # it counts subscription-feed retrievals.
+  pipeline :ical do
+    plug :put_secure_browser_headers
+    plug BbhWeb.Plugs.TrackPageView
+  end
+
   # The MCP endpoint. Deliberately not `:browser`: it must not touch the session, the
   # CSRF token or the page-view tracker, and its only credential is a bearer token.
   pipeline :mcp do
@@ -124,6 +134,18 @@ defmodule BbhWeb.Router do
   end
 
   scope "/", BbhWeb do
+    pipe_through :ical
+
+    get "/termine/abo.ics", EventController, :feed
+    # Legacy feed URL — keep so existing calendar subscriptions don't break.
+    get "/termine/index.ics", EventController, :feed
+    get "/termine/:year/:slug/event.ics", EventController, :ics
+
+    # Revocable per-recipient share of one internal calendar (read-only .ics feed).
+    get "/kalender/geteilt/:token", CalendarShareController, :feed
+  end
+
+  scope "/", BbhWeb do
     pipe_through :browser
 
     get "/", PageController, :home
@@ -132,14 +154,7 @@ defmodule BbhWeb.Router do
     get "/aktuell/:year/:slug", ArticleController, :show
 
     get "/termine", EventController, :index
-    get "/termine/abo.ics", EventController, :feed
-    # Legacy feed URL — keep so existing calendar subscriptions don't break.
-    get "/termine/index.ics", EventController, :feed
     get "/termine/:year/:slug", EventController, :show
-    get "/termine/:year/:slug/event.ics", EventController, :ics
-
-    # Revocable per-recipient share of one internal calendar (read-only .ics feed).
-    get "/kalender/geteilt/:token", CalendarShareController, :feed
 
     get "/thron", ThroneController, :index
     get "/thron/:type", ThroneController, :index_type
