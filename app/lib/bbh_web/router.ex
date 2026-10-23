@@ -78,8 +78,6 @@ defmodule BbhWeb.Router do
     post "/oauth/token", OAuthController, :token
   end
 
-  # Consent. On the browser pipeline on purpose: the site's own login (magic link or
-  # passkey, plus TOTP) is the OAuth login. See docs/adr/0010-mcp-oauth.md.
   # Admin-only: flag the current browser's push subscription as a test receiver.
   scope "/push", BbhWeb do
     # Authorization (admin) is checked in the controller, which answers 403 in JSON
@@ -89,6 +87,8 @@ defmodule BbhWeb.Router do
     post "/tester", PushTesterController, :update
   end
 
+  # Consent. On the browser pipeline on purpose: the site's own login (magic link or
+  # passkey, plus TOTP) is the OAuth login. See docs/adr/0010-mcp-oauth.md.
   scope "/oauth", BbhWeb do
     pipe_through [:browser, :require_authenticated_user]
 
