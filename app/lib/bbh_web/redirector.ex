@@ -6,7 +6,7 @@ defmodule BbhWeb.Redirector do
 
     1. redirects when `Bbh.Redirects.resolve/1` knows a target (GET/HEAD only), else
     2. records the path in the 404 log (`Bbh.Redirects.record_not_found/2`) and
-    3. renders the 404 page.
+    3. renders the 404 page (`BbhWeb.NotFoundHTML`, in the site layout).
 
   Because redirects are only looked up here, a rule can never shadow a live page.
 
@@ -62,12 +62,28 @@ defmodule BbhWeb.Redirector do
   defp do_redirect(conn, "/" <> _ = path), do: redirect(conn, to: path)
   defp do_redirect(conn, url), do: redirect(conn, external: url)
 
+  @links [
+    {"/", "Startseite", "Neuigkeiten, nächste Termine und der aktuelle Thron"},
+    {"/aktuell", "Aktuelles", "Berichte und Neuigkeiten aus dem Verein"},
+    {"/termine", "Termine", "Alle Veranstaltungen, auch zum Abonnieren"},
+    {"/verein", "Verein", "Über uns, Vorstand, Offiziere und mehr"}
+  ]
+
+  # The full-layout 404 page (BbhWeb.NotFoundHTML). Every pipeline that reaches here —
+  # :browser for a missing record, :not_found for the catch-all — has fetched the
+  # session and scope, set the root layout and the CSP nonce the layout relies on.
   defp render_404(conn) do
     conn
     |> put_status(:not_found)
     |> put_format("html")
-    |> put_view(BbhWeb.ErrorHTML)
-    |> render(:"404")
+    |> put_view(BbhWeb.NotFoundHTML)
+    |> render(:not_found,
+      page_title: "Seite nicht gefunden",
+      flash: conn.assigns[:flash] || %{},
+      current_scope: conn.assigns[:current_scope],
+      query: BbhWeb.NotFoundHTML.suggested_query(conn.request_path),
+      links: @links
+    )
     |> halt()
   end
 
