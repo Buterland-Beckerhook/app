@@ -42,7 +42,7 @@ import "./mail.js"
 // Grows the membership form's "Kinder unter 15 Jahren" rows on demand.
 import "./membership.js"
 // Web Push: opt-in banner, footer link and settings dialog.
-import "./push.js"
+import {PushThisDevice} from "./push.js"
 // Gallery block in "Diashow" layout: index arithmetic for the controller further down.
 import {step, nearestSlide} from "./slideshow.js"
 // URL slug generation from a title — mirrors Mix.Tasks.Bbh.Import.slugify/1.
@@ -136,6 +136,8 @@ const MUTED_ICON =
 
 // Sync a Quill editor's content into its hidden input and notify LiveView.
 const Hooks = {
+  PushThisDevice,
+
   // Auto-fill the slug field from the title while creating content. Bound to the
   // title input; it finds the sibling `[slug]` input in the same form. Generation
   // stays active only while the slug is untouched — an existing value (editing a

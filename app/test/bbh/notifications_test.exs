@@ -152,4 +152,59 @@ defmodule Bbh.NotificationsTest do
       assert {:error, :not_found} = Notifications.set_tester("https://fcm.googleapis.com/x", true)
     end
   end
+
+  describe "subscribe/2 device description and set_label/2" do
+    @device_endpoint "https://fcm.googleapis.com/fcm/send/device"
+    @params %{
+      "endpoint" => @device_endpoint,
+      "keys" => %{"p256dh" => "pk", "auth" => "ak"},
+      "categories" => ["termine"]
+    }
+    @android_firefox "Mozilla/5.0 (Android 14; Mobile; rv:131.0) Gecko/131.0 Firefox/131.0"
+
+    test "stores a short device description, not the raw User-Agent" do
+      {:ok, sub} = Notifications.subscribe(@params, user_agent: @android_firefox)
+      assert sub.device == "Firefox · Android"
+    end
+
+    test "a re-subscribe without a User-Agent keeps the description" do
+      {:ok, _} = Notifications.subscribe(@params, user_agent: @android_firefox)
+      {:ok, sub} = Notifications.subscribe(@params)
+      assert sub.device == "Firefox · Android"
+    end
+
+    test "the device can't be set through params" do
+      {:ok, sub} = Notifications.subscribe(Map.put(@params, "device", "Fake"))
+      assert sub.device == nil
+    end
+
+    test "set_label/2 names the device, trims, and clears on blank" do
+      {:ok, _} = Notifications.subscribe(@params)
+
+      assert {:ok, %{label: "Roberts iPhone"}} =
+               Notifications.set_label(@device_endpoint, "  Roberts iPhone ")
+
+      assert {:ok, %{label: "Roberts iPhone"}} =
+               Notifications.subscription_status(@device_endpoint)
+
+      # A re-subscribe (e.g. changed categories) keeps the name.
+      {:ok, _} = Notifications.subscribe(Map.put(@params, "label", "Other"))
+      assert {:ok, %{label: "Roberts iPhone"}} =
+               Notifications.subscription_status(@device_endpoint)
+
+      assert {:ok, %{label: nil}} = Notifications.set_label(@device_endpoint, "   ")
+    end
+
+    test "set_label/2 rejects overlong names and unknown endpoints" do
+      {:ok, _} = Notifications.subscribe(@params)
+
+      too_long = String.duplicate("x", PushSubscription.label_max() + 1)
+      assert {:error, :too_long} = Notifications.set_label(@device_endpoint, too_long)
+
+      assert {:error, :not_found} =
+               Notifications.set_label("https://fcm.googleapis.com/x", "Name")
+
+      assert {:error, :not_found} = Notifications.set_label(nil, "Name")
+    end
+  end
 end

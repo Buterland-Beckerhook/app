@@ -21,6 +21,27 @@ defmodule BbhWeb.Api.PushControllerTest do
       assert Repo.get_by(PushSubscription, endpoint: params["endpoint"])
     end
 
+    test "derives the device description from the User-Agent", %{conn: conn} do
+      params = %{
+        "endpoint" => "https://web.push.apple.com/device",
+        "keys" => %{"p256dh" => "pk", "auth" => "ak"},
+        "categories" => ["news"]
+      }
+
+      ua =
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 " <>
+          "(KHTML, like Gecko) Version/18.1 Mobile/15E148 Safari/604.1"
+
+      conn
+      |> json_conn()
+      |> put_req_header("user-agent", ua)
+      |> post(~p"/api/push/subscribe", Jason.encode!(params))
+      |> json_response(200)
+
+      assert %{device: "Safari · iOS"} =
+               Repo.get_by(PushSubscription, endpoint: params["endpoint"])
+    end
+
     test "rejects an untrusted endpoint with 422", %{conn: conn} do
       params = %{
         "endpoint" => "https://169.254.169.254/x",
@@ -75,7 +96,8 @@ defmodule BbhWeb.Api.PushControllerTest do
       assert json_response(conn, 200) == %{
                "subscribed" => true,
                "categories" => ["news"],
-               "tester" => false
+               "tester" => false,
+               "label" => nil
              }
     end
 

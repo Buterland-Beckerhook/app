@@ -90,6 +90,26 @@ async function setTester(endpoint, tester) {
   await postJson("/push/tester", {endpoint, tester}, {"x-csrf-token": csrf})
 }
 
+// Admin-only: name this browser's subscription so it can be told apart in
+// /admin/push (session + CSRF protected, like the tester flag).
+async function setLabel(endpoint, label) {
+  const csrf = document.querySelector("meta[name='csrf-token']")?.getAttribute("content")
+  await postJson("/push/label", {endpoint, label}, {"x-csrf-token": csrf})
+}
+
+// LiveView hook for /admin/push: tell the server which row is this browser, so it
+// can be marked "Dieses Gerät". The endpoint is only compared, never displayed.
+export const PushThisDevice = {
+  async mounted() {
+    try {
+      const sub = await currentSubscription()
+      if (sub) this.pushEvent("this_device", {endpoint: sub.endpoint})
+    } catch (e) {
+      console.error("Push device lookup failed", e)
+    }
+  },
+}
+
 // --- Footer link + settings dialog ---
 
 const footerBtn = document.getElementById("push-optin")
@@ -114,6 +134,12 @@ function render(state) {
   if (tester) {
     tester.checked = state.kind === "on" && state.tester
     tester.disabled = state.kind !== "on"
+  }
+
+  const label = dialog.querySelector("#push-label")
+  if (label) {
+    label.value = state.kind === "on" ? state.label : ""
+    label.disabled = state.kind !== "on"
   }
 
   dialog.querySelector("#push-save").textContent = state.kind === "on" ? "Speichern" : "Aktivieren"
@@ -141,6 +167,9 @@ async function save() {
   const sub = await subscribePush(categories)
   const tester = dialog.querySelector("#push-tester")
   if (sub && tester && !tester.disabled) await setTester(sub.endpoint, tester.checked)
+
+  const label = dialog.querySelector("#push-label")
+  if (sub && label && !label.disabled) await setLabel(sub.endpoint, label.value)
 }
 
 if (dialog) {
@@ -181,6 +210,18 @@ if (dialog) {
       await setTester(sub.endpoint, e.target.checked)
     } catch (err) {
       console.error("Setting test receiver failed", err)
+    }
+    await refresh()
+  })
+
+  // Like the tester switch, a name takes effect as soon as the field is left.
+  dialog.querySelector("#push-label")?.addEventListener("change", async (e) => {
+    const sub = await currentSubscription()
+    if (!sub) return
+    try {
+      await setLabel(sub.endpoint, e.target.value)
+    } catch (err) {
+      console.error("Naming the device failed", err)
     }
     await refresh()
   })

@@ -13,12 +13,27 @@ test("a subscription the server knows is on, with its categories", () => {
   const state = pushState({
     ...base,
     permission: "granted",
-    server: {subscribed: true, categories: ["news"], tester: true},
+    server: {subscribed: true, categories: ["news"], tester: true, label: "Roberts iPhone"},
   })
 
-  assert.deepEqual(state, {kind: "on", categories: ["news"], tester: true})
+  assert.deepEqual(state, {
+    kind: "on",
+    categories: ["news"],
+    tester: true,
+    label: "Roberts iPhone",
+  })
   assert.equal(statusText(state), "Aktiv auf diesem Gerät für: Neue Beiträge.")
   assert.equal(footerLabel(state), "Benachrichtigungen: aktiv")
+})
+
+test("a subscription without a name has an empty label", () => {
+  const state = pushState({
+    ...base,
+    permission: "granted",
+    server: {subscribed: true, categories: ["termine"], tester: false, label: null},
+  })
+
+  assert.equal(state.label, "")
 })
 
 test("a subscription the server dropped (or with no categories) is off", () => {

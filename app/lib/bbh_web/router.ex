@@ -94,13 +94,15 @@ defmodule BbhWeb.Router do
     post "/oauth/token", OAuthController, :token
   end
 
-  # Admin-only: flag the current browser's push subscription as a test receiver.
+  # Admin-only: flag the current browser's push subscription as a test receiver, or
+  # give it a name.
   scope "/push", BbhWeb do
     # Authorization (admin) is checked in the controller, which answers 403 in JSON
     # instead of the login redirect :require_authenticated_user would send.
     pipe_through :browser_json
 
     post "/tester", PushTesterController, :update
+    post "/label", PushLabelController, :update
   end
 
   # Consent. On the browser pipeline on purpose: the site's own login (magic link or
