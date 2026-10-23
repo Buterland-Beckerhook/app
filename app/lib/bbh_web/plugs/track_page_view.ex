@@ -55,8 +55,12 @@ defmodule BbhWeb.Plugs.TrackPageView do
         dispatch(fn -> Bbh.Analytics.record(attrs) end)
 
       conn.status == 200 and ical_feed?(conn) ->
-        hash = visitor_hash(conn)
-        dispatch(fn -> Bbh.Analytics.record_ical(%{visitor_hash: hash}) end)
+        attrs = %{
+          visitor_hash: visitor_hash(conn),
+          client: Bbh.Analytics.IcalClient.classify(user_agent(conn))
+        }
+
+        dispatch(fn -> Bbh.Analytics.record_ical(attrs) end)
 
       true ->
         :ok
@@ -115,14 +119,21 @@ defmodule BbhWeb.Plugs.TrackPageView do
   # same hash within a day and a different one the next, so it can't be tracked
   # across days or reversed to an IP.
   defp visitor_hash(conn) do
-    ua =
-      case get_req_header(conn, "user-agent") do
-        [value | _] -> value
-        _ -> ""
-      end
+    material = [
+      secret(),
+      Date.to_iso8601(Date.utc_today()),
+      RateLimit.client_ip(conn),
+      user_agent(conn) || ""
+    ]
 
-    material = [secret(), Date.to_iso8601(Date.utc_today()), RateLimit.client_ip(conn), ua]
     :crypto.hash(:sha256, Enum.join(material, "|")) |> Base.encode16(case: :lower)
+  end
+
+  defp user_agent(conn) do
+    case get_req_header(conn, "user-agent") do
+      [value | _] -> value
+      _ -> nil
+    end
   end
 
   defp secret do

@@ -45,6 +45,18 @@ defmodule BbhWeb.Plugs.TrackPageViewTest do
     assert %{views: 0} = Bbh.Analytics.summary(today(), today())
   end
 
+  test "stores the calendar-client family, not the raw User-Agent", %{conn: conn} do
+    conn
+    |> put_req_header("user-agent", "iOS/18.1 (22B83) dataaccessd/1.0")
+    |> get("/termine/abo.ics")
+
+    assert [%{client: "apple", subscribers: 1}] =
+             Bbh.Analytics.ical_clients(today(), today())
+
+    assert [row] = Bbh.Repo.all(Bbh.Analytics.IcalFetch)
+    assert row.client == "apple"
+  end
+
   test "does not count single-event .ics downloads as feed fetches", %{conn: conn} do
     event = event_fixture()
 

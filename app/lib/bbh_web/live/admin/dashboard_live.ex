@@ -47,6 +47,7 @@ defmodule BbhWeb.Admin.DashboardLive do
            summary: Bbh.Analytics.summary(from, to),
            by_day: Bbh.Analytics.views_by_day(from, to),
            ical: Bbh.Analytics.ical_summary(from, to),
+           ical_clients: Bbh.Analytics.ical_clients(from, to),
            push_subscriptions: Bbh.Notifications.count_subscriptions(),
            top_pages: Bbh.Analytics.top_pages(from, to),
            top_referrers: Bbh.Analytics.top_referrers(from, to)
@@ -194,6 +195,8 @@ defmodule BbhWeb.Admin.DashboardLive do
               empty="Keine externen Verweise."
             />
           </div>
+
+          <.ical_clients rows={a.ical_clients} />
         </.async_result>
       </section>
     </Layouts.admin>
@@ -232,6 +235,35 @@ defmodule BbhWeb.Admin.DashboardLive do
           <span class="shrink-0 font-medium tabular-nums">{row.views}</span>
         </li>
       </ul>
+    </div>
+    """
+  end
+
+  attr :rows, :list, required: true
+
+  # iCal subscriptions per calendar-client family. Only the family is known — the
+  # feed is anonymous and the visitor hash rotates daily, so there are no per-person IDs.
+  defp ical_clients(assigns) do
+    ~H"""
+    <div id="ical-clients" class="mt-6 rounded-box border border-base-300 bg-base-200 p-4">
+      <div class="mb-2 flex items-baseline justify-between gap-3 text-sm">
+        <span class="font-medium">iCal-Abos nach Kalender-App</span>
+        <span class="text-xs text-base-content/60">Abos · Abrufe</span>
+      </div>
+      <p :if={@rows == []} class="text-sm text-base-content/60">Keine Abrufe im Zeitraum.</p>
+      <ul class="space-y-1">
+        <li :for={row <- @rows} class="flex items-center justify-between gap-3 text-sm">
+          <span class="truncate text-base-content/80">{row.label}</span>
+          <span class="shrink-0 tabular-nums">
+            <span class="font-medium">{row.subscribers}</span>
+            <span class="text-base-content/60">· {row.fetches}</span>
+          </span>
+        </li>
+      </ul>
+      <p :if={@rows != []} class="mt-3 text-xs text-base-content/60">
+        Abos = verschiedene Clients am aktivsten Tag. Google und Outlook.com rufen den Feed
+        zentral über eigene Server ab – ein Eintrag steht dort für viele Nutzer.
+      </p>
     </div>
     """
   end
