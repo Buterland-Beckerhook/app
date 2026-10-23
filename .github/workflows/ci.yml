@@ -71,9 +71,9 @@ jobs:
           path: |
             app/deps
             app/_build
-          key: mix-${{ runner.os }}-otp29.0.3-ex1.20.2-${{ hashFiles('app/mix.lock') }}
+          key: mix-${{ runner.os }}-otp29.1.2-ex1.20.2-${{ hashFiles('app/mix.lock') }}
           restore-keys: |
-            mix-${{ runner.os }}-otp29.0.3-ex1.20.2-
+            mix-${{ runner.os }}-otp29.1.2-ex1.20.2-
 
       - name: Install dependencies
         run: mix deps.get

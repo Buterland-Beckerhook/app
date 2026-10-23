@@ -1,49 +1,23 @@
 # TEMPORARY — removed again in the next commit of this branch.
-# Finds the newest hexpm/elixir builder image that exists for the pinned
-# Elixir/OTP pair and moves DEBIAN_VERSION to its Debian snapshot (the session
+# Verifies that the pinned builder and runner images exist on Docker Hub (the session
 # that prepared this branch cannot reach Docker Hub).
-name: One-off resolve builder image
+name: One-off verify images
 on:
   push:
     branches: [fix/elixir-image-tag]
     paths: [.github/workflows/resolve-image-oneoff.yml]
 permissions:
-  contents: write
+  contents: read
 jobs:
-  resolve:
+  verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-      - name: Report available tags
-        run: |
-          ex=$(sed -n 's/^ARG ELIXIR_VERSION=//p' app/Dockerfile)
-          otp=$(sed -n 's/^ARG OTP_VERSION=//p' app/Dockerfile)
-          for q in "${ex}-erlang-${otp}" "${ex}-erlang-29" "1.20.2-erlang-${otp}-debian"; do
-            echo "== $q" >> tags-report.txt
-            curl -sS "https://hub.docker.com/v2/repositories/hexpm/elixir/tags?page_size=100&name=$q" \
-              | jq -r '.results[].name' | sort >> tags-report.txt || echo "curl failed" >> tags-report.txt
-          done
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add tags-report.txt && git commit -m "chore: tags report (temporary)" && git push
-      - name: Resolve and pin
-        run: |
-          git pull --ff-only
+      - run: |
           set -euo pipefail
           ex=$(sed -n 's/^ARG ELIXIR_VERSION=//p' app/Dockerfile)
           otp=$(sed -n 's/^ARG OTP_VERSION=//p' app/Dockerfile)
-          prefix="${ex}-erlang-${otp}-debian-trixie-"
-          tags=$(curl -fsS "https://hub.docker.com/v2/repositories/hexpm/elixir/tags?page_size=100&name=${prefix}" \
-            | jq -r '.results[].name' | grep -E "^${prefix}[0-9]{8}-slim$" | sort)
-          echo "candidates:"; echo "$tags"
-          tag=$(echo "$tags" | tail -n1)
-          test -n "$tag" || { echo "no hexpm/elixir image for ${prefix}*-slim"; exit 1; }
-          debian="${tag#${ex}-erlang-${otp}-debian-}"
-          docker manifest inspect "docker.io/hexpm/elixir:${tag}" >/dev/null
-          docker manifest inspect "docker.io/debian:${debian}" >/dev/null
-          sed -i "s/^ARG DEBIAN_VERSION=.*/ARG DEBIAN_VERSION=${debian}/" app/Dockerfile app/Dockerfile.dev
-          git diff --stat
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -am "fix(docker): pin DEBIAN_VERSION to ${debian}, the snapshot hexpm/elixir ${ex}/OTP ${otp} is published for"
-          git push
+          deb=$(sed -n 's/^ARG DEBIAN_VERSION=//p' app/Dockerfile)
+          docker manifest inspect "docker.io/hexpm/elixir:${ex}-erlang-${otp}-debian-${deb}" >/dev/null
+          docker manifest inspect "docker.io/debian:${deb}" >/dev/null
+          echo OK
