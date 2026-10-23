@@ -164,7 +164,7 @@ docker compose --env-file .env logs -f phoenix     # follow app logs
 
 Run `./setup.sh --prod` for its own `.env`. Prod defaults differ from Beta:
 - `STACK_NAME=bbh-prod` (Beta uses `bbh-beta`) — distinct project name and volumes
-  (`bbh-prod_postgres_data` / `bbh-prod_uploads`).
+  (`bbh-prod_pgdata` / `bbh-prod_uploads`).
 - `PHX_HOST=buterland-beckerhook.de`, `TRAEFIK_NAME=bb`,
   `TRAEFIK_RULE=Host(\`buterland-beckerhook.de\`, \`www.buterland-beckerhook.de\`)`,
   `TRAEFIK_MIDDLEWARES=bb-compress,bb-www` (compression + www→apex redirect, **without**
@@ -197,6 +197,50 @@ on the same host — typically to test a new feature on Beta against current Pro
 - Guards: refuses identical stacks and any target whose `PHX_HOST` is not `beta.*`
   unless `--allow-prod-target` is given; asks you to type the target host (`--yes` skips
   that, e.g. for cron). `--no-uploads` syncs the DB only.
+
+## Postgres major upgrade (16 → 18)
+
+The stack runs **Postgres 18**. Stacks set up on 16 keep their data in the volume
+`${STACK_NAME}_postgres_data`, which an 18 server cannot open; the 18+ image also moved
+its layout (volume at `/var/lib/postgresql`, `PGDATA=/var/lib/postgresql/18/docker`).
+The data therefore moves **once**, by dump & restore, into a new volume
+`${STACK_NAME}_pgdata`. The legacy volume is only ever read — it is the rollback path.
+Background: [ADR 0012](../docs/adr/0012-postgres-major-upgrade-by-dump-and-restore.md).
+
+**Order: Beta first, then Prod.** An 18 dump cannot be restored into 16, so
+`sync-data.sh` only works while the target is on the newer major.
+
+```sh
+cd /path/to/beta/deploy
+git pull --ff-only          # brings in compose.yml + upgrade-postgres.sh (do NOT run update.sh yet)
+./upgrade-postgres.sh       # asks you to type the host; --yes skips that
+```
+
+What it does (details in `./upgrade-postgres.sh --help`): stops the stack, dumps the
+database from a throwaway `postgres:16-alpine` on the legacy volume (also kept in
+`backups/pg16-final-*.dump`), lets the new 18 server and the `restore` service load it,
+**compares the exact row count of every table**, then starts the whole stack and waits
+for Phoenix to turn healthy. Any failure leaves Phoenix **down** and the legacy volume
+untouched. Downtime is about a minute or two.
+
+Then test on Beta (log in, edit and save an article, upload an image, run
+`./sync-data.sh --from <prod> --to <beta>` once) and repeat the upgrade for Prod.
+
+- **Forgot the script?** An `update.sh` / `up -d` with the new `compose.yml` starts 18 on
+  an empty new volume. The `restore` service notices the legacy cluster and refuses to
+  continue, so Phoenix stays down instead of serving an empty site. Just run
+  `./upgrade-postgres.sh` — it clears that empty volume and carries on.
+- **Rollback** (before anything was written on 18, or accepting the loss of such writes —
+  an 18 dump does not restore into 16): `git checkout <previous commit> -- compose.yml
+  restore-entrypoint.sh && docker compose --env-file .env up -d`. The 16 server comes up
+  on the untouched legacy volume.
+- **Cleanup** once the new database has proven itself (a few days):
+  `docker compose --env-file .env rm -f restore && docker volume rm ${STACK_NAME}_postgres_data`.
+  Compose re-creates it empty on the next `up`; the `restore` tripwire ignores an empty one.
+- **Dev:** the dev stack uses the new volume `pgdata`; the old `pg_data` is simply no
+  longer mounted. To keep your dev data: `make dump` **before** pulling this change,
+  then `make dev` and `make seed`. Remove the old volume with
+  `docker volume rm app_pg_data` (name depends on your checkout directory).
 
 ## Backups
 

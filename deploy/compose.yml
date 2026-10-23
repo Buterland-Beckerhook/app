@@ -13,13 +13,20 @@
 #
 # Project name per mode so Beta and Prod coexist on the same host without sharing
 # volumes: setup.sh writes STACK_NAME=bbh-beta / bbh-prod (default bbh). It also
-# prefixes the named volumes — ${STACK_NAME}_postgres_data / ${STACK_NAME}_uploads.
+# prefixes the named volumes — ${STACK_NAME}_pgdata / ${STACK_NAME}_uploads.
 # backup.sh and the repo seed/dump scripts derive the volume name from STACK_NAME.
+#
+# Postgres 18+ images keep their data in a major-version subdirectory
+# (PGDATA=/var/lib/postgresql/18/docker) and expect the volume at
+# /var/lib/postgresql. Stacks set up on Postgres 16 still hold their data in the
+# legacy volume ${STACK_NAME}_postgres_data — move it over ONCE with
+# ./upgrade-postgres.sh (see README "Postgres major upgrade"). Never bump the
+# postgres major tag on its own: the new server cannot open the old data.
 name: ${STACK_NAME:-bbh}
 
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     restart: unless-stopped
     networks:
       - internal
@@ -28,7 +35,7 @@ services:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
       interval: 10s
@@ -39,8 +46,13 @@ services:
   # Phoenix boots; Phoenix then migrates on top. A missing dump is a clean no-op.
   # Consumed files are renamed to *.restored so a restart never re-restores over
   # live data. See restore-entrypoint.sh.
+  #
+  # The legacy Postgres 16 volume is mounted read-only purely as a tripwire: if it
+  # still holds a cluster while the new database is empty and no dump is queued,
+  # restore fails and Phoenix stays down instead of serving (and migrating) an
+  # empty site. That is what an `up -d` before ./upgrade-postgres.sh looks like.
   restore:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     restart: "no"
     depends_on:
       postgres:
@@ -56,6 +68,7 @@ services:
       - ./restore:/restore
       - ./restore-entrypoint.sh:/restore-entrypoint.sh:ro
       - uploads:/data
+      - postgres_data:/legacy-pgdata:ro
     entrypoint: ["/bin/sh", "/restore-entrypoint.sh"]
 
   phoenix:
@@ -181,5 +194,10 @@ networks:
   internal:
 
 volumes:
+  # Postgres 18+ data (mounted at /var/lib/postgresql).
+  pgdata:
+  # Legacy Postgres 16 data. Only the restore tripwire reads it; it is the
+  # rollback path after ./upgrade-postgres.sh and can be removed once the new
+  # database has proven itself (compose re-creates it empty, which is harmless).
   postgres_data:
   uploads:

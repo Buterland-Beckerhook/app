@@ -9,8 +9,9 @@
 #
 # Sequence across the stack: postgres healthy -> THIS restore -> Phoenix runs
 # bin/migrate (on top of the restored schema) -> server. A missing dump is a
-# clean no-op (exit 0); a failed restore exits non-zero so Phoenix won't start on
-# a half-restored DB (compose: phoenix depends_on restore = completed_successfully).
+# clean no-op (exit 0) — except for the legacy-volume tripwire below; a failed
+# restore exits non-zero so Phoenix won't start on a half-restored DB
+# (compose: phoenix depends_on restore = completed_successfully).
 #
 # Env (from compose): PGHOST, PGUSER, PGPASSWORD, PGDATABASE (=bbh). pg_restore
 # reads PG* automatically.
@@ -18,6 +19,7 @@ set -eu
 
 RESTORE_DIR=/restore
 DATA_DIR=/data
+LEGACY_PGDATA=/legacy-pgdata
 
 # Newest matching file, or empty. Guarded so `set -e` + no-match doesn't abort.
 newest() {
@@ -27,6 +29,22 @@ newest() {
 
 DUMP="$(newest "$RESTORE_DIR"/*.dump)"
 if [ -z "$DUMP" ]; then
+  # Tripwire for the Postgres 16 -> 18 move. The 18 server lives on a new volume,
+  # so a stack updated WITHOUT ./upgrade-postgres.sh boots an empty database while
+  # the real data sits untouched in the legacy volume (mounted read-only here).
+  # Refuse that combination: Phoenix would migrate and serve an empty site.
+  if [ -f "$LEGACY_PGDATA/PG_VERSION" ]; then
+    TABLES="$(psql -XtAc "SELECT count(*) FROM pg_catalog.pg_tables WHERE schemaname = 'public'")"
+    if [ "$TABLES" = "0" ]; then
+      cat >&2 <<EOF
+restore: REFUSING TO START on an empty database.
+restore: The legacy volume still holds a Postgres $(cat "$LEGACY_PGDATA/PG_VERSION") cluster, but the
+restore: new database has no tables and no *.dump is queued in $RESTORE_DIR.
+restore: Run ./upgrade-postgres.sh to carry the data over (README: "Postgres major upgrade").
+EOF
+      exit 1
+    fi
+  fi
   echo "restore: no *.dump in $RESTORE_DIR — nothing to do."
   exit 0
 fi
