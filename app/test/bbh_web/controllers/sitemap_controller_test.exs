@@ -25,7 +25,7 @@ defmodule BbhWeb.SitemapControllerTest do
     page_fixture(slug: "geheim-x7k2", placement: "unlisted", noindex: true)
     page_fixture(slug: "intern", placement: "menu", noindex: true)
     page_fixture(slug: "impressum", placement: "system")
-    page_fixture(slug: "mitglied-werden-intro", placement: "system")
+    page_fixture(slug: "baustein", placement: "system")
 
     body = conn |> get(~p"/sitemap.xml") |> response(200)
 
@@ -34,6 +34,6 @@ defmodule BbhWeb.SitemapControllerTest do
     assert body =~ "/impressum</loc>"
     refute body =~ "geheim-x7k2"
     refute body =~ "/verein/intern"
-    refute body =~ "mitglied-werden-intro"
+    refute body =~ "baustein"
   end
 end
