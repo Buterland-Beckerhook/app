@@ -52,7 +52,7 @@ jobs:
       # Hex package. Node is here purely to run the dependency-free `node --test` suites
       # under assets/js (they were previously only runnable by hand).
       - name: Set up Node
-        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version: "22"
 
@@ -63,7 +63,7 @@ jobs:
           # renovate: datasource=hexpm-bob depName=elixir
           elixir-version: "1.20.4"
           # renovate: datasource=hexpm-bob depName=erlang versioning=semver-coerced
-          otp-version: "29.0.3"
+          otp-version: "29.1.2"
 
       - name: Cache deps and build
         uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
