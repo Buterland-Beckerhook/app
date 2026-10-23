@@ -39,6 +39,20 @@ defmodule BbhWeb.Admin.PushLiveTest do
     assert html =~ "wird gesendet"
   end
 
+  test "can target test devices only", %{conn: conn} do
+    {:ok, lv, html} = live(conn, ~p"/admin/push")
+    assert html =~ "Nur Testgeräte"
+
+    html =
+      lv
+      |> form("#push-send-form",
+        push: %{category: "tester", title: "Test", body: "Probe", url: ""}
+      )
+      |> render_submit()
+
+    assert html =~ "wird gesendet"
+  end
+
   test "rejects an empty title or body", %{conn: conn} do
     {:ok, lv, _html} = live(conn, ~p"/admin/push")
 

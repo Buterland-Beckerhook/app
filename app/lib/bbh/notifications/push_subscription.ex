@@ -15,6 +15,9 @@ defmodule Bbh.Notifications.PushSubscription do
     # System-managed (see Bbh.Notifications.do_send/2), so not cast from params.
     field :error_count, :integer, default: 0
     field :last_error_at, :utc_datetime
+    # Test receiver for admin trial sends. Set only through
+    # `Bbh.Notifications.set_tester/2` (admin route), so not cast from params.
+    field :tester, :boolean, default: false
 
     timestamps()
   end
