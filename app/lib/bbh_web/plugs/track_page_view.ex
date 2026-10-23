@@ -18,7 +18,14 @@ defmodule BbhWeb.Plugs.TrackPageView do
   alias BbhWeb.RateLimit
 
   @skip_prefixes ["/admin", "/users", "/api", "/dev", "/assets", "/images", "/fonts"]
-  @skip_paths ["/favicon.ico", "/robots.txt", "/sw.js", "/manifest.webmanifest"]
+  @skip_paths [
+    "/favicon.ico",
+    "/robots.txt",
+    "/sw.js",
+    "/manifest.webmanifest",
+    "/apple-touch-icon.png",
+    "/apple-touch-icon-precomposed.png"
+  ]
   @ical_feed_paths ["/termine/abo.ics", "/termine/index.ics"]
   @bot_re ~r/bot|crawl|spider|slurp|mediapartners|facebookexternalhit|embedly|preview|scrapy|curl|wget|python-requests|headless|monitor|uptime/i
 

@@ -33,6 +33,9 @@ config :gettext, :default_locale, "de"
 # DST rules, so a non-CET zone also needs matching transition rules in Bbh.ICal.
 config :bbh, :time_zone, "Europe/Berlin"
 
+# Contact published in /.well-known/security.txt (RFC 9116).
+config :bbh, :security_contact, "webmaster@buterland-beckerhook.de"
+
 # Membership-application age thresholds (per the Satzung). These are *soft*: the
 # form only shows a hint and the club e-mail flags an out-of-range entry — nothing
 # is rejected. Overridable at runtime via MEMBERSHIP_MIN_AGE / MEMBERSHIP_MAX_CHILD_AGE.
