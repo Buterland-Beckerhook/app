@@ -136,6 +136,36 @@ defmodule BbhWeb.OAuthControllerTest do
       assert html =~ "Erlauben"
     end
 
+    test "lets the consent form's redirect reach the client (CSP form-action)", %{
+      conn: conn,
+      client: client
+    } do
+      %{conn: conn} = register_and_log_in_user(%{conn: conn})
+      {_verifier, challenge} = pkce()
+
+      conn = get(conn, ~p"/oauth/authorize?#{authorize_params(client, challenge)}")
+      [csp] = get_resp_header(conn, "content-security-policy")
+
+      # @redirect is http://localhost:9999/callback — the origin, with its port.
+      assert String.ends_with?(csp, "form-action 'self' http://localhost:9999")
+      assert csp =~ "script-src 'nonce-"
+    end
+
+    test "an unregistered redirect URI does not widen form-action", %{
+      conn: conn,
+      client: client
+    } do
+      %{conn: conn} = register_and_log_in_user(%{conn: conn})
+      {_verifier, challenge} = pkce()
+      params =
+        authorize_params(client, challenge, %{"redirect_uri" => "https://evil.example/cb"})
+
+      conn = get(conn, ~p"/oauth/authorize?#{params}")
+      [csp] = get_resp_header(conn, "content-security-policy")
+
+      refute csp =~ "evil.example"
+    end
+
     test "refuses to redirect anywhere for an unknown client", %{conn: conn} do
       %{conn: conn} = register_and_log_in_user(%{conn: conn})
 

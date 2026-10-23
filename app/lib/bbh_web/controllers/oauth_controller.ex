@@ -28,7 +28,11 @@ defmodule BbhWeb.OAuthController do
   def new(conn, params) do
     case validate(params) do
       {:ok, ctx} ->
-        render(conn, :new,
+        # The approve/deny POST answers with a redirect to the client; the page's
+        # form-action must allow that hop or Chrome blocks it (see Plugs.CSP).
+        conn
+        |> BbhWeb.Plugs.CSP.allow_form_action(ctx.redirect_uri)
+        |> render(:new,
           client: ctx.client,
           scopes: ctx.scopes,
           params: passthrough(params)
