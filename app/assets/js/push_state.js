@@ -22,7 +22,12 @@ export function pushState({supported, iosNeedsInstall, permission, server}) {
   if (!supported) return {kind: "unsupported"}
   if (permission === "denied") return {kind: "denied"}
   if (server && server.subscribed && server.categories.length > 0) {
-    return {kind: "on", categories: server.categories, tester: !!server.tester}
+    return {
+      kind: "on",
+      categories: server.categories,
+      tester: !!server.tester,
+      label: server.label || "",
+    }
   }
   return {kind: "off"}
 }

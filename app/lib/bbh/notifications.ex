@@ -54,8 +54,14 @@ defmodule Bbh.Notifications do
 
   def valid_push_endpoint?(_), do: false
 
-  @doc "Create or update a subscription (keyed by endpoint)."
-  def subscribe(%{"endpoint" => endpoint} = params) do
+  @doc """
+  Create or update a subscription (keyed by endpoint). `opts[:user_agent]` — the
+  subscribing browser's User-Agent — is reduced to a short device description
+  (`Bbh.Notifications.Device`); the raw header is not stored.
+  """
+  def subscribe(params, opts \\ [])
+
+  def subscribe(%{"endpoint" => endpoint} = params, opts) do
     existing = Repo.get_by(PushSubscription, endpoint: endpoint)
 
     with true <- valid_push_endpoint?(endpoint),
@@ -69,6 +75,7 @@ defmodule Bbh.Notifications do
 
       (existing || %PushSubscription{})
       |> PushSubscription.changeset(attrs)
+      |> put_device(opts[:user_agent])
       |> Repo.insert_or_update()
     else
       false -> {:error, :invalid_endpoint}
@@ -76,7 +83,15 @@ defmodule Bbh.Notifications do
     end
   end
 
-  def subscribe(_params), do: {:error, :invalid_endpoint}
+  def subscribe(_params, _opts), do: {:error, :invalid_endpoint}
+
+  # A re-subscribe without a User-Agent keeps the description already stored.
+  defp put_device(changeset, user_agent) do
+    case Bbh.Notifications.Device.describe(user_agent) do
+      nil -> changeset
+      device -> Ecto.Changeset.put_change(changeset, :device, device)
+    end
+  end
 
   defp within_capacity(nil) do
     if Repo.aggregate(PushSubscription, :count) < @max_subscriptions,
@@ -88,13 +103,13 @@ defmodule Bbh.Notifications do
 
   @doc """
   What the server knows about the subscription for `endpoint`: `{:ok, %{categories:,
-  tester:}}` or `:error` when there is none. Lets a browser show its real state after
+  tester:, label:}}` or `:error` when there is none. Lets a browser show its real state after
   a reload — the endpoint is a secret capability URL, so knowing it is the proof.
   """
   def subscription_status(endpoint) when is_binary(endpoint) do
     case Repo.get_by(PushSubscription, endpoint: endpoint) do
       nil -> :error
-      sub -> {:ok, %{categories: sub.categories, tester: sub.tester}}
+      sub -> {:ok, %{categories: sub.categories, tester: sub.tester, label: sub.label}}
     end
   end
 
@@ -112,6 +127,29 @@ defmodule Bbh.Notifications do
   end
 
   def set_tester(_endpoint, _tester?), do: {:error, :not_found}
+
+  @doc """
+  Name the subscription for `endpoint` (blank clears the name). The endpoint is the
+  proof of possession: only the device itself knows it, so a name always lands on the
+  device it was typed on. Callers must have checked that the current user is an admin.
+  Returns `{:error, :too_long}` beyond `PushSubscription.label_max/0` characters.
+  """
+  def set_label(endpoint, label) when is_binary(endpoint) and is_binary(label) do
+    label = label |> String.trim() |> then(&if(&1 == "", do: nil, else: &1))
+
+    cond do
+      label && String.length(label) > PushSubscription.label_max() ->
+        {:error, :too_long}
+
+      sub = Repo.get_by(PushSubscription, endpoint: endpoint) ->
+        sub |> Ecto.Changeset.change(label: label) |> Repo.update()
+
+      true ->
+        {:error, :not_found}
+    end
+  end
+
+  def set_label(_endpoint, _label), do: {:error, :not_found}
 
   @doc "Remove a subscription by endpoint."
   def unsubscribe(endpoint) do

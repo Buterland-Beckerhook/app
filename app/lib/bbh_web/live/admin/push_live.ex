@@ -20,6 +20,7 @@ defmodule BbhWeb.Admin.PushLive do
      socket
      |> assign(page_title: "Push", categories: @categories)
      |> assign(send_form: to_form(default_send(), as: "push"))
+     |> assign(this_device_id: nil)
      |> load_subscriptions()}
   end
 
@@ -45,6 +46,15 @@ defmodule BbhWeb.Admin.PushLive do
          |> assign(send_form: to_form(default_send(), as: "push"))}
     end
   end
+
+  # From the PushThisDevice hook: the endpoint of the browser viewing this page. Only
+  # compared against the loaded rows, never rendered (endpoints are secret URLs).
+  def handle_event("this_device", %{"endpoint" => endpoint}, socket) when is_binary(endpoint) do
+    id = Enum.find_value(socket.assigns.subscriptions, &(&1.endpoint == endpoint && &1.id))
+    {:noreply, assign(socket, this_device_id: id)}
+  end
+
+  def handle_event("this_device", _params, socket), do: {:noreply, socket}
 
   def handle_event("delete", %{"id" => id}, socket) do
     Notifications.delete_subscription(id)
@@ -75,7 +85,7 @@ defmodule BbhWeb.Admin.PushLive do
         <:subtitle>
           Nachricht an Abonnenten senden und Abos verwalten (nur Administratoren). Ein
           eigenes Gerät wird über „Benachrichtigungen“ im Fußbereich der Website zum
-          Testgerät.
+          Testgerät und bekommt dort einen Namen.
         </:subtitle>
       </.header>
 
@@ -110,8 +120,19 @@ defmodule BbhWeb.Admin.PushLive do
         Abonnements <span class="text-base-content/50">({@sub_count})</span>
       </h2>
 
+      <div id="push-this-device" phx-hook="PushThisDevice"></div>
+
       <.table id="subscriptions" rows={@subscriptions}>
-        <:col :let={s} label="Dienst">{endpoint_host(s.endpoint)}</:col>
+        <:col :let={s} label="Gerät">
+          <span :if={s.label} class="font-medium">{s.label}</span>
+          <span :if={s.id == @this_device_id} class="badge badge-sm badge-success ml-1">
+            Dieses Gerät
+          </span>
+          <span class={["block text-xs", s.label && "text-base-content/60"]}>
+            {s.device || "Unbekanntes Gerät"} · {endpoint_host(s.endpoint)}
+          </span>
+        </:col>
+        <:col :let={s} label="Seit">{Calendar.strftime(s.inserted_at, "%d.%m.%Y")}</:col>
         <:col :let={s} label="Kategorien">
           {if s.categories == [], do: "—", else: Enum.join(s.categories, ", ")}
           <span :if={s.tester} class="badge badge-sm badge-info ml-1">Testgerät</span>

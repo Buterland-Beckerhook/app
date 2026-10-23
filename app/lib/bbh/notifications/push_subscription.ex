@@ -5,6 +5,9 @@ defmodule Bbh.Notifications.PushSubscription do
   @categories ~w(termine news)
   def categories, do: @categories
 
+  @label_max 40
+  def label_max, do: @label_max
+
   schema "push_subscriptions" do
     field :endpoint, :string
     field :keys_p256dh, :string
@@ -18,6 +21,12 @@ defmodule Bbh.Notifications.PushSubscription do
     # Test receiver for admin trial sends. Set only through
     # `Bbh.Notifications.set_tester/2` (admin route), so not cast from params.
     field :tester, :boolean, default: false
+    # Browser/OS summary from the subscribe request (`Bbh.Notifications.Device`).
+    # System-managed, so not cast from params.
+    field :device, :string
+    # Name an admin gives the device from the device itself. Set only through
+    # `Bbh.Notifications.set_label/2` (admin route), so not cast from params.
+    field :label, :string
 
     timestamps()
   end

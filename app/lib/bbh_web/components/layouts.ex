@@ -436,14 +436,25 @@ defmodule BbhWeb.Layouts do
             </label>
           </fieldset>
 
-          <div :if={@admin} class="rounded-box border border-base-300 p-3">
+          <div :if={@admin} class="space-y-3 rounded-box border border-base-300 p-3">
             <label class="flex items-center gap-2">
               <input id="push-tester" type="checkbox" class="checkbox" />
               Dieses Gerät ist ein Testgerät
             </label>
-            <p class="mt-1 text-xs text-base-content/60">
+            <label class="block">
+              <span class="mb-1 block text-sm">Gerätename</span>
+              <input
+                id="push-label"
+                type="text"
+                maxlength={Bbh.Notifications.PushSubscription.label_max()}
+                placeholder="z. B. Roberts iPhone"
+                class="input input-sm w-full"
+              />
+            </label>
+            <p class="text-xs text-base-content/60">
               Nur für Administratoren: Testgeräte erhalten Nachrichten, die unter
-              Admin → Push an „Nur Testgeräte“ gesendet werden.
+              Admin → Push an „Nur Testgeräte“ gesendet werden. Der Gerätename erscheint
+              dort in der Abo-Liste.
             </p>
           </div>
         </div>
