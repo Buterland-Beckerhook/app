@@ -80,7 +80,7 @@ defmodule Bbh.MixProject do
       {:oban, "~> 2.23"},
       # One-time Hugo content import (mix bbh.import).
       {:yaml_elixir, "~> 2.11"},
-      {:mdex, "~> 0.13"},
+      {:mdex, "~> 0.14"},
       {:req, "~> 0.7"},
       {:telemetry_metrics, "~> 1.0"},
       {:telemetry_poller, "~> 1.0"},
