@@ -225,7 +225,9 @@ defmodule BbhWeb.Layouts do
             </a>
           </div>
 
-          <%!-- Mobile menu (daisyUI dropdown, no custom JS) --%>
+          <%!-- Mobile menu (daisyUI dropdown, no custom JS). Capped to the viewport below
+               the sticky header (~5rem) and scrollable on its own; overscroll-contain
+               keeps a swipe at either end from scrolling the page underneath. --%>
           <div class="dropdown dropdown-end md:hidden">
             <button
               tabindex="0"
@@ -236,7 +238,7 @@ defmodule BbhWeb.Layouts do
             </button>
             <ul
               tabindex="0"
-              class="dropdown-content menu z-50 mt-2 w-64 rounded-box border border-base-300 bg-card p-2 shadow-lg"
+              class="dropdown-content menu z-50 mt-2 max-h-[calc(100dvh-6rem)] w-64 flex-nowrap overflow-y-auto overscroll-contain rounded-box border border-base-300 bg-card p-2 shadow-lg"
             >
               <%= for link <- @nav do %>
                 <li>
