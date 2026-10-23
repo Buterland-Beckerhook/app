@@ -62,16 +62,20 @@ defmodule Bbh.Analytics do
   end
 
   @doc """
-  Record one retrieval of the iCal subscription feed. Expects `%{visitor_hash:}`
-  (and optional `:day`, defaulting to today, UTC). Increments the client's daily
-  fetch counter. Best-effort: any error is swallowed.
+  Record one retrieval of the iCal subscription feed. Expects `%{visitor_hash:}`, plus
+  optional `:client` (family key from `Bbh.Analytics.IcalClient`) and `:day`
+  (defaulting to today, UTC). Increments the client's daily fetch counter.
+  Best-effort: any error is swallowed.
   """
   def record_ical(attrs) do
     day = Map.get(attrs, :day, Date.utc_today())
 
     case attrs[:visitor_hash] do
       hash when is_binary(hash) and hash != "" ->
-        Repo.insert(%IcalFetch{day: day, visitor_hash: hash, fetches: 1},
+        # The hash already covers the User-Agent, so a row's client never changes —
+        # only the counter needs updating on conflict.
+        Repo.insert(
+          %IcalFetch{day: day, visitor_hash: hash, fetches: 1, client: attrs[:client]},
           on_conflict: [inc: [fetches: 1]],
           conflict_target: [:day, :visitor_hash]
         )
@@ -110,6 +114,31 @@ defmodule Bbh.Analytics do
       |> Enum.max(fn -> 0 end)
 
     %{fetches: fetches, subscribers: subscribers}
+  end
+
+  @doc """
+  iCal feed retrievals in `[from, to]` broken down by calendar-client family, as
+  `[%{client:, label:, subscribers:, fetches:}]` — `subscribers` is the family's peak
+  daily unique-client count (as in `ical_summary/2`). Sorted by subscribers, then
+  fetches, both descending.
+  """
+  def ical_clients(from, to) do
+    from(f in IcalFetch,
+      where: f.day >= ^from and f.day <= ^to,
+      group_by: [f.client, f.day],
+      select: {f.client, count(f.id), sum(f.fetches)}
+    )
+    |> Repo.all()
+    |> Enum.group_by(&elem(&1, 0))
+    |> Enum.map(fn {client, days} ->
+      %{
+        client: client,
+        label: Bbh.Analytics.IcalClient.label(client),
+        subscribers: days |> Enum.map(&elem(&1, 1)) |> Enum.max(),
+        fetches: days |> Enum.map(&elem(&1, 2)) |> Enum.sum()
+      }
+    end)
+    |> Enum.sort_by(&{&1.subscribers, &1.fetches}, :desc)
   end
 
   @doc "Total page views and rough visits (summed daily uniques) in `[from, to]`."

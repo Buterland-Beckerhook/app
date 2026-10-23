@@ -61,6 +61,30 @@ defmodule Bbh.AnalyticsTest do
     end
   end
 
+  describe "ical_clients/2" do
+    test "breaks retrievals down by client family, busiest first" do
+      yesterday = Date.add(@today, -1)
+
+      Analytics.record_ical(%{visitor_hash: "a", client: "apple", day: @today})
+      Analytics.record_ical(%{visitor_hash: "a", client: "apple", day: @today})
+      Analytics.record_ical(%{visitor_hash: "b", client: "apple", day: @today})
+      Analytics.record_ical(%{visitor_hash: "c", client: "google", day: yesterday})
+      Analytics.record_ical(%{visitor_hash: "d", client: "google", day: @today})
+
+      assert [
+               %{client: "apple", label: "Apple Kalender", subscribers: 2, fetches: 3},
+               %{client: "google", label: "Google Kalender", subscribers: 1, fetches: 2}
+             ] = Analytics.ical_clients(yesterday, @today)
+    end
+
+    test "rows without a client are listed as Unbekannt" do
+      Analytics.record_ical(%{visitor_hash: "a", day: @today})
+
+      assert [%{client: nil, label: "Unbekannt", subscribers: 1, fetches: 1}] =
+               Analytics.ical_clients(@today, @today)
+    end
+  end
+
   describe "time-series" do
     test "views_by_day gap-fills the whole range oldest-first" do
       yesterday = Date.add(@today, -1)

@@ -69,4 +69,16 @@ defmodule BbhWeb.Admin.DashboardLiveTest do
     # Let the dashboard's async assigns finish before teardown (see above).
     render_async(lv, 2000)
   end
+
+  test "lists iCal subscriptions by calendar app", %{conn: conn} do
+    Bbh.Analytics.record_ical(%{visitor_hash: "a", client: "apple"})
+    Bbh.Analytics.record_ical(%{visitor_hash: "b", client: "google"})
+
+    {:ok, lv, _html} = live(conn, ~p"/admin")
+    html = render_async(lv, 2000)
+
+    assert html =~ "iCal-Abos nach Kalender-App"
+    assert html =~ "Apple Kalender"
+    assert html =~ "Google Kalender"
+  end
 end
