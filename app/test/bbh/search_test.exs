@@ -66,6 +66,22 @@ defmodule Bbh.SearchTest do
       result = Search.search("Gründungsversammlung")
       assert "/verein/chronik" in urls(result)
     end
+
+    test "indexes unlisted pages under /seite and skips noindex pages" do
+      for {slug, attrs} <- [
+            {"anfahrt", %{placement: "unlisted"}},
+            {"geheim", %{placement: "unlisted", noindex: true}},
+            {"intern", %{placement: "menu", noindex: true}}
+          ] do
+        page = page_fixture(Map.merge(%{title: "Seite #{slug}", slug: slug}, attrs))
+        {:ok, pb} = Content.add_block(page, "richtext")
+        {:ok, _} = Content.update_block(pb, %{body: "<p>Schützenwiese am Waldrand</p>"})
+      end
+
+      Search.reindex_all()
+
+      assert urls(Search.search("Schützenwiese")) == ["/seite/anfahrt"]
+    end
   end
 
   describe "search/3 querying" do

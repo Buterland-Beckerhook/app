@@ -186,9 +186,12 @@ defmodule Bbh.Search do
     end)
   end
 
-  # Publicly reachable pages: the menu-reachable /verein/* tree plus the two
-  # legal pages that have their own top-level routes.
-  defp page_docs, do: menu_docs() ++ legal_docs()
+  # Publicly reachable pages: the menu-reachable /verein/* tree, the two legal
+  # pages with their own top-level routes, and unlisted /seite/* pages. Pages
+  # marked `noindex` stay out (their children are still indexed).
+  defp page_docs do
+    Enum.reject(menu_docs() ++ legal_docs() ++ unlisted_docs(), &is_nil/1)
+  end
 
   defp menu_docs do
     Content.list_menu_pages()
@@ -204,12 +207,18 @@ defmodule Bbh.Search do
     [page_doc(page, path) | children]
   end
 
+  defp unlisted_docs do
+    Enum.map(Content.list_unlisted_pages(), &page_doc(&1, "/seite/" <> &1.slug))
+  end
+
   defp legal_docs do
     ~w(impressum datenschutz)
     |> Enum.map(fn slug -> {slug, Repo.get_by(Page, slug: slug, status: "published")} end)
     |> Enum.filter(fn {_slug, page} -> page end)
     |> Enum.map(fn {slug, page} -> page_doc(page, "/" <> slug) end)
   end
+
+  defp page_doc(%Page{noindex: true}, _path), do: nil
 
   defp page_doc(page, path) do
     %{
