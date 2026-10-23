@@ -20,12 +20,18 @@ defmodule BbhWeb.Router do
     plug :accepts, ["json"]
   end
 
-  # Only for the final catch-all below. Deliberately lean: no session, no CSRF, no
-  # page-view tracking and no `accepts` (a bot asking for JSON still gets a 404, not a
-  # 406). No TrailingSlash either — BbhWeb.Redirector normalizes the path itself, so an
-  # old "/foo/" URL is redirected in one hop instead of two.
+  # Only for the final catch-all below. Like :browser minus what a 404 does not need:
+  # no CSRF check (GET only), no page-view tracking and no `accepts` (a bot asking for
+  # JSON still gets a 404, not a 406). No TrailingSlash either — BbhWeb.Redirector
+  # normalizes the path itself, so an old "/foo/" URL is redirected in one hop. Session,
+  # scope, root layout and CSP stay: the 404 page renders in the full site layout.
   pipeline :not_found do
+    plug :fetch_session
+    plug :fetch_live_flash
+    plug :put_root_layout, html: {BbhWeb.Layouts, :root}
     plug :put_secure_browser_headers
+    plug BbhWeb.Plugs.CSP
+    plug :fetch_current_scope_for_user
   end
 
   # The MCP endpoint. Deliberately not `:browser`: it must not touch the session, the

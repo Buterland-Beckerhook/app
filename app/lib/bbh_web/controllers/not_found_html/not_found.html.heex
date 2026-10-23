@@ -1,0 +1,58 @@
+<Layouts.app flash={@flash} current_scope={@current_scope} current_path={@conn.request_path}>
+  <div id="not-found" class="mx-auto max-w-2xl py-8 sm:py-14">
+    <p class="font-logo text-6xl text-primary sm:text-7xl" aria-hidden="true">404</p>
+    <h1 class="mt-3 text-3xl font-semibold">Seite nicht gefunden</h1>
+    <p class="mt-3 text-muted">
+      Unter <span class="font-mono text-sm break-all text-base-content">{@conn.request_path}</span>
+      gibt es keine Seite – vielleicht ist der Link veraltet oder die Adresse vertippt.
+      Mit der Suche oder über die Bereiche unten finden Sie bestimmt, was Sie suchen.
+    </p>
+
+    <form
+      id="not-found-search"
+      method="get"
+      action={~p"/suche"}
+      role="search"
+      class="mt-8 flex gap-2"
+    >
+      <label for="not-found-q" class="sr-only">Suchbegriff</label>
+      <div class="relative flex-1">
+        <.icon
+          name="hero-magnifying-glass"
+          class="pointer-events-none absolute top-1/2 left-3 size-5 -translate-y-1/2 text-muted"
+        />
+        <input
+          type="search"
+          name="q"
+          id="not-found-q"
+          value={@query}
+          placeholder="Suchen…"
+          class="w-full rounded-lg border border-base-300 bg-card py-2.5 pr-3 pl-10 text-base-content focus:border-primary focus:outline-none"
+        />
+      </div>
+      <button
+        type="submit"
+        class="rounded-lg bg-primary px-5 py-2.5 font-medium text-primary-content transition-opacity hover:opacity-90"
+      >
+        Suchen
+      </button>
+    </form>
+
+    <nav id="not-found-links" aria-label="Bereiche" class="mt-10 grid gap-3 sm:grid-cols-2">
+      <a
+        :for={{href, title, text} <- @links}
+        href={href}
+        class="group rounded-lg border border-base-300 p-4 transition-colors hover:border-primary"
+      >
+        <span class="flex items-center justify-between font-medium group-hover:text-primary">
+          {title}
+          <.icon
+            name="hero-arrow-right-mini"
+            class="size-4 transition-transform group-hover:translate-x-0.5"
+          />
+        </span>
+        <span class="mt-1 block text-sm text-muted">{text}</span>
+      </a>
+    </nav>
+  </div>
+</Layouts.app>

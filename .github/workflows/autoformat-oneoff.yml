@@ -1,0 +1,32 @@
+# TEMPORARY — removed again in the next commit of this branch.
+# The session that prepared this branch cannot reach hex.pm and therefore cannot run
+# `mix format` (the HEEx formatter plugin is a dependency); it runs here instead.
+name: One-off mix format
+on:
+  push:
+    branches: [feat/not-found-page]
+    paths: [.github/workflows/autoformat-oneoff.yml]
+permissions:
+  contents: write
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          elixir-version: "1.20.2"
+          otp-version: "29.0.3"
+      - run: mix deps.get
+      - run: mix format
+      - run: git diff --stat
+      - name: Commit if changed
+        run: |
+          git diff --quiet && exit 0
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "style: mix format"
+          git push
