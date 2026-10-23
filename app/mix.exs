@@ -73,7 +73,7 @@ defmodule Bbh.MixProject do
        depth: 1},
       {:swoosh, "~> 1.16"},
       {:gen_smtp, "~> 1.2"},
-      {:image, "~> 0.54"},
+      {:image, "~> 0.72"},
       {:nimble_totp, "~> 1.0"},
       {:eqrcode, "~> 0.2"},
       {:web_push_elixir, "~> 0.4"},
@@ -81,7 +81,7 @@ defmodule Bbh.MixProject do
       # One-time Hugo content import (mix bbh.import).
       {:yaml_elixir, "~> 2.11"},
       {:mdex, "~> 0.13"},
-      {:req, "~> 0.5"},
+      {:req, "~> 0.7"},
       {:telemetry_metrics, "~> 1.0"},
       {:telemetry_poller, "~> 1.0"},
       {:gettext, "~> 1.0"},
