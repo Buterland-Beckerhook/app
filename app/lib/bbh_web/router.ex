@@ -20,6 +20,17 @@ defmodule BbhWeb.Router do
     plug :accepts, ["json"]
   end
 
+  # Session-backed JSON for fetch() calls from the site's own pages: carries the
+  # session and CSRF protection of :browser (the caller sends the csrf-token meta
+  # value as x-csrf-token) but negotiates JSON and renders no layout.
+  pipeline :browser_json do
+    plug :accepts, ["json"]
+    plug :fetch_session
+    plug :protect_from_forgery
+    plug :put_secure_browser_headers
+    plug :fetch_current_scope_for_user
+  end
+
   # Only for the final catch-all below. Like :browser minus what a 404 does not need:
   # no page-view tracking and no `accepts` (a bot asking for JSON still gets a 404, not
   # a 406). No TrailingSlash either — BbhWeb.Redirector normalizes the path itself, so
@@ -67,6 +78,15 @@ defmodule BbhWeb.Router do
     post "/oauth/token", OAuthController, :token
   end
 
+  # Admin-only: flag the current browser's push subscription as a test receiver.
+  scope "/push", BbhWeb do
+    # Authorization (admin) is checked in the controller, which answers 403 in JSON
+    # instead of the login redirect :require_authenticated_user would send.
+    pipe_through :browser_json
+
+    post "/tester", PushTesterController, :update
+  end
+
   # Consent. On the browser pipeline on purpose: the site's own login (magic link or
   # passkey, plus TOTP) is the OAuth login. See docs/adr/0010-mcp-oauth.md.
   scope "/oauth", BbhWeb do
@@ -96,6 +116,8 @@ defmodule BbhWeb.Router do
 
     post "/push/subscribe", PushController, :subscribe
     post "/push/unsubscribe", PushController, :unsubscribe
+    # POST, not GET: the endpoint is a secret URL and must not land in access logs.
+    post "/push/status", PushController, :status
 
     # IBAN → BIC/Kreditinstitut for the membership form's live auto-fill.
     get "/blz", BlzController, :show

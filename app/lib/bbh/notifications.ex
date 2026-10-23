@@ -86,6 +86,33 @@ defmodule Bbh.Notifications do
 
   defp within_capacity(_existing), do: :ok
 
+  @doc """
+  What the server knows about the subscription for `endpoint`: `{:ok, %{categories:,
+  tester:}}` or `:error` when there is none. Lets a browser show its real state after
+  a reload — the endpoint is a secret capability URL, so knowing it is the proof.
+  """
+  def subscription_status(endpoint) when is_binary(endpoint) do
+    case Repo.get_by(PushSubscription, endpoint: endpoint) do
+      nil -> :error
+      sub -> {:ok, %{categories: sub.categories, tester: sub.tester}}
+    end
+  end
+
+  def subscription_status(_), do: :error
+
+  @doc """
+  Flag (or unflag) the subscription for `endpoint` as a test receiver. Callers must
+  have checked that the current user is an admin.
+  """
+  def set_tester(endpoint, tester?) when is_binary(endpoint) and is_boolean(tester?) do
+    case Repo.get_by(PushSubscription, endpoint: endpoint) do
+      nil -> {:error, :not_found}
+      sub -> sub |> Ecto.Changeset.change(tester: tester?) |> Repo.update()
+    end
+  end
+
+  def set_tester(_endpoint, _tester?), do: {:error, :not_found}
+
   @doc "Remove a subscription by endpoint."
   def unsubscribe(endpoint) do
     Repo.delete_all(from s in PushSubscription, where: s.endpoint == ^endpoint)
@@ -110,13 +137,17 @@ defmodule Bbh.Notifications do
 
   @doc """
   Send an ad-hoc push composed by an admin. `category` is `"termine"`, `"news"`,
-  or `"all"` (every subscription, regardless of category). `payload` is a map with
-  `title`, `body`, and `url`.
+  `"all"` (every subscription, regardless of category) or `"tester"` (only devices
+  flagged as test receivers). `payload` is a map with `title`, `body`, and `url`.
   """
   def send_manual(category, %{} = payload) when category in @categories,
     do: notify(category, payload)
 
   def send_manual("all", %{} = payload), do: notify_all(payload)
+
+  def send_manual("tester", %{} = payload),
+    do: send_to(from(s in PushSubscription, where: s.tester), payload)
+
   def send_manual(_category, _payload), do: {:error, :invalid_category}
 
   @doc """

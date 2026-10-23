@@ -7,7 +7,12 @@ defmodule BbhWeb.Admin.PushLive do
 
   alias Bbh.Notifications
 
-  @categories [{"Termine", "termine"}, {"News", "news"}, {"Alle Abonnenten", "all"}]
+  @categories [
+    {"Termine", "termine"},
+    {"News", "news"},
+    {"Alle Abonnenten", "all"},
+    {"Nur Testgeräte", "tester"}
+  ]
 
   @impl true
   def mount(_params, _session, socket) do
@@ -68,7 +73,9 @@ defmodule BbhWeb.Admin.PushLive do
       <.header>
         Push
         <:subtitle>
-          Nachricht an Abonnenten senden und Abos verwalten (nur Administratoren).
+          Nachricht an Abonnenten senden und Abos verwalten (nur Administratoren). Ein
+          eigenes Gerät wird über „Benachrichtigungen“ im Fußbereich der Website zum
+          Testgerät.
         </:subtitle>
       </.header>
 
@@ -107,6 +114,7 @@ defmodule BbhWeb.Admin.PushLive do
         <:col :let={s} label="Dienst">{endpoint_host(s.endpoint)}</:col>
         <:col :let={s} label="Kategorien">
           {if s.categories == [], do: "—", else: Enum.join(s.categories, ", ")}
+          <span :if={s.tester} class="badge badge-sm badge-info ml-1">Testgerät</span>
         </:col>
         <:col :let={s} label="Zuletzt genutzt">
           {if s.last_used, do: Calendar.strftime(s.last_used, "%d.%m.%Y %H:%M"), else: "—"}

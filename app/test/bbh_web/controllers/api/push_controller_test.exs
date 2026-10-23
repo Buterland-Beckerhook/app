@@ -54,4 +54,43 @@ defmodule BbhWeb.Api.PushControllerTest do
       assert json_response(conn, 400) == %{"ok" => false}
     end
   end
+
+  describe "POST /api/push/status" do
+    test "reports a known subscription", %{conn: conn} do
+      {:ok, _} =
+        Notifications.subscribe(%{
+          "endpoint" => "https://fcm.googleapis.com/fcm/send/st",
+          "keys" => %{"p256dh" => "pk", "auth" => "ak"},
+          "categories" => ["news"]
+        })
+
+      conn =
+        conn
+        |> json_conn()
+        |> post(
+          ~p"/api/push/status",
+          Jason.encode!(%{"endpoint" => "https://fcm.googleapis.com/fcm/send/st"})
+        )
+
+      assert json_response(conn, 200) == %{
+               "subscribed" => true,
+               "categories" => ["news"],
+               "tester" => false
+             }
+    end
+
+    test "reports an unknown endpoint as not subscribed", %{conn: conn} do
+      conn =
+        conn
+        |> json_conn()
+        |> post(~p"/api/push/status", Jason.encode!(%{"endpoint" => "https://x.example/y"}))
+
+      assert json_response(conn, 200) == %{"subscribed" => false}
+    end
+
+    test "returns 400 without an endpoint", %{conn: conn} do
+      conn = conn |> json_conn() |> post(~p"/api/push/status", Jason.encode!(%{}))
+      assert json_response(conn, 400) == %{"ok" => false}
+    end
+  end
 end

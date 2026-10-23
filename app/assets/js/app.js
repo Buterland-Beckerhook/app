@@ -41,6 +41,8 @@ import "./mail.js"
 
 // Grows the membership form's "Kinder unter 15 Jahren" rows on demand.
 import "./membership.js"
+// Web Push: opt-in banner, footer link and settings dialog.
+import "./push.js"
 // Gallery block in "Diashow" layout: index arithmetic for the controller further down.
 import {step, nearestSlide} from "./slideshow.js"
 // URL slug generation from a title — mirrors Mix.Tasks.Bbh.Import.slugify/1.
@@ -1027,86 +1029,6 @@ document.addEventListener("click", (e) => {
   const el = e.target.closest("input[data-select-on-click]")
   if (el) el.select()
 })
-
-// --- Web Push opt-in (public pages, plain JS — no LiveView required) ---
-function urlBase64ToUint8Array(base64String) {
-  const padding = "=".repeat((4 - (base64String.length % 4)) % 4)
-  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/")
-  const raw = atob(base64)
-  return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)))
-}
-
-async function subscribePush(btn) {
-  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-    alert("Push-Benachrichtigungen werden von diesem Browser nicht unterstützt.")
-    return
-  }
-  const key = document.querySelector("meta[name='vapid-public-key']")?.getAttribute("content")
-  if (!key) return
-  try {
-    const reg = await navigator.serviceWorker.register("/sw.js")
-    if ((await Notification.requestPermission()) !== "granted") return
-    const sub = await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(key),
-    })
-    await fetch("/api/push/subscribe", {
-      method: "POST",
-      headers: {"content-type": "application/json"},
-      body: JSON.stringify({...sub.toJSON(), categories: ["termine", "news"]}),
-    })
-    if (btn) { btn.textContent = "Benachrichtigungen aktiv ✓"; btn.disabled = true }
-  } catch (e) {
-    console.error("Push subscription failed", e)
-  }
-}
-
-const pushBtn = document.getElementById("push-optin")
-if (pushBtn) pushBtn.addEventListener("click", () => subscribePush(pushBtn))
-
-// First-visit push opt-in banner. The decision (enabled/dismissed) is stored in
-// a cookie so the banner is shown at most once until the user clears it.
-const PUSH_COOKIE = "push_prompt"
-function pushCookie() {
-  return document.cookie.split("; ").find((c) => c.startsWith(PUSH_COOKIE + "="))
-}
-function rememberPushChoice(value) {
-  const oneYear = 60 * 60 * 24 * 365
-  document.cookie = `${PUSH_COOKIE}=${value};path=/;max-age=${oneYear};samesite=lax`
-}
-
-const pushBanner = document.getElementById("push-banner")
-if (pushBanner && !pushCookie()) {
-  const isStandalone =
-    window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true
-  const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent)
-  const pushSupported = "serviceWorker" in navigator && "PushManager" in window
-  const enableBtn = document.getElementById("push-banner-enable")
-  const dismissBtn = document.getElementById("push-banner-dismiss")
-
-  if (pushSupported && !(isIos && !isStandalone)) {
-    // Push works in this browser — offer to turn it on.
-    enableBtn?.addEventListener("click", async () => {
-      await subscribePush()
-      rememberPushChoice("enabled")
-      pushBanner.hidden = true
-    })
-    pushBanner.hidden = false
-  } else if (isIos && !isStandalone) {
-    // iOS only delivers push to an installed PWA — show the add-to-home hint.
-    const text = document.getElementById("push-banner-text")
-    if (text)
-      text.textContent =
-        'Für Benachrichtigungen: unten im Teilen-Menü „Zum Home-Bildschirm" wählen.'
-    enableBtn?.remove()
-    pushBanner.hidden = false
-  }
-
-  dismissBtn?.addEventListener("click", () => {
-    rememberPushChoice("dismissed")
-    pushBanner.hidden = true
-  })
-}
 
 // The lines below enable quality of life phoenix_live_reload
 // development features:
