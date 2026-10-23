@@ -86,7 +86,7 @@ defmodule Bbh.MixProject do
       {:telemetry_poller, "~> 1.0"},
       {:gettext, "~> 1.0"},
       {:jason, "~> 1.2"},
-      {:dns_cluster, "~> 0.2.0"},
+      {:dns_cluster, "~> 0.3.0"},
       {:bandit, "~> 1.5"},
       # Time-zone database (pure Elixir) so DateTime conversions honour the
       # configured zone — see Bbh.Time and config :elixir, :time_zone_database.
