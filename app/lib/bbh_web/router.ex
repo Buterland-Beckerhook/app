@@ -53,6 +53,12 @@ defmodule BbhWeb.Router do
   # which `accepts ["html"]` answers with 406, so the subscription fails. No session,
   # CSRF, layout or CSP either — a feed needs none of them. Page-view tracking stays:
   # it counts subscription-feed retrievals.
+  # Plain-text well-known files (security.txt). No `accepts`, session or CSP — just the
+  # standard security headers.
+  pipeline :well_known do
+    plug :put_secure_browser_headers
+  end
+
   pipeline :ical do
     plug :put_secure_browser_headers
     plug BbhWeb.Plugs.TrackPageView
@@ -131,6 +137,12 @@ defmodule BbhWeb.Router do
 
     # IBAN → BIC/Kreditinstitut for the membership form's live auto-fill.
     get "/blz", BlzController, :show
+  end
+
+  scope "/.well-known", BbhWeb do
+    pipe_through :well_known
+
+    get "/security.txt", WellKnownController, :security_txt
   end
 
   scope "/", BbhWeb do
