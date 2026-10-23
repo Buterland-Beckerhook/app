@@ -174,6 +174,30 @@ Run `./setup.sh --prod` for its own `.env`. Prod defaults differ from Beta:
 Beta and Prod run on the same Traefik — so they use **different `TRAEFIK_NAME`s**
 (`bb-beta` vs. `bb`), otherwise router/middleware names collide.
 
+## Syncing Prod data to Beta
+
+`deploy/sync-data.sh` copies the database **and** the uploads of one stack into another
+on the same host — typically to test a new feature on Beta against current Prod content:
+
+```sh
+./sync-data.sh --from /path/to/prod/deploy --to /path/to/beta/deploy
+```
+
+- Prod keeps running (`pg_dump` reads one consistent snapshot); only Beta's Phoenix is
+  stopped while its DB is dropped, restored (single transaction) and its uploads volume
+  replaced. Beta then boots and migrates on top, so a Beta image with newer migrations
+  just applies them.
+- Before overwriting, a safety dump of the target goes to `<target>/backups/`
+  (last 5 kept).
+- **Sanitized on the target:** `push_subscriptions` (a test publish must never reach
+  real subscribers), `users_tokens`, `api_tokens`, `oauth_*` and `oban_*` (queued pushes
+  and reminders) are emptied. Users, content, media and settings are kept.
+- Log in on Beta afterwards via **magic link** — passkeys are bound to the host name and
+  do not carry over. An MCP client connected to Beta must re-authorize.
+- Guards: refuses identical stacks and any target whose `PHX_HOST` is not `beta.*`
+  unless `--allow-prod-target` is given; asks you to type the target host (`--yes` skips
+  that, e.g. for cron). `--no-uploads` syncs the DB only.
+
 ## Backups
 
 `deploy/backup.sh` — nightly `pg_dump` + uploads, offsite via Borg (cron as root). To

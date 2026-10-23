@@ -268,6 +268,8 @@ dist
 # Keep the directory, never commit its (large, data-bearing) contents.
 /deploy/restore/*
 !/deploy/restore/.gitkeep
+# Safety dumps written by deploy/sync-data.sh
+/deploy/backups/
 
 # KDE directory preferences
 .directory
