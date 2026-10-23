@@ -20,6 +20,14 @@ defmodule BbhWeb.Router do
     plug :accepts, ["json"]
   end
 
+  # Only for the final catch-all below. Deliberately lean: no session, no CSRF, no
+  # page-view tracking and no `accepts` (a bot asking for JSON still gets a 404, not a
+  # 406). No TrailingSlash either — BbhWeb.Redirector normalizes the path itself, so an
+  # old "/foo/" URL is redirected in one hop instead of two.
+  pipeline :not_found do
+    plug :put_secure_browser_headers
+  end
+
   # The MCP endpoint. Deliberately not `:browser`: it must not touch the session, the
   # CSRF token or the page-view tracker, and its only credential is a bearer token.
   pipeline :mcp do
@@ -188,6 +196,11 @@ defmodule BbhWeb.Router do
       live "/benutzer", UserLive.Index, :index
       live "/website", SiteSettingsLive, :index
       live "/push", PushLive, :index
+
+      # Site-wide effect (a rule can send any old URL anywhere), hence admin-only.
+      live "/weiterleitungen", RedirectLive.Index, :index
+      live "/weiterleitungen/neu", RedirectLive.Form, :new
+      live "/weiterleitungen/:id/bearbeiten", RedirectLive.Form, :edit
     end
 
     # Account settings — shown as a modal over the admin chrome. One live_session
@@ -229,5 +242,16 @@ defmodule BbhWeb.Router do
     # TOTP second-factor challenge (pending login held in the session).
     get "/users/totp", TotpController, :new
     post "/users/totp", TotpController, :create
+  end
+
+  ## Catch-all — MUST stay the last scope
+
+  # Any GET no route above claimed. Before this existed such requests raised
+  # NoRouteError; now they go through BbhWeb.Redirector, which serves editor-managed
+  # redirects and old Hugo URLs, and logs real misses for /admin/weiterleitungen.
+  scope "/", BbhWeb do
+    pipe_through :not_found
+
+    get "/*path", NotFoundController, :show
   end
 end

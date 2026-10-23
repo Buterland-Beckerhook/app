@@ -140,6 +140,22 @@ What not to break in the OAuth half:
   `invalid_grant`; authorize-time errors redirect to the client *except* an unknown client
   or an unregistered redirect URI, which must render locally.
 
+## Redirects & the 404 path
+
+Every "not found" ends in `BbhWeb.Redirector.not_found/1` — a GET no route claims (the
+router's **final** catch-all `get "/*path"`, which must stay the last scope) and every
+`ControllerHelpers.not_found/1`. Only there are redirects looked up, so a rule can never
+shadow a live page and normal requests never pay for a lookup. See
+`docs/adr/0011-redirects-on-the-404-path.md`.
+
+- **Rules** (`redirects`, admin-only at `/admin/weiterleitungen`) win over **legacy**
+  Hugo mappings (`Bbh.Redirects.Legacy`, computed from current content — don't seed a
+  table for them). Paths are compared normalized (`Bbh.Redirects.normalize_path/1`).
+- Write rules through `Bbh.Redirects` only — it refreshes the `:persistent_term` cache.
+- Misses land in the 404 log (`not_found_paths`). Anything whose path carries a secret
+  must be in `BbhWeb.Redirector`'s skip list.
+- A new controller that 404s must call `not_found/1`, not render the error itself.
+
 ## Data snapshots — seeding & restore
 
 There is no hand-written sample seed; dev data is a **real snapshot**.

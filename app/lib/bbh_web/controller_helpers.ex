@@ -1,16 +1,13 @@
 defmodule BbhWeb.ControllerHelpers do
   @moduledoc "Small shared helpers for public controllers."
   import Plug.Conn
-  import Phoenix.Controller
 
-  @doc "Render the 404 page and halt."
-  def not_found(conn) do
-    conn
-    |> put_status(:not_found)
-    |> put_view(BbhWeb.ErrorHTML)
-    |> render(:"404")
-    |> halt()
-  end
+  @doc """
+  The 404 path for a record that does not exist: redirects when a rule or legacy
+  mapping applies, otherwise logs the path and renders the 404 page (halted). See
+  `BbhWeb.Redirector`.
+  """
+  defdelegate not_found(conn), to: BbhWeb.Redirector
 
   @doc "Parse the German `?seite=` page param into a positive integer, default 1."
   def page_param(params) do
