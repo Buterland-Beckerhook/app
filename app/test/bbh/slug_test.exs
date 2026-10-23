@@ -39,4 +39,24 @@ defmodule Bbh.SlugTest do
       assert Slug.slugify(slug) == slug
     end
   end
+
+  describe "validate/2" do
+    defp slug_changeset(slug) do
+      {%{}, %{slug: :string}}
+      |> Ecto.Changeset.cast(%{slug: slug}, [:slug])
+      |> Slug.validate()
+    end
+
+    test "accepts slugified and legacy underscore slugs" do
+      for slug <- ["schuetzenfest-2026", "a", "2026", "pokal_und-preise"] do
+        assert slug_changeset(slug).valid?, slug
+      end
+    end
+
+    test "refuses anything that would need escaping in a URL, feed or XML" do
+      for slug <- ["A-b", "a&b", "<x>", "a/b", "a b", "-a", "_a", "ümlaut", "a?b", "a\nb"] do
+        refute slug_changeset(slug).valid?, inspect(slug)
+      end
+    end
+  end
 end

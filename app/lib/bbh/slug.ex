@@ -25,4 +25,17 @@ defmodule Bbh.Slug do
     |> String.replace(~r/[^a-z0-9]+/, "-")
     |> String.trim("-")
   end
+
+  @format ~r/\A[a-z0-9][a-z0-9_-]*\z/
+
+  @doc """
+  Validates that `field` is a URL-safe slug: lowercase ASCII letters, digits, `-` and
+  `_`, starting with a letter or digit. Slugs land in URLs, iCal feeds and the sitemap,
+  so anything else is refused when it is saved rather than escaped everywhere later.
+  """
+  def validate(%Ecto.Changeset{} = changeset, field \\ :slug) do
+    Ecto.Changeset.validate_format(changeset, field, @format,
+      message: "darf nur Kleinbuchstaben (a–z), Ziffern, - und _ enthalten"
+    )
+  end
 end

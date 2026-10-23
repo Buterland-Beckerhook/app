@@ -46,6 +46,7 @@ defmodule Bbh.Content.Page do
     page
     |> cast(attrs, [:status, :title, :slug, :sort_order, :placement, :noindex, :parent_id])
     |> validate_required([:status, :title, :slug, :placement])
+    |> Bbh.Slug.validate()
     |> validate_inclusion(:status, @statuses)
     |> validate_inclusion(:placement, @placements)
     |> validate_not_self_parent()

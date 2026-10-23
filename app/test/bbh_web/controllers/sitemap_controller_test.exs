@@ -3,6 +3,7 @@ defmodule BbhWeb.SitemapControllerTest do
 
   import Bbh.ContentFixtures
   import Bbh.CalendarFixtures
+  import Ecto.Query, only: [from: 2]
 
   test "GET /sitemap.xml returns XML with static, article and event URLs", %{conn: conn} do
     article = article_fixture()
@@ -35,5 +36,21 @@ defmodule BbhWeb.SitemapControllerTest do
     refute body =~ "geheim-x7k2"
     refute body =~ "/verein/intern"
     refute body =~ "baustein"
+  end
+
+  test "XML-escapes locations, even for a slug saved before validation existed", %{
+    conn: conn
+  } do
+    article = article_fixture()
+
+    Bbh.Repo.update_all(
+      from(a in Bbh.Content.Article, where: a.id == ^article.id),
+      set: [slug: "a&b<x>"]
+    )
+
+    body = conn |> get(~p"/sitemap.xml") |> response(200)
+
+    assert body =~ "/aktuell/#{article.year}/a&amp;b&lt;x&gt;</loc>"
+    refute body =~ "a&b<x>"
   end
 end

@@ -295,8 +295,7 @@ defmodule BbhWeb.Admin.SettingsLive do
       qr =
         secret
         |> then(&Accounts.totp_uri(user, &1))
-        |> EQRCode.encode()
-        |> EQRCode.svg(width: 200)
+        |> BbhWeb.Format.qr_code(200)
 
       assign(socket,
         page_title: "Zwei-Faktor",
@@ -550,7 +549,7 @@ defmodule BbhWeb.Admin.SettingsLive do
           Scanne den QR-Code mit einer Authenticator-App (z. B. Aegis, Google Authenticator)
           und gib anschließend den angezeigten Code ein.
         </p>
-        <div class="w-fit rounded bg-white p-4">{Phoenix.HTML.raw(@qr)}</div>
+        <div class="w-fit rounded bg-white p-4">{@qr}</div>
         <p class="text-xs break-all text-base-content/60">
           Manuell:
           <span id="totp-secret" class="font-mono">{Base.encode32(@secret, padding: false)}</span>

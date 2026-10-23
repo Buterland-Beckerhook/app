@@ -96,4 +96,17 @@ defmodule BbhWeb.PageControllerTest do
              })
     end
   end
+
+  test "renders the home notice as (sanitized) HTML", %{conn: conn} do
+    {:ok, _} =
+      Bbh.Settings.update(%{
+        "home_notice_enabled" => true,
+        "home_notice_text" => "<p><strong>Achtung</strong></p><script>alert(1)</script>"
+      })
+
+    html = conn |> get(~p"/") |> html_response(200)
+
+    assert html =~ "<strong>Achtung</strong>"
+    refute html =~ "<script>alert"
+  end
 end
