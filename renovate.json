@@ -35,6 +35,21 @@
       "addLabels": ["major"]
     },
     {
+      "description": "Postgres image: one PR across dev, deploy and CI",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["postgres"],
+      "groupName": "postgres"
+    },
+    {
+      "description": "A Postgres major bump needs a data migration, not a tag change",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["postgres"],
+      "matchUpdateTypes": ["major"],
+      "prBodyNotes": [
+        "⚠️ **Postgres major upgrade.** Changing the tag alone does not migrate the data: the new server refuses to start on the old cluster. Plan the move first (see `docs/adr/0012-postgres-major-upgrade-by-dump-and-restore.md`); `deploy/upgrade-postgres.sh` only covers 16 → 18."
+      ]
+    },
+    {
       "description": "Group GitHub Actions digest bumps into one PR",
       "matchManagers": ["github-actions"],
       "groupName": "github-actions"

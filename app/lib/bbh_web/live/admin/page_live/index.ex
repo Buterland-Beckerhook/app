@@ -54,6 +54,13 @@ defmodule BbhWeb.Admin.PageLive.Index do
           <span class="font-medium" style={"padding-left: #{p.depth * 1.25}rem"}>
             <span :if={p.depth > 0} class="text-base-content/40">└ </span>{p.title}
           </span>
+          <span :if={p.placement == "unlisted"} class="badge badge-sm badge-ghost ml-2">
+            Nur per Link
+          </span>
+          <span :if={p.placement == "system"} class="badge badge-sm badge-ghost ml-2">
+            Sonderseite
+          </span>
+          <span :if={p.noindex} class="badge badge-sm badge-ghost ml-2">noindex</span>
         </:col>
         <:col :let={p} label="Slug" sort_key="slug">{p.slug}</:col>
         <:col :let={p} label="Status" sort_key="status">

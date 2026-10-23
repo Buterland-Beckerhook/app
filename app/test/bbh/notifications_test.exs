@@ -112,4 +112,44 @@ defmodule Bbh.NotificationsTest do
       end
     end
   end
+
+  describe "subscription_status/1 and set_tester/2" do
+    @push_endpoint "https://fcm.googleapis.com/fcm/send/status"
+
+    setup do
+      {:ok, sub} =
+        Notifications.subscribe(%{
+          "endpoint" => @push_endpoint,
+          "keys" => %{"p256dh" => "pk", "auth" => "ak"},
+          "categories" => ["termine"]
+        })
+
+      %{sub: sub}
+    end
+
+    test "reports the stored categories and tester flag" do
+      assert {:ok, %{categories: ["termine"], tester: false}} =
+               Notifications.subscription_status(@push_endpoint)
+
+      assert :error = Notifications.subscription_status("https://fcm.googleapis.com/x")
+      assert :error = Notifications.subscription_status(nil)
+    end
+
+    test "set_tester/2 flags the device; re-subscribing keeps the flag" do
+      assert {:ok, %{tester: true}} = Notifications.set_tester(@push_endpoint, true)
+
+      {:ok, _} =
+        Notifications.subscribe(%{
+          "endpoint" => @push_endpoint,
+          "keys" => %{"p256dh" => "pk", "auth" => "ak"},
+          "categories" => ["news"],
+          "tester" => false
+        })
+
+      assert {:ok, %{categories: ["news"], tester: true}} =
+               Notifications.subscription_status(@push_endpoint)
+
+      assert {:error, :not_found} = Notifications.set_tester("https://fcm.googleapis.com/x", true)
+    end
+  end
 end

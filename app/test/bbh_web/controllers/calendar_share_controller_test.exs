@@ -28,6 +28,17 @@ defmodule BbhWeb.CalendarShareControllerTest do
       refute body =~ "URL:"
     end
 
+    test "serves Accept: text/calendar clients (Apple Calendar)", %{conn: conn} do
+      {plaintext, _share} = share_for("vorstand")
+
+      conn =
+        conn
+        |> put_req_header("accept", "text/calendar")
+        |> get(~p"/kalender/geteilt/#{plaintext}")
+
+      assert response(conn, 200) =~ "BEGIN:VCALENDAR"
+    end
+
     test "is reachable without authentication", %{conn: conn} do
       {plaintext, _share} = share_for("vorstand")
       # No login setup; a 200 proves the route is public.

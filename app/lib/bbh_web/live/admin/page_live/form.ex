@@ -7,9 +7,15 @@ defmodule BbhWeb.Admin.PageLive.Form do
 
   @statuses [{"Entwurf", "draft"}, {"Veröffentlicht", "published"}]
 
+  @placements [
+    {"Im Verein-Menü", "menu"},
+    {"Nur per Link (/seite/…)", "unlisted"},
+    {"Sonderseite (von der Website eingebunden)", "system"}
+  ]
+
   @impl true
   def mount(params, _session, socket) do
-    socket = assign(socket, statuses: @statuses)
+    socket = assign(socket, statuses: @statuses, placements: @placements)
 
     {:ok, apply_action(socket, socket.assigns.live_action, params)}
   end
@@ -180,11 +186,47 @@ defmodule BbhWeb.Admin.PageLive.Form do
     Enum.find(socket.assigns.blocks, fn {pb, _} -> pb.id == pb_id end)
   end
 
-  defp assign_meta_form(socket, changeset),
-    do: assign(socket, :form, to_form(changeset, as: "page"))
+  defp assign_meta_form(socket, changeset) do
+    assign(socket,
+      form: to_form(changeset, as: "page"),
+      has_parent: Ecto.Changeset.get_field(changeset, :parent_id) not in [nil, ""],
+      url_hint: url_hint(changeset)
+    )
+  end
+
+  # Where the page will be served (independent of its publication status), so
+  # editors can copy the address of an unlisted page into an event or article.
+  defp url_hint(changeset) do
+    slug = Ecto.Changeset.get_field(changeset, :slug)
+    parent_id = Ecto.Changeset.get_field(changeset, :parent_id)
+
+    cond do
+      slug in [nil, ""] ->
+        nil
+
+      parent_id not in [nil, ""] ->
+        with %Page{} = parent <- Content.get_page(parent_id),
+             path when is_binary(path) <- Content.public_path(parent) do
+          {:path, path <> "/" <> slug}
+        else
+          _ -> nil
+        end
+
+      true ->
+        page = Ecto.Changeset.apply_changes(changeset)
+
+        case Content.public_path(%{page | parent_id: nil}) do
+          nil -> :embedded
+          path -> {:path, path}
+        end
+    end
+  end
+
+  defp site_url, do: Application.get_env(:bbh, :site_url, "https://buterland-beckerhook.de")
 
   # Parent picker options as "Root / Child" labels, excluding the page itself and
-  # its descendants (so a page can't become its own ancestor).
+  # its descendants (so a page can't become its own ancestor) and anything outside
+  # the menu tree (only menu pages nest).
   defp parent_options(page) do
     pages = Content.list_pages()
     by_id = Map.new(pages, &{&1.id, &1})
@@ -192,6 +234,7 @@ defmodule BbhWeb.Admin.PageLive.Form do
 
     pages
     |> Enum.reject(&(&1.id in excluded))
+    |> Enum.filter(&(root_of(&1, by_id).placement == "menu"))
     |> Enum.map(fn p -> {label_path(p, by_id), p.id} end)
     |> Enum.sort_by(fn {label, _id} -> label end)
   end
@@ -208,6 +251,15 @@ defmodule BbhWeb.Admin.PageLive.Form do
   defp collect_ids([id | rest], children, acc) do
     kids = children |> Map.get(id, []) |> Enum.map(& &1.id)
     collect_ids(rest ++ kids, children, MapSet.put(acc, id))
+  end
+
+  defp root_of(%{parent_id: nil} = page, _by_id), do: page
+
+  defp root_of(%{parent_id: pid} = page, by_id) do
+    case Map.get(by_id, pid) do
+      nil -> page
+      parent -> root_of(parent, by_id)
+    end
   end
 
   defp label_path(page, by_id), do: page |> label_chain(by_id, [page.title]) |> Enum.join(" / ")
@@ -250,7 +302,28 @@ defmodule BbhWeb.Admin.PageLive.Form do
         />
         <.input field={@form[:status]} type="select" label="Status" options={@statuses} />
         <.input field={@form[:sort_order]} type="number" label="Sortierung" />
-        <.input field={@form[:show_in_menu]} type="checkbox" label="Im Verein-Menü anzeigen" />
+        <.input
+          :if={!@has_parent}
+          field={@form[:placement]}
+          type="select"
+          label="Platzierung"
+          options={@placements}
+        />
+        <%!-- Child pages always live in their root's menu tree. --%>
+        <.input :if={@has_parent} field={@form[:placement]} type="hidden" value="menu" />
+        <.input
+          field={@form[:noindex]}
+          type="checkbox"
+          label="Von Suchmaschinen ausschließen (noindex) – auch nicht in Sitemap und Website-Suche"
+        />
+        <p :if={@url_hint} id="page-url-hint" class="text-sm text-base-content/70">
+          <%= case @url_hint do %>
+            <% {:path, path} -> %>
+              Adresse: <span class="font-mono select-all">{site_url()}{path}</span>
+            <% :embedded -> %>
+              Sonderseite: wird von der Website selbst eingebunden und hat keine eigene Adresse.
+          <% end %>
+        </p>
         <.button variant="primary" phx-disable-with="Speichern…">Seite speichern</.button>
       </.form>
 

@@ -37,7 +37,7 @@ defmodule BbhWeb.Layouts do
   end
 
   # Full public nav. The "Verein" dropdown is built from the page tree
-  # (top-level, published, show_in_menu pages) so editors control it. A logged-in
+  # (top-level, published, placement "menu" pages) so editors control it. A logged-in
   # editor additionally sees unpublished menu pages, each flagged as a draft.
   defp nav_links(current_scope) do
     preview? = BbhWeb.Authz.can_preview?(current_scope, :pages)
@@ -93,7 +93,7 @@ defmodule BbhWeb.Layouts do
 
     ~H"""
     <div class="flex min-h-screen flex-col bg-base-100 text-base-content">
-      <%!-- First-visit push opt-in prompt; shown/hidden by app.js, decision stored in a cookie. --%>
+      <%!-- First-visit push opt-in prompt; shown/hidden by push.js, decision stored in a cookie. --%>
       <div id="push-banner" hidden class="border-b border-base-300 bg-base-200 px-4 py-3 text-sm">
         <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3">
           <p id="push-banner-text" class="text-base-content/80">
@@ -225,7 +225,9 @@ defmodule BbhWeb.Layouts do
             </a>
           </div>
 
-          <%!-- Mobile menu (daisyUI dropdown, no custom JS) --%>
+          <%!-- Mobile menu (daisyUI dropdown, no custom JS). Capped to the viewport below
+               the sticky header (~5rem) and scrollable on its own; overscroll-contain
+               keeps a swipe at either end from scrolling the page underneath. --%>
           <div class="dropdown dropdown-end md:hidden">
             <button
               tabindex="0"
@@ -236,7 +238,7 @@ defmodule BbhWeb.Layouts do
             </button>
             <ul
               tabindex="0"
-              class="dropdown-content menu z-50 mt-2 w-64 rounded-box border border-base-300 bg-card p-2 shadow-lg"
+              class="dropdown-content menu z-50 mt-2 max-h-[calc(100dvh-6rem)] w-64 flex-nowrap overflow-y-auto overscroll-contain rounded-box border border-base-300 bg-card p-2 shadow-lg"
             >
               <%= for link <- @nav do %>
                 <li>
@@ -281,6 +283,8 @@ defmodule BbhWeb.Layouts do
         {render_slot(@inner_block)}
       </main>
 
+      <.push_dialog admin={Bbh.Accounts.User.admin?(@current_scope && @current_scope.user)} />
+
       <%!-- Deliberately the same dark green in both themes (design handoff). --%>
       <footer class="mt-16 bg-[#0d2617] text-[#cfe0d4]">
         <div class="mx-auto grid max-w-6xl gap-10 px-4 py-12 md:grid-cols-[1.4fr_1fr_1fr]">
@@ -311,12 +315,14 @@ defmodule BbhWeb.Layouts do
               <a href={~p"/kontakt"} class="text-[#cfe0d4] hover:text-white">Kontaktformular</a>
               <a href={~p"/impressum"} class="text-[#cfe0d4] hover:text-white">Impressum</a>
               <a href={~p"/datenschutz"} class="text-[#cfe0d4] hover:text-white">Datenschutz</a>
+              <%!-- Label is replaced by push.js with the device's real state. --%>
               <button
                 id="push-optin"
                 type="button"
+                aria-haspopup="dialog"
                 class="cursor-pointer text-left text-[#cfe0d4] hover:text-white"
               >
-                Benachrichtigungen aktivieren
+                Benachrichtigungen
               </button>
             </div>
           </div>
@@ -402,6 +408,62 @@ defmodule BbhWeb.Layouts do
     {:push, "/admin/push", "Push"},
     {:redirects, "/admin/weiterleitungen", "Weiterleitungen"}
   ]
+
+  @doc """
+  Push-notification settings for this device: state, categories, on/off and — for
+  admins — marking the device as a test receiver. Opened from the footer link and
+  driven entirely by assets/js/push.js; the server renders only the static form.
+  """
+  attr :admin, :boolean, default: false
+
+  def push_dialog(assigns) do
+    assigns = assign(assigns, :categories, [{"termine", "Termine"}, {"news", "Neue Beiträge"}])
+
+    ~H"""
+    <dialog id="push-dialog" class="modal" aria-labelledby="push-dialog-title">
+      <div class="modal-box">
+        <h2 id="push-dialog-title" class="text-lg font-semibold">Benachrichtigungen</h2>
+        <p id="push-status" class="mt-2 text-sm text-base-content/80" aria-live="polite">
+          Status wird geprüft…
+        </p>
+
+        <div id="push-settings" hidden class="mt-4 space-y-3">
+          <fieldset class="space-y-2">
+            <legend class="mb-1 text-sm font-medium">Benachrichtigen bei</legend>
+            <label :for={{value, label} <- @categories} class="flex items-center gap-2">
+              <input type="checkbox" name="push-category" value={value} class="checkbox" />
+              {label}
+            </label>
+          </fieldset>
+
+          <div :if={@admin} class="rounded-box border border-base-300 p-3">
+            <label class="flex items-center gap-2">
+              <input id="push-tester" type="checkbox" class="checkbox" />
+              Dieses Gerät ist ein Testgerät
+            </label>
+            <p class="mt-1 text-xs text-base-content/60">
+              Nur für Administratoren: Testgeräte erhalten Nachrichten, die unter
+              Admin → Push an „Nur Testgeräte“ gesendet werden.
+            </p>
+          </div>
+        </div>
+
+        <div class="modal-action">
+          <button id="push-disable" type="button" hidden class="btn btn-ghost">
+            Deaktivieren
+          </button>
+          <form method="dialog">
+            <button class="btn btn-ghost">Schließen</button>
+          </form>
+          <button id="push-save" type="button" class="btn btn-primary">Aktivieren</button>
+        </div>
+      </div>
+      <form method="dialog" class="modal-backdrop">
+        <button aria-label="Schließen">Schließen</button>
+      </form>
+    </dialog>
+    """
+  end
 
   @doc "Admin area layout: mobile-first drawer nav + content."
   attr :flash, :map, required: true

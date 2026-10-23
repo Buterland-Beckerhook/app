@@ -248,13 +248,13 @@ defmodule Bbh.Content do
   @doc """
   Published top-level pages (`parent_id` nil) flagged for the menu, ordered by
   `sort_order`. Drives the dynamic "Verein" dropdown and the /verein overview.
-  Excludes Impressum/Datenschutz (their `show_in_menu` is false).
+  Only `placement: "menu"` pages; unlisted and system pages never appear here.
 
   With `include_unpublished` (logged-in editor) draft menu pages are listed too.
   """
   def list_menu_pages(include_unpublished \\ false) do
     from(p in Page,
-      where: is_nil(p.parent_id) and p.show_in_menu == true,
+      where: is_nil(p.parent_id) and p.placement == "menu",
       order_by: [asc: p.sort_order, asc: p.title]
     )
     |> maybe_published(include_unpublished)
@@ -277,7 +277,7 @@ defmodule Bbh.Content do
   `{page, ancestors}` where `ancestors` runs root → leaf (inclusive).
 
   Returns `nil` unless the whole chain is published, the ancestor slugs match
-  the requested segments exactly, and the root is a menu page (`show_in_menu`).
+  the requested segments exactly, and the root is a menu page (`placement: "menu"`).
   This rejects wrong nesting (e.g. `/verein/vereinsgeschichte`) and legal pages
   (e.g. `/verein/impressum`).
   """
@@ -309,7 +309,7 @@ defmodule Bbh.Content do
            |> Repo.one(),
          ancestors = page_ancestors(leaf),
          true <- include_unpublished or Enum.all?(ancestors, &(&1.status == "published")),
-         %Page{show_in_menu: true} <- List.first(ancestors) do
+         %Page{placement: "menu"} <- List.first(ancestors) do
       {leaf, ancestors}
     else
       _ -> nil
@@ -338,7 +338,7 @@ defmodule Bbh.Content do
 
   @doc """
   Depth-annotated menu tree for the "Verein" dropdown: each published menu page
-  (top-level, `show_in_menu`) followed by its published descendants in DFS order.
+  (top-level, `placement: "menu"`) followed by its published descendants in DFS order.
   Entries are `%{path:, title:, depth:}`; top-level pages keep `depth: 0`. Built
   from a single query.
   """
@@ -350,7 +350,7 @@ defmodule Bbh.Content do
       |> Enum.group_by(& &1.parent_id)
 
     (by_parent[nil] || [])
-    |> Enum.filter(& &1.show_in_menu)
+    |> Enum.filter(&(&1.placement == "menu"))
     |> Enum.flat_map(&menu_links(by_parent, &1, "/verein/" <> &1.slug, 0))
   end
 
@@ -376,6 +376,48 @@ defmodule Bbh.Content do
   @doc "Canonical public path for a page given its root → leaf ancestor chain."
   def page_path(ancestors) when is_list(ancestors),
     do: "/verein/" <> Enum.map_join(ancestors, "/", & &1.slug)
+
+  @doc """
+  An unlisted page (top-level, `placement: "unlisted"`) by slug, served under
+  `/seite/:slug`. Returns `{page, blocks}` or `nil`.
+
+  With `include_unpublished` (logged-in editor) drafts resolve too.
+  """
+  def get_unlisted_page(slug, include_unpublished \\ false) do
+    Page
+    |> where([p], p.slug == ^slug and p.placement == "unlisted" and is_nil(p.parent_id))
+    |> maybe_published(include_unpublished)
+    |> Repo.one()
+    |> case do
+      nil -> nil
+      page -> {page, load_blocks(page)}
+    end
+  end
+
+  @doc "Published unlisted pages, for the sitemap and search index."
+  def list_unlisted_pages do
+    Repo.all(
+      from p in Page,
+        where: p.placement == "unlisted" and is_nil(p.parent_id) and p.status == "published",
+        order_by: [asc: p.slug]
+    )
+  end
+
+  @doc """
+  The public URL path of a page, or `nil` when it has none of its own: system
+  pages other than Impressum/Datenschutz are only embedded by the application.
+  Ignores publication status — used to show editors where a page will live.
+  """
+  def public_path(%Page{} = page) do
+    ancestors = page_ancestors(page)
+
+    case List.first(ancestors) do
+      %Page{placement: "menu"} -> page_path(ancestors)
+      %Page{placement: "unlisted", slug: slug} -> "/seite/" <> slug
+      %Page{placement: "system", slug: slug} when slug in ~w(impressum datenschutz) -> "/" <> slug
+      _ -> nil
+    end
+  end
 
   ## Admin CRUD — articles
 
@@ -578,14 +620,54 @@ defmodule Bbh.Content do
 
   def count_pages, do: Repo.aggregate(Page, :count, :id)
   def get_page!(id), do: Repo.get!(Page, id)
+  def get_page(id), do: Repo.get(Page, id)
 
   def create_page(attrs),
-    do: %Page{} |> Page.changeset(attrs) |> Repo.insert() |> Bbh.Search.reindex_after()
+    do: %Page{} |> change_page(attrs) |> Repo.insert() |> Bbh.Search.reindex_after()
 
   def update_page(%Page{} = page, attrs),
-    do: page |> Page.changeset(attrs) |> Repo.update() |> Bbh.Search.reindex_after()
+    do: page |> change_page(attrs) |> Repo.update() |> Bbh.Search.reindex_after()
 
-  def change_page(%Page{} = page, attrs \\ %{}), do: Page.changeset(page, attrs)
+  def change_page(%Page{} = page, attrs \\ %{}),
+    do: page |> Page.changeset(attrs) |> validate_page_tree()
+
+  # Only the menu tree nests: a page may hang below a menu-rooted page, and an
+  # unlisted/system page — or one that would become one — may not have children.
+  defp validate_page_tree(changeset) do
+    changeset
+    |> validate_parent_in_menu_tree()
+    |> validate_no_children_unless_menu()
+  end
+
+  defp validate_parent_in_menu_tree(changeset) do
+    with parent_id when is_binary(parent_id) <- Ecto.Changeset.get_field(changeset, :parent_id),
+         %Page{} = parent <- Repo.get(Page, parent_id),
+         %Page{placement: placement} when placement != "menu" <-
+           List.first(page_ancestors(parent)) do
+      Ecto.Changeset.add_error(
+        changeset,
+        :parent_id,
+        "Unterseiten sind nur unterhalb von Menüseiten möglich."
+      )
+    else
+      _ -> changeset
+    end
+  end
+
+  defp validate_no_children_unless_menu(changeset) do
+    id = changeset.data.id
+
+    if id && Ecto.Changeset.get_field(changeset, :placement) != "menu" &&
+         Repo.exists?(from p in Page, where: p.parent_id == ^id) do
+      Ecto.Changeset.add_error(
+        changeset,
+        :placement,
+        "Diese Seite hat Unterseiten und muss deshalb im Menü bleiben."
+      )
+    else
+      changeset
+    end
+  end
 
   @doc "Delete a page along with its page_blocks and the concrete (polymorphic) block rows."
   def delete_page(%Page{} = page) do

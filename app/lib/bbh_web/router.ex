@@ -20,6 +20,17 @@ defmodule BbhWeb.Router do
     plug :accepts, ["json"]
   end
 
+  # Session-backed JSON for fetch() calls from the site's own pages: carries the
+  # session and CSRF protection of :browser (the caller sends the csrf-token meta
+  # value as x-csrf-token) but negotiates JSON and renders no layout.
+  pipeline :browser_json do
+    plug :accepts, ["json"]
+    plug :fetch_session
+    plug :protect_from_forgery
+    plug :put_secure_browser_headers
+    plug :fetch_current_scope_for_user
+  end
+
   # Only for the final catch-all below. Like :browser minus what a 404 does not need:
   # no page-view tracking and no `accepts` (a bot asking for JSON still gets a 404, not
   # a 406). No TrailingSlash either — BbhWeb.Redirector normalizes the path itself, so
@@ -35,6 +46,16 @@ defmodule BbhWeb.Router do
     plug :put_secure_browser_headers
     plug BbhWeb.Plugs.CSP
     plug :fetch_current_scope_for_user
+  end
+
+  # iCalendar feeds, fetched by calendar clients rather than browsers. No `accepts`:
+  # Apple Calendar (dataaccessd) validates a subscription with `Accept: text/calendar`,
+  # which `accepts ["html"]` answers with 406, so the subscription fails. No session,
+  # CSRF, layout or CSP either — a feed needs none of them. Page-view tracking stays:
+  # it counts subscription-feed retrievals.
+  pipeline :ical do
+    plug :put_secure_browser_headers
+    plug BbhWeb.Plugs.TrackPageView
   end
 
   # The MCP endpoint. Deliberately not `:browser`: it must not touch the session, the
@@ -67,6 +88,15 @@ defmodule BbhWeb.Router do
     post "/oauth/token", OAuthController, :token
   end
 
+  # Admin-only: flag the current browser's push subscription as a test receiver.
+  scope "/push", BbhWeb do
+    # Authorization (admin) is checked in the controller, which answers 403 in JSON
+    # instead of the login redirect :require_authenticated_user would send.
+    pipe_through :browser_json
+
+    post "/tester", PushTesterController, :update
+  end
+
   # Consent. On the browser pipeline on purpose: the site's own login (magic link or
   # passkey, plus TOTP) is the OAuth login. See docs/adr/0010-mcp-oauth.md.
   scope "/oauth", BbhWeb do
@@ -96,9 +126,23 @@ defmodule BbhWeb.Router do
 
     post "/push/subscribe", PushController, :subscribe
     post "/push/unsubscribe", PushController, :unsubscribe
+    # POST, not GET: the endpoint is a secret URL and must not land in access logs.
+    post "/push/status", PushController, :status
 
     # IBAN → BIC/Kreditinstitut for the membership form's live auto-fill.
     get "/blz", BlzController, :show
+  end
+
+  scope "/", BbhWeb do
+    pipe_through :ical
+
+    get "/termine/abo.ics", EventController, :feed
+    # Legacy feed URL — keep so existing calendar subscriptions don't break.
+    get "/termine/index.ics", EventController, :feed
+    get "/termine/:year/:slug/event.ics", EventController, :ics
+
+    # Revocable per-recipient share of one internal calendar (read-only .ics feed).
+    get "/kalender/geteilt/:token", CalendarShareController, :feed
   end
 
   scope "/", BbhWeb do
@@ -110,14 +154,7 @@ defmodule BbhWeb.Router do
     get "/aktuell/:year/:slug", ArticleController, :show
 
     get "/termine", EventController, :index
-    get "/termine/abo.ics", EventController, :feed
-    # Legacy feed URL — keep so existing calendar subscriptions don't break.
-    get "/termine/index.ics", EventController, :feed
     get "/termine/:year/:slug", EventController, :show
-    get "/termine/:year/:slug/event.ics", EventController, :ics
-
-    # Revocable per-recipient share of one internal calendar (read-only .ics feed).
-    get "/kalender/geteilt/:token", CalendarShareController, :feed
 
     get "/thron", ThroneController, :index
     get "/thron/:type", ThroneController, :index_type
@@ -129,6 +166,9 @@ defmodule BbhWeb.Router do
 
     get "/verein", PageContentController, :verein
     get "/verein/*path", PageContentController, :verein_page
+
+    # Pages outside the menu, reachable only through links (placement "unlisted").
+    get "/seite/:slug", PageContentController, :unlisted
 
     get "/impressum", PageContentController, :impressum
     get "/datenschutz", PageContentController, :datenschutz

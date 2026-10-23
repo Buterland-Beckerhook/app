@@ -453,12 +453,75 @@ defmodule BbhWeb.PageContentControllerTest do
   end
 
   test "GET /verein/impressum is not reachable (legal pages are excluded)", %{conn: conn} do
-    page_fixture(slug: "impressum", title: "Impressum", status: "published", show_in_menu: false)
+    page_fixture(slug: "impressum", title: "Impressum", status: "published", placement: "system")
     assert conn |> get(~p"/verein/impressum") |> response(404)
   end
 
   test "GET /impressum renders", %{conn: conn} do
     page_fixture(slug: "impressum", title: "Impressum", status: "published")
     assert conn |> get(~p"/impressum") |> html_response(200) =~ "Impressum"
+  end
+
+  describe "unlisted pages (/seite/:slug)" do
+    test "renders a published unlisted page", %{conn: conn} do
+      page_fixture(slug: "anfahrt", title: "Anfahrt", placement: "unlisted")
+      html = conn |> get(~p"/seite/anfahrt") |> html_response(200)
+      assert html =~ "Anfahrt"
+    end
+
+    test "is neither listed under nor served from /verein", %{conn: conn} do
+      page_fixture(slug: "anfahrt", title: "Anfahrt zum Festplatz", placement: "unlisted")
+
+      refute conn |> get(~p"/verein") |> html_response(200) =~ "Anfahrt zum Festplatz"
+      assert conn |> get(~p"/verein/anfahrt") |> response(404)
+    end
+
+    test "menu and system pages are not served under /seite", %{conn: conn} do
+      page_fixture(slug: "ueber-uns", placement: "menu")
+      page_fixture(slug: "impressum", placement: "system")
+
+      assert conn |> get(~p"/seite/ueber-uns") |> response(404)
+      assert conn |> get(~p"/seite/impressum") |> response(404)
+    end
+
+    test "a draft unlisted page is 404 for anonymous visitors", %{conn: conn} do
+      page_fixture(slug: "entwurf", placement: "unlisted", status: "draft")
+      assert conn |> get(~p"/seite/entwurf") |> response(404)
+    end
+
+    test "noindex sets X-Robots-Tag, otherwise it is absent", %{conn: conn} do
+      page_fixture(slug: "versteckt", placement: "unlisted", noindex: true)
+      page_fixture(slug: "offen", placement: "unlisted")
+
+      assert get_resp_header(get(conn, ~p"/seite/versteckt"), "x-robots-tag") == [
+               "noindex, nofollow"
+             ]
+
+      assert get_resp_header(get(conn, ~p"/seite/offen"), "x-robots-tag") == []
+    end
+
+    test "noindex also applies to menu pages", %{conn: conn} do
+      page_fixture(slug: "intern", placement: "menu", noindex: true)
+      conn = get(conn, ~p"/verein/intern")
+      assert html_response(conn, 200)
+      assert get_resp_header(conn, "x-robots-tag") == ["noindex, nofollow"]
+    end
+  end
+
+  describe "unlisted draft preview for editors" do
+    setup :register_and_log_in_admin
+
+    test "previews a draft unlisted page with a banner", %{conn: conn} do
+      page_fixture(
+        slug: "entwurf",
+        title: "Entwurfsseite",
+        placement: "unlisted",
+        status: "draft"
+      )
+
+      html = conn |> get(~p"/seite/entwurf") |> html_response(200)
+      assert html =~ "Entwurfsseite"
+      assert html =~ "Vorschau"
+    end
   end
 end

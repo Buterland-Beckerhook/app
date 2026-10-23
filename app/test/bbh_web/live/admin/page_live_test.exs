@@ -53,6 +53,42 @@ defmodule BbhWeb.Admin.PageLiveTest do
       assert {:error, {:live_redirect, %{to: "/admin/seiten/" <> _}}} = result
       assert Bbh.Repo.get_by(Content.Page, slug: "geschichte")
     end
+
+    test "creates an unlisted noindex page and shows its /seite address", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, ~p"/admin/seiten/neu")
+
+      html =
+        lv
+        |> form("#page-form",
+          page: %{title: "Anfahrt", slug: "anfahrt", placement: "unlisted", noindex: "true"}
+        )
+        |> render_change()
+
+      assert html =~ "/seite/anfahrt"
+
+      lv
+      |> form("#page-form",
+        page: %{title: "Anfahrt", slug: "anfahrt", placement: "unlisted", noindex: "true"}
+      )
+      |> render_submit()
+
+      assert %{placement: "unlisted", noindex: true} =
+               Bbh.Repo.get_by(Content.Page, slug: "anfahrt")
+    end
+
+    test "hides the placement select once a parent is chosen", %{conn: conn} do
+      parent = page_fixture(slug: "ueber-uns")
+      {:ok, lv, _html} = live(conn, ~p"/admin/seiten/neu")
+
+      assert has_element?(lv, "select#page_placement")
+
+      lv
+      |> form("#page-form", page: %{title: "Kind", slug: "kind", parent_id: parent.id})
+      |> render_change()
+
+      refute has_element?(lv, "select#page_placement")
+      assert render(lv) =~ "/verein/ueber-uns/kind"
+    end
   end
 
   describe "media_card block image" do

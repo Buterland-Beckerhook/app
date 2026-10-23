@@ -78,5 +78,33 @@ defmodule BbhWeb.EventControllerTest do
 
       assert response(conn, 200) =~ "BEGIN:VEVENT"
     end
+
+    # Apple Calendar validates a webcal subscription with `Accept: text/calendar`;
+    # the feed must not be content-negotiated against HTML (it used to 406).
+    for path <- ["/termine/abo.ics", "/termine/index.ics"] do
+      test "GET #{path} serves Accept: text/calendar clients", %{conn: conn} do
+        event_fixture()
+
+        conn =
+          conn
+          |> put_req_header("accept", "text/calendar")
+          |> put_req_header("user-agent", "iOS/18.0 (22A3354) dataaccessd/1.0")
+          |> get(unquote(path))
+
+        assert get_resp_header(conn, "content-type") |> hd() =~ "text/calendar"
+        assert response(conn, 200) =~ "BEGIN:VCALENDAR"
+      end
+    end
+
+    test "single event .ics serves Accept: text/calendar clients", %{conn: conn} do
+      event = event_fixture()
+
+      conn =
+        conn
+        |> put_req_header("accept", "text/calendar")
+        |> get(~p"/termine/#{event.year}/#{event.slug}/event.ics")
+
+      assert response(conn, 200) =~ "BEGIN:VEVENT"
+    end
   end
 end
