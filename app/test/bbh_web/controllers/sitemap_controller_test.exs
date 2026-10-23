@@ -3,6 +3,7 @@ defmodule BbhWeb.SitemapControllerTest do
 
   import Bbh.ContentFixtures
   import Bbh.CalendarFixtures
+  import Ecto.Query, only: [from: 2]
 
   test "GET /sitemap.xml returns XML with static, article and event URLs", %{conn: conn} do
     article = article_fixture()
@@ -43,7 +44,7 @@ defmodule BbhWeb.SitemapControllerTest do
     article = article_fixture()
 
     Bbh.Repo.update_all(
-      Ecto.Query.from(a in Bbh.Content.Article, where: a.id == ^article.id),
+      from(a in Bbh.Content.Article, where: a.id == ^article.id),
       set: [slug: "a&b<x>"]
     )
 
