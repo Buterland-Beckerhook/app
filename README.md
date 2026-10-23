@@ -28,7 +28,7 @@ has been removed and all application code now lives under [`app/`](app/).
 
 ```
 app/          # The Phoenix application (:bbh) — contexts (Bbh.*) + web (BbhWeb.*)
-deploy/       # Production/beta stack: compose.yml, setup.sh, update.sh, backup.sh, .env.example
+deploy/       # Production/beta stack: compose.yml, setup.sh, update.sh, backup.sh, sync-data.sh, .env.example
 scripts/      # dump.sh / seed.sh — DB + uploads snapshot & restore (dev & prod)
 docs/adr/     # Architecture decision records
 seed/         # Gitignored dev DB/uploads snapshot (make dump / make seed)
@@ -85,6 +85,8 @@ automatically on Phoenix startup. See the script header for flags.
 - **Restore / re-seed** — drop a `*.dump` into `deploy/restore/`; it loads on the
   next `up` before Phoenix migrates on top. Details in
   [`deploy/README.md`](deploy/README.md#restoring-a-dump).
+- **Prod → Beta data sync** — `deploy/sync-data.sh --from <prod deploy dir> --to <beta deploy dir>`;
+  sanitizes push subscriptions/tokens/jobs. See [`deploy/README.md`](deploy/README.md#syncing-prod-data-to-beta).
 - **Logs** — `docker compose --env-file .env logs -f phoenix`; verbosity via
   `LOG_LEVEL` in `.env`.
 - **BLZ table** (IBAN→BIC lookup for the membership form) — refresh ~quarterly with
