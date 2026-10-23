@@ -19,7 +19,7 @@ name: ${STACK_NAME:-bbh}
 
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     restart: unless-stopped
     networks:
       - internal
@@ -40,7 +40,7 @@ services:
   # Consumed files are renamed to *.restored so a restart never re-restores over
   # live data. See restore-entrypoint.sh.
   restore:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     restart: "no"
     depends_on:
       postgres:
