@@ -209,17 +209,19 @@ Prod with `sync-data.sh`.
 
 ### One-time setup
 
-1. **Storage Box:** in the Hetzner console enable *SSH support* (and *External
-   reachability*) for the box. Borg runs over port **23**.
+1. **Storage Box:** in the Hetzner console create a **sub-account** for this backup
+   (own login, own base directory, so it cannot touch other repos on the box, e.g.
+   mailcow's) with *SSH support* and *External reachability* enabled. Borg runs over
+   port **23**; below, `uXXXXXX-subN` is that sub-account.
 2. **Borg on the host:** `apt install borgbackup` (`borg --version`; 1.2 or newer).
 3. **SSH key** for root, used only for the backup:
    ```sh
    ssh-keygen -t ed25519 -N '' -f /root/.ssh/bbh-backup -C bbh-backup
-   cat /root/.ssh/bbh-backup.pub | ssh -p 23 uXXXXXX@uXXXXXX.your-storagebox.de install-ssh-key
+   cat /root/.ssh/bbh-backup.pub | ssh -p 23 uXXXXXX-subN@uXXXXXX.your-storagebox.de install-ssh-key
    ```
 4. **Config** `/etc/bbh-backup.env` (`chmod 600`, owned by root):
    ```sh
-   BORG_REPO=ssh://uXXXXXX@uXXXXXX.your-storagebox.de:23/./bbh-borg
+   BORG_REPO=ssh://uXXXXXX-subN@uXXXXXX.your-storagebox.de:23/./bbh-borg
    BORG_PASSPHRASE=<openssl rand -base64 32>
    BORG_RSH="ssh -i /root/.ssh/bbh-backup -o BatchMode=yes"
    BORG_REMOTE_PATH=borg-1.4   # the Storage Box offers several; match the host's major.minor
