@@ -2,7 +2,7 @@ defmodule Bbh.Content do
   @moduledoc "Read/query API for articles, thrones, and block-based pages."
   import Ecto.Query
   alias Bbh.Repo
-  alias Bbh.Content.{Article, ArticleBlock, ArticleImage, Throne, Page, PageBlock, Blocks}
+  alias Bbh.Content.{Article, ArticleBlock, Throne, Page, PageBlock, Blocks}
 
   @doc """
   Published, real articles (excludes throne-only entries), newest first, paginated.
@@ -23,7 +23,7 @@ defmodule Bbh.Content do
           order_by: [desc: a.date_published]
       end
 
-    paginate(base, page, per_page, preload: [:image, images: :media])
+    paginate(base, page, per_page, preload: :image)
   end
 
   @doc "The N most recent published articles (for the homepage)."
@@ -34,12 +34,12 @@ defmodule Bbh.Content do
       where: a.status == "published" and a.no_article == false and a.date_published <= ^now,
       order_by: [desc: a.date_published],
       limit: ^n,
-      preload: [:image, images: :media]
+      preload: :image
     )
     |> Repo.all()
   end
 
-  @doc "A single published article by slug + year, with images and throne."
+  @doc "A single published article by slug + year, with its image and throne."
   def get_published_article(slug, year) do
     now = Bbh.Time.now()
 
@@ -48,7 +48,7 @@ defmodule Bbh.Content do
         where:
           a.slug == ^slug and a.year == ^year and a.status == "published" and
             a.date_published <= ^now,
-        preload: [:image, images: :media, throne: :image]
+        preload: [:image, throne: :image]
     )
   end
 
@@ -82,7 +82,7 @@ defmodule Bbh.Content do
     Repo.one(
       from a in Article,
         where: a.slug == ^slug and a.year == ^year,
-        preload: [:image, images: :media, throne: :image]
+        preload: [:image, throne: :image]
     )
   end
 
@@ -108,13 +108,13 @@ defmodule Bbh.Content do
     |> Repo.update()
   end
 
-  @doc "The currently reigning throne (latest by begin year), with its article + images."
+  @doc "The currently reigning throne (latest by begin year), with its article + image."
   def current_throne do
     Repo.one(
       from t in Throne,
         order_by: [desc: t.begin_year],
         limit: 1,
-        preload: [:image, article: [:image, images: :media]]
+        preload: [:image, article: :image]
     )
   end
 
@@ -143,7 +143,7 @@ defmodule Bbh.Content do
         where: t.type == ^type,
         order_by: [desc: t.begin_year],
         limit: 1,
-        preload: [:image, article: [:image, images: :media]]
+        preload: [:image, article: :image]
     )
   end
 
@@ -154,14 +154,14 @@ defmodule Bbh.Content do
         where: t.type == ^type and is_nil(t.end_year),
         order_by: [desc: t.begin_year],
         limit: 1,
-        preload: [:image, article: [:image, images: :media]]
+        preload: [:image, article: :image]
     )
   end
 
-  @doc "Thrones of one type, newest first, paginated (the /thron gallery), with article + images."
+  @doc "Thrones of one type, newest first, paginated (the /thron gallery), with article + image."
   def list_thrones(type, page \\ 1, per_page \\ 1) do
     base = from t in Throne, where: t.type == ^type, order_by: [desc: t.begin_year]
-    paginate(base, page, per_page, preload: [:image, article: [:image, images: :media]])
+    paginate(base, page, per_page, preload: [:image, article: :image])
   end
 
   @doc "Schlanke Liste der Throne eines Typs (neueste zuerst) für den /thron-Pager."
@@ -429,7 +429,7 @@ defmodule Bbh.Content do
   def count_articles, do: Repo.aggregate(Article, :count, :id)
 
   def get_article!(id),
-    do: Article |> Repo.get!(id) |> Repo.preload([:image, images: :media, throne: :image])
+    do: Article |> Repo.get!(id) |> Repo.preload([:image, throne: :image])
 
   @doc """
   Fetch an article by id, or `nil`.
@@ -473,62 +473,6 @@ defmodule Bbh.Content do
     |> Ecto.Changeset.force_change(:image_id, media_id)
     |> Repo.update()
     |> Bbh.Search.reindex_after()
-  end
-
-  ## Admin — article images
-
-  def list_article_images(article_id) do
-    Repo.all(
-      from i in ArticleImage,
-        where: i.article_id == ^article_id,
-        order_by: [asc: i.sort, asc: i.inserted_at],
-        preload: :media
-    )
-  end
-
-  def get_article_image!(id), do: ArticleImage |> Repo.get!(id) |> Repo.preload(:media)
-
-  @doc "Attach a media item to an article (appended)."
-  def add_article_image(%Article{} = article, media_id) do
-    %ArticleImage{}
-    |> ArticleImage.changeset(%{
-      "article_id" => article.id,
-      "media_id" => media_id,
-      "sort" => next_image_sort(article.id)
-    })
-    |> Repo.insert()
-  end
-
-  def update_article_image(%ArticleImage{} = image, attrs),
-    do: image |> ArticleImage.changeset(attrs) |> Repo.update()
-
-  @doc """
-  Make `image_id` the article's preview (hero) image, clearing the flag on all
-  its sibling images so exactly one image is ever the preview.
-  """
-  def set_article_preview_image(%Article{id: article_id}, image_id) do
-    now = DateTime.utc_now(:second)
-
-    # Repo.transact rolls back on an {:error, _} return, so an unknown target
-    # leaves the sibling-clear un-committed (no article ends up with zero previews).
-    Repo.transact(fn ->
-      from(i in ArticleImage, where: i.article_id == ^article_id)
-      |> Repo.update_all(set: [use_as_article_image: false, updated_at: now])
-
-      {count, _} =
-        from(i in ArticleImage, where: i.id == ^image_id and i.article_id == ^article_id)
-        |> Repo.update_all(set: [use_as_article_image: true, updated_at: now])
-
-      if count == 1, do: {:ok, image_id}, else: {:error, :not_found}
-    end)
-  end
-
-  def delete_article_image(%ArticleImage{} = image), do: Repo.delete(image)
-
-  defp next_image_sort(article_id) do
-    (Repo.one(from i in ArticleImage, where: i.article_id == ^article_id, select: max(i.sort)) ||
-       -1) +
-      1
   end
 
   ## Admin — gallery block files (edited in the context of their page)

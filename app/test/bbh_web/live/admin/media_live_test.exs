@@ -847,7 +847,7 @@ defmodule BbhWeb.Admin.MediaLiveTest do
   test "refuses to delete media that is still in use", %{conn: conn} do
     upload = upload_fixture(%{})
     article = article_fixture(%{})
-    {:ok, _} = Bbh.Content.add_article_image(article, upload.id)
+    {:ok, _} = Bbh.Content.set_article_image(article, upload.id)
 
     {:ok, lv, _html} = live(conn, ~p"/admin/medien")
     html = render_click(lv, "delete", %{"id" => upload.id})

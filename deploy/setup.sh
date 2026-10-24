@@ -272,15 +272,6 @@ resolve CONTACT_RECIPIENT   "Contact recipient"   "info@buterland-beckerhook.de"
 resolve CONTACT_SENDER      "Contact sender"      "noreply@buterland-beckerhook.de"
 resolve CONTACT_SENDER_NAME "Contact sender name" "Buterland-Beckerhook.de"
 
-# Matomo (optional). No URL -> analytics disabled, so don't ask for the site id.
-resolve MATOMO_URL "Matomo URL (blank to disable)" ""; matomo_url_val="$RESOLVED"
-KNOWN[MATOMO_SITE_ID]=1
-if [[ -n "$matomo_url_val" ]]; then
-  resolve MATOMO_SITE_ID "Matomo site id (blank to disable)" ""
-else
-  OUT[MATOMO_SITE_ID]="${CUR[MATOMO_SITE_ID]:-}"
-fi
-
 # Logging. Not prompted (info suits both modes); operators flip it to debug in
 # .env when diagnosing. Preserve an existing value verbatim (already escaped, like
 # every other managed key); only a fresh default is escaped once.
@@ -329,9 +320,6 @@ ENV_TMP="$(mktemp "$ENV_FILE.XXXXXX")"
   for k in ALTCHA_HMAC_KEY SMTP_RELAY SMTP_PORT SMTP_USERNAME SMTP_PASSWORD CONTACT_RECIPIENT CONTACT_SENDER CONTACT_SENDER_NAME; do
     printf '%s=%s\n' "$k" "${OUT[$k]}"
   done
-  echo
-  echo "# --- Matomo (optional) ---"
-  for k in MATOMO_URL MATOMO_SITE_ID; do printf '%s=%s\n' "$k" "${OUT[$k]}"; done
   echo
   echo "# --- Logging ---"
   printf 'LOG_LEVEL=%s\n' "${OUT[LOG_LEVEL]}"

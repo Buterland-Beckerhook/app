@@ -1,6 +1,6 @@
 defmodule BbhWeb.Admin.BlockEditor do
   @moduledoc """
-  Shared admin editor for content blocks (the Directus M2A `block_*` tables), used by
+  Shared admin editor for content blocks (the `block_*` tables), used by
   both the page form and the article form. Renders the whole "Inhaltsblöcke" section:
   the ordered block list with its move/delete controls, each block's field form, the
   media pickers for `media_card`/`image_gallery` blocks, and the "add block" form.

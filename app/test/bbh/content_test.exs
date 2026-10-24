@@ -135,23 +135,15 @@ defmodule Bbh.ContentTest do
       assert koenig.type == "koenig" and jsk.type == "jungschuetzenkoenig"
     end
 
-    test "list_thrones preloads the throne picture's media" do
+    test "list_thrones preloads the article image" do
       article = article_fixture(no_article: true, title: "Thron-Eintrag")
       media = upload_fixture()
-
-      %Bbh.Content.ArticleImage{}
-      |> Bbh.Content.ArticleImage.changeset(%{
-        article_id: article.id,
-        media_id: media.id,
-        use_as_throne_picture: true
-      })
-      |> Repo.insert!()
+      {:ok, _} = Content.set_article_image(article, media.id)
 
       throne_fixture(article: article, begin_year: 2023, end_year: 2024)
 
       assert [entry] = Content.list_thrones("koenig", 1, 1).entries
-      assert [image] = entry.article.images
-      assert image.media.id == media.id
+      assert entry.article.image.id == media.id
     end
 
     test "list_throne_nav returns thrones of a type newest first with year/king" do
@@ -401,80 +393,6 @@ defmodule Bbh.ContentTest do
 
       assert by_slug["live"] == "published"
       assert by_slug["draft"] == "draft"
-    end
-  end
-
-  describe "article images" do
-    test "add, list and delete article images" do
-      article = article_fixture()
-      upload = upload_fixture()
-
-      {:ok, image} = Content.add_article_image(article, upload.id)
-      assert image.media_id == upload.id
-      assert image.sort == 0
-
-      assert [listed] = Content.list_article_images(article.id)
-      assert listed.id == image.id
-      assert listed.media.id == upload.id
-
-      {:ok, _} = Content.delete_article_image(image)
-      assert Content.list_article_images(article.id) == []
-    end
-
-    test "images come back in sort order, not insert order" do
-      article = article_fixture()
-      {:ok, third} = Content.add_article_image(article, upload_fixture().id)
-      {:ok, first} = Content.add_article_image(article, upload_fixture().id)
-      {:ok, second} = Content.add_article_image(article, upload_fixture().id)
-
-      # Sort deliberately against the insert order.
-      {:ok, _} = Content.update_article_image(third, %{sort: 2})
-      {:ok, _} = Content.update_article_image(first, %{sort: 0})
-      {:ok, _} = Content.update_article_image(second, %{sort: 1})
-
-      expected = [first.id, second.id, third.id]
-
-      # The admin listing …
-      assert Enum.map(Content.list_article_images(article.id), & &1.id) == expected
-
-      # … and every preload (article page, homepage, /thron) via preload_order.
-      assert Enum.map(Content.get_article!(article.id).images, & &1.id) == expected
-
-      published = Content.get_published_article(article.slug, article.year)
-      assert Enum.map(published.images, & &1.id) == expected
-    end
-
-    test "set_article_preview_image/2 is exclusive — only one image is the preview" do
-      article = article_fixture()
-      {:ok, a} = Content.add_article_image(article, upload_fixture().id)
-      {:ok, b} = Content.add_article_image(article, upload_fixture().id)
-
-      assert {:ok, _} = Content.set_article_preview_image(article, a.id)
-      assert Content.get_article_image!(a.id).use_as_article_image
-      refute Content.get_article_image!(b.id).use_as_article_image
-
-      # Switching to b clears a.
-      assert {:ok, _} = Content.set_article_preview_image(article, b.id)
-      refute Content.get_article_image!(a.id).use_as_article_image
-      assert Content.get_article_image!(b.id).use_as_article_image
-    end
-
-    test "set_article_preview_image/2 rejects an image that isn't the article's" do
-      article = article_fixture()
-      other_image_id = Ecto.UUID.generate()
-      assert {:error, :not_found} = Content.set_article_preview_image(article, other_image_id)
-    end
-
-    test "a second preview image is rejected at the database level" do
-      article = article_fixture()
-      {:ok, a} = Content.add_article_image(article, upload_fixture().id)
-      {:ok, b} = Content.add_article_image(article, upload_fixture().id)
-
-      assert {:ok, _} = Content.set_article_preview_image(article, a.id)
-
-      # Flipping the flag directly (bypassing the exclusive setter) must fail.
-      assert {:error, changeset} = Content.update_article_image(b, %{use_as_article_image: true})
-      assert %{use_as_article_image: [_]} = errors_on(changeset)
     end
   end
 

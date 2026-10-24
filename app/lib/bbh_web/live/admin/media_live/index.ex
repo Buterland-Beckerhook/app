@@ -354,6 +354,7 @@ defmodule BbhWeb.Admin.MediaLive.Index do
   end
 
   defp place_label(:articles), do: "Artikel"
+  defp place_label(:thrones), do: "Thron"
   defp place_label(:media_cards), do: "Bild-Karte"
   defp place_label(:galleries), do: "Galerie"
   defp place_label(:portraits), do: "Portrait"

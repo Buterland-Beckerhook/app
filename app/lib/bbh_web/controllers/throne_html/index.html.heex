@@ -14,9 +14,9 @@
     <% pic = throne_picture(throne) %>
     <% article_path = throne_article_path(throne) %>
     <figure :if={pic} class="mb-6">
-      <%!-- Das Bild führt zum Thron-Artikel, außer bei „Nur Thron-Anzeige“. Der Link ist
-           eine Dublette von „Zum Artikel“ und bleibt deshalb aus Tab-Reihenfolge und
-           Screenreader heraus. --%>
+      <%!-- The picture leads to the throne article, except for „Nur Thron-Anzeige“. The link
+           duplicates „Zum Artikel“, so it stays out of the tab order and away from screen
+           readers. --%>
       <a
         href={article_path}
         tabindex={article_path && "-1"}
