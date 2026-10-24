@@ -53,7 +53,12 @@
         class="block w-full cursor-zoom-in"
         aria-label="Bild vergrößern"
       >
-        <.hero_image article={@article} width={1024} class="w-full rounded-lg" />
+        <.hero_image
+          article={@article}
+          width={1024}
+          sizes="(min-width: 50rem) 48rem, calc(100vw - 2rem)"
+          class="w-full rounded-lg"
+        />
       </button>
       <.image_credit caption={image_caption(hero)} copyright={image_copyright(hero)} />
     </figure>

@@ -25,6 +25,8 @@
       >
         <img
           src={media_url(pic, width: 1024)}
+          srcset={media_srcset(pic, width: 1024)}
+          sizes="(min-width: 50rem) 48rem, calc(100vw - 2rem)"
           alt={image_alt(pic)}
           class={[
             "w-full rounded-lg object-cover",

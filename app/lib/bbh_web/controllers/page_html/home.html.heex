@@ -181,6 +181,8 @@
           <img
             :if={pic}
             src={media_url(pic, width: 960, height: 720)}
+            srcset={media_srcset(pic, width: 960, height: 720)}
+            sizes="(min-width: 48rem) 36rem, 100vw"
             alt={image_alt(pic)}
             loading="lazy"
             class={[
