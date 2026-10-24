@@ -258,6 +258,88 @@ defmodule Bbh.Calendar do
     ])
   end
 
+  ## Admin — festivals and their programme
+
+  @doc """
+  Festivals `user` may attach a programme item to (the event form's "Gehört zu"):
+  top-level, all-day, spanning several days, starting within a year of `around`,
+  never `except_id` itself. `{label, id}` tuples, chronological.
+  """
+  def festival_options(user, around, except_id \\ nil) do
+    from(e in Event,
+      where:
+        is_nil(e.parent_id) and e.all_day and not is_nil(e.ends_at) and
+          fragment("?::date > ?::date", e.ends_at, e.starts_at) and
+          e.starts_at >= ^DateTime.add(around, -366, :day) and
+          e.starts_at <= ^DateTime.add(around, 366, :day),
+      order_by: e.starts_at
+    )
+    |> scope_events(user)
+    |> Repo.all()
+    |> Enum.reject(&(&1.id == except_id))
+    |> Enum.map(&{"#{&1.title} (#{Calendar.strftime(&1.starts_at, "%d.%m.%Y")})", &1.id})
+  end
+
+  @doc "A festival's whole programme for the admin, any status, chronological."
+  def list_children(%Event{id: id}) do
+    Repo.all(from c in Event, where: c.parent_id == ^id, order_by: c.starts_at)
+  end
+
+  @doc """
+  Earlier festivals with a programme to copy into `festival`, latest first.
+  """
+  def programme_sources(%Event{id: id, starts_at: starts_at}) do
+    Repo.all(
+      from e in Event,
+        where:
+          is_nil(e.parent_id) and e.id != ^id and e.starts_at < ^starts_at and
+            fragment("EXISTS (SELECT 1 FROM events c WHERE c.parent_id = ?)", e.id),
+        order_by: [desc: e.starts_at],
+        limit: 5
+    )
+  end
+
+  @doc """
+  Copy `source`'s programme into `target` as drafts, shifted by the whole days
+  between the two festivals' first days (same weekdays when both start on the same
+  weekday). Locations, text and times of day come along; reminders and cancellations
+  do not. All or nothing: `{:ok, items}`, or `{:error, title, changeset}` for the
+  first item that does not fit the new festival.
+  """
+  def copy_programme(%Event{} = source, %Event{} = target) do
+    shift = Date.diff(DateTime.to_date(target.starts_at), DateTime.to_date(source.starts_at))
+
+    Repo.transaction(fn ->
+      source
+      |> list_children()
+      |> Enum.map(fn item ->
+        attrs = %{
+          parent_id: target.id,
+          status: "draft",
+          title: item.title,
+          slug: item.slug,
+          starts_at: DateTime.add(item.starts_at, shift, :day),
+          ends_at: item.ends_at && DateTime.add(item.ends_at, shift, :day),
+          body: item.body,
+          location_id: item.location_id,
+          enable_ical: item.enable_ical
+        }
+
+        case %Event{} |> Event.changeset(attrs) |> Repo.insert() do
+          {:ok, copy} -> copy
+          {:error, changeset} -> Repo.rollback({item.title, changeset})
+        end
+      end)
+    end)
+    |> case do
+      {:ok, items} ->
+        Bbh.Search.reindex_after({:ok, items})
+
+      {:error, {title, changeset}} ->
+        {:error, title, changeset}
+    end
+  end
+
   def create_event(attrs),
     do: %Event{} |> Event.changeset(attrs) |> Repo.insert() |> Bbh.Search.reindex_after()
 

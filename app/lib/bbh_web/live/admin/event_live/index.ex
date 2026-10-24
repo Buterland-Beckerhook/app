@@ -11,6 +11,7 @@ defmodule BbhWeb.Admin.EventLive.Index do
      socket
      |> assign(:page_title, "Termine")
      |> assign(:list_state, AdminList.init(sort: "starts_at", dir: :desc))
+     |> assign(:expanded, MapSet.new())
      |> load_list()}
   end
 
@@ -18,12 +19,37 @@ defmodule BbhWeb.Admin.EventLive.Index do
   def handle_event("list-" <> action, params, socket),
     do: {:noreply, AdminList.handle(action, params, socket, &load_list/1)}
 
+  def handle_event("toggle-programme", %{"id" => id}, socket) do
+    expanded = socket.assigns.expanded
+
+    expanded =
+      if MapSet.member?(expanded, id),
+        do: MapSet.delete(expanded, id),
+        else: MapSet.put(expanded, id)
+
+    {:noreply, socket |> assign(:expanded, expanded) |> show_rows()}
+  end
+
+  # Programme items are listed under their festival (collapsed by default), not on
+  # their own: filtering, sorting and paging apply to top-level events, and a search
+  # hit on an item finds its festival.
   defp load_list(socket) do
-    events = Calendar.list_events_for(socket.assigns.current_scope.user)
+    {items, events} =
+      socket.assigns.current_scope.user
+      |> Calendar.list_events_for()
+      |> Enum.split_with(& &1.parent_id)
+
+    programmes =
+      items
+      |> Enum.sort_by(& &1.starts_at, DateTime)
+      |> Enum.group_by(& &1.parent_id)
 
     meta =
       AdminList.process(events, socket.assigns.list_state,
-        search: [& &1.title],
+        search: [
+          & &1.title,
+          &(programmes |> Map.get(&1.id, []) |> Enum.map_join(" ", fn item -> item.title end))
+        ],
         category: {&(&1.calendar || "public"), socket.assigns.list_state.cat},
         sort: %{
           "title" => & &1.title,
@@ -32,7 +58,22 @@ defmodule BbhWeb.Admin.EventLive.Index do
         }
       )
 
-    assign(socket, events: meta.entries, list_meta: meta)
+    socket
+    |> assign(list_meta: meta, top_level: meta.entries, programmes: programmes)
+    |> show_rows()
+  end
+
+  defp show_rows(socket) do
+    %{top_level: top_level, programmes: programmes, expanded: expanded} = socket.assigns
+
+    rows =
+      Enum.flat_map(top_level, fn event ->
+        if MapSet.member?(expanded, event.id),
+          do: [event | Map.get(programmes, event.id, [])],
+          else: [event]
+      end)
+
+    assign(socket, :events, rows)
   end
 
   @impl true
@@ -65,7 +106,23 @@ defmodule BbhWeb.Admin.EventLive.Index do
 
       <.table id="events" rows={@events} sort={@list_meta.sort} dir={@list_meta.dir}>
         <:col :let={e} label="Titel" sort_key="title">
-          <span class="font-medium">{e.title}</span>
+          <%= if e.parent_id do %>
+            <span class="pl-5 text-base-content/80">↳ {e.title}</span>
+          <% else %>
+            <span class="font-medium">{e.title}</span>
+            <% count = length(Map.get(@programmes, e.id, [])) %>
+            <button
+              :if={count > 0}
+              type="button"
+              phx-click="toggle-programme"
+              phx-value-id={e.id}
+              class="ml-2 badge badge-sm badge-outline cursor-pointer"
+              aria-expanded={to_string(MapSet.member?(@expanded, e.id))}
+            >
+              {if MapSet.member?(@expanded, e.id), do: "▾", else: "▸"}
+              {BbhWeb.EventHTML.programme_count(count)}
+            </button>
+          <% end %>
         </:col>
         <:col :let={e} label="Beginn" sort_key="starts_at">{de_datetime(e.starts_at)}</:col>
         <:col :let={e} label="Kalender">
