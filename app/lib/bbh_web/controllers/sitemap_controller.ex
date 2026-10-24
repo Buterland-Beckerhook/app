@@ -57,7 +57,9 @@ defmodule BbhWeb.SitemapController do
   defp event_entries(base) do
     Repo.all(
       from e in Event,
-        where: e.status == "published" and e.announce == true and is_nil(e.calendar),
+        where:
+          is_nil(e.parent_id) and e.status == "published" and e.announce == true and
+            is_nil(e.calendar),
         select: {e.year, e.slug, e.updated_at}
     )
     |> Enum.map(fn {year, slug, updated} -> {"#{base}/termine/#{year}/#{slug}", updated} end)

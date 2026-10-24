@@ -167,19 +167,22 @@ defmodule Bbh.Search do
     [t.king_title, t.king, t.queen, t.moh1, t.moh2, t.loh1, t.loh2, t.cupbearer, t.courtmarshal]
   end
 
-  # Public events only (published, publicly announced, not on an internal
-  # calendar) — the same predicate as Bbh.Calendar's public listings.
+  # Public top-level events only (published, publicly announced, not on an internal
+  # calendar) — the same predicate as Bbh.Calendar's public listings. Programme items
+  # are found through their festival's page.
   defp event_docs do
     Repo.all(
       from e in Event,
-        where: e.status == "published" and e.announce == true and is_nil(e.calendar)
+        where:
+          is_nil(e.parent_id) and e.status == "published" and e.announce == true and
+            is_nil(e.calendar)
     )
     |> Enum.map(fn e ->
       %{
         source_type: "event",
         source_id: e.id,
         title: e.title,
-        url: "/termine/#{e.year}/#{e.slug}",
+        url: BbhWeb.EventPaths.path(e),
         content: Bbh.Html.to_text(e.body),
         document_date: e.starts_at
       }

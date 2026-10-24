@@ -72,7 +72,7 @@ defmodule Bbh.ICal do
         e.status == "canceled" && "STATUS:CANCELLED",
         # Only public events have a page at /termine/:year/:slug; internal
         # (shared-calendar) events would 404, so omit the link for them.
-        is_nil(e.calendar) && "URL:#{site_url}/termine/#{e.year}/#{e.slug}",
+        is_nil(e.calendar) && "URL:#{BbhWeb.EventPaths.url(e, site_url)}",
         "END:VEVENT"
       ]
       |> Enum.reject(&(&1 in [nil, false]))

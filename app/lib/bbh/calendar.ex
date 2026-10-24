@@ -14,7 +14,7 @@ defmodule Bbh.Calendar do
   """
   def next_event(now \\ Bbh.Time.now()) do
     Repo.one(
-      from e in public_events(),
+      from e in public_top_level(),
         where:
           fragment(
             """
@@ -40,59 +40,138 @@ defmodule Bbh.Calendar do
   @doc """
   The festival the dev time travel (`/dev/zeitreise`) walks through: the next public
   all-day event spanning several days that is not over yet, or else the most recent
-  one. Children are preloaded chronologically. Takes the *real* time, never the
-  simulated one, so the target does not move while you travel.
+  one. Visible programme items are preloaded chronologically. Takes the *real* time,
+  never the simulated one, so the target does not move while you travel.
   """
   def dev_festival(now \\ Bbh.Time.real_now()) do
     multi_day =
-      from e in public_events(),
+      from e in public_top_level(),
         where:
           e.all_day and not is_nil(e.ends_at) and
             fragment("?::date > ?::date", e.ends_at, e.starts_at),
-        preload: [:location, children: ^from(c in Event, order_by: c.starts_at)],
+        preload: [:location, children: ^visible_children()],
         limit: 1
 
     today = DateTime.to_date(now)
 
-    Repo.one(
-      from e in multi_day,
-        where: fragment("?::date >= ?", e.ends_at, ^today),
-        order_by: [asc: e.starts_at]
-    ) || Repo.one(from e in multi_day, order_by: [desc: e.starts_at])
+    (Repo.one(
+       from e in multi_day,
+         where: fragment("?::date >= ?", e.ends_at, ^today),
+         order_by: [asc: e.starts_at]
+     ) || Repo.one(from e in multi_day, order_by: [desc: e.starts_at]))
+    |> put_parent_on_children()
   end
 
-  @doc "All public events for a given year, chronological."
+  @doc """
+  All public top-level events for a given year, chronological. Each carries
+  `child_count`, the number of visible programme items.
+  """
   def list_events_by_year(year) do
+    counts =
+      from c in Event,
+        where: not is_nil(c.parent_id) and c.status in ^Event.visible_child_statuses(),
+        group_by: c.parent_id,
+        select: %{parent_id: c.parent_id, n: count(c.id)}
+
     Repo.all(
-      from e in public_events(),
+      from e in public_top_level(),
+        left_join: k in subquery(counts),
+        on: k.parent_id == e.id,
         where: e.year == ^year,
         order_by: [asc: e.starts_at],
+        select_merge: %{child_count: coalesce(k.n, 0)},
         preload: [:location]
     )
   end
 
-  @doc "A single public event by slug + year, with location and sub-events."
+  @doc """
+  A single public top-level event by slug + year, with location and its visible
+  programme items (each with `parent` set, so `BbhWeb.EventPaths` can link it).
+  """
   def get_public_event(slug, year) do
     Repo.one(
-      from e in public_events(),
+      from e in public_top_level(),
         where: e.slug == ^slug and e.year == ^year,
-        preload: [:location, children: ^from(c in Event, order_by: c.starts_at)]
+        preload: [:location, children: ^visible_children()]
+    )
+    |> put_parent_on_children()
+  end
+
+  @doc "A visible programme item by its festival's year + slug and its own slug."
+  def get_public_child(year, parent_slug, child_slug) do
+    Repo.one(
+      from [c, parent: p] in public_children(),
+        where: p.year == ^year and p.slug == ^parent_slug and c.slug == ^child_slug,
+        preload: [:location, parent: {p, :location}]
     )
   end
 
-  @doc "All public events (for the iCal feed)."
+  @doc """
+  The programme item of `parent` to show next at `now`: the first visible one that
+  has not ended yet (so a running item counts), or `nil` once the programme is over.
+  """
+  def next_child(%Event{id: parent_id} = parent, now \\ Bbh.Time.now()) do
+    Repo.one(
+      from c in visible_children(),
+        where: c.parent_id == ^parent_id and c.ends_at > ^now,
+        limit: 1
+    )
+    |> case do
+      nil -> nil
+      child -> %{child | parent: parent}
+    end
+  end
+
+  @doc "All public events for the iCal feed: top-level events plus visible programme items."
   def all_public_events do
-    Repo.all(from e in public_events(), order_by: [asc: e.starts_at], preload: [:location])
+    top = Repo.all(from e in public_top_level(), preload: [:location])
+
+    items =
+      Repo.all(from [c, parent: p] in public_children(), preload: [:location, parent: p])
+
+    Enum.sort_by(top ++ items, & &1.starts_at, DateTime)
   end
 
   @doc "Distinct years that have public events (for the year navigation)."
   def event_years do
-    Repo.all(from e in public_events(), distinct: true, select: e.year, order_by: [desc: e.year])
+    Repo.all(
+      from e in public_top_level(), distinct: true, select: e.year, order_by: [desc: e.year]
+    )
   end
 
-  # Public = published, publicly announced, not on an internal calendar.
-  defp public_events do
-    from e in Event, where: e.status == "published" and e.announce == true and is_nil(e.calendar)
+  # Public = published, publicly announced, not on an internal calendar — and not a
+  # programme item, which only ever appears through its festival.
+  defp public_top_level do
+    from e in Event,
+      where:
+        is_nil(e.parent_id) and e.status == "published" and e.announce == true and
+          is_nil(e.calendar)
+  end
+
+  # Visible programme items: published or canceled, under a public festival. The
+  # festival is bound as `:parent`.
+  defp public_children do
+    from c in Event,
+      join: p in assoc(c, :parent),
+      as: :parent,
+      where:
+        c.status in ^Event.visible_child_statuses() and p.status == "published" and
+          p.announce == true and is_nil(p.calendar)
+  end
+
+  # Programme items to preload under an already public festival.
+  defp visible_children do
+    from c in Event,
+      where: c.status in ^Event.visible_child_statuses(),
+      order_by: c.starts_at,
+      preload: [:location]
+  end
+
+  defp put_parent_on_children(nil), do: nil
+
+  defp put_parent_on_children(%Event{children: children} = event) do
+    parent = %{event | children: []}
+    %{event | children: Enum.map(children, &%{&1 | parent: parent})}
   end
 
   ## Admin CRUD — locations
@@ -122,7 +201,7 @@ defmodule Bbh.Calendar do
   calendars granted to them; everyone else (calendar editors) sees only granted calendars.
   """
   def list_events_for(user) do
-    from(e in Event, order_by: [desc: e.starts_at], preload: [:location])
+    from(e in Event, order_by: [desc: e.starts_at], preload: [:location, :parent])
     |> scope_events(user)
     |> Repo.all()
   end
@@ -280,21 +359,24 @@ defmodule Bbh.Calendar do
   ## Event reminders (push notifications ahead of an event)
 
   @doc """
-  Reminders that are due to be sent: not yet sent, whose event is still a public,
-  upcoming, published event, and which have come due — either the relative lead
-  time was reached (`starts_at - lead_days <= now`) or the absolute `scheduled_at`
-  has passed. Preloads the event.
+  Reminders that are due to be sent: not yet sent, whose event is still a published,
+  upcoming, publicly visible event, and which have come due — either the relative
+  lead time was reached (`starts_at - lead_days <= now`) or the absolute
+  `scheduled_at` has passed. Programme items qualify when their festival is public
+  (their own `announce`/`calendar` don't apply). Preloads the event and its parent.
   """
   def due_reminders(now \\ Bbh.Time.now()) do
     Repo.all(
       from r in EventReminder,
         join: e in assoc(r, :event),
+        left_join: p in assoc(e, :parent),
         where:
-          is_nil(r.sent_at) and e.status == "published" and e.announce == true and
-            is_nil(e.calendar) and e.starts_at > ^now and
+          is_nil(r.sent_at) and e.status == "published" and e.starts_at > ^now and
+            ((is_nil(e.parent_id) and e.announce == true and is_nil(e.calendar)) or
+               (p.status == "published" and p.announce == true and is_nil(p.calendar))) and
             (fragment("? - make_interval(days => ?) <= ?", e.starts_at, r.lead_days, ^now) or
                r.scheduled_at <= ^now),
-        preload: [event: e]
+        preload: [event: {e, parent: p}]
     )
   end
 
@@ -310,14 +392,15 @@ defmodule Bbh.Calendar do
   @doc """
   Public, published, still-upcoming events whose "Neuer Termin" push has not been
   sent yet. Mirrors `Content.articles_pending_notification/0`; the notifier marks
-  each via `mark_event_notified/1` so it is pushed at most once.
+  each via `mark_event_notified/1` so it is pushed at most once. Programme items
+  never get this push — only their festival does.
   """
   def events_pending_notification(now \\ Bbh.Time.now()) do
     Repo.all(
       from e in Event,
         where:
-          is_nil(e.notified_at) and e.status == "published" and e.announce == true and
-            is_nil(e.calendar) and e.starts_at > ^now,
+          is_nil(e.notified_at) and is_nil(e.parent_id) and e.status == "published" and
+            e.announce == true and is_nil(e.calendar) and e.starts_at > ^now,
         order_by: [asc: e.starts_at]
     )
   end

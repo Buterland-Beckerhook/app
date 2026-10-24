@@ -140,4 +140,18 @@ defmodule Bbh.SearchTest do
       assert length(page2.entries) == 5
     end
   end
+
+  describe "events" do
+    import Bbh.CalendarFixtures
+
+    test "indexes a festival, not its programme items" do
+      fest = festival_fixture(title: "Schützenfest Buterland")
+      _item = programme_item_fixture(fest, title: "Großer Festball mit Fernandos")
+
+      Search.reindex_all()
+
+      assert urls(Search.search("Schützenfest")) == ["/termine/2030/#{fest.slug}"]
+      assert Search.search("Fernandos").total == 0
+    end
+  end
 end
