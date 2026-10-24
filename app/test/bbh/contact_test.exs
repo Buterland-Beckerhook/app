@@ -8,19 +8,13 @@ defmodule Bbh.ContactTest do
   @valid %{
     "name" => "  Max Mustermann  ",
     "email" => " max@example.com ",
-    "message" => "  Hallo Welt  ",
-    "privacy" => "true"
+    "message" => "  Hallo Welt  "
   }
 
   describe "validate/1" do
     test "accepts valid params and trims fields" do
       assert {:ok, data} = Contact.validate(@valid)
       assert data == %{name: "Max Mustermann", email: "max@example.com", message: "Hallo Welt"}
-    end
-
-    test "accepts alternative consent truthy values" do
-      assert {:ok, _} = Contact.validate(%{@valid | "privacy" => "on"})
-      assert {:ok, _} = Contact.validate(%{@valid | "privacy" => "1"})
     end
 
     test "requires a name" do
@@ -35,8 +29,9 @@ defmodule Bbh.ContactTest do
       assert {:error, %{message: _}} = Contact.validate(%{@valid | "message" => ""})
     end
 
-    test "requires privacy consent" do
-      assert {:error, %{privacy: _}} = Contact.validate(Map.delete(@valid, "privacy"))
+    test "asks for no privacy consent — the form only points to the privacy policy" do
+      assert {:ok, _} = Contact.validate(@valid)
+      assert {:ok, _} = Contact.validate(Map.put(@valid, "privacy", "true"))
     end
 
     test "collects multiple errors at once" do
@@ -44,7 +39,7 @@ defmodule Bbh.ContactTest do
       assert Map.has_key?(errors, :name)
       assert Map.has_key?(errors, :email)
       assert Map.has_key?(errors, :message)
-      assert Map.has_key?(errors, :privacy)
+      refute Map.has_key?(errors, :privacy)
     end
   end
 
