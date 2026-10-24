@@ -9,6 +9,37 @@ defmodule Bbh.CalendarTest do
     DateTime.utc_now() |> DateTime.add(offset_days, :day) |> DateTime.truncate(:second)
   end
 
+  describe "dev_festival/1" do
+    defp fest(starts, ends, attrs \\ %{}) do
+      event_fixture(Map.merge(%{all_day: true, starts_at: starts, ends_at: ends}, attrs))
+    end
+
+    test "picks the next multi-day all-day event that is not over" do
+      now = ~U[2026-07-19 12:00:00Z]
+      _past = fest(~U[2025-07-19 00:00:00Z], ~U[2025-07-22 00:00:00Z])
+      _single_day = fest(~U[2026-07-19 00:00:00Z], ~U[2026-07-19 00:00:00Z])
+
+      _internal =
+        fest(~U[2026-07-18 00:00:00Z], ~U[2026-07-21 00:00:00Z], %{calendar: "vorstand"})
+
+      running = fest(~U[2026-07-18 00:00:00Z], ~U[2026-07-21 00:00:00Z])
+      _next_year = fest(~U[2027-07-17 00:00:00Z], ~U[2027-07-20 00:00:00Z])
+
+      assert Calendar.dev_festival(now).id == running.id
+    end
+
+    test "falls back to the most recent one" do
+      _older = fest(~U[2024-07-20 00:00:00Z], ~U[2024-07-23 00:00:00Z])
+      recent = fest(~U[2025-07-19 00:00:00Z], ~U[2025-07-22 00:00:00Z])
+
+      assert Calendar.dev_festival(~U[2026-10-24 12:00:00Z]).id == recent.id
+    end
+
+    test "nil without any" do
+      assert Calendar.dev_festival(~U[2026-10-24 12:00:00Z]) == nil
+    end
+  end
+
   describe "next_event/1" do
     test "returns the soonest upcoming public event" do
       _past = event_fixture(starts_at: at(-2))

@@ -5,6 +5,7 @@ defmodule BbhWeb.Format do
   alias Bbh.Content.{Article, ArticleImage}
 
   @months ~w(Januar Februar März April Mai Juni Juli August September Oktober November Dezember)
+  @weekday_abbr ~w(Mo. Di. Mi. Do. Fr. Sa. So.)
 
   @doc ~s(German long date, e.g. "14. Juli 2024".)
   def de_date(nil), do: ""
@@ -16,6 +17,14 @@ defmodule BbhWeb.Format do
 
   def de_datetime(%DateTime{} = dt) do
     "#{de_date(dt)}, #{two(dt.hour)}:#{two(dt.minute)} Uhr"
+  end
+
+  @doc ~s(German weekday abbreviation, e.g. "So.".)
+  def de_weekday_abbr(%DateTime{} = dt), do: Enum.at(@weekday_abbr, Date.day_of_week(dt) - 1)
+
+  @doc ~s(Compact German date + time with weekday, e.g. "So., 19.07.2026 14:20".)
+  def de_short_datetime(%DateTime{} = dt) do
+    "#{de_weekday_abbr(dt)}, #{two(dt.day)}.#{two(dt.month)}.#{dt.year} #{two(dt.hour)}:#{two(dt.minute)}"
   end
 
   @doc "German date/time range for an event, collapsing same-day ranges."

@@ -215,6 +215,9 @@ defmodule BbhWeb.Router do
 
       live_dashboard "/dashboard", metrics: BbhWeb.Telemetry
       forward "/mailbox", Plug.Swoosh.MailboxPreview
+
+      # Time travel overview (BbhWeb.Plugs.DevClock; needs config :bbh, :dev_clock).
+      get "/zeitreise", BbhWeb.DevClockController, :index
     end
   end
 

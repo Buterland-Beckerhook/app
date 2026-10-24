@@ -82,5 +82,11 @@
   </head>
   <body>
     {@inner_content}
+    <%!-- Dev-only time travel (BbhWeb.Plugs.DevClock); never assigned outside dev. --%>
+    <BbhWeb.DevClock.banner
+      :if={assigns[:simulated_now] && !assigns[:dev_clock_frame]}
+      now={@simulated_now}
+      path={@conn.request_path}
+    />
   </body>
 </html>

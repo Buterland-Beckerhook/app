@@ -48,6 +48,12 @@ make migrate    # mix ecto.migrate
 make reset-db   # mix ecto.reset
 ```
 
+**Time travel (dev only):** append `?jetzt=2026-07-19T09:25` to any public page to see
+it at that moment (`BbhWeb.Plugs.DevClock` shifts `Bbh.Time.now/1` for the request and
+remembers it in the session; `?jetzt=` resets). `/dev/zeitreise` shows the next
+multi-day festival at many moments side by side. Oban jobs and LiveViews keep the real
+time, so it never sends a push.
+
 For a clean HTTPS padlock, trust Caddy's local CA once: extract
 `/data/caddy/pki/authorities/local/root.crt` from the `caddy_data` volume and add
 it to your system trust store. Everything works over HTTPS regardless.

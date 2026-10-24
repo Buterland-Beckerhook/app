@@ -63,6 +63,13 @@ defmodule BbhWeb.Endpoint do
   plug Plug.MethodOverride
   plug Plug.Head
   plug Plug.Session, @session_options
+
+  # Dev-only time travel (`?jetzt=…`); see the plug. Here rather than in the browser
+  # pipeline so it resets a reused connection process on every request.
+  if Application.compile_env(:bbh, :dev_clock, false) do
+    plug BbhWeb.Plugs.DevClock
+  end
+
   plug BbhWeb.Router
 
   # Per-request log level for Phoenix's request logger (wired via Plug.Telemetry
