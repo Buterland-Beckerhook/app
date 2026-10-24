@@ -654,9 +654,11 @@ defmodule Bbh.Media do
   end
 
   @doc """
-  Resolve a media request to a servable file. Returns `{:ok, path, content_type}`
-  or `:error`. With no dimensions, serves the original; otherwise a cached WebP
-  variant (`fit=cover` when both dimensions are given).
+  Resolve a media request to a servable file. Returns `{:ok, path, content_type}`,
+  `{:fallback, path, content_type}` or `:error`. With no dimensions, serves the
+  original; otherwise a cached WebP variant (`fit=cover` when both dimensions are
+  given). `:fallback` means a variant was asked for but could not be generated, so
+  the original stands in — servable, but not to be cached as if it were the variant.
 
   `focal_x`/`focal_y` (fractions in `0.0..1.0`) shift a cover crop's window off
   center toward that point; `nil` keeps the default center crop.
@@ -792,7 +794,7 @@ defmodule Bbh.Media do
     seed =
       key
       |> cache_seed(width, height, focal)
-      |> revision_seed(revision_for(key))
+      |> revision_seed(revision(key))
       |> encoding_seed()
 
     dest = Path.join(variant_dir(key), "#{hash(seed)}.webp")
@@ -806,7 +808,7 @@ defmodule Bbh.Media do
 
       # On any processing failure, fall back to the original so the page still shows.
       true ->
-        {:ok, source, content_type(source)}
+        {:fallback, source, content_type(source)}
     end
   end
 
@@ -845,9 +847,13 @@ defmodule Bbh.Media do
   # without a profile.
   @thumbnail_opts [export_icc_profile: :srgb]
 
-  # Read from the database, never from the request: taking it from the client's `?v=`
-  # would let anyone mint unbounded cache entries.
-  defp revision_for(key) do
+  @doc """
+  The current revision of the upload stored under `key` (`0` when never rotated or
+  unknown). Read from the database, never from the request: taking it from the
+  client's `?v=` would let anyone mint unbounded cache entries — the media controller
+  compares the two to decide whether a URL may be cached as immutable.
+  """
+  def revision(key) do
     Repo.one(from u in Upload, where: u.storage_key == ^key, select: u.revision) || 0
   end
 
