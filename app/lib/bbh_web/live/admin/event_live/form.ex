@@ -195,8 +195,6 @@ defmodule BbhWeb.Admin.EventLive.Form do
   defp save(socket, :new, params) do
     case Calendar.create_event(params) do
       {:ok, event} ->
-        maybe_notify(nil, event)
-
         {:noreply,
          socket |> put_flash(:info, "Termin erstellt.") |> push_navigate(to: after_save(event))}
 
@@ -206,12 +204,8 @@ defmodule BbhWeb.Admin.EventLive.Form do
   end
 
   defp save(socket, :edit, params) do
-    old_status = socket.assigns.event.status
-
     case Calendar.update_event(socket.assigns.event, params) do
       {:ok, event} ->
-        maybe_notify(old_status, event)
-
         {:noreply,
          socket
          |> put_flash(:info, "Termin gespeichert.")
@@ -222,19 +216,8 @@ defmodule BbhWeb.Admin.EventLive.Form do
     end
   end
 
-  # Notify subscribers the first time a public event becomes published. Routed
-  # through EventPublishNotifier so it marks the event (no repeat) and honours
-  # quiet hours — anything held back overnight is delivered by the cron tick.
-  # Programme items (parent_id set) never get this push; their festival does.
-  defp maybe_notify(
-         old_status,
-         %Event{status: "published", announce: true, calendar: nil, parent_id: nil} = event
-       )
-       when old_status != "published" do
-    Bbh.Notifications.dispatch(fn -> Bbh.Workers.EventPublishNotifier.notify(event) end)
-  end
-
-  defp maybe_notify(_old_status, _event), do: :ok
+  # No push from here: the "Neuer Termin" push is bundled by the cron
+  # (Bbh.Workers.EventPublishNotifier) once publishing has settled.
 
   # A programme item goes back to its festival's programme, everything else to the list.
   defp after_save(%Event{parent_id: nil}), do: ~p"/admin/termine"
