@@ -102,7 +102,12 @@ defmodule BbhWeb.ThroneControllerTest do
 
   test "GET /thron links the throne picture to its article", %{conn: conn} do
     article = article_fixture(slug: "koenigsschiessen", date_published: ~U[2025-07-20 18:00:00Z])
-    throne_fixture(article: article, image_id: upload_fixture().id, begin_year: 2025)
+    throne_fixture(
+      article: article,
+      image_id: upload_fixture().id,
+      begin_year: 2025,
+      end_year: 2026
+    )
 
     html = conn |> get(~p"/thron") |> html_response(200)
 
@@ -112,12 +117,13 @@ defmodule BbhWeb.ThroneControllerTest do
   end
 
   test "GET /thron does not link a „Nur Thron-Anzeige“ entry", %{conn: conn} do
-    throne_fixture(image_id: upload_fixture().id)
+    article = article_fixture(no_article: true, slug: "nur-thron")
+    throne_fixture(article: article, image_id: upload_fixture().id)
 
     html = conn |> get(~p"/thron") |> html_response(200)
 
     assert html =~ "<img"
-    refute html =~ ~s(href="/aktuell/)
+    refute html =~ "nur-thron"
     refute html =~ "Zum Artikel"
   end
 
