@@ -43,6 +43,10 @@
       crossorigin
     />
     <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
+    <%!-- Digested URLs of the bundles app.js loads on demand (assets/js/lazy.js). --%>
+    <meta name="bbh-lazy-editor" content={~p"/assets/js/lazy/editor.js"} />
+    <meta name="bbh-lazy-datepicker" content={~p"/assets/js/lazy/datepicker.js"} />
+    <meta name="bbh-lazy-altcha" content={~p"/assets/js/lazy/altcha.js"} />
     <script
       defer
       phx-track-static

@@ -9,6 +9,8 @@
 //      Nothing is blocked; the club mail also flags an out-of-range entry server-side.
 //   3. Grows the "Kinder" section: filling the last row appends a fresh one (no cap).
 
+import {loadLazy} from "./lazy.js"
+
 // Completed years from a "TT.MM.JJJJ" or ISO date string, or null if unparseable.
 function calcAge(str) {
   if (!str) return null
@@ -41,19 +43,23 @@ function initDateField(input) {
   if (input._fpInit) return
   input._fpInit = true
 
-  if (window.flatpickr) {
-    window.flatpickr(input, {
-      locale: "de",
-      allowInput: true,
-      dateFormat: "d.m.Y",
-      maxDate: "today",
-      onChange: () => {
-        // Let the "grow children" listener see selections too, then re-check the hint.
-        input.dispatchEvent(new Event("input", {bubbles: true}))
-        checkAgeHint(input)
-      },
+  // flatpickr is a lazy bundle. Until it arrives — or if it never does — the field is
+  // a plain text input in the same TT.MM.JJJJ format, which the server accepts too.
+  loadLazy("datepicker")
+    .then(() => {
+      window.flatpickr(input, {
+        locale: "de",
+        allowInput: true,
+        dateFormat: "d.m.Y",
+        maxDate: "today",
+        onChange: () => {
+          // Let the "grow children" listener see selections too, then re-check the hint.
+          input.dispatchEvent(new Event("input", {bubbles: true}))
+          checkAgeHint(input)
+        },
+      })
     })
-  }
+    .catch(err => console.error(err))
   input.addEventListener("change", () => checkAgeHint(input))
   input.addEventListener("blur", () => checkAgeHint(input))
 }
