@@ -53,11 +53,13 @@ them by frequency with one-click „Weiterleitung anlegen“ (prefills the sourc
 this is the one table an anonymous client can write to:
 
 - not logged: `/admin`, `/users`, `/api`, `/media`, `/oauth`, `/mcp`, `/kalender/geteilt`
-  (paths carry revoked share tokens) and obvious scanner probes (`.php`, `/.env`, `wp-`…);
+  (paths carry revoked share tokens) and obvious scanner probes (`.php`, `/.env`, `wp-`,
+  key files, source maps…), decided on the normalized path (`Bbh.Redirects.ignored_not_found?/1`);
 - a hard ceiling of 5 000 rows — past it, known paths keep counting but new ones are not
   added;
 - the write runs off-request in `Bbh.TaskSupervisor`;
-- `Bbh.Workers.NotFoundPruner` drops entries not hit for 90 days.
+- `Bbh.Workers.NotFoundPruner` drops entries not hit for 90 days, and any entry the
+  ignore list has since come to match.
 
 ## Alternatives rejected
 

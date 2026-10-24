@@ -45,7 +45,18 @@ defmodule BbhWeb.NotFoundControllerTest do
     end
 
     test "does not log scanner probes or admin paths", %{conn: conn} do
-      for path <- ["/wp-login.php", "/.env", "/admin/gibt-es-nicht", "/kalender/geteilt/abc/x"] do
+      probes = [
+        "/wp-login.php",
+        "/.env",
+        "/admin/gibt-es-nicht",
+        "/kalender/geteilt/abc/x",
+        "/id_rsa",
+        "/ssl/server.key",
+        "/_astro/pages/index.astro.mjs.map",
+        "/Admin"
+      ]
+
+      for path <- probes do
         assert conn |> get(path) |> response(404)
       end
 

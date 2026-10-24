@@ -26,6 +26,25 @@ defmodule Bbh.Redirects do
   # not added, so a scanner spraying random URLs cannot grow the table without bound.
   @max_not_found 5_000
 
+  # Paths the 404 log never records (see `ignored_not_found?/1`). Areas whose 404s say
+  # nothing about a missing redirect, or whose paths carry secrets (revoked
+  # calendar-share tokens) that do not belong in a log.
+  @ignored_prefixes ~w(/admin /users /api /dev /assets /images /fonts /media /oauth /mcp
+                       /kalender/geteilt /.well-known /live /phoenix)
+
+  # Vulnerability scanners probing for other software or for leaked secrets. Logging
+  # them would bury the handful of real old links under noise. Matched against the
+  # normalized (lowercased, decoded) path.
+  @scanner_re ~r{
+    /\.
+    | \.(php\d?|aspx?|jsp|cgi|env|ini|sql|bak|old|swp|zip|tar|gz|rar|7z|log|ya?ml
+         |config|conf|cfg|key|pem|crt|cer|der|p12|pfx|jks|keystore|ppk|kdbx|map|db|sqlite3?)$
+    | (^|/)id_(rsa|dsa|ecdsa|ed25519)(\.pub)?$
+    | private[-_]?key
+    | ^/_(astro|image|next|nuxt|app)(/|$)
+    | wp-|xmlrpc|phpmyadmin|cgi-bin
+  }ix
+
   ## Paths
 
   @doc """
@@ -226,11 +245,30 @@ defmodule Bbh.Redirects do
   ## 404 log
 
   @doc """
-  Records a 404 for `path` (normalized here). `referrer` is an external referrer URL
-  or nil; only its host and path are kept.
+  Whether the 404 log ignores `path`: admin and other internal areas, paths that carry
+  secrets, and scanner probes (`/.env`, `*.php`, `id_rsa`, `*.key`, `*.map`, …).
+
+  Decided on the **normalized** path, so `/Admin`, `//admin` or `/%61dmin` are caught
+  like `/admin`.
+  """
+  def ignored_not_found?(path) when is_binary(path) do
+    path = normalize_path(path)
+
+    Enum.any?(@ignored_prefixes, &(path == &1 or String.starts_with?(path, &1 <> "/"))) or
+      Regex.match?(@scanner_re, path)
+  end
+
+  @doc """
+  Records a 404 for `path` (normalized here), unless `ignored_not_found?/1`. `referrer`
+  is an external referrer URL or nil; only its host and path are kept.
   """
   def record_not_found(path, referrer \\ nil) do
     path = path |> normalize_path() |> String.slice(0, 1000)
+
+    if ignored_not_found?(path), do: :ok, else: insert_not_found(path, referrer)
+  end
+
+  defp insert_not_found(path, referrer) do
     referrer = strip_referrer(referrer)
     now = DateTime.utc_now() |> DateTime.truncate(:second)
 
@@ -281,10 +319,27 @@ defmodule Bbh.Redirects do
     :ok
   end
 
-  @doc "Drops 404-log entries not seen for `days` days. Returns the number removed."
+  @doc """
+  Drops 404-log entries not seen for `days` days, plus any entry that
+  `ignored_not_found?/1` now rejects — so widening the ignore list also clears what
+  was logged before. Returns the number removed.
+  """
   def prune_not_found(days \\ 90) do
     cutoff = DateTime.utc_now() |> DateTime.add(-days, :day)
-    {count, _} = from(n in NotFoundPath, where: n.last_seen_at < ^cutoff) |> Repo.delete_all()
+    {stale, _} = from(n in NotFoundPath, where: n.last_seen_at < ^cutoff) |> Repo.delete_all()
+    stale + prune_ignored()
+  end
+
+  # The log is capped at @max_not_found rows, so filtering in Elixir stays cheap and
+  # keeps the regex in one dialect.
+  defp prune_ignored do
+    ids =
+      from(n in NotFoundPath, select: {n.id, n.path})
+      |> Repo.all()
+      |> Enum.filter(fn {_id, path} -> ignored_not_found?(path) end)
+      |> Enum.map(fn {id, _path} -> id end)
+
+    {count, _} = from(n in NotFoundPath, where: n.id in ^ids) |> Repo.delete_all()
     count
   end
 end
