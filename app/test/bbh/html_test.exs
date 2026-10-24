@@ -55,6 +55,20 @@ defmodule Bbh.HtmlTest do
                "bbh-float"
     end
 
+    test "moves image classes from Quill's wrapping span onto the image" do
+      html =
+        ~s(<p><span class="bbh-float-left bbh-img-sm bbh-cap-none">) <>
+          ~s(<img src="/media/1.jpg" alt="A"></span></p>)
+
+      assert Html.sanitize(html) ==
+               ~s(<p><img src="/media/1.jpg" alt="A" class="bbh-float-left bbh-img-sm bbh-cap-none" /></p>)
+    end
+
+    test "leaves a span around an image alone when it carries text formatting" do
+      html = ~s(<p><span class="bbh-weight-700"><img src="/media/1.jpg" /></span></p>)
+      assert Html.sanitize(html) =~ ~s(<span class="bbh-weight-700"><img)
+    end
+
     test "keeps image caption classes, drops unknown caption values" do
       for mode <- ~w(none caption copyright) do
         assert Html.sanitize(~s(<p><img src="/media/1.jpg" class="bbh-cap-#{mode}"></p>)) =~

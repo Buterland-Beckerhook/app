@@ -65,24 +65,46 @@ function bufToB64url(buffer) {
 }
 
 // --- Quill setup: register custom formats once, before any editor mounts. ---
-// Default Quill strips class/alt from images; keep them so image size
-// (bbh-img-*) and alt text survive editing round-trips.
+// Default Quill strips alt from images; keep it (and the dimensions) so they survive
+// editing round-trips.
+//
+// The image formats (size, float, caption line) are class attributors, and Quill
+// applies an attributor to an embed by wrapping it in a <span> that carries the class
+// — the <img> itself stays bare, so neither the editor CSS nor the server
+// (BbhWeb.RichtextImages reads the classes off the <img>) would see it. BbhImage
+// therefore claims those formats and sets the class on its own node. Filled in below,
+// once the attributors exist.
 const QuillImage = Quill.import("formats/image")
-const IMG_ATTRS = ["alt", "width", "height", "class"]
+const IMG_ATTRS = ["alt", "width", "height"]
+const IMAGE_CLASS_FORMATS = {}
 class BbhImage extends QuillImage {
   static formats(domNode) {
-    return IMG_ATTRS.reduce((formats, attr) => {
+    const formats = IMG_ATTRS.reduce((formats, attr) => {
       if (domNode.hasAttribute(attr)) formats[attr] = domNode.getAttribute(attr)
       return formats
     }, {})
+    for (const [name, attributor] of Object.entries(IMAGE_CLASS_FORMATS)) {
+      const value = attributor.value(domNode)
+      if (value) formats[name] = value
+    }
+    return formats
   }
   format(name, value) {
-    if (IMG_ATTRS.includes(name)) {
+    const attributor = IMAGE_CLASS_FORMATS[name]
+    if (attributor) {
+      if (value) attributor.add(this.domNode, value)
+      else attributor.remove(this.domNode)
+      if (!this.domNode.classList.length) this.domNode.removeAttribute("class")
+    } else if (IMG_ATTRS.includes(name)) {
       if (value) this.domNode.setAttribute(name, value)
       else this.domNode.removeAttribute(name)
     } else {
       super.format(name, value)
     }
+  }
+  formatAt(index, length, name, value) {
+    if (IMAGE_CLASS_FORMATS[name]) this.format(name, value)
+    else super.formatAt(index, length, name, value)
   }
 }
 Quill.register(BbhImage, true)
@@ -113,6 +135,12 @@ const ImageCaption = new Parchment.ClassAttributor("bbhImgCaption", "bbh-cap", {
   whitelist: ["none", "caption", "copyright"],
 })
 Quill.register(ImageCaption, true)
+
+Object.assign(IMAGE_CLASS_FORMATS, {
+  bbhImgSize: ImageSize,
+  bbhImgFloat: ImageFloat,
+  bbhImgCaption: ImageCaption,
+})
 
 // Font weight, text size and "muted" text as inline class attributors -> spans
 // like <span class="bbh-weight-500">. Same mechanism as image size; the server

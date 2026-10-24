@@ -53,6 +53,7 @@ defmodule Bbh.Html do
     html
     |> Bbh.Html.RichScrubber.sanitize()
     |> filter_classes()
+    |> unwrap_image_spans()
     |> merge_blocks()
     |> normalize_spaces()
   end
@@ -192,6 +193,24 @@ defmodule Bbh.Html do
     html
     |> String.replace(" ", " ")
     |> String.replace("&nbsp;", " ")
+  end
+
+  # Quill applies a class attributor to an embed by wrapping it in a `<span>` that
+  # carries the class. The editor's image blot sets the image formats on the `<img>`
+  # itself, but content saved before that (or pasted from such an editor) holds
+  # `<span class="bbh-img-md"><img …></span>`. Move the classes onto the image, where
+  # the CSS and `BbhWeb.RichtextImages` look for them. Only a span holding nothing but
+  # the image and only image-format classes; anything else is left alone.
+  defp unwrap_image_spans(html) do
+    Regex.replace(~r{<span class="([^"]*)">(<img\b[^>]*?)\s*/?></span>}, html, fn
+      full, classes, img ->
+        tokens = String.split(classes)
+
+        if Enum.all?(tokens, &String.match?(&1, ~r/\Abbh-(img|float|cap)-/)) and
+             not String.match?(img, ~r/\sclass="/),
+           do: img <> ~s( class="#{classes}" />),
+           else: full
+    end)
   end
 
   # Keep only whitelisted class tokens; drop the attribute when none remain.
