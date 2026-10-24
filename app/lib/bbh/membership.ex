@@ -53,11 +53,10 @@ defmodule Bbh.Membership do
       }
       |> derive_bank()
 
-    consents = %{
-      sepa: consented?(params, "sepa"),
-      datenspeicherung: consented?(params, "datenspeicherung"),
-      privacy: consented?(params, "privacy")
-    }
+    # The SEPA mandate is the one real declaration on the form. Processing the
+    # applicant's data needs no consent — it follows from the membership itself
+    # (Art. 6(1)(b) GDPR) — so the form only points to the privacy policy.
+    consents = %{sepa: consented?(params, "sepa")}
 
     errors =
       %{}
@@ -86,12 +85,6 @@ defmodule Bbh.Membership do
         :sepa,
         "Bitte erteilen Sie das SEPA-Lastschriftmandat."
       )
-      |> put_if(
-        not consents.datenspeicherung,
-        :datenspeicherung,
-        "Bitte stimmen Sie der Speicherung Ihrer Daten zu."
-      )
-      |> put_if(not consents.privacy, :privacy, "Bitte stimmen Sie der Datenschutzerklärung zu.")
 
     if errors == %{},
       do: {:ok, Map.merge(fields, consents)},
@@ -186,12 +179,7 @@ defmodule Bbh.Membership do
     Kreditinstitut: #{data.kreditinstitut}
     Gläubiger-ID:  #{@creditor_id}
     Mandatsreferenz: #{@mandate_reference}
-
-    Erteilte Zustimmungen
-    ---------------------
-    SEPA-Mandat erteilt:        #{yes_no(data.sepa)}
-    Datenspeicherung zugestimmt: #{yes_no(data.datenspeicherung)}
-    Datenschutz zugestimmt:     #{yes_no(data.privacy)}
+    SEPA-Mandat erteilt: #{yes_no(data.sepa)}
     """
   end
 
