@@ -17,7 +17,6 @@ defmodule Bbh.Content.Article do
     field :year, :integer
     field :author, :string
     field :tags, {:array, :string}, default: []
-    field :body, :string
     field :no_article, :boolean, default: false
     field :aliases, {:array, :string}, default: []
 
@@ -25,14 +24,9 @@ defmodule Bbh.Content.Article do
     # Mediathek; caption/copyright live on the Upload.
     belongs_to :image, Bbh.Media.Upload
 
-    # Ordered content blocks (mixed text/images/galleries), the article body's new home.
+    # Ordered content blocks (mixed text/images/galleries).
     has_many :article_blocks, Bbh.Content.ArticleBlock, preload_order: [asc: :position]
 
-    # Legacy: kept one release for rollback while `body`/blocks coexist. `images` and
-    # `body` are no longer surfaced in the editor; a follow-up migration drops them.
-    # `preload_order` so every preload — article page, homepage, /thron, search —
-    # honours the editor's sort order instead of returning rows in insert order.
-    has_many :images, Bbh.Content.ArticleImage, preload_order: [asc: :sort, asc: :inserted_at]
     has_one :throne, Bbh.Content.Throne
 
     timestamps()
@@ -49,12 +43,10 @@ defmodule Bbh.Content.Article do
       :date_published,
       :author,
       :tags,
-      :body,
       :no_article,
       :aliases,
       :image_id
     ])
-    |> update_change(:body, &Bbh.Html.sanitize/1)
     |> validate_required([:status, :title, :slug, :date_published])
     |> Bbh.Slug.validate()
     |> validate_inclusion(:status, @statuses)

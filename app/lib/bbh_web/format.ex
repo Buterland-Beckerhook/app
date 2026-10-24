@@ -2,7 +2,7 @@ defmodule BbhWeb.Format do
   @moduledoc "German date/number formatting and media URL helpers for templates."
 
   alias Bbh.Media.Upload
-  alias Bbh.Content.{Article, ArticleImage}
+  alias Bbh.Content.Article
 
   @months ~w(Januar Februar März April Mai Juni Juli August September Oktober November Dezember)
   @weekday_abbr ~w(Mo. Di. Mi. Do. Fr. Sa. So.)
@@ -154,12 +154,9 @@ defmodule BbhWeb.Format do
   def alt_fallback(_), do: nil
 
   @doc """
-  The caption (Bildunterschrift) to render for an image, or `nil` for none.
-
-  An article image can suppress it (`show_caption`) without touching the media item —
-  the caption itself is only ever edited in the media library.
+  The caption (Bildunterschrift) to render for an image, or `nil` for none. It is
+  only ever edited in the media library.
   """
-  def image_caption(%ArticleImage{show_caption: false}), do: nil
   def image_caption(%Upload{caption: caption}), do: presence(caption)
   def image_caption(%{media: %Upload{} = upload}), do: image_caption(upload)
   def image_caption(_), do: nil

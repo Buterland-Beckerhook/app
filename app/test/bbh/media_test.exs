@@ -434,7 +434,7 @@ defmodule Bbh.MediaTest do
     test "refuses to delete media that is still used by an article" do
       upload = upload_fixture(%{})
       article = article_fixture(%{})
-      {:ok, _} = Content.add_article_image(article, upload.id)
+      {:ok, _} = Content.set_article_image(article, upload.id)
 
       assert Media.in_use?(upload)
       assert [{:articles, 1}] = Media.usages(upload)

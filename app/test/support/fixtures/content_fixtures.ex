@@ -8,7 +8,7 @@ defmodule Bbh.ContentFixtures do
 
   @doc """
   Create an article. Its `body` (unless blank) is stored as a richtext content block,
-  the article body's new home — so the article renders and is searchable like a real one.
+  so the article renders and is searchable like a real one.
   """
   def article_fixture(attrs \\ %{}) do
     attrs =
