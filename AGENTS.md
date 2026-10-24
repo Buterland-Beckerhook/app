@@ -278,6 +278,18 @@ PMTiles extract of the Protomaps build, entirely from our own origin. See
   basemaps style major must match the tile schema the updater accepts
   (`Bbh.Map.tile_schema_major/0`).
 
+## Lazy JS bundles
+
+`app.js` stays small: libraries only a few pages need are bundles of their own under
+`assets/js/lazy/` — `editor` (Quill, admin rich text), `datepicker` (flatpickr, admin
+`DatePicker` hook + membership form), `altcha` (contact/membership spam protection).
+They are extra entry points of the `bbh` esbuild profile (`config/config.exs`), the root
+layout publishes their digested URLs as `<meta name="bbh-lazy-<name>">`, and
+`loadLazy(name)` (`assets/js/lazy.js`) injects the script once. A hook that needs one
+loads it in `mounted()` and checks it was not destroyed meanwhile. Adding a bundle means
+all three places: the entry in `config.exs`, the `<meta>` in `root.html.heex`, and the
+`loadLazy` call.
+
 ## BLZ table (IBAN → BIC/Kreditinstitut)
 
 The membership form derives BIC/Kreditinstitut from a German IBAN via a stripped
