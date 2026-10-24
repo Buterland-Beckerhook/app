@@ -28,26 +28,14 @@ defmodule BbhWeb.EventController do
     end
   end
 
-  # A festival's programme item. With item pages (EventPaths.child_pages?/0) it gets
-  # its own page with previous/next links; otherwise this permanently redirects to the
-  # item's anchor on the festival page, so a shared item URL keeps working either way.
+  # A festival's programme item has no page of its own: its URL permanently redirects
+  # to the item's anchor on the festival page (typed or shared item URLs keep working).
   def child(conn, %{"year" => year, "slug" => slug, "child" => child_slug}) do
     with y when not is_nil(y) <- parse_year(year),
-         festival when not is_nil(festival) <- Bbh.Calendar.get_public_event(slug, y),
-         {prev, item, next} <- locate(festival.children, child_slug) do
-      if EventPaths.child_pages?() do
-        render(conn, :child,
-          page_title: "#{item.title} · #{festival.title}",
-          event: item,
-          festival: festival,
-          prev: prev,
-          next: next
-        )
-      else
-        conn
-        |> put_status(:moved_permanently)
-        |> redirect(to: EventPaths.path(item))
-      end
+         item when not is_nil(item) <- Bbh.Calendar.get_public_child(y, slug, child_slug) do
+      conn
+      |> put_status(:moved_permanently)
+      |> redirect(to: EventPaths.path(item))
     else
       _ -> not_found(conn)
     end
@@ -64,26 +52,6 @@ defmodule BbhWeb.EventController do
       send_ical(conn, Bbh.ICal.single(event, site_url()), "#{slug}.ics")
     else
       _ -> not_found(conn)
-    end
-  end
-
-  # Only items with pages of their own have a download; anchors share the festival's.
-  def child_ics(conn, %{"year" => year, "slug" => slug, "child" => child_slug}) do
-    with true <- EventPaths.child_pages?(),
-         y when not is_nil(y) <- parse_year(year),
-         item when not is_nil(item) <- Bbh.Calendar.get_public_child(y, slug, child_slug) do
-      send_ical(conn, Bbh.ICal.single(item, site_url()), "#{child_slug}.ics")
-    else
-      _ -> not_found(conn)
-    end
-  end
-
-  # {previous, item, next} for the item with `slug` in the chronological programme.
-  defp locate(items, slug) do
-    case Enum.find_index(items, &(&1.slug == slug)) do
-      nil -> nil
-      0 -> {nil, Enum.at(items, 0), Enum.at(items, 1)}
-      i -> {Enum.at(items, i - 1), Enum.at(items, i), Enum.at(items, i + 1)}
     end
   end
 end

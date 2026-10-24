@@ -330,6 +330,16 @@ defmodule BbhWeb.MCP.Tools.Articles do
      end}
   end
 
+  defp block_attrs("event", args) do
+    {:ok,
+     merge_take(%{}, args, %{
+       "event_id" => :event_id,
+       "show_header" => :show_header,
+       "show_body" => :show_body,
+       "show_programme" => :show_programme
+     })}
+  end
+
   defp merge_take(attrs, args, fields), do: Map.merge(attrs, Args.take(args, fields))
 
   defp put_image_as(attrs, args, arg, key) do

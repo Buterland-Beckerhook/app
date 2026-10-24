@@ -29,6 +29,82 @@ defmodule BbhWeb.EventHTML do
     "#{Enum.at(@weekdays, Date.day_of_week(dt) - 1)}, #{dt.day}. #{Enum.at(@months, dt.month - 1)}"
   end
 
+  @doc """
+  A festival's programme as a timeline, grouped by day: past items dimmed, the running
+  one highlighted, canceled ones marked. Shared by the festival page and the event
+  content block (`BbhWeb.SiteComponents.block/1`). `festival.children` are its visible
+  items, chronological, each with `location` loaded.
+
+  `anchors` gives every item its slug as `id` — the festival page is where an item's
+  URL points (`BbhWeb.EventPaths`), so only it may claim them.
+  """
+  attr :festival, :map, required: true
+  attr :anchors, :boolean, default: true
+  attr :day_tag, :string, default: "h3"
+
+  def programme(assigns) do
+    ~H"""
+    <div :for={{day, items} <- day_groups(@festival.children)} class="mt-6">
+      <.dynamic_tag tag_name={@day_tag} class="border-b border-base-300 pb-2 text-lg font-bold">
+        {day}
+      </.dynamic_tag>
+      <ol>
+        <li
+          :for={item <- items}
+          id={@anchors && item.slug}
+          class={[
+            "grid scroll-mt-24 grid-cols-[7.5rem_1fr] gap-x-4 border-b border-base-300/60 py-3 last:border-b-0 sm:grid-cols-[8.5rem_1fr_auto]",
+            item_state(item) == :past && "opacity-55",
+            item_state(item) == :running &&
+              "-mx-3 rounded-xl border-b-0 bg-primary/8 px-3 ring-1 ring-primary/30"
+          ]}
+        >
+          <div class="pt-0.5 text-sm font-semibold text-primary tabular-nums">
+            {item_time(item)}
+          </div>
+          <div class="min-w-0">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="font-semibold">{item.title}</span>
+              <span
+                :if={item_state(item) == :running}
+                class="rounded bg-primary px-2 py-0.5 text-xs font-bold text-primary-content uppercase"
+              >
+                Jetzt
+              </span>
+              <span
+                :if={item.status == "canceled"}
+                class="rounded bg-error/10 px-2 py-0.5 text-xs font-medium text-error"
+              >
+                Abgesagt
+              </span>
+            </div>
+            <p :if={item.status == "canceled" && item.cancel_reason} class="text-sm text-error">
+              {item.cancel_reason}
+            </p>
+            <p :if={loc = item_location(item, @festival)} class="text-sm text-muted sm:hidden">
+              {loc.name}
+            </p>
+            <details :if={item.body} class="group mt-1 text-sm">
+              <summary class="cursor-pointer text-primary hover:underline">
+                Mehr erfahren
+              </summary>
+              <div class="prose prose-sm mt-2 max-w-none dark:prose-invert">
+                {render_richtext(item.body)}
+              </div>
+            </details>
+          </div>
+          <div
+            :if={loc = item_location(item, @festival)}
+            class="hidden pt-0.5 text-right text-sm text-muted sm:block"
+          >
+            {loc.name}
+          </div>
+        </li>
+      </ol>
+    </div>
+    """
+  end
+
   @doc ~s("1 Programmpunkt" / "14 Programmpunkte".)
   def programme_count(1), do: "1 Programmpunkt"
   def programme_count(n), do: "#{n} Programmpunkte"

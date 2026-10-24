@@ -1,14 +1,10 @@
 defmodule BbhWeb.EventProgrammeControllerTest do
-  @moduledoc "Public pages of a festival's programme, in both item-page variants."
-  # async: false — toggles the global :event_child_pages flag.
-  use BbhWeb.ConnCase, async: false
+  @moduledoc "Public pages of a festival's programme (items are anchors on it)."
+  use BbhWeb.ConnCase, async: true
 
   import Bbh.CalendarFixtures
 
   setup do
-    previous = Application.get_env(:bbh, :event_child_pages, false)
-    on_exit(fn -> Application.put_env(:bbh, :event_child_pages, previous) end)
-
     festzelt = location_fixture(name: "Festzelt")
     dinkelhof = location_fixture(name: "Dinkelhof")
 
@@ -55,8 +51,6 @@ defmodule BbhWeb.EventProgrammeControllerTest do
     %{fest: fest, tanz: tanz, gottesdienst: gottesdienst, schnitzel: schnitzel}
   end
 
-  defp child_pages(on?), do: Application.put_env(:bbh, :event_child_pages, on?)
-
   describe "festival page" do
     test "lists the programme by day, without drafts", %{conn: conn} do
       html = conn |> get(~p"/termine/2030/schuetzenfest") |> html_response(200)
@@ -88,9 +82,7 @@ defmodule BbhWeb.EventProgrammeControllerTest do
     end
   end
 
-  describe "items as anchors (default)" do
-    setup do: child_pages(false)
-
+  describe "items as anchors" do
     test "an item URL redirects permanently to its anchor", %{conn: conn} do
       conn = get(conn, ~p"/termine/2030/schuetzenfest/gottesdienst")
       assert redirected_to(conn, 301) == "/termine/2030/schuetzenfest#gottesdienst"
@@ -108,41 +100,6 @@ defmodule BbhWeb.EventProgrammeControllerTest do
     test "the festival page does not link the items", %{conn: conn} do
       html = conn |> get(~p"/termine/2030/schuetzenfest") |> html_response(200)
       refute html =~ ~s(href="/termine/2030/schuetzenfest/gottesdienst")
-    end
-  end
-
-  describe "items as pages" do
-    setup do: child_pages(true)
-
-    test "an item has its own page with the festival and its neighbours", %{conn: conn} do
-      html = conn |> get(~p"/termine/2030/schuetzenfest/gottesdienst") |> html_response(200)
-
-      assert html =~ "Gottesdienst"
-      assert html =~ "Teil von:"
-      assert html =~ ~s(href="/termine/2030/schuetzenfest#programm")
-      assert html =~ "Im Festzelt, bei jedem Wetter."
-      # previous / next, skipping the draft
-      assert html =~ ~s(href="/termine/2030/schuetzenfest/tanz")
-      assert html =~ ~s(href="/termine/2030/schuetzenfest/schnitzelessen")
-      refute html =~ "Geheimprobe"
-    end
-
-    test "the festival page links the items", %{conn: conn} do
-      html = conn |> get(~p"/termine/2030/schuetzenfest") |> html_response(200)
-      assert html =~ ~s(href="/termine/2030/schuetzenfest/gottesdienst")
-    end
-
-    test "an item has its own download", %{conn: conn} do
-      ics = conn |> get(~p"/termine/2030/schuetzenfest/gottesdienst/event.ics") |> response(200)
-
-      assert ics =~ "SUMMARY:Gottesdienst"
-      assert ics =~ "/termine/2030/schuetzenfest/gottesdienst"
-      refute ics =~ "SUMMARY:Schützenfest"
-    end
-
-    test "unknown and draft items are not found", %{conn: conn} do
-      assert conn |> get(~p"/termine/2030/schuetzenfest/geheim") |> html_response(404)
-      assert build_conn() |> get(~p"/termine/2030/anderes/gottesdienst") |> html_response(404)
     end
   end
 

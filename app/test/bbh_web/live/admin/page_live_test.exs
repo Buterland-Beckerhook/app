@@ -201,6 +201,26 @@ defmodule BbhWeb.Admin.PageLiveTest do
     end
   end
 
+  describe "event block" do
+    test "offers the events, saves the choice and warns while it is not public", %{conn: conn} do
+      fest = Bbh.CalendarFixtures.festival_fixture(title: "Schützenfest", status: "draft")
+      page = page_fixture()
+      {:ok, pb} = Content.add_block(page, "event")
+      {:ok, lv, html} = live(conn, ~p"/admin/seiten/#{page.id}/bearbeiten")
+
+      assert html =~ "Schützenfest (20.07.2030) · Entwurf"
+
+      html =
+        lv
+        |> form("#block-#{pb.id}", block: %{event_id: fest.id, show_body: true})
+        |> render_submit()
+
+      assert html =~ "nicht öffentlich"
+      assert %{event_id: id, show_body: true} = Content.get_block(pb)
+      assert id == fest.id
+    end
+  end
+
   describe "person_list block" do
     setup %{conn: conn} do
       page = page_fixture()

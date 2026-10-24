@@ -12,7 +12,8 @@ defmodule Bbh.Content.Blocks do
     "media_card" => __MODULE__.MediaCard,
     "image_gallery" => __MODULE__.ImageGallery,
     "person_list" => __MODULE__.PersonList,
-    "separator" => __MODULE__.Separator
+    "separator" => __MODULE__.Separator,
+    "event" => __MODULE__.Event
   }
 
   def types, do: @types
@@ -222,6 +223,44 @@ defmodule Bbh.Content.Blocks do
       |> validate_inclusion(:filter_honorary, @honorary)
       |> validate_inclusion(:display_style, @styles)
       |> validate_inclusion(:sort_by, @sort_bys)
+    end
+  end
+
+  defmodule Event do
+    @moduledoc """
+    One event shown inline — the Schützenfest with its programme in the invitation
+    article, so the programme need not be typed out a second time. Stores only which
+    event and which parts to show; `BbhWeb.SiteComponents.block/1` reads the event live
+    through `Bbh.Calendar.get_public_event_by_id/1`, so it renders nothing while the
+    event is not public (or after it was deleted, which nils `event_id`).
+    """
+    use Bbh.Schema
+
+    schema "block_event" do
+      field :show_header, :boolean, default: true
+      field :show_body, :boolean, default: false
+      field :show_programme, :boolean, default: true
+      belongs_to :event, Bbh.Calendar.Event
+      timestamps()
+    end
+
+    def changeset(block, attrs) do
+      block
+      |> cast(attrs, [:event_id, :show_header, :show_body, :show_programme])
+      |> validate_top_level_event()
+      |> foreign_key_constraint(:event_id)
+    end
+
+    # A programme item has no place of its own to link to and shows through its
+    # festival anyway; pick the festival instead.
+    defp validate_top_level_event(changeset) do
+      with id when is_binary(id) <- get_change(changeset, :event_id),
+           %{parent_id: parent_id} when not is_nil(parent_id) <-
+             Bbh.Repo.get(Bbh.Calendar.Event, id) do
+        add_error(changeset, :event_id, "Programmpunkte zeigt der Block über ihr Fest.")
+      else
+        _ -> changeset
+      end
     end
   end
 end

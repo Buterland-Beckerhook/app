@@ -94,13 +94,19 @@ timed child event (`parent_id`, one level deep). Rules that constrain changes:
   homepage's "Jetzt / Als Nächstes" box (which drives the countdown) and in iCal (with
   `RELATED-TO`). An item is public when it is published or canceled *and* its festival
   is public; drafts let the programme be prepared ahead.
-- **Build event URLs with `BbhWeb.EventPaths`** — an item's URL depends on its parent
-  and on `config :bbh, :event_child_pages` (anchor `#item` vs. own page; still being
-  decided, `EVENT_CHILD_PAGES=true make dev` shows the page variant).
+- **Build event URLs with `BbhWeb.EventPaths`** — an item has no page of its own; its
+  URL is an anchor on the festival page (`/termine/:year/:festival#:item`), and
+  `/termine/:year/:festival/:item` only redirects there.
 - **"Neuer Termin" is bundled.** Events are published in bulk (the whole year after
   the JHV), so `Bbh.Workers.EventPublishNotifier` waits until no pending event changed
   for 30 minutes and sends one push for all of them. Don't add an immediate push to
   the form.
+- **The "Termin" content block** (`Bbh.Content.Blocks.Event`) shows an event with its
+  programme inside a page or article (the invitation). It stores only the `event_id`
+  and three switches; the event is read live through
+  `Bbh.Calendar.get_public_event_by_id/1`, so it renders nothing until the event is
+  public. The programme markup is `BbhWeb.EventHTML.programme/1`, shared with the
+  festival page — only the festival page sets the item anchors.
 - The changeset (`Bbh.Calendar.Event`) keeps items inside the festival (overnight grace
   until 06:00 after the last day) and festivals around their items. `make seed-demo`
   adds a demo festival; walk through it with `/dev/zeitreise`.

@@ -309,4 +309,43 @@ defmodule Bbh.CalendarProgrammeTest do
       assert Repo.aggregate(EventReminder, :count, :id) == 0
     end
   end
+
+  describe "block_event_options/2" do
+    test "festivals first, then by date; no items, no internal calendars, nothing stale" do
+      now = ~U[2030-01-01 12:00:00Z]
+      fest = festival_fixture()
+      programme_item_fixture(fest)
+      programme_item_fixture(fest, status: "draft")
+      single = event_fixture(title: "Königsball", starts_at: ~U[2030-03-01 19:00:00Z])
+      draft = event_fixture(status: "draft", starts_at: ~U[2030-04-01 19:00:00Z])
+      event_fixture(calendar: "vorstand", starts_at: ~U[2030-03-02 19:00:00Z])
+      stale = event_fixture(starts_at: ~U[2029-01-01 19:00:00Z])
+
+      assert [f, s, d] = Calendar.block_event_options(now)
+      assert {f.id, f.child_count} == {fest.id, 2}
+      assert {s.id, d.id} == {single.id, draft.id}
+
+      included = Calendar.block_event_options(now, include: stale.id)
+      assert stale.id in Enum.map(included, & &1.id)
+
+      assert [%{id: id}] = Calendar.block_event_options(now, query: "könig")
+      assert id == single.id
+    end
+  end
+
+  describe "get_public_event_by_id/1" do
+    test "a public festival with its visible items; nothing for drafts, items, junk" do
+      fest = festival_fixture()
+      item = programme_item_fixture(fest)
+      programme_item_fixture(fest, status: "draft")
+
+      assert %Event{children: [child]} = Calendar.get_public_event_by_id(fest.id)
+      assert child.id == item.id
+
+      assert Calendar.get_public_event_by_id(item.id) == nil
+      assert Calendar.get_public_event_by_id(event_fixture(status: "draft").id) == nil
+      assert Calendar.get_public_event_by_id("nope") == nil
+      assert Calendar.get_public_event_by_id(nil) == nil
+    end
+  end
 end

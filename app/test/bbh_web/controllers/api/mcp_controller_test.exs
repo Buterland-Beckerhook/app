@@ -481,6 +481,59 @@ defmodule BbhWeb.Api.MCPControllerTest do
     end
   end
 
+  describe "event tools" do
+    test "finds an event and shows it in an article's event block", %{conn: conn, bearer: bearer} do
+      fest = Bbh.CalendarFixtures.festival_fixture(title: "Schützenfest")
+      Bbh.CalendarFixtures.programme_item_fixture(fest)
+
+      result = conn |> tool_call(bearer, "search_events", %{"query" => "schützen"}) |> tool_data()
+      assert [found] = result["events"]
+      assert found["id"] == fest.id
+      assert found["public"]
+      assert found["programme_items"] == 1
+      assert found["url"] =~ "/termine/2030/#{fest.slug}"
+
+      article = conn |> tool_call(bearer, "create_article", %{"title" => "X"}) |> tool_data()
+
+      block =
+        conn
+        |> tool_call(bearer, "add_article_block", %{
+          "article_id" => article["id"],
+          "type" => "event",
+          "event_id" => fest.id,
+          "show_body" => true
+        })
+        |> tool_data()
+
+      assert block["type"] == "event"
+      assert block["event"]["id"] == fest.id
+      assert block["show_body"]
+      assert block["show_programme"]
+
+      updated =
+        conn
+        |> tool_call(bearer, "update_article_block", %{
+          "block_id" => block["id"],
+          "show_programme" => false
+        })
+        |> tool_data()
+
+      refute updated["show_programme"]
+    end
+
+    test "rejects an unknown event id", %{conn: conn, bearer: bearer} do
+      article = conn |> tool_call(bearer, "create_article", %{"title" => "X"}) |> tool_data()
+
+      assert conn
+             |> tool_call(bearer, "add_article_block", %{
+               "article_id" => article["id"],
+               "type" => "event",
+               "event_id" => Ecto.UUID.generate()
+             })
+             |> tool_error() =~ "event_id"
+    end
+  end
+
   describe "media tools" do
     test "searches the library and returns usable ids and urls", %{conn: conn, bearer: bearer} do
       upload = upload_fixture(%{filename: "koenigsball.webp", title: "Königsball"})
