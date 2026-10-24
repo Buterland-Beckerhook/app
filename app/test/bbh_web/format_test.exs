@@ -106,7 +106,7 @@ defmodule BbhWeb.FormatTest do
   end
 
   describe "image metadata" do
-    alias Bbh.Content.ArticleImage
+    alias Bbh.Content.Blocks.GalleryFile
 
     test "alt text prefers the description, then caption, then title" do
       assert Format.image_alt(%Upload{description: "Alt", caption: "Cap", title: "Titel"}) ==
@@ -120,20 +120,10 @@ defmodule BbhWeb.FormatTest do
     end
 
     test "an embedding resolves through its media item" do
-      image = %ArticleImage{media: %Upload{caption: "Der Thron", copyright: "BBH e.V."}}
+      image = %GalleryFile{media: %Upload{caption: "Der Thron", copyright: "BBH e.V."}}
 
       assert Format.image_alt(image) == "Der Thron"
       assert Format.image_caption(image) == "Der Thron"
-      assert Format.image_copyright(image) == "BBH e.V."
-    end
-
-    test "an article image can suppress the caption without hiding the copyright" do
-      image = %ArticleImage{
-        show_caption: false,
-        media: %Upload{caption: "Der Thron", copyright: "BBH e.V."}
-      }
-
-      assert is_nil(Format.image_caption(image))
       assert Format.image_copyright(image) == "BBH e.V."
     end
 
@@ -156,10 +146,10 @@ defmodule BbhWeb.FormatTest do
     end
 
     test "blank metadata counts as none" do
-      image = %ArticleImage{media: %Upload{caption: "  ", copyright: ""}}
+      image = %GalleryFile{media: %Upload{caption: "  ", copyright: ""}}
       assert is_nil(Format.image_caption(image))
       assert is_nil(Format.image_copyright(image))
-      assert is_nil(Format.image_caption(%ArticleImage{}))
+      assert is_nil(Format.image_caption(%GalleryFile{}))
     end
   end
 

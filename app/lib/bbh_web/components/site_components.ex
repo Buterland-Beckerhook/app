@@ -141,13 +141,13 @@ defmodule BbhWeb.SiteComponents do
   end
 
   @doc """
-  Ein E-Mail-Link, der für Harvester unlesbar ist (siehe `BbhWeb.EmailObfuscation`).
+  An e-mail link that harvesters can't read (see `BbhWeb.EmailObfuscation`).
 
-  Für fest im Template gesetzte Adressen. Adressen im Redaktionstext werden beim
-  Rendern automatisch verschleiert und brauchen diese Komponente nicht.
+  For addresses set in a template. Addresses in editorial copy are obfuscated
+  automatically at render time and don't need this component.
 
-  Ohne JavaScript zeigt der Link die Adresse und führt zum Kontaktformular;
-  `assets/js/mail.js` macht bei der ersten Interaktion ein `mailto:` daraus.
+  Without JavaScript the link shows the address and leads to the contact form;
+  `assets/js/mail.js` turns it into a `mailto:` on first interaction.
   """
   attr :address, :string, required: true
 
@@ -310,10 +310,9 @@ defmodule BbhWeb.SiteComponents do
 
   def throne_table(assigns) do
     {king_label, queen_label} = throne_roles(assigns.throne.type)
-    # Stadtkaiser = bewusst nur das (Stadt-)Kaiserpaar. Sonst ist die Anzeige
-    # datengesteuert: Königin und Hofstaat erscheinen, wenn sie eingetragen sind
-    # (der Jungschützenkönig hatte früher vollen Hofstaat, dann nur eine Königin,
-    # heute nur den König).
+    # Stadtkaiser deliberately shows only the (Stadt-)Kaiser couple. Otherwise the table
+    # is data-driven: queen and court appear when they are filled in (the
+    # Jungschützenkönig once had a full court, later only a queen, today just the king).
     full_court? = assigns.throne.type != "stadtkaiser"
 
     assigns =

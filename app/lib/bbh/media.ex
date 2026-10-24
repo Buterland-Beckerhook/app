@@ -4,7 +4,7 @@ defmodule Bbh.Media do
 
   Originals live under `:uploads_dir` keyed by `storage_key`. Requesting a size
   produces a cached WebP variant under `:media_cache_dir` (regenerable, so it is
-  excluded from backups). Replaces Directus asset transforms.
+  excluded from backups).
   """
   import Ecto.Query
   alias Bbh.Ordering
@@ -616,7 +616,9 @@ defmodule Bbh.Media do
   """
   def usages(%Upload{id: id}) do
     counts = [
-      articles: count_refs(Bbh.Content.ArticleImage, :media_id, id),
+      # Article and throne images nilify on delete too — same reasoning as portraits.
+      articles: count_refs(Bbh.Content.Article, :image_id, id),
+      thrones: count_refs(Bbh.Content.Throne, :image_id, id),
       media_cards: count_refs(Bbh.Content.Blocks.MediaCard, :image_id, id),
       galleries: count_refs(Bbh.Content.Blocks.GalleryFile, :media_id, id),
       # `people.portrait_id` nilifies on delete, so an unguarded delete would silently

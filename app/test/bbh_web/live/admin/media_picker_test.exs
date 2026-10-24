@@ -161,7 +161,7 @@ defmodule BbhWeb.Admin.MediaPickerTest do
   #
   # The person form used to be the second such host. It now has a Portrait button and a
   # matching `handle_info/2`; its side of the contract is checked in `person_live_test.exs`.
-  describe "Trix-only hosts" do
+  describe "editor-only hosts" do
     setup :register_and_log_in_admin
 
     test "the event form mounts the picker without any context button", ctx do

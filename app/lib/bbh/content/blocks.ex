@@ -1,6 +1,6 @@
 defmodule Bbh.Content.Blocks do
   @moduledoc """
-  The page content blocks (the Directus M2A block collections). Each block type is
+  The content blocks of pages and articles (the `block_*` tables). Each block type is
   its own schema/table; `Bbh.Content.PageBlock` orders them on a page polymorphically.
 
   `block_type` string ↔ block schema mapping used by the renderer and admin editor.

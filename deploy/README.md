@@ -52,7 +52,7 @@ setup.)
      writes the value **`$`-escaped** so Compose interpolation keeps the hash intact.
    - sets `TRAEFIK_*` from the chosen mode/host and writes `.env` with `chmod 600`,
      then self-checks it with `docker compose config`.
-   - You are prompted for the rest (hostname, SMTP, Matomo…) with sensible defaults.
+   - You are prompted for the rest (hostname, SMTP, …) with sensible defaults.
 
    > **Do not hand-edit secrets or the auth hash.** If you must edit `.env` by hand,
    > remember every literal `$` has to be doubled to `$$` (Compose interpolates `.env`
