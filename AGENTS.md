@@ -97,6 +97,10 @@ timed child event (`parent_id`, one level deep). Rules that constrain changes:
 - **Build event URLs with `BbhWeb.EventPaths`** — an item's URL depends on its parent
   and on `config :bbh, :event_child_pages` (anchor `#item` vs. own page; still being
   decided, `EVENT_CHILD_PAGES=true make dev` shows the page variant).
+- **"Neuer Termin" is bundled.** Events are published in bulk (the whole year after
+  the JHV), so `Bbh.Workers.EventPublishNotifier` waits until no pending event changed
+  for 30 minutes and sends one push for all of them. Don't add an immediate push to
+  the form.
 - The changeset (`Bbh.Calendar.Event`) keeps items inside the festival (overnight grace
   until 06:00 after the last day) and festivals around their items. `make seed-demo`
   adds a demo festival; walk through it with `/dev/zeitreise`.
