@@ -7,8 +7,7 @@ defmodule BbhWeb.ContactControllerTest do
   @valid %{
     "name" => "Erika Musterfrau",
     "email" => "erika@example.com",
-    "message" => "Ich hätte eine Frage.",
-    "privacy" => "true"
+    "message" => "Ich hätte eine Frage."
   }
 
   # A form_ts token signed as if issued 10s ago, so the min-fill-time check passes.
@@ -23,6 +22,13 @@ defmodule BbhWeb.ContactControllerTest do
 
   test "GET /kontakt renders the form", %{conn: conn} do
     assert conn |> get(~p"/kontakt") |> html_response(200) =~ "Kontakt"
+  end
+
+  test "GET /kontakt points to the privacy policy instead of asking for consent", %{conn: conn} do
+    doc = conn |> get(~p"/kontakt") |> html_response(200) |> LazyHTML.from_document()
+
+    assert doc |> LazyHTML.query("#privacy-notice a[href='/datenschutz']") |> Enum.any?()
+    assert doc |> LazyHTML.query("input[name=privacy]") |> Enum.empty?()
   end
 
   describe "POST /kontakt (altcha disabled)" do

@@ -21,7 +21,6 @@ defmodule Bbh.Contact do
     name = params |> Map.get("name", "") |> String.trim()
     email = params |> Map.get("email", "") |> String.trim()
     message = params |> Map.get("message", "") |> String.trim()
-    consent = params["privacy"] in ["true", "on", "1"]
 
     errors =
       %{}
@@ -42,7 +41,6 @@ defmodule Bbh.Contact do
         :message,
         "Ihre Nachricht ist zu lang (höchstens #{@max_message_length} Zeichen)."
       )
-      |> put_if(not consent, :privacy, "Bitte stimmen Sie der Datenschutzerklärung zu.")
 
     if errors == %{},
       do: {:ok, %{name: name, email: email, message: message}},
