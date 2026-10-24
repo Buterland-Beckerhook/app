@@ -132,9 +132,11 @@ defmodule Bbh.MembershipTest do
       assert_email_sent(fn email ->
         assert email.subject =~ "Max Mustermann"
         assert email.reply_to == {"Max Mustermann", "max@example.com"}
-        assert email.text_body =~ "DE89370400440532013000"
-        assert email.text_body =~ "SEPA-Mandat erteilt: ja"
         refute email.text_body =~ "zugestimmt"
+        assert email.text_body =~ "DE89370400440532013000"
+        # Last: the callback's return value is what assert_email_sent checks, and a
+        # passing `refute` returns false.
+        assert email.text_body =~ "SEPA-Mandat erteilt: ja"
       end)
 
       # Second mail: the copy to the applicant.
