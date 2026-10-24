@@ -158,17 +158,17 @@
     </div>
 
     <div class="flex flex-col gap-8">
-      <%!-- Alle Bildkacheln gleich hoch (md:min-h) und per items-stretch so hoch wie die
-           Thron-Tabelle daneben — auch der Stadtkaiser (nur das Kaiserpaar). --%>
+      <%!-- All picture tiles share one height (md:min-h) and stretch (items-stretch) to the
+           throne table beside them — the Stadtkaiser too (only the Kaiser couple). --%>
       <div
         :for={throne <- @thrones}
         class="grid gap-6 md:grid-cols-[0.9fr_1.1fr] md:items-stretch"
       >
         <% pic = throne_picture(throne) %>
         <% article_path = throne_article_path(throne) %>
-        <%!-- Bild und Name verlinken auf den Thron-Artikel — außer bei „Nur Thron-Anzeige“
-             oder einem noch nicht veröffentlichten Artikel (throne_article_path/1 → nil).
-             Ohne href ist das <a> nur ein Platzhalter: kein Link, nicht fokussierbar. --%>
+        <%!-- Picture and name link to the throne article — except for „Nur Thron-Anzeige“
+             or an article not yet published (throne_article_path/1 → nil). Without an
+             href the <a> is only a placeholder: no link, not focusable. --%>
         <a
           href={article_path}
           tabindex={article_path && "-1"}

@@ -6,8 +6,8 @@ Repository for **buterland-beckerhook.de** — a German shooting club
 (Schützenverein) website. The site is an **Elixir + Phoenix** application: the
 public site is server-rendered HEEx, the admin area is Phoenix LiveView, data
 lives in PostgreSQL, and uploaded media is stored on a local volume with
-libvips-generated responsive WebP variants. Deployed via Docker Compose behind a
-Caddy reverse proxy.
+libvips-generated responsive WebP variants. Deployed via Docker Compose behind the
+host's central Traefik (Caddy only in the dev stack).
 
 > The site was rewritten from an earlier Directus CMS + SvelteKit stack; that
 > stack has been removed. All application code now lives under `app/`.
@@ -22,7 +22,7 @@ app/          # The Phoenix application (OTP app :bbh) — see app/AGENTS.md
   test/       # ExUnit tests + support/ fixtures
   Dockerfile      # Production release image (multi-stage mix release)
   Dockerfile.dev  # Development image (single-stage mix, source mounted)
-deploy/       # Production stack: compose.yml, Caddyfile, backup.sh, .env.example
+deploy/       # Production/beta stack: compose.yml, setup.sh, update.sh, backup.sh, .env.example
 scripts/      # dump.sh / seed.sh — DB + uploads snapshot/restore (dev & prod)
 docs/adr/     # Architecture decision records
 compose.yml   # Development stack: postgres + phoenix + caddy
