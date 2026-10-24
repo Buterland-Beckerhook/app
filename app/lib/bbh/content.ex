@@ -241,6 +241,7 @@ defmodule Bbh.Content do
 
   defp preload_block(query, "media_card"), do: preload(query, [:image])
   defp preload_block(query, "image_gallery"), do: preload(query, files: :media)
+  defp preload_block(query, "event"), do: preload(query, [:event])
   defp preload_block(query, _), do: query
 
   ## Public page navigation (the block-based "Verein" section)
@@ -699,7 +700,8 @@ defmodule Bbh.Content do
       show_address: false,
       only_active: false
     },
-    "separator" => %{}
+    "separator" => %{},
+    "event" => %{show_header: true, show_body: false, show_programme: true}
   }
 
   @doc "Append a new, empty block of the given type to an owner (page or article)."

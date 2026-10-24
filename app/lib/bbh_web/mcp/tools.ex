@@ -17,15 +17,16 @@ defmodule BbhWeb.MCP.Tools do
   alias Bbh.Accounts.User
   alias BbhWeb.Authz
   alias BbhWeb.MCP.Tools.Articles
+  alias BbhWeb.MCP.Tools.Events
   alias BbhWeb.MCP.Tools.Media
 
   require Logger
 
   @statuses ~w(draft published archived)
-  @block_types ~w(richtext alert media_card image_gallery person_list separator)
+  @block_types ~w(richtext alert media_card image_gallery person_list separator event)
 
   @doc "Every tool this server knows, regardless of who is asking."
-  def all, do: articles_tools() ++ media_tools()
+  def all, do: articles_tools() ++ media_tools() ++ events_tools()
 
   @doc """
   The tools `scope`'s user may call with `api_token`, in `tools/list` wire shape.
@@ -233,7 +234,9 @@ defmodule BbhWeb.MCP.Tools do
         description: """
         Append a content block to an article. This is how article text is written: a
         "richtext" block holds the prose, "image_gallery" holds pictures (fill it with
-        add_gallery_image), "separator" draws a rule.
+        add_gallery_image), "separator" draws a rule, "event" shows an event with its
+        programme — always current, so a festival's programme need not be typed into
+        the text (find the event_id with search_events).
 
         Block text is Markdown by default.
         """,
@@ -332,6 +335,33 @@ defmodule BbhWeb.MCP.Tools do
     ]
   end
 
+  ## Registry — events
+
+  # Read-only and under the articles section on purpose: it exists so an article's
+  # "event" block can name its event. Managing events stays in /admin.
+  defp events_tools do
+    [
+      %{
+        name: "search_events",
+        description: """
+        Find events (Termine) to show in an article's "event" block — typically the
+        Schützenfest with its programme in the invitation article. Lists top-level
+        events from half a year ago on, multi-day festivals first. Each comes with its
+        id (the block's event_id), whether it is public yet (a block stays empty on the
+        site until its event is), and its number of programme items.
+        """,
+        section: :articles,
+        write?: false,
+        handler: {Events, :search_events},
+        input_schema:
+          object(%{
+            "query" => %{type: "string", description: "Substring of the title."},
+            "limit" => %{type: "integer", description: "Default 20, max 100."}
+          })
+      }
+    ]
+  end
+
   # Fields shared by the block tools. Declared once because add_article_block and
   # update_article_block accept exactly the same set — the block's own type decides which
   # of them mean anything, and the handler drops the rest.
@@ -383,6 +413,19 @@ defmodule BbhWeb.MCP.Tools do
         type: "string",
         enum: ["sort_order", "year_start"],
         description: "person_list."
+      },
+      "event_id" => %{type: "string", description: "event: the event, from search_events."},
+      "show_header" => %{
+        type: "boolean",
+        description: "event: title, date and place (default true)."
+      },
+      "show_body" => %{
+        type: "boolean",
+        description: "event: the event's description (default false)."
+      },
+      "show_programme" => %{
+        type: "boolean",
+        description: "event: the programme items (default true)."
       }
     }
   end

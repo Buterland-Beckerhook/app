@@ -254,6 +254,9 @@ defmodule Bbh.Search do
   # every person edit, and `Bbh.Club` has no `reindex_after/1` hook the way
   # `Content.update_block/2` does. Wiring that up is the price of making people searchable.
   defp block_text(%Blocks.PersonList{title: title}), do: title || ""
+  # An event block indexes nothing: the event is found on its own, and its programme is
+  # not searchable anywhere — indexing it here would make every programme item a hit
+  # for the invitation article.
   defp block_text(_), do: ""
 
   # A gallery file's searchable text lives on its media item (caption/title/copyright),
