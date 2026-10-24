@@ -86,6 +86,58 @@ defmodule BbhWeb.SiteComponents do
   end
 
   @doc """
+  The map of an event's location (self-hosted, `docs/adr/0014-self-hosted-osm-map.md`).
+
+  Renders only when there is a map archive (`Bbh.Map`) that covers the location;
+  otherwise nothing, and the page keeps its address and OpenStreetMap links. The
+  figure starts hidden: `assets/map/map.js` reveals it once a map is mounted, so
+  without JavaScript or WebGL there is no empty box either.
+  """
+  attr :location, :map, required: true
+  attr :nonce, :string, default: nil
+  attr :heading, :string, default: nil, doc: "an <h2> above the map, hidden along with it"
+  attr :class, :any, default: nil
+
+  def location_map(assigns) do
+    assigns = assign(assigns, :map, Bbh.Map.covers?(assigns.location) && Bbh.Map.info())
+
+    ~H"""
+    <figure :if={@map} class={@class} hidden>
+      <link rel="stylesheet" href={~p"/assets/map/map.css"} />
+      <h2 :if={@heading} class="mb-3 font-logo text-2xl font-bold text-primary">{@heading}</h2>
+      <div
+        data-location-map
+        data-lat={@location.lat}
+        data-lng={@location.lng}
+        data-tiles-url={"/karte/region.pmtiles?v=#{@map.version}"}
+        data-bounds={@map.bbox |> Tuple.to_list() |> Enum.join(",")}
+        role="img"
+        aria-label={"Karte: #{@location.name}"}
+        class="aspect-video w-full overflow-hidden rounded-lg border border-base-300 bg-base-200"
+      >
+      </div>
+      <figcaption class="mt-1 text-xs text-muted">
+        Kartendaten ©
+        <a
+          href="https://www.openstreetmap.org/copyright"
+          target="_blank"
+          rel="noopener"
+          class="hover:underline"
+        >
+          OpenStreetMap-Mitwirkende
+        </a>
+        (ODbL) · Kartenstil
+        <a href="https://protomaps.com" target="_blank" rel="noopener" class="hover:underline">
+          Protomaps
+        </a>
+      </figcaption>
+      <script type="module" nonce={@nonce} src={~p"/assets/map/map.js"}>
+      </script>
+    </figure>
+    """
+  end
+
+  @doc """
   Ein E-Mail-Link, der für Harvester unlesbar ist (siehe `BbhWeb.EmailObfuscation`).
 
   Für fest im Template gesetzte Adressen. Adressen im Redaktionstext werden beim

@@ -24,6 +24,10 @@ config :bbh, BbhWeb.Endpoint,
 # Disable rate limiting in tests so it doesn't interfere
 config :bbh, BbhWeb.RateLimit, enabled: false
 
+# No map downloads in tests: no boot fetch, no enqueue on location save. Worker
+# tests turn it on with a stubbed HTTP client and a fake `pmtiles`.
+config :bbh, Bbh.Map, auto_update: false, req_options: [plug: {Req.Test, Bbh.Map}]
+
 # Run Oban jobs manually in tests (no queues/cron polling); use Oban.Testing.
 config :bbh, Oban, testing: :manual
 

@@ -166,6 +166,9 @@ if config_env() == :prod do
     membership_max_child_age:
       String.to_integer(System.get_env("MEMBERSHIP_MAX_CHILD_AGE") || "15")
 
+  # Map archive inside the uploads volume (excluded from backups: regenerable).
+  config :bbh, Bbh.Map, dir: System.get_env("MAP_DIR") || "/data/map"
+
   # Contact form email via the club's own SMTP server.
   smtp_relay = System.get_env("SMTP_RELAY")
 

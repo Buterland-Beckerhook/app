@@ -66,6 +66,15 @@
       "enabled": false
     },
     {
+      "description": "go-pmtiles: tags are v-prefixed; a bump also needs both SHA256 args in the Dockerfiles, so it is never auto-merged",
+      "matchPackageNames": ["protomaps/go-pmtiles"],
+      "extractVersion": "^v(?<version>.+)$",
+      "automerge": false,
+      "prBodyNotes": [
+        "⚠️ Update `PMTILES_SHA256_AMD64` / `PMTILES_SHA256_ARM64` in `app/Dockerfile` and `app/Dockerfile.dev` from the release's `checksums.txt` — the image build fails on a stale checksum."
+      ]
+    },
+    {
       "description": "Group the Phoenix ecosystem",
       "matchPackageNames": [
         "phoenix",

@@ -110,10 +110,11 @@ defmodule Bbh.MixProject do
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
-      "assets.build": ["compile", "tailwind bbh", "esbuild bbh"],
+      "assets.build": ["compile", "tailwind bbh", "esbuild bbh", "esbuild bbh_map"],
       "assets.deploy": [
         "tailwind bbh --minify",
         "esbuild bbh --minify",
+        "esbuild bbh_map --minify",
         "phx.digest"
       ],
       precommit: [

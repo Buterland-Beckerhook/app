@@ -31,6 +31,10 @@ defmodule BbhWeb.Endpoint do
     only: BbhWeb.static_paths(),
     raise_on_missing_only: code_reloading?
 
+  # The self-hosted map (/karte): the tile archive lives outside priv/static and is
+  # resolved at runtime, and the browser reads it with Range requests.
+  plug BbhWeb.Plugs.Map
+
   # Code reloading can be explicitly enabled under the
   # :code_reloader configuration of your endpoint.
   if code_reloading? do

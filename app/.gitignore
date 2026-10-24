@@ -38,4 +38,6 @@ npm-debug.log
 # Runtime media: uploaded originals and the regenerable variant cache.
 /priv/uploads/
 /priv/uploads_cache/
+# Dev map archive (fetched by Bbh.Workers.MapTilesUpdater).
+/priv/tiles/
 

@@ -88,6 +88,26 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends libstdc++6 openssl libncurses6 locales tzdata ca-certificates curl \
   && rm -rf /var/lib/apt/lists/*
 
+# `pmtiles` CLI for the map archive (Bbh.Workers.MapTilesUpdater, ADR 0014): one
+# static binary, pinned and checksum-verified. A version bump needs both checksums
+# from the release's checksums.txt (Renovate opens it for review, never auto-merges).
+# renovate: datasource=github-releases depName=protomaps/go-pmtiles
+ARG PMTILES_VERSION=1.31.2
+ARG PMTILES_SHA256_AMD64=3ed7dbf4ec2e6dfe5e25b6f70d1ffc932729f93c86db353bf514dd71010a312f
+ARG PMTILES_SHA256_ARM64=f8bd47e7ea866863489cad588fbaf2f31f42e5821f7a03f009b3769f05801cb1
+ARG TARGETARCH
+RUN case "${TARGETARCH:-$(dpkg --print-architecture)}" in \
+      amd64) arch=x86_64; sum="${PMTILES_SHA256_AMD64}" ;; \
+      arm64) arch=arm64; sum="${PMTILES_SHA256_ARM64}" ;; \
+      *) echo "no pmtiles build for this architecture" >&2; exit 1 ;; \
+    esac \
+  && curl -fsSL -o /tmp/pmtiles.tar.gz \
+       "https://github.com/protomaps/go-pmtiles/releases/download/v${PMTILES_VERSION}/go-pmtiles_${PMTILES_VERSION}_Linux_${arch}.tar.gz" \
+  && echo "${sum}  /tmp/pmtiles.tar.gz" | sha256sum -c - \
+  && tar -xzf /tmp/pmtiles.tar.gz -C /usr/local/bin pmtiles \
+  && rm /tmp/pmtiles.tar.gz \
+  && pmtiles version
+
 # Set the locale
 RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen \
   && locale-gen
@@ -111,7 +131,7 @@ ENV MIX_ENV="prod"
 COPY --from=builder --chown=nobody:root /app/_build/${MIX_ENV}/rel/bbh ./
 
 # The uploads volume mounts at /data (UPLOADS_DIR=/data/uploads,
-# MEDIA_CACHE_DIR=/data/uploads_cache). Create the mountpoint owned by the runtime
+# MEDIA_CACHE_DIR=/data/uploads_cache, the map archive in /data/map). Create the mountpoint owned by the runtime
 # user so an *empty* named volume is initialised nobody-writable — otherwise a
 # fresh deploy gets a root-owned /data and the app can't store uploads or
 # regenerate image variants.
