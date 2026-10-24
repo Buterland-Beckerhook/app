@@ -40,8 +40,10 @@ defmodule Bbh.Calendar do
   @doc """
   The festival the dev time travel (`/dev/zeitreise`) walks through: the next public
   all-day event spanning several days that is not over yet, or else the most recent
-  one. Visible programme items are preloaded chronologically. Takes the *real* time,
-  never the simulated one, so the target does not move while you travel.
+  one — preferring festivals with a programme, so the demo seed wins over a real
+  festival on the same days. Visible programme items are preloaded chronologically.
+  Takes the *real* time, never the simulated one, so the target does not move while
+  you travel.
   """
   def dev_festival(now \\ Bbh.Time.real_now()) do
     multi_day =
@@ -54,11 +56,18 @@ defmodule Bbh.Calendar do
 
     today = DateTime.to_date(now)
 
+    has_programme =
+      dynamic([e], fragment("EXISTS (SELECT 1 FROM events c WHERE c.parent_id = ?)", e.id))
+
     (Repo.one(
        from e in multi_day,
          where: fragment("?::date >= ?", e.ends_at, ^today),
-         order_by: [asc: e.starts_at]
-     ) || Repo.one(from e in multi_day, order_by: [desc: e.starts_at]))
+         order_by: ^[desc: has_programme, asc: dynamic([e], e.starts_at)]
+     ) ||
+       Repo.one(
+         from e in multi_day,
+           order_by: ^[desc: has_programme, desc: dynamic([e], e.starts_at)]
+       ))
     |> put_parent_on_children()
   end
 
