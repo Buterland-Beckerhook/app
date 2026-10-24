@@ -17,9 +17,7 @@ defmodule Bbh.MembershipTest do
     "iban" => " de89 3704 0044 0532 0130 00 ",
     "bic" => " cobadeffxxx ",
     "kreditinstitut" => " Commerzbank ",
-    "sepa" => "true",
-    "datenspeicherung" => "true",
-    "privacy" => "true"
+    "sepa" => "true"
   }
 
   describe "validate/1" do
@@ -32,11 +30,14 @@ defmodule Bbh.MembershipTest do
       assert data.iban == "DE89370400440532013000"
       assert data.bic == "COBADEFFXXX"
       assert data.children == []
-      assert data.sepa and data.datenspeicherung and data.privacy
+      assert data.sepa
+      refute Map.has_key?(data, :datenspeicherung)
+      refute Map.has_key?(data, :privacy)
     end
 
     test "accepts alternative consent truthy values" do
-      assert {:ok, _} = Membership.validate(%{@valid | "sepa" => "on", "privacy" => "1"})
+      assert {:ok, _} = Membership.validate(%{@valid | "sepa" => "on"})
+      assert {:ok, _} = Membership.validate(%{@valid | "sepa" => "1"})
     end
 
     test "collects all non-empty children rows without a cap" do
@@ -101,13 +102,9 @@ defmodule Bbh.MembershipTest do
       assert {:error, %{bic: _}} = Membership.validate(%{@valid | "bic" => "123"})
     end
 
-    test "requires all consents" do
-      assert {:error, %{sepa: _}} = Membership.validate(Map.delete(@valid, "sepa"))
-
-      assert {:error, %{datenspeicherung: _}} =
-               Membership.validate(Map.delete(@valid, "datenspeicherung"))
-
-      assert {:error, %{privacy: _}} = Membership.validate(Map.delete(@valid, "privacy"))
+    test "requires the SEPA mandate — and no privacy or storage consent" do
+      assert {:error, errors} = Membership.validate(Map.delete(@valid, "sepa"))
+      assert Map.keys(errors) == [:sepa]
     end
 
     test "the age thresholds never reject a submission (soft, hint-only)" do
@@ -136,7 +133,8 @@ defmodule Bbh.MembershipTest do
         assert email.subject =~ "Max Mustermann"
         assert email.reply_to == {"Max Mustermann", "max@example.com"}
         assert email.text_body =~ "DE89370400440532013000"
-        assert email.text_body =~ "SEPA-Mandat erteilt:        ja"
+        assert email.text_body =~ "SEPA-Mandat erteilt: ja"
+        refute email.text_body =~ "zugestimmt"
       end)
 
       # Second mail: the copy to the applicant.
