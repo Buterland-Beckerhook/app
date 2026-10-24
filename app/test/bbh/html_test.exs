@@ -55,6 +55,16 @@ defmodule Bbh.HtmlTest do
                "bbh-float"
     end
 
+    test "keeps image caption classes, drops unknown caption values" do
+      for mode <- ~w(none caption copyright) do
+        assert Html.sanitize(~s(<p><img src="/media/1.jpg" class="bbh-cap-#{mode}"></p>)) =~
+                 ~s(class="bbh-cap-#{mode}")
+      end
+
+      refute Html.sanitize(~s(<p><img src="/media/1.jpg" class="bbh-cap-both"></p>)) =~
+               "bbh-cap"
+    end
+
     test "keeps only whitelisted tokens within a class attribute" do
       out = Html.sanitize(~s(<p class="ql-align-center fixed inset-0">x</p>))
 

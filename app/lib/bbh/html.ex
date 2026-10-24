@@ -17,8 +17,8 @@ defmodule Bbh.Html do
   `BbhWeb.Format.render_richtext/1` hands the finished HTML to
   `BbhWeb.EmailObfuscation.rewrite/1` — see `docs/adr/0005-email-obfuscation.md`.
 
-  Quill encodes alignment, image size and image float as CSS classes (`ql-align-*`,
-  `ql-indent-*`, `bbh-img-*`, `bbh-float-*`). The scrubber allows the `class` attribute; this
+  Quill encodes alignment, image size, float and caption as CSS classes (`ql-align-*`,
+  `ql-indent-*`, `bbh-img-*`, `bbh-float-*`, `bbh-cap-*`). The scrubber allows the `class` attribute; this
   module then narrows the values to `@allowed_classes` so no other class can be
   stored, dropping the attribute entirely when nothing survives.
 
@@ -32,14 +32,15 @@ defmodule Bbh.Html do
   """
 
   # The only class tokens allowed to survive sanitization. Everything Quill's
-  # toolbar can produce (alignment, list indentation, image size and float) is
-  # here; any other class is stripped.
+  # toolbar can produce (alignment, list indentation, image size, float and
+  # caption) is here; any other class is stripped.
   @allowed_classes ~w(
     ql-align-center ql-align-right ql-align-justify
     ql-indent-1 ql-indent-2 ql-indent-3 ql-indent-4 ql-indent-5
     ql-indent-6 ql-indent-7 ql-indent-8 ql-indent-9
     bbh-img-sm bbh-img-md bbh-img-lg bbh-img-full
     bbh-float-left bbh-float-right
+    bbh-cap-none bbh-cap-caption bbh-cap-copyright
     bbh-weight-100 bbh-weight-200 bbh-weight-300 bbh-weight-400 bbh-weight-500
     bbh-weight-600 bbh-weight-700 bbh-weight-800 bbh-weight-900
     bbh-size-xs bbh-size-sm bbh-size-lg bbh-size-xl bbh-size-2xl

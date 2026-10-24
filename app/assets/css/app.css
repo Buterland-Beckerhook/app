@@ -692,6 +692,25 @@ h1, h2, h3, h4, h5, h6 {
   content: "Bild rechts";
 }
 
+/* Label the "Unterschrift" (caption line) picker. Empty value = both, the default. */
+.ql-snow .ql-picker.ql-bbhImgCaption {
+  width: 9rem;
+}
+.ql-snow .ql-picker.ql-bbhImgCaption .ql-picker-label::before,
+.ql-snow .ql-picker.ql-bbhImgCaption .ql-picker-item:not([data-value])::before,
+.ql-snow .ql-picker.ql-bbhImgCaption .ql-picker-item[data-value=""]::before {
+  content: "Unterschrift + ©";
+}
+.ql-snow .ql-picker.ql-bbhImgCaption [data-value="caption"]::before {
+  content: "Nur Unterschrift";
+}
+.ql-snow .ql-picker.ql-bbhImgCaption [data-value="copyright"]::before {
+  content: "Nur ©";
+}
+.ql-snow .ql-picker.ql-bbhImgCaption [data-value="none"]::before {
+  content: "Keine Zeile";
+}
+
 /* Label the "Stärke" (font weight) picker. The selected label shows the numeric
    weight; the dropdown items add a plain-language hint. Value 400 = normal. */
 .ql-snow .ql-picker.ql-bbhWeight {

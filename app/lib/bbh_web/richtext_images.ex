@@ -17,7 +17,9 @@ defmodule BbhWeb.RichtextImages do
 
   Spans, not a `<figure>`: the image sits inside a `<p>`, and a block element there
   would make the HTML parser close the paragraph around it. The stored classes move to
-  the wrapper, which is what `assets/css/app.css` sizes and floats.
+  the wrapper, which is what `assets/css/app.css` sizes and floats. A `bbh-cap-*` class
+  limits the caption line to the Bildunterschrift, the copyright, or nothing; without
+  one it shows both. The lightbox always gets both.
 
   Alt text, caption and copyright come from the media library (ADR 0004), read live
   through `BbhWeb.Format` — the `alt` the picker wrote at insert time is only a
@@ -153,7 +155,7 @@ defmodule BbhWeb.RichtextImages do
       Enum.join(["bbh-fig" | classes], " "),
       ~s(">),
       inner,
-      caption(upload),
+      caption(upload, classes),
       "</span>"
     ]
   end
@@ -198,20 +200,32 @@ defmodule BbhWeb.RichtextImages do
     ]
   end
 
-  defp caption(upload) do
-    case {image_caption(upload), copyright_label(image_copyright(upload))} do
+  # The editor's "Bildunterschrift" picker (`bbh-cap-*`) picks what the line under the
+  # image shows; no class means both. The lightbox always carries both.
+  defp caption(upload, classes) do
+    show = Enum.find_value(classes, "both", &caption_mode/1)
+    caption = if show in ~w(both caption), do: image_caption(upload)
+    copyright = if show in ~w(both copyright), do: copyright_label(image_copyright(upload))
+
+    case {caption, copyright} do
       {nil, nil} ->
         []
 
       {caption, copyright} ->
         [
           ~s(<span class="bbh-fig-caption">),
-          caption && [~s(<span class="bbh-fig-text">), escape(caption), "</span>"],
-          copyright && [~s(<span class="bbh-fig-copyright">), escape(copyright), "</span>"],
+          span("bbh-fig-text", caption),
+          span("bbh-fig-copyright", copyright),
           "</span>"
         ]
     end
   end
+
+  defp span(_class, nil), do: []
+  defp span(class, text), do: [~s(<span class="), class, ~s(">), escape(text), "</span>"]
+
+  defp caption_mode("bbh-cap-" <> mode) when mode in ~w(none caption copyright), do: mode
+  defp caption_mode(_class), do: nil
 
   defp resized?(upload),
     do:

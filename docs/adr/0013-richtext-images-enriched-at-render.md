@@ -25,7 +25,8 @@ break things that are cheap to keep:
 ## Decision
 
 **Store the bare inline `<img>` plus whitelisted classes** (`bbh-img-*` for size,
-`bbh-float-left|right` for wrap) — nothing else. **Enrich at render time** in
+`bbh-float-left|right` for wrap, `bbh-cap-none|caption|copyright` for what the line
+under the image shows; no class means caption and copyright) — nothing else. **Enrich at render time** in
 `BbhWeb.RichtextImages.rewrite/1`, a step of `BbhWeb.Format.render_richtext/1`:
 
 - All `/media/<key>` images of a body are resolved with one query
@@ -37,8 +38,9 @@ break things that are cheap to keep:
   media library. The stored classes move to the wrapper, which the CSS sizes and floats.
 - Alt text comes from the library too. The `alt` the picker wrote is only the snapshot
   taken at insert time.
-- Rich-text and gallery images share the lightbox group `content`, so one lightbox walks
-  a page's pictures in document order.
+- Rich-text, gallery and article hero images share the lightbox group `content`, so one
+  lightbox walks a page's pictures in document order. The lightbox always shows caption
+  and copyright, whatever the `bbh-cap-*` choice for the page.
 - The step runs before `EmailObfuscation.rewrite/1`, so obfuscation stays last and also
   covers an address in a caption.
 
@@ -54,6 +56,7 @@ untouched. An image the author linked keeps its link and gets no lightbox button
   written twice (`.ql-editor img.bbh-*` and `.prose .bbh-fig.bbh-*`).
 - Below the md breakpoint nothing floats and every image is full width. Size classes
   only apply from 48rem up.
-- There is no per-image switch to hide the caption yet. If one is needed it is another
-  whitelisted class (`bbh-nocaption`) the rewrite honours.
+- Every new upload carries the club as its default copyright, so without a choice every
+  image would show "© Buterland-Beckerhook e.V."; the `bbh-cap-*` picker is how an
+  editor drops it (or the caption) for a single image.
 - Render cost: one indexed query per rich-text block that contains a media image.

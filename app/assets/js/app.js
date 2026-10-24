@@ -105,6 +105,15 @@ const ImageFloat = new Parchment.ClassAttributor("bbhImgFloat", "bbh-float", {
 })
 Quill.register(ImageFloat, true)
 
+// What the line under the image shows -> <img class="bbh-cap-copyright">. No class
+// means caption and copyright (the default); the texts themselves come from the media
+// library at render time (BbhWeb.RichtextImages).
+const ImageCaption = new Parchment.ClassAttributor("bbhImgCaption", "bbh-cap", {
+  scope: Parchment.Scope.INLINE,
+  whitelist: ["none", "caption", "copyright"],
+})
+Quill.register(ImageCaption, true)
+
 // Font weight, text size and "muted" text as inline class attributors -> spans
 // like <span class="bbh-weight-500">. Same mechanism as image size; the server
 // sanitizer whitelists these class tokens (bbh-weight-*, bbh-size-*, bbh-muted).
@@ -346,7 +355,11 @@ const Hooks = {
               [{list: "ordered"}, {list: "bullet"}],
               ["blockquote", "link"],
               [{align: ""}, {align: "center"}, {align: "right"}],
-              [{bbhImgSize: ["sm", "md", "lg", "full"]}, {bbhImgFloat: ["", "left", "right"]}],
+              [
+                {bbhImgSize: ["sm", "md", "lg", "full"]},
+                {bbhImgFloat: ["", "left", "right"]},
+                {bbhImgCaption: ["", "caption", "copyright", "none"]},
+              ],
               ["media"],
               ["clean"],
             ],
@@ -380,7 +393,11 @@ const Hooks = {
       }
 
       // Tooltips for the image pickers (their German labels come from app.css).
-      const pickerTitles = {bbhImgSize: "Bildgröße", bbhImgFloat: "Bild umfließen"}
+      const pickerTitles = {
+        bbhImgSize: "Bildgröße",
+        bbhImgFloat: "Bild umfließen",
+        bbhImgCaption: "Zeile unter dem Bild",
+      }
       for (const [format, title] of Object.entries(pickerTitles)) {
         const label = toolbarEl.querySelector(`.ql-picker.ql-${format} .ql-picker-label`)
         if (label) label.title = title

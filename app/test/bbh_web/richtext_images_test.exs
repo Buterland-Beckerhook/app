@@ -98,6 +98,44 @@ defmodule BbhWeb.RichtextImagesTest do
       refute out =~ "data-lightbox-caption"
     end
 
+    test "bbh-cap-* picks what the caption line shows; the lightbox keeps both" do
+      u = image()
+      line = fn class -> RichtextImages.rewrite(img(u, ~s( class="#{class}"))) end
+
+      both = line.("bbh-img-md")
+      assert both =~ ~s(<span class="bbh-fig-text">Königsschießen 2026</span>)
+      assert both =~ ~s(<span class="bbh-fig-copyright">© Max Muster</span>)
+
+      caption = line.("bbh-cap-caption")
+      assert caption =~ "bbh-fig-text"
+      refute caption =~ "bbh-fig-copyright"
+
+      copyright = line.("bbh-cap-copyright")
+      refute copyright =~ "bbh-fig-text"
+      assert copyright =~ "bbh-fig-copyright"
+
+      none = line.("bbh-cap-none")
+      refute none =~ "bbh-fig-caption"
+
+      for out <- [caption, copyright, none] do
+        assert out =~ ~s(data-lightbox-caption="Königsschießen 2026")
+        assert out =~ ~s(data-lightbox-copyright="© Max Muster")
+      end
+    end
+
+    test "a caption without a copyright renders just the caption" do
+      u = image() |> Ecto.Changeset.change(copyright: nil) |> Bbh.Repo.update!()
+      out = RichtextImages.rewrite(img(u))
+
+      assert out =~ ~s(<span class="bbh-fig-text">Königsschießen 2026</span></span>)
+      refute out =~ "bbh-fig-copyright"
+    end
+
+    test "only the caption requested but none set: no caption line" do
+      out = RichtextImages.rewrite(img(image(caption: nil), ~s( class="bbh-cap-caption")))
+      refute out =~ "bbh-fig-caption"
+    end
+
     test "an image inside a link keeps the link and gets no lightbox button" do
       u = image()
 
