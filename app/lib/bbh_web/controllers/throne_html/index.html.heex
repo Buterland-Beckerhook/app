@@ -17,8 +17,7 @@
       <%!-- Das Bild führt zum Thron-Artikel, außer bei „Nur Thron-Anzeige“. Der Link ist
            eine Dublette von „Zum Artikel“ und bleibt deshalb aus Tab-Reihenfolge und
            Screenreader heraus. --%>
-      <.dynamic_tag
-        tag_name={if article_path, do: "a", else: "div"}
+      <a
         href={article_path}
         tabindex={article_path && "-1"}
         aria-hidden={article_path && "true"}
@@ -32,7 +31,7 @@
             article_path && "transition-transform duration-300 hover:scale-[1.02]"
           ]}
         />
-      </.dynamic_tag>
+      </a>
       <.image_credit caption={image_caption(pic)} copyright={image_copyright(pic)} />
     </figure>
     <div class="rounded-lg border border-base-300 p-4">
