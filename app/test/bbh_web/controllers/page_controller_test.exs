@@ -43,6 +43,26 @@ defmodule BbhWeb.PageControllerTest do
     assert html =~ "Hans Hansen"
   end
 
+  test "the event banner's decorative logo is only fetched from the md breakpoint up", ctx do
+    starts = DateTime.new!(~D[2099-07-18], ~T[14:00:00], "Etc/UTC")
+    event_fixture(%{title: "Schützenfest 2099", starts_at: starts})
+
+    banner =
+      ctx.conn
+      |> get(~p"/")
+      |> html_response(200)
+      |> LazyHTML.from_document()
+      |> LazyHTML.query("#termine picture")
+
+    assert [media] = banner |> LazyHTML.query("source") |> LazyHTML.attribute("media")
+    assert media == "(min-width: 48rem)"
+    assert [srcset] = banner |> LazyHTML.query("source") |> LazyHTML.attribute("srcset")
+    assert srcset =~ "/images/logo"
+    # The <img> itself only points at an inline placeholder — nothing to download.
+    assert [src] = banner |> LazyHTML.query("img") |> LazyHTML.attribute("src")
+    assert String.starts_with?(src, "data:image/gif")
+  end
+
   test "GET / links a throne to its article", %{conn: conn} do
     article = article_fixture(slug: "koenigsschiessen", date_published: ~U[2025-07-20 18:00:00Z])
     throne_fixture(article: article, begin_year: 2098, end_year: 2099, king: "Hans Hansen")
