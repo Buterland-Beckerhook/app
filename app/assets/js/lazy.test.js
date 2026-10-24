@@ -5,17 +5,25 @@ import assert from "node:assert/strict"
 // A minimal DOM: just what lazy.js touches. Installed before the module is imported,
 // because lazy.js reads document.currentScript at load time.
 const appended = []
+const beforeAppCss = []
 const metas = {
-  "bbh-lazy-editor": "/assets/js/lazy/editor.js?vsn=d",
-  "bbh-lazy-flaky": "/assets/js/lazy/flaky.js?vsn=d",
+  "bbh-lazy-editor": {content: "/assets/js/lazy/editor.js?vsn=d"},
+  "bbh-lazy-flaky": {content: "/assets/js/lazy/flaky.js?vsn=d"},
+  "bbh-lazy-styled": {
+    content: "/assets/js/lazy/styled.js?vsn=d",
+    dataset: {css: "/assets/js/lazy/styled.css?vsn=d"},
+  },
 }
 
 globalThis.document = {
   currentScript: {nonce: "abc123"},
   querySelector(selector) {
     const name = selector.match(/^meta\[name="(.+)"\]$/)?.[1]
-    return name in metas ? {content: metas[name]} : null
+    if (name) return metas[name] || null
+    const href = selector.match(/^link\[rel="stylesheet"\]\[href="(.+)"\]$/)?.[1]
+    return beforeAppCss.find(link => link.href === href) || null
   },
+  getElementById: id => (id === "app-css" ? {before: el => beforeAppCss.push(el)} : null),
   createElement(tag) {
     return {tag, removed: false, remove() { this.removed = true }}
   },
@@ -27,6 +35,10 @@ const {loadLazy} = await import("./lazy.js")
 beforeEach(() => {
   appended.length = 0
 })
+
+// Settles once the microtask queue is drained — enough to tell "resolved" from "pending".
+const settled = promise =>
+  Promise.race([promise.then(() => "resolved"), new Promise(r => setTimeout(() => r("pending")))])
 
 test("injects one script with the digested URL and the page's nonce", async () => {
   const loading = loadLazy("editor")
@@ -61,4 +73,32 @@ test("a failed load is not cached — the next call tries again", async () => {
   assert.equal(appended.length, 2)
   appended[1].onload()
   await second
+})
+
+test("a bundle's stylesheet goes in before app.css, and the load waits for it", async () => {
+  const loading = loadLazy("styled")
+
+  assert.equal(beforeAppCss.length, 1)
+  assert.equal(beforeAppCss[0].tag, "link")
+  assert.equal(beforeAppCss[0].rel, "stylesheet")
+  assert.equal(beforeAppCss[0].href, "/assets/js/lazy/styled.css?vsn=d")
+
+  appended[0].onload()
+  assert.equal(await settled(loading), "pending")
+
+  beforeAppCss[0].onload()
+  assert.equal(await settled(loading), "resolved")
+})
+
+test("a stylesheet that fails to load does not block the bundle", async () => {
+  metas["bbh-lazy-unstyled"] = {
+    content: "/assets/js/lazy/unstyled.js?vsn=d",
+    dataset: {css: "/assets/js/lazy/unstyled.css?vsn=d"},
+  }
+  const loading = loadLazy("unstyled")
+  const link = beforeAppCss.at(-1)
+
+  appended[0].onload()
+  link.onerror()
+  assert.equal(await settled(loading), "resolved")
 })
