@@ -100,6 +100,33 @@ defmodule Bbh.ICalTest do
       refute ics =~ "DTEND"
     end
 
+    test "an all-day DTEND is the day after the last day (it is exclusive)" do
+      ics =
+        event_fixture(
+          slug: "schuetzenfest",
+          all_day: true,
+          starts_at: ~U[2027-07-17 00:00:00Z],
+          ends_at: ~U[2027-07-20 00:00:00Z]
+        )
+        |> ics()
+
+      assert ics =~ "DTSTART;VALUE=DATE:20270717"
+      assert ics =~ "DTEND;VALUE=DATE:20270721"
+    end
+
+    test "a single all-day day ends the next day" do
+      ics =
+        event_fixture(
+          slug: "eintag",
+          all_day: true,
+          starts_at: ~U[2027-12-31 00:00:00Z],
+          ends_at: ~U[2027-12-31 00:00:00Z]
+        )
+        |> ics()
+
+      assert ics =~ "DTEND;VALUE=DATE:20280101"
+    end
+
     defp ics(event) do
       event.id |> Calendar.get_event!() |> ICal.single("https://example.de")
     end
