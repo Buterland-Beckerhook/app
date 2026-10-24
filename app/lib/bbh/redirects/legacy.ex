@@ -4,7 +4,7 @@ defmodule Bbh.Redirects.Legacy do
   stored table, so the mapping follows the content (a renamed slug or a deleted
   article simply stops redirecting).
 
-  Hugo built URLs from file and directory names, the import (`mix bbh.import`)
+  Hugo built URLs from file and directory names, the one-time import
   derived slugs with `Bbh.Slug.slugify/1`. Most URLs therefore survived unchanged and
   never reach this module; what does:
 

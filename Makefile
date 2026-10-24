@@ -51,5 +51,3 @@ precommit: ## Format check + compile (warnings as errors) + audits + tests (in t
 	# alias' preferred_envs, and the suite then dies on the missing SQL sandbox.
 	$(COMPOSE) exec -e MIX_ENV=test phoenix mix precommit
 
-import: ## One-time Hugo content import (mix bbh.import) (in the phoenix container)
-	$(MIX) bbh.import

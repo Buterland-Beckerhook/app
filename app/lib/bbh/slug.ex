@@ -6,8 +6,9 @@ defmodule Bbh.Slug do
   "schuetzenfest"), not stripped — `String.replace(~r/[^a-z0-9]+/, "-")` alone would turn
   them into word breaks.
 
-  Extracted from `mix bbh.import` so the MCP `create_article` tool derives slugs exactly
-  the way the Hugo import did; both call this.
+  The one-time Hugo import derived every existing slug with this function, so the MCP
+  `create_article` tool and the legacy redirects (`Bbh.Redirects.Legacy`) rely on it
+  staying the same.
   """
 
   @transliterations %{"ä" => "ae", "ö" => "oe", "ü" => "ue", "ß" => "ss"}
