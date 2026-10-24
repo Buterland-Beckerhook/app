@@ -102,4 +102,33 @@ defmodule BbhWeb.Admin.EventLiveTest do
       assert html =~ "can&#39;t be blank" or html =~ "wird benötigt" or html =~ "erforderlich"
     end
   end
+
+  describe "Form (edit) — Ansehen" do
+    test "links a public event to its page", %{conn: conn} do
+      event = event_fixture()
+      {:ok, view, _html} = live(conn, ~p"/admin/termine/#{event.id}/bearbeiten")
+
+      assert view
+             |> element(~s(a[target="_blank"][href="/termine/#{event.year}/#{event.slug}"]))
+             |> render() =~ "Ansehen"
+    end
+
+    test "links a programme item to its anchor on the festival page", %{conn: conn} do
+      festival = festival_fixture()
+      item = programme_item_fixture(festival)
+      {:ok, view, _html} = live(conn, ~p"/admin/termine/#{item.id}/bearbeiten")
+
+      assert has_element?(
+               view,
+               ~s(a[href="/termine/#{festival.year}/#{festival.slug}##{item.slug}"]),
+               "Ansehen"
+             )
+    end
+
+    test "offers nothing to view while the event is a draft", %{conn: conn} do
+      event = event_fixture(status: "draft")
+      {:ok, _view, html} = live(conn, ~p"/admin/termine/#{event.id}/bearbeiten")
+      refute html =~ "Ansehen"
+    end
+  end
 end

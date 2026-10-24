@@ -4,6 +4,7 @@ defmodule BbhWeb.Admin.EventLive.Form do
   alias Bbh.Calendar
   alias Bbh.Calendar.Event
   alias BbhWeb.Authz
+  alias BbhWeb.EventPaths
 
   @statuses [{"Entwurf", "draft"}, {"Veröffentlicht", "published"}, {"Abgesagt", "canceled"}]
 
@@ -52,7 +53,7 @@ defmodule BbhWeb.Admin.EventLive.Form do
       end
 
     socket
-    |> assign(page_title: "Neuer Termin", event: event)
+    |> assign(page_title: "Neuer Termin", event: event, public_path: nil)
     |> assign_programme(event)
     |> assign_form(Calendar.change_event(event))
   end
@@ -62,7 +63,7 @@ defmodule BbhWeb.Admin.EventLive.Form do
 
     if Authz.can_edit_event?(socket.assigns.current_scope.user, event) do
       socket
-      |> assign(page_title: "Termin bearbeiten", event: event)
+      |> assign(page_title: "Termin bearbeiten", event: event, public_path: public_path(event))
       |> assign_programme(event)
       |> assign_form(Calendar.change_event(event))
     else
@@ -219,6 +220,18 @@ defmodule BbhWeb.Admin.EventLive.Form do
   # No push from here: the "Neuer Termin" push is bundled by the cron
   # (Bbh.Workers.EventPublishNotifier) once publishing has settled.
 
+  # Where the event can be seen right now, or nil while it isn't public (a draft, or an
+  # item of a festival that isn't). Events have no preview page, unlike articles.
+  defp public_path(%Event{parent_id: nil} = event),
+    do: Calendar.get_public_event_by_id(event.id) && EventPaths.path(event)
+
+  defp public_path(%Event{id: id, parent_id: parent_id}) do
+    with %Event{children: items} <- Calendar.get_public_event_by_id(parent_id),
+         %Event{} = item <- Enum.find(items, &(&1.id == id)) do
+      EventPaths.path(item)
+    end
+  end
+
   # A programme item goes back to its festival's programme, everything else to the list.
   defp after_save(%Event{parent_id: nil}), do: ~p"/admin/termine"
   defp after_save(%Event{parent_id: parent_id}), do: ~p"/admin/termine/#{parent_id}/bearbeiten"
@@ -293,7 +306,20 @@ defmodule BbhWeb.Admin.EventLive.Form do
   def render(assigns) do
     ~H"""
     <Layouts.admin flash={@flash} current_scope={@current_scope} active={:events}>
-      <.header>{@page_title}</.header>
+      <.header>
+        {@page_title}
+        <:actions>
+          <.link
+            :if={@public_path}
+            href={@public_path}
+            target="_blank"
+            rel="noopener"
+            class="btn btn-sm btn-soft gap-1"
+          >
+            <.icon name="hero-eye" class="size-4" /> Ansehen
+          </.link>
+        </:actions>
+      </.header>
 
       <.form
         for={@form}
