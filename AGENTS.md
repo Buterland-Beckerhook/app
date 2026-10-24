@@ -91,6 +91,12 @@ library. See `docs/adr/0013-richtext-images-enriched-at-render.md`.
 and not merely deleted), and the libvips operation cache — libvips memoizes by file name
 and would otherwise keep serving the old orientation from memory.
 
+**Browser caching** (`BbhWeb.MediaController`) relies on that: a variant requested with
+the current revision is `immutable` for a year; originals, variants with a stale `v` and
+the original standing in for a failed variant (`{:fallback, …}` from
+`Bbh.Media.resolve_variant/5`) get short lifetimes. Any new code path that rewrites an
+upload's bytes in place **must bump `revision`**, or browsers keep the old picture.
+
 ## Event programme (festival + items)
 
 A multi-day festival (the Schützenfest) is one all-day event; each programme item is a

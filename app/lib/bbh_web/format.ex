@@ -129,9 +129,11 @@ defmodule BbhWeb.Format do
   defp focal_params(_upload, _opts), do: []
 
   # Rotating an image rewrites the original in place, so the URL has to change or a
-  # browser cache (max-age=604800) would keep the old orientation. Only carried once
-  # something actually changed, which keeps every untouched URL — and the variant
-  # cache entries derived from it — exactly as before. The server ignores `v`.
+  # browser cache (a year for variants, see BbhWeb.MediaController) would keep the old
+  # orientation. Only carried once something actually changed, which keeps every
+  # untouched URL — and the variant cache entries derived from it — exactly as before.
+  # The server does not resolve by `v`; it only compares it with the current revision
+  # to decide how long the response may be cached.
   defp revision_param(%Upload{revision: rev}) when is_integer(rev) and rev > 0, do: [v: rev]
   defp revision_param(_upload), do: []
 
