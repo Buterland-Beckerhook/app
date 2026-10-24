@@ -572,6 +572,48 @@ defmodule BbhWeb.SiteComponents do
     """
   end
 
+  # Read live, so a changed time or a cancellation reaches the article without editing
+  # it. Nothing at all while the event is not public — an invitation can be drafted
+  # before its festival is published.
+  def block(%{type: "event"} = assigns) do
+    assigns = assign(assigns, :event, Bbh.Calendar.get_public_event_by_id(assigns.block.event_id))
+
+    ~H"""
+    <section :if={@event} class="rounded-[18px] border border-base-300 bg-card p-6 sm:p-8">
+      <header :if={@block.show_header} class="mb-2">
+        <h3 class="text-xl font-semibold">
+          <a href={BbhWeb.EventPaths.path(@event)} class="hover:underline">{@event.title}</a>
+        </h3>
+        <p class="mt-1 text-muted">
+          {de_range(@event.starts_at, @event.ends_at, @event.all_day)}
+          <span :if={@event.location}>· {@event.location.name}</span>
+        </p>
+      </header>
+      <div :if={@block.show_body && @event.body} class="prose mt-4 max-w-none dark:prose-invert">
+        {render_richtext(@event.body)}
+      </div>
+      <BbhWeb.EventHTML.programme
+        :if={@block.show_programme && @event.children != []}
+        festival={@event}
+        anchors={false}
+        day_tag={if @block.show_header, do: "h4", else: "h3"}
+      />
+      <p class="mt-6 flex flex-wrap gap-x-6 gap-y-1 text-sm">
+        <a href={BbhWeb.EventPaths.path(@event)} class="text-primary hover:underline">
+          Zum Termin &rarr;
+        </a>
+        <a
+          :if={@event.enable_ical}
+          href={BbhWeb.EventPaths.path(@event) <> "/event.ics"}
+          class="text-primary hover:underline"
+        >
+          Zum Kalender hinzufügen (.ics)
+        </a>
+      </p>
+    </section>
+    """
+  end
+
   def block(assigns), do: ~H""
 
   # Thumbnails stay bare; caption and copyright appear on enlarging.

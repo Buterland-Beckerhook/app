@@ -252,6 +252,14 @@ defmodule Bbh.Calendar.Event do
 
   def festival?(_), do: false
 
+  @doc """
+  Is this top-level event public — published, announced, not on an internal calendar?
+  The struct-side twin of the query in `Bbh.Calendar` (for a programme item, its
+  festival decides).
+  """
+  def public?(%{status: "published", announce: true, calendar: nil}), do: true
+  def public?(_), do: false
+
   @doc "Earliest start of a programme item: the festival's first day, 00:00."
   def festival_opens(%{starts_at: s}),
     do: DateTime.new!(DateTime.to_date(s), ~T[00:00:00], "Etc/UTC")

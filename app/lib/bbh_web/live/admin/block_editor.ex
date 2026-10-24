@@ -22,7 +22,8 @@ defmodule BbhWeb.Admin.BlockEditor do
     {"Bild-Karte", "media_card"},
     {"Galerie", "image_gallery"},
     {"Personenliste", "person_list"},
-    {"Trennlinie", "separator"}
+    {"Trennlinie", "separator"},
+    {"Termin", "event"}
   ]
 
   @doc "The block types offered in the add-block picker as `{label, value}` tuples."
@@ -226,6 +227,51 @@ defmodule BbhWeb.Admin.BlockEditor do
     """
   end
 
+  def block_fields(%{type: "event"} = assigns) do
+    assigns =
+      assign(assigns,
+        options:
+          Bbh.Calendar.block_event_options(Bbh.Time.now(), include: assigns.block.event_id),
+        public?: not is_nil(Bbh.Calendar.get_public_event_by_id(assigns.block.event_id))
+      )
+
+    ~H"""
+    <.input
+      field={@f[:event_id]}
+      type="select"
+      label="Termin"
+      prompt="Termin wählen …"
+      options={Enum.map(@options, &{event_option_label(&1), &1.id})}
+    />
+    <p :if={@block.event_id && !@public?} class="-mt-1 mb-2 text-sm text-warning">
+      Der Termin ist (noch) nicht öffentlich – der Block bleibt auf der Website leer, bis er
+      veröffentlicht ist.
+    </p>
+    <.input field={@f[:show_header]} type="checkbox" label="Titel, Datum und Ort anzeigen" />
+    <.input field={@f[:show_body]} type="checkbox" label="Beschreibung des Termins anzeigen" />
+    <.input field={@f[:show_programme]} type="checkbox" label="Programm anzeigen" />
+    <p class="text-xs text-base-content/60">
+      Der Block zeigt den Termin immer aktuell an – Änderungen am Termin oder Programm
+      erscheinen ohne Bearbeiten des Artikels. Programmpunkte im Entwurf bleiben verborgen.
+    </p>
+    """
+  end
+
+  defp event_option_label(e) do
+    [
+      "#{e.title} (#{Calendar.strftime(e.starts_at, "%d.%m.%Y")})",
+      e.child_count > 0 && "#{e.child_count} Programmpunkte",
+      !Bbh.Calendar.Event.public?(e) && status_label(e.status)
+    ]
+    |> Enum.filter(& &1)
+    |> Enum.join(" · ")
+  end
+
+  defp status_label("draft"), do: "Entwurf"
+  defp status_label("canceled"), do: "Abgesagt"
+  defp status_label("published"), do: "nicht angekündigt"
+  defp status_label(other), do: other
+
   # Same reasoning as the ratios below: read off the schema so the dropdown cannot offer a
   # style the changeset rejects. „Kompakt" survived precisely because these two lists were
   # maintained by hand and drifted.
@@ -399,5 +445,6 @@ defmodule BbhWeb.Admin.BlockEditor do
   defp block_label("image_gallery"), do: "Galerie"
   defp block_label("person_list"), do: "Personenliste"
   defp block_label("separator"), do: "Trennlinie"
+  defp block_label("event"), do: "Termin"
   defp block_label(other), do: other
 end

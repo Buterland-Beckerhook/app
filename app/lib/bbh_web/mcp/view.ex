@@ -138,12 +138,43 @@ defmodule BbhWeb.MCP.View do
     }
   end
 
+  defp block_fields("event", b) do
+    %{
+      event: event_ref(b.event),
+      show_header: b.show_header,
+      show_body: b.show_body,
+      show_programme: b.show_programme
+    }
+  end
+
   defp gallery_files(%Ecto.Association.NotLoaded{}), do: []
 
   defp gallery_files(files) when is_list(files),
     do: Enum.map(files, &%{id: &1.id, sort: &1.sort, media: media(&1.media)})
 
   defp gallery_files(_), do: []
+
+  @doc "An event option for `search_events`, from `Bbh.Calendar.block_event_options/2`."
+  def event_option(e) do
+    %{
+      id: e.id,
+      title: e.title,
+      starts_at: e.starts_at,
+      ends_at: e.ends_at,
+      all_day: e.all_day,
+      status: e.status,
+      public: Bbh.Calendar.Event.public?(e),
+      programme_items: e.child_count,
+      url: if(Bbh.Calendar.Event.public?(e), do: BbhWeb.EventPaths.url(e))
+    }
+  end
+
+  # The block's event as the caller needs it to tell which one it is; `nil` when none
+  # is chosen or the event was deleted.
+  defp event_ref(%Bbh.Calendar.Event{} = e),
+    do: %{id: e.id, title: e.title, starts_at: e.starts_at, status: e.status}
+
+  defp event_ref(_), do: nil
 
   # `media_url/2` always yields a path for a loaded upload, which is the only thing that
   # reaches here.

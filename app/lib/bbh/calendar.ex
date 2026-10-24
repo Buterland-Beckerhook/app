@@ -113,6 +113,23 @@ defmodule Bbh.Calendar do
     |> put_parent_on_children()
   end
 
+  @doc """
+  A public top-level event by id, preloaded like `get_public_event/2` — what an event
+  content block shows. `nil` for an unknown or non-public event and for a programme item.
+  """
+  def get_public_event_by_id(id) do
+    with {:ok, uuid} <- Ecto.UUID.cast(id || "") do
+      Repo.one(
+        from e in public_top_level(),
+          where: e.id == ^uuid,
+          preload: [:location, children: ^visible_children()]
+      )
+      |> put_parent_on_children()
+    else
+      :error -> nil
+    end
+  end
+
   @doc "A visible programme item by its festival's year + slug and its own slug."
   def get_public_child(year, parent_slug, child_slug) do
     Repo.one(
@@ -279,6 +296,63 @@ defmodule Bbh.Calendar do
     |> Enum.reject(&(&1.id == except_id))
     |> Enum.map(&{"#{&1.title} (#{Calendar.strftime(&1.starts_at, "%d.%m.%Y")})", &1.id})
   end
+
+  @doc """
+  Events an event content block can show: top-level, not on an internal calendar, any
+  status (an invitation is often drafted before its festival is published — the block
+  stays empty until then), starting from half a year before `around` on, chronological.
+  Multi-day festivals sort first, since they are what the block is for. Each carries
+  `child_count`, its number of programme items (any status).
+
+  `query` filters by title (case-insensitive substring); `limit` caps the result;
+  `include` is an event id kept regardless of its date (a block's current choice).
+  """
+  def block_event_options(around, opts \\ []) do
+    counts =
+      from c in Event,
+        where: not is_nil(c.parent_id),
+        group_by: c.parent_id,
+        select: %{parent_id: c.parent_id, n: count(c.id)}
+
+    query =
+      from e in Event,
+        left_join: k in subquery(counts),
+        on: k.parent_id == e.id,
+        where: is_nil(e.parent_id) and is_nil(e.calendar),
+        where: ^recent_or_included(around, opts[:include]),
+        order_by: [
+          desc:
+            coalesce(
+              fragment("? AND ?::date > ?::date", e.all_day, e.ends_at, e.starts_at),
+              false
+            ),
+          asc: e.starts_at
+        ],
+        limit: ^Keyword.get(opts, :limit, 50),
+        select_merge: %{child_count: coalesce(k.n, 0)}
+
+    query =
+      case Keyword.get(opts, :query) do
+        q when is_binary(q) and q != "" ->
+          where(query, [e], ilike(e.title, ^"%#{escape_like(q)}%"))
+
+        _ ->
+          query
+      end
+
+    Repo.all(query)
+  end
+
+  defp recent_or_included(around, include) do
+    recent = dynamic([e], e.starts_at >= ^DateTime.add(around, -183, :day))
+
+    case Ecto.UUID.cast(include || "") do
+      {:ok, id} -> dynamic([e], ^recent or e.id == ^id)
+      :error -> recent
+    end
+  end
+
+  defp escape_like(value), do: String.replace(value, ["\\", "%", "_"], &("\\" <> &1))
 
   @doc "A festival's whole programme for the admin, any status, chronological."
   def list_children(%Event{id: id}) do
