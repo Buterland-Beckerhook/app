@@ -4,6 +4,7 @@ defmodule BbhWeb.SiteComponents do
   use BbhWeb, :verified_routes
 
   import BbhWeb.Format
+  import BbhWeb.ControllerHelpers, only: [webcal_url: 1]
   # For the heroicon stand-in a person without a portrait gets.
   import BbhWeb.CoreComponents, only: [icon: 1]
   alias Bbh.Club.Person
@@ -438,6 +439,102 @@ defmodule BbhWeb.SiteComponents do
     """
   end
 
+  @doc """
+  How to subscribe to the public events feed: one tap for Apple Kalender / Outlook
+  (`webcal://`), the address to paste for Google. Shown on `/termine` and in the
+  calendar dialog.
+  """
+  def calendar_subscribe(assigns) do
+    ~H"""
+    <div class="flex flex-col gap-4">
+      <p>
+        <span class="font-medium">Apple Kalender / Outlook:</span>
+        <a
+          href={webcal_url(url(~p"/termine/abo.ics"))}
+          class="font-semibold text-primary hover:underline"
+        >
+          mit einem Tipp abonnieren
+        </a>.
+      </p>
+      <div>
+        <p class="mb-2">
+          <span class="font-medium">Google Kalender / Android:</span>
+          Adresse kopieren und in Google Kalender am Computer unter
+          „Weitere Kalender“ (+) → „Per URL“ einfügen.
+        </p>
+        <input
+          type="text"
+          readonly
+          value={url(~p"/termine/abo.ics")}
+          data-select-on-click
+          class="input input-bordered w-full font-mono text-xs"
+          aria-label="Kalender-Adresse zum Kopieren"
+        />
+      </div>
+    </div>
+    """
+  end
+
+  @doc """
+  "Zum Kalender hinzufügen" for one event. Opens `calendar_dialog/1`, which leads with
+  the subscription — a one-off import never learns about a later change — and offers
+  this event's file second. Without JavaScript the link is the file itself.
+  """
+  attr :event, :map, required: true
+  attr :class, :string, default: "text-primary hover:underline"
+
+  def calendar_link(assigns) do
+    assigns = assign(assigns, :id, "calendar-dialog-#{assigns.event.id}")
+
+    ~H"""
+    <a href={ics_path(@event)} data-calendar-dialog={@id} class={@class}>
+      Zum Kalender hinzufügen
+    </a>
+    <.calendar_dialog id={@id} event={@event} />
+    """
+  end
+
+  attr :id, :string, required: true
+  attr :event, :map, required: true
+
+  defp calendar_dialog(assigns) do
+    ~H"""
+    <dialog id={@id} class="modal" aria-labelledby={"#{@id}-title"}>
+      <div class="modal-box text-sm">
+        <h2 id={"#{@id}-title"} class="font-logo text-lg font-bold text-primary">
+          Kalender abonnieren
+        </h2>
+        <p class="mt-1 text-muted">Alle Termine automatisch im eigenen Kalender, immer aktuell.</p>
+        <div class="mt-4"><.calendar_subscribe /></div>
+
+        <div class="mt-6 border-t border-base-300 pt-4">
+          <p class="font-medium">Nur diesen Termin?</p>
+          <p class="mt-1 text-muted">
+            <a href={ics_path(@event)} class="font-semibold text-primary hover:underline">
+              {if programme?(@event),
+                do: "„#{@event.title}“ mit Programm eintragen",
+                else: "„#{@event.title}“ eintragen"}
+            </a>
+            – einmalig; spätere Änderungen kommen dann nicht automatisch an.
+          </p>
+        </div>
+
+        <div class="modal-action">
+          <form method="dialog"><button class="btn btn-ghost">Schließen</button></form>
+        </div>
+      </div>
+      <form method="dialog" class="modal-backdrop">
+        <button aria-label="Schließen">Schließen</button>
+      </form>
+    </dialog>
+    """
+  end
+
+  defp ics_path(event), do: BbhWeb.EventPaths.path(event) <> "/event.ics"
+
+  defp programme?(%{children: [_ | _]}), do: true
+  defp programme?(_), do: false
+
   @doc "Render an ordered list of resolved page blocks (`{page_block, struct}` tuples)."
   attr :blocks, :list, required: true
 
@@ -598,18 +695,14 @@ defmodule BbhWeb.SiteComponents do
         anchors={false}
         day_tag={if @block.show_header, do: "h4", else: "h3"}
       />
-      <p class="mt-6 flex flex-wrap gap-x-6 gap-y-1 text-sm">
+      <%!-- A <div>, not a <p>: the calendar link brings its <dialog>, which would close
+            a paragraph early. --%>
+      <div class="mt-6 flex flex-wrap gap-x-6 gap-y-1 text-sm">
         <a href={BbhWeb.EventPaths.path(@event)} class="text-primary hover:underline">
           Zum Termin &rarr;
         </a>
-        <a
-          :if={@event.enable_ical}
-          href={BbhWeb.EventPaths.path(@event) <> "/event.ics"}
-          class="text-primary hover:underline"
-        >
-          Zum Kalender hinzufügen (.ics)
-        </a>
-      </p>
+        <.calendar_link :if={@event.enable_ical} event={@event} />
+      </div>
     </section>
     """
   end

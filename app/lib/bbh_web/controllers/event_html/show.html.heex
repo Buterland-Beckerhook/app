@@ -58,15 +58,8 @@
       <.programme festival={@event} />
     </section>
 
-    <div :if={@event.enable_ical} class="mt-8">
-      <a
-        href={BbhWeb.EventPaths.path(@event) <> "/event.ics"}
-        class="text-sm text-primary hover:underline"
-      >
-        {if @event.children != [],
-          do: "Fest und Programm zum Kalender hinzufügen (.ics)",
-          else: "Zum Kalender hinzufügen (.ics)"}
-      </a>
+    <div :if={@event.enable_ical} class="mt-8 text-sm">
+      <.calendar_link event={@event} />
     </div>
   </article>
 </Layouts.app>

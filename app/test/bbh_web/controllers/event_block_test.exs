@@ -55,7 +55,9 @@ defmodule BbhWeb.EventBlockTest do
        %{festival: f, html: html} do
     markup = html.(%{event_id: f.id, show_header: false, show_programme: false, show_body: true})
 
-    refute markup =~ "Schützenfest Demo"
+    block = markup |> LazyHTML.from_document() |> LazyHTML.query("section.bg-card")
+    assert Enum.count(block) == 1
+    assert block |> LazyHTML.query("h3") |> Enum.count() == 0
     refute markup =~ "Antreten"
     assert markup =~ "Das ganze Dorf feiert."
   end

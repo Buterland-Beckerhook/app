@@ -70,7 +70,7 @@ defmodule BbhWeb.EventProgrammeControllerTest do
       assert html =~ "Mehr erfahren"
       assert html =~ "Im Festzelt, bei jedem Wetter."
       assert html =~ ~s("subEvent")
-      assert html =~ "Fest und Programm zum Kalender hinzufügen"
+      assert html =~ "mit Programm eintragen"
     end
 
     test "/termine shows the festival with its item count, never the items", %{conn: conn} do
