@@ -45,6 +45,12 @@ config :bbh, :membership_max_child_age, 15
 # Time-zone database used by DateTime/2 conversions (provided by the :tz package).
 config :elixir, :time_zone_database, Tz.TimeZoneDatabase
 
+# Fetch the precompiled MDEx NIF from the project's Cloudflare mirror instead of
+# GitHub releases. GitHub's redirect to its asset host carries a ~9 KB CSP header,
+# which pushes the response past :httpc's 10 KB header limit (`header_too_long`), so
+# a clean deps.compile fails. The checksum is still verified against the package.
+config :mdex_native, artifact_source: :cloudflare
+
 # Media: original uploads live in :uploads_dir; derived responsive variants are
 # cached (regenerable) in :media_cache_dir. Overridden per-env in runtime.exs.
 config :bbh, :uploads_dir, Path.expand("../priv/uploads", __DIR__)

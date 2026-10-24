@@ -8,6 +8,8 @@
 set -e
 
 mix deps.get
+# Precompiled NIFs + tailwind via curl (mix's :httpc chokes on GitHub's headers).
+./bin/prefetch-precompiled.sh
 mix assets.setup
 mix ecto.create
 mix ecto.migrate
