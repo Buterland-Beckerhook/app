@@ -149,6 +149,23 @@ defmodule BbhWeb.EventHTML do
 
   defp two(n), do: String.pad_leading(Integer.to_string(n), 2, "0")
 
+  @doc "A location on openstreetmap.org, marked and zoomed in; `nil` without coordinates."
+  def osm_url(%{lat: lat, lng: lng}) when is_number(lat) and is_number(lng) do
+    {lat, lng} = {coord(lat), coord(lng)}
+    "https://www.openstreetmap.org/?mlat=#{lat}&mlon=#{lng}#map=17/#{lat}/#{lng}"
+  end
+
+  def osm_url(_location), do: nil
+
+  @doc "Directions to a location on openstreetmap.org; `nil` without coordinates."
+  def osm_route_url(%{lat: lat, lng: lng}) when is_number(lat) and is_number(lng),
+    do: "https://www.openstreetmap.org/directions?to=#{coord(lat)}%2C#{coord(lng)}"
+
+  def osm_route_url(_location), do: nil
+
+  # Fixed six decimals (~10 cm) — never scientific notation, whatever the float.
+  defp coord(value), do: :erlang.float_to_binary(value / 1, decimals: 6)
+
   @doc "Schema.org Event JSON-LD `<script>` (raw, safe) for search engines."
   # sobelow_skip ["XSS.Raw"]
   def event_jsonld(event) do
@@ -176,11 +193,28 @@ defmodule BbhWeb.EventHTML do
         )
     }
     |> maybe_put("endDate", event.ends_at && DateTime.to_iso8601(event.ends_at))
-    |> maybe_put(
-      "location",
-      event.location && %{"@type" => "Place", "name" => event.location.name}
-    )
+    |> maybe_put("location", event.location && place_jsonld(event.location))
   end
+
+  defp place_jsonld(location) do
+    %{"@type" => "Place", "name" => location.name}
+    |> maybe_put("address", address_jsonld(location))
+    |> maybe_put("geo", geo_jsonld(location))
+  end
+
+  defp address_jsonld(%{street: nil, zip: nil, city: nil}), do: nil
+
+  defp address_jsonld(location) do
+    %{"@type" => "PostalAddress", "addressCountry" => "DE"}
+    |> maybe_put("streetAddress", location.street)
+    |> maybe_put("postalCode", location.zip)
+    |> maybe_put("addressLocality", location.city)
+  end
+
+  defp geo_jsonld(%{lat: lat, lng: lng}) when is_number(lat) and is_number(lng),
+    do: %{"@type" => "GeoCoordinates", "latitude" => lat, "longitude" => lng}
+
+  defp geo_jsonld(_location), do: nil
 
   defp programme_jsonld(%{children: [_ | _] = items}), do: Enum.map(items, &jsonld_event/1)
   defp programme_jsonld(_event), do: nil

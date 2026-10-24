@@ -36,6 +36,7 @@ config :bbh, BbhWeb.Endpoint,
   secret_key_base: "ynpuLcomZbeZsXBrZfGucXrh9/L6WnnZvvc6JTF9lQXfWVZF8aUsFVi5d801OFVw",
   watchers: [
     esbuild: {Esbuild, :install_and_run, [:bbh, ~w(--sourcemap=inline --watch)]},
+    esbuild_map: {Esbuild, :install_and_run, [:bbh_map, ~w(--watch)]},
     tailwind: {Tailwind, :install_and_run, [:bbh, ~w(--watch)]}
   ]
 

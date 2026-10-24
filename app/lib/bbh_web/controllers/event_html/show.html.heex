@@ -38,15 +38,24 @@
         {@event.location.street}
         <span :if={@event.location.city}>, {@event.location.zip} {@event.location.city}</span>
       </p>
-      <a
-        :if={@event.location.maps_url}
-        href={@event.location.maps_url}
-        target="_blank"
-        rel="noopener"
-        class="mt-2 inline-block text-sm text-primary hover:underline"
-      >
-        Karte anzeigen
-      </a>
+      <p :if={osm_url(@event.location)} class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+        <a
+          href={osm_url(@event.location)}
+          target="_blank"
+          rel="noopener"
+          class="text-primary hover:underline"
+        >
+          Auf OpenStreetMap ansehen
+        </a>
+        <a
+          href={osm_route_url(@event.location)}
+          target="_blank"
+          rel="noopener"
+          class="text-primary hover:underline"
+        >
+          Route planen
+        </a>
+      </p>
     </div>
 
     <div :if={@event.body} class="prose mt-6 max-w-none dark:prose-invert">
@@ -61,5 +70,13 @@
     <div :if={@event.enable_ical} class="mt-8 text-sm">
       <.calendar_link event={@event} />
     </div>
+
+    <.location_map
+      :if={@event.location}
+      location={@event.location}
+      nonce={assigns[:csp_nonce]}
+      heading="Anfahrt"
+      class="mt-10"
+    />
   </article>
 </Layouts.app>

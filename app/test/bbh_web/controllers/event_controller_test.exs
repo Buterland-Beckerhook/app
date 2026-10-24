@@ -65,6 +65,48 @@ defmodule BbhWeb.EventControllerTest do
       assert dialog |> LazyHTML.query(~s(a[href="#{ics}"])) |> LazyHTML.text() =~ "Königsschießen"
     end
 
+    test "links the location to OpenStreetMap, never Google", %{conn: conn} do
+      location = location_fixture(lat: 52.2063619, lng: 7.0017587)
+      event = event_fixture(location_id: location.id)
+      html = conn |> get(~p"/termine/#{event.year}/#{event.slug}") |> html_response(200)
+
+      assert html =~ "https://www.openstreetmap.org/?mlat=52.206362&amp;mlon=7.001759"
+      assert html =~ "https://www.openstreetmap.org/directions?to=52.206362%2C7.001759"
+      assert html =~ "Route planen"
+      refute html =~ ~r/google\.[a-z.]+\/maps|maps\.google|goo\.gl/
+    end
+
+    test "offers no map links for a location without coordinates", %{conn: conn} do
+      event = event_fixture(location_id: location_fixture().id)
+      html = conn |> get(~p"/termine/#{event.year}/#{event.slug}") |> html_response(200)
+
+      assert html =~ "Schützenhalle"
+      refute html =~ "openstreetmap.org"
+    end
+
+    test "describes the place with address and coordinates in JSON-LD", %{conn: conn} do
+      location = location_fixture(lat: 52.2063619, lng: 7.0017587)
+      event = event_fixture(location_id: location.id)
+      html = conn |> get(~p"/termine/#{event.year}/#{event.slug}") |> html_response(200)
+
+      [json] =
+        html
+        |> LazyHTML.from_document()
+        |> LazyHTML.query(~s(script[type="application/ld+json"]))
+        |> Enum.map(&LazyHTML.text/1)
+
+      place = Jason.decode!(json)["location"]
+
+      assert place["geo"] == %{
+               "@type" => "GeoCoordinates",
+               "latitude" => 52.2063619,
+               "longitude" => 7.0017587
+             }
+
+      assert place["address"]["streetAddress"] == "Dorfstraße 1"
+      assert place["address"]["postalCode"] == "48429"
+    end
+
     test "returns 404 for an unknown event", %{conn: conn} do
       assert conn |> get(~p"/termine/2026/nada") |> response(404)
     end

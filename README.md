@@ -106,6 +106,9 @@ automatically on Phoenix startup. See the script header for flags.
   `LOG_LEVEL` in `.env`.
 - **BLZ table** (IBAN→BIC lookup for the membership form) — refresh ~quarterly with
   `mix bbh.blz.strip <csv>`; see [`AGENTS.md`](AGENTS.md#blz-table-iban--bickreditinstitut).
+- **Event map archive** — fetched and refreshed by the app itself (monthly, and when
+  a venue outside the map is saved); force it with
+  `bin/bbh rpc "Bbh.Map.enqueue_update()"`. See [ADR 0014](docs/adr/0014-self-hosted-osm-map.md).
 - **Dependencies** — Renovate opens weekly update PRs (mix, Actions, Docker images,
   and the Elixir/OTP/Debian versions via `# renovate:` comments); patch/minor
   auto-merge once `ci.yml` is green, majors wait for review.

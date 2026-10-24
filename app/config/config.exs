@@ -89,6 +89,14 @@ config :esbuild,
       ~w(js/app.js --bundle --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),
     cd: Path.expand("../assets", __DIR__),
     env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
+  ],
+  # The event map (MapLibre + PMTiles, ~1.5 MB) in its own bundle, loaded only by
+  # pages that show a map. ESM, because MapLibre starts its worker as a module from
+  # the second entry point (maplibre-gl-worker.js next to map.js).
+  bbh_map: [
+    args:
+      ~w(js/map.js vendor/map/maplibre-gl-worker.mjs --bundle --format=esm --target=es2022 --outdir=../priv/static/assets/map --entry-names=[name] --alias:fflate=./vendor/map/fflate.mjs),
+    cd: Path.expand("../assets", __DIR__)
   ]
 
 # Configure tailwind (the version is required)
@@ -117,6 +125,17 @@ config :bbh, BbhWeb.RateLimit, enabled: true
 # Content-Security-Policy. Disabled in dev.exs so LiveReload keeps working.
 config :bbh, BbhWeb.Plugs.CSP, enabled: true
 
+# Self-hosted event map (Bbh.Map, ADR 0014). The archive is extracted from the
+# Protomaps daily build into :dir by Bbh.Workers.MapTilesUpdater, which needs the
+# `pmtiles` CLI (in both Docker images). Protomaps builds stop at zoom 15; MapLibre
+# overzooms beyond. Overridden per-env (runtime.exs, test.exs).
+config :bbh, Bbh.Map,
+  dir: Path.expand("../priv/tiles", __DIR__),
+  auto_update: true,
+  maxzoom: 15,
+  build_base_url: "https://build.protomaps.com",
+  pmtiles: "pmtiles"
+
 # Background jobs (Oban). The cron plugin runs the publish notifier every five
 # minutes so scheduled ("vorveröffentlichte") articles get their push once their
 # publish date passes. Overridden to `testing: :manual` in test.exs.
@@ -136,7 +155,9 @@ config :bbh, Oban,
        # works by then, this only deletes the rows.
        {"30 3 * * *", Bbh.Workers.AuthPruner},
        # Forget 404-log entries nobody has hit for 90 days.
-       {"45 3 * * *", Bbh.Workers.NotFoundPruner}
+       {"45 3 * * *", Bbh.Workers.NotFoundPruner},
+       # Refresh the map archive monthly — OSM edits are slow to matter here.
+       {"17 4 3 * *", Bbh.Workers.MapTilesUpdater}
      ]}
   ]
 

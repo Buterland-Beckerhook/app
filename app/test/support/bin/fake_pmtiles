@@ -1,0 +1,11 @@
+#!/bin/sh
+# Stand-in for the `pmtiles` CLI in Bbh.Workers.MapTilesUpdater tests:
+# `extract <input> <output> …` copies $FAKE_PMTILES_SOURCE to <output> and records
+# its arguments in $FAKE_PMTILES_ARGS; FAKE_PMTILES_FAIL=1 makes it fail instead.
+[ "$1" = "extract" ] || exit 2
+printf '%s\n' "$@" > "$FAKE_PMTILES_ARGS"
+if [ -n "$FAKE_PMTILES_FAIL" ]; then
+  echo "fetching chunks 12% … error: 404 Not Found" >&2
+  exit 1
+fi
+cp "$FAKE_PMTILES_SOURCE" "$3"
