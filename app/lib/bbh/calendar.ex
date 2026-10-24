@@ -139,6 +139,9 @@ defmodule Bbh.Calendar do
   def next_child_to_start(%Event{} = parent, now \\ Bbh.Time.now()),
     do: first_child(parent, dynamic([c], c.starts_at > ^now))
 
+  @doc "The first published programme item of `parent`, or `nil` without a programme."
+  def first_child(%Event{} = parent), do: first_child(parent, true)
+
   defp first_child(%Event{id: parent_id} = parent, condition) do
     Repo.one(
       from c in visible_children(),
