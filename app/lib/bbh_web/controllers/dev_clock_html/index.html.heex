@@ -12,7 +12,7 @@
     <nav class="flex gap-1 text-sm">
       <a
         :for={{key, label} <- @views}
-        href={"/dev/zeitreise?ansicht=#{key}&breite=#{@width}"}
+        href={overview_path(assigns, %{"ansicht" => key})}
         class={[
           "rounded-full px-3 py-1",
           key == @view && "bg-primary text-primary-content",
@@ -25,7 +25,7 @@
     <nav class="flex gap-1 text-sm">
       <a
         :for={w <- ~w(desktop mobil)}
-        href={"/dev/zeitreise?ansicht=#{@view}&breite=#{w}"}
+        href={overview_path(assigns, %{"breite" => w})}
         class={[
           "rounded-full px-3 py-1 capitalize",
           w == @width && "bg-primary text-primary-content",
@@ -33,6 +33,19 @@
         ]}
       >
         {w}
+      </a>
+    </nav>
+    <nav class="flex gap-1 text-sm" aria-label="Größe">
+      <a
+        :for={{key, label, _factor} <- @sizes}
+        href={overview_path(assigns, %{"groesse" => key})}
+        class={[
+          "rounded-full px-3 py-1",
+          key == @size && "bg-primary text-primary-content",
+          key != @size && "hover:bg-base-300"
+        ]}
+      >
+        {label}
       </a>
     </nav>
   </header>
