@@ -153,7 +153,9 @@ shadow a live page and normal requests never pay for a lookup. See
   table for them). Paths are compared normalized (`Bbh.Redirects.normalize_path/1`).
 - Write rules through `Bbh.Redirects` only — it refreshes the `:persistent_term` cache.
 - Misses land in the 404 log (`not_found_paths`). Anything whose path carries a secret
-  must be in `BbhWeb.Redirector`'s skip list.
+  must be in the ignore list in `Bbh.Redirects` (`ignored_not_found?/1`, checked on the
+  normalized path). The nightly prune also drops already-logged entries the list now
+  matches.
 - A new controller that 404s must call `not_found/1`, not render the error itself.
 - The public 404 page is `BbhWeb.NotFoundHTML` (full site layout, search prefilled from
   the path). `BbhWeb.ErrorHTML` stays bare on purpose: the endpoint renders it for

@@ -18,15 +18,6 @@ defmodule BbhWeb.Redirector do
 
   alias Bbh.Redirects
 
-  # Areas whose 404s say nothing about missing redirects, or whose paths carry secrets
-  # (revoked calendar-share tokens) that do not belong in a log.
-  @skip_log_prefixes ~w(/admin /users /api /dev /assets /images /fonts /media /oauth /mcp
-                        /kalender/geteilt /.well-known /live /phoenix)
-
-  # Vulnerability scanners probing for other software. Logging them would bury the
-  # handful of real old links under noise.
-  @scanner_re ~r{/\.|\.(php\d?|aspx?|jsp|cgi|env|ini|sql|bak|old|swp|zip|tar|gz|rar|7z|log|ya?ml|config)$|wp-|xmlrpc|phpmyadmin|cgi-bin}i
-
   @doc "Redirect if a rule or legacy mapping applies; otherwise log and render the 404."
   def not_found(conn) do
     case redirect_target(conn) do
@@ -98,10 +89,9 @@ defmodule BbhWeb.Redirector do
     :ok
   end
 
-  defp loggable?(path) do
-    not Enum.any?(@skip_log_prefixes, &(path == &1 or String.starts_with?(path, &1 <> "/"))) and
-      not Regex.match?(@scanner_re, path)
-  end
+  # The ignore list lives in Bbh.Redirects so the nightly prune applies the same rules;
+  # checking here as well spares a task for every scanner probe.
+  defp loggable?(path), do: not Redirects.ignored_not_found?(path)
 
   defp external_referrer(conn) do
     with [referer | _] <- get_req_header(conn, "referer"),

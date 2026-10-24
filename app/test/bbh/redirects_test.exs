@@ -163,5 +163,39 @@ defmodule Bbh.RedirectsTest do
       assert Redirects.prune_not_found(90) == 1
       assert [%{path: "/neu"}] = Redirects.list_not_found()
     end
+
+    test "ignores scanner probes and internal areas, also in disguise" do
+      probes = ~w(
+        /host.key /ssl/server.key /private-key /privatekey.key /id_rsa /id_ed25519
+        /id_ecdsa.pub /rclone.conf /_image /_astro/pages/index.astro.mjs.map
+        /pages/api/index.astro.mjs.map /.env /.git/config /wp-login.php
+        /admin /Admin //admin /%61dmin/ /api/config /API/Config
+      )
+
+      for path <- probes do
+        assert Redirects.ignored_not_found?(path), "expected #{path} to be ignored"
+        assert Redirects.record_not_found(path) == :ok
+      end
+
+      assert Redirects.list_not_found() == []
+    end
+
+    test "keeps logging ordinary old links" do
+      for path <- ~w(/aktuell/2019/schuetzenfest /verein/vorstand /keyboard /image /mapping) do
+        refute Redirects.ignored_not_found?(path), "expected #{path} to be logged"
+      end
+    end
+
+    test "prune_not_found/1 also drops entries the ignore list now matches" do
+      now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+      # Written straight to the table, as an older release without today's list would have.
+      for path <- ["/id_rsa", "/rclone.conf", "/echt-alt"] do
+        Repo.insert!(%NotFoundPath{path: path, first_seen_at: now, last_seen_at: now})
+      end
+
+      assert Redirects.prune_not_found(90) == 2
+      assert [%{path: "/echt-alt"}] = Redirects.list_not_found()
+    end
   end
 end
