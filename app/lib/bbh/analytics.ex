@@ -1,7 +1,7 @@
 defmodule Bbh.Analytics do
   @moduledoc """
-  Lightweight, privacy-friendly in-app analytics — a self-hosted replacement
-  for Matomo. Stores only aggregated, PII-free daily counters:
+  Lightweight, privacy-friendly in-app analytics. Stores only aggregated, PII-free
+  daily counters:
 
     * page views per path
     * external referrer hosts
