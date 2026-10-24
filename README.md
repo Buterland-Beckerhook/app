@@ -10,9 +10,10 @@ has been removed and all application code now lives under [`app/`](app/).
 
 | | |
 |---|---|
-| **Language / runtime** | Elixir + Phoenix (OTP app `:bbh`) |
-| **Database** | PostgreSQL 16 |
+| **Language / runtime** | Elixir + Phoenix 1.8 on Erlang/OTP (OTP app `:bbh`) |
+| **Database** | PostgreSQL 18 |
 | **Media** | libvips → responsive WebP, local volume |
+| **Jobs** | Oban (scheduled pushes, reminders, pruning) |
 | **Delivery** | Docker Compose image on GHCR, behind central Traefik (prod) / Caddy (dev) |
 | **CI/CD** | GitHub Actions (`ci.yml` test+audit gate, `build.yml` → GHCR) |
 
@@ -23,12 +24,14 @@ has been removed and all application code now lives under [`app/`](app/).
 | Understand the code, contexts, conventions | [`AGENTS.md`](AGENTS.md) and [`app/AGENTS.md`](app/AGENTS.md) |
 | Deploy / operate the beta or prod server | [`deploy/README.md`](deploy/README.md) |
 | See an architectural decision & its rationale | [`docs/adr/`](docs/adr/) |
+| Connect Claude (MCP) to draft articles | [`AGENTS.md`](AGENTS.md#mcp-server-ai-content-access), [`docs/adr/0009-mcp-server.md`](docs/adr/0009-mcp-server.md) |
 
 ## Repository layout
 
 ```
 app/          # The Phoenix application (:bbh) — contexts (Bbh.*) + web (BbhWeb.*)
-deploy/       # Production/beta stack: compose.yml, setup.sh, update.sh, backup.sh, sync-data.sh, .env.example
+deploy/       # Production/beta stack: compose.yml, setup.sh, update.sh, backup.sh,
+              #   sync-data.sh, upgrade-postgres.sh, .env.example
 scripts/      # dump.sh / seed.sh — DB + uploads snapshot & restore (dev & prod)
 docs/adr/     # Architecture decision records
 seed/         # Gitignored dev DB/uploads snapshot (make dump / make seed)
@@ -52,8 +55,17 @@ make test       # mix test
 make format     # mix format
 make precommit  # compile --warnings-as-errors + audits + format + test
 make migrate    # mix ecto.migrate
+make reset-db   # mix ecto.reset
+make dump       # Snapshot the dev DB + uploads into ./seed
 make seed       # Restore ./seed snapshot into the dev DB + uploads
+make seed-demo  # Add the demo Schützenfest with its programme
 ```
+
+Dev data is a real snapshot (`make dump` / `make seed`), not a hand-written seed.
+To see time-dependent pages (countdown, the festival programme) at another moment,
+append `?jetzt=2026-07-19T09:25` to any public page, or open `/dev/zeitreise` for the
+next festival at many moments side by side — dev only, see
+[`AGENTS.md`](AGENTS.md#development).
 
 `make help` lists every target. Conventions (contexts, LiveView, Ecto, HEEx,
 testing) are documented in [`app/AGENTS.md`](app/AGENTS.md).
@@ -82,6 +94,9 @@ automatically on Phoenix startup. See the script header for flags.
 
 - **Backups** — `deploy/backup.sh` runs a nightly `pg_dump` + uploads tarball,
   pushed offsite via Borg (cron as root). See [`deploy/README.md`](deploy/README.md#backups).
+- **Postgres major upgrade** — by dump & restore with `deploy/upgrade-postgres.sh`,
+  once per stack (Beta first). See [`deploy/README.md`](deploy/README.md#postgres-major-upgrade-16--18)
+  and [ADR 0012](docs/adr/0012-postgres-major-upgrade-by-dump-and-restore.md).
 - **Restore / re-seed** — drop a `*.dump` into `deploy/restore/`; it loads on the
   next `up` before Phoenix migrates on top. Details in
   [`deploy/README.md`](deploy/README.md#restoring-a-dump).
@@ -91,8 +106,9 @@ automatically on Phoenix startup. See the script header for flags.
   `LOG_LEVEL` in `.env`.
 - **BLZ table** (IBAN→BIC lookup for the membership form) — refresh ~quarterly with
   `mix bbh.blz.strip <csv>`; see [`AGENTS.md`](AGENTS.md#blz-table-iban--bickreditinstitut).
-- **Dependencies** — Renovate opens weekly update PRs; patch/minor auto-merge once
-  `ci.yml` is green, majors wait for review.
+- **Dependencies** — Renovate opens weekly update PRs (mix, Actions, Docker images,
+  and the Elixir/OTP/Debian versions via `# renovate:` comments); patch/minor
+  auto-merge once `ci.yml` is green, majors wait for review.
 
 ## License
 
