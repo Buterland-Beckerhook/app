@@ -791,7 +791,10 @@ window.liveSocket = liveSocket
       // Image + caption stack, centred and shrink-wrapped so the caption's left
       // edge lines up with the image's left edge.
       "dialog.lightbox .lb-figure{margin:auto;display:flex;flex-direction:column;max-width:92vw;max-height:92vh}" +
-      "dialog.lightbox img{max-width:100%;max-height:86vh;object-fit:contain;border-radius:.25rem}" +
+      // Sized by fit() below, not by max-width:100% against the shrink-wrapped figure:
+      // that is circular, and browsers resolve it differently (Safari kept the first
+      // picture's width for every later one).
+      "dialog.lightbox img{display:block;max-width:none;border-radius:.25rem}" +
       // Caption sits directly under the image, left-aligned.
       "dialog.lightbox .lb-caption{margin-top:.5rem;color:rgba(255,255,255,.8);font-size:.8125rem;line-height:1.3;text-align:left}" +
       "dialog.lightbox .lb-caption[hidden]{display:none}" +
@@ -827,6 +830,8 @@ window.liveSocket = liveSocket
       '<div class="lb-copyright"></div>' +
       "</div>"
     imgEl = dialog.querySelector("img")
+    imgEl.addEventListener("load", fit)
+    window.addEventListener("resize", () => { if (dialog.open) fit() })
     captionEl = dialog.querySelector(".lb-caption")
     counterEl = dialog.querySelector(".lb-counter")
     copyrightEl = dialog.querySelector(".lb-copyright")
@@ -852,6 +857,20 @@ window.liveSocket = liveSocket
 
     document.body.appendChild(dialog)
     return dialog
+  }
+
+  // Scale the picture to the largest size that fits 92vw × 86vh — up as well as down,
+  // so a small original reads at the same size as every other picture in the group.
+  // The figure takes the image's width so the caption wraps under the picture.
+  function fit() {
+    const w = imgEl.naturalWidth
+    const h = imgEl.naturalHeight
+    if (!w || !h) return
+    const scale = Math.min((window.innerWidth * 0.92) / w, (window.innerHeight * 0.86) / h)
+    const width = Math.round(w * scale)
+    imgEl.style.width = `${width}px`
+    imgEl.style.height = `${Math.round(h * scale)}px`
+    imgEl.parentElement.style.width = `${width}px`
   }
 
   function show(i) {
