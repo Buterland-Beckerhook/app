@@ -32,6 +32,7 @@ defmodule BbhWeb.SiteComponents do
   attr :width, :integer, default: nil
   attr :height, :integer, default: nil
   attr :class, :string, default: ""
+  attr :sizes, :string, default: "100vw", doc: "the `sizes` for the variant `srcset`"
 
   def hero_image(assigns) do
     assigns = assign(assigns, :hero, article_hero(assigns.article))
@@ -40,6 +41,8 @@ defmodule BbhWeb.SiteComponents do
     <img
       :if={@hero}
       src={media_url(@hero, width: @width, height: @height)}
+      srcset={media_srcset(@hero, width: @width, height: @height)}
+      sizes={@sizes}
       alt={image_alt(@hero)}
       loading="lazy"
       class={["object-cover", @class]}
@@ -178,11 +181,14 @@ defmodule BbhWeb.SiteComponents do
       class="group flex flex-col overflow-hidden rounded-[18px] border border-base-300 bg-card transition-shadow hover:shadow-md"
     >
       <div class="h-[190px] overflow-hidden bg-tag">
-        <%!-- 2× the 190px box for retina displays --%>
+        <%!-- 2× the 190px box for retina displays. `sizes`: one column, two from `sm`,
+              three or four from `lg` — at most ~22rem there, and never under the 320px
+              the 190px-high cover crop needs. --%>
         <.hero_image
           article={@article}
           width={640}
           height={380}
+          sizes="(min-width: 64rem) 22rem, (min-width: 40rem) 50vw, 100vw"
           class="h-full w-full transition-transform group-hover:scale-105"
         />
       </div>
@@ -476,6 +482,8 @@ defmodule BbhWeb.SiteComponents do
     ~H"""
     <img
       src={media_url(@person.portrait, width: 400, height: 500)}
+      srcset={media_srcset(@person.portrait, width: 400, height: 500)}
+      sizes="(min-width: 48rem) 20rem, 100vw"
       alt={image_alt(@person.portrait)}
       loading="lazy"
       class="aspect-[4/5] w-full rounded-lg object-cover md:w-2/5"
@@ -647,6 +655,8 @@ defmodule BbhWeb.SiteComponents do
         <figure :if={@block.image} class="w-full md:w-1/2">
           <img
             src={media_url(@block.image, width: 480)}
+            srcset={media_srcset(@block.image, width: 480)}
+            sizes="(min-width: 48rem) 27rem, 100vw"
             alt={image_alt(@block.image)}
             class="w-full rounded-lg object-cover"
           />
@@ -789,6 +799,7 @@ defmodule BbhWeb.SiteComponents do
         file={f}
         block={@block}
         size={{400, 400}}
+        sizes="(min-width: 48rem) 18rem, 50vw"
         class="aspect-square w-full rounded object-cover"
       />
     </div>
@@ -894,6 +905,7 @@ defmodule BbhWeb.SiteComponents do
             file={f}
             block={@block}
             size={slide_size(@ratio, f.media)}
+            sizes="(min-width: 56rem) 54rem, 100vw"
             class="w-full rounded object-cover"
             style={"aspect-ratio: #{@css_ratio}"}
             eager={i == 0}
@@ -954,13 +966,22 @@ defmodule BbhWeb.SiteComponents do
   attr :class, :any, required: true
   attr :style, :any, default: nil
 
+  attr :sizes, :string,
+    default: nil,
+    doc: "rendered width for the variant `srcset`; without it the image gets no `srcset`"
+
   attr :eager, :boolean,
     default: false,
     doc: "the slide showing on load — the gallery's LCP candidate, so never lazy"
 
   defp gallery_image(assigns) do
     {width, height} = assigns.size
-    assigns = assigns |> assign(:width, width) |> assign(:height, height)
+
+    assigns =
+      assigns
+      |> assign(:width, width)
+      |> assign(:height, height)
+      |> assign(:srcset, srcset(assigns.sizes, assigns.file.media, width, height))
 
     ~H"""
     <button
@@ -976,6 +997,8 @@ defmodule BbhWeb.SiteComponents do
     >
       <img
         src={media_url(@file.media, width: @width, height: @height)}
+        srcset={@srcset}
+        sizes={@srcset && @sizes}
         alt={image_alt(@file)}
         loading={if @eager, do: "eager", else: "lazy"}
         fetchpriority={@eager && "high"}
@@ -986,6 +1009,8 @@ defmodule BbhWeb.SiteComponents do
     <img
       :if={!@block.lightbox}
       src={media_url(@file.media, width: @width, height: @height)}
+      srcset={@srcset}
+      sizes={@srcset && @sizes}
       alt={image_alt(@file)}
       loading={if @eager, do: "eager", else: "lazy"}
       fetchpriority={@eager && "high"}
@@ -994,6 +1019,9 @@ defmodule BbhWeb.SiteComponents do
     />
     """
   end
+
+  defp srcset(nil, _media, _width, _height), do: nil
+  defp srcset(_sizes, media, width, height), do: media_srcset(media, width: width, height: height)
 
   # `ImageGallery.aspect_ratios/0` stores "W:H"; everything downstream wants the two
   # numbers. Parsed once, here, so a value that somehow got past `validate_inclusion`

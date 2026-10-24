@@ -69,6 +69,24 @@ defmodule BbhWeb.ArticleControllerTest do
       refute html =~ ~s(alt="Buterland-Beckerhook")
     end
 
+    test "the article image offers smaller variants to narrow screens", %{conn: conn} do
+      article = article_fixture()
+      set_article_image(article, upload_fixture(%{width: 3000, height: 2000}))
+
+      img =
+        conn
+        |> get(~p"/aktuell/#{article.year}/#{article.slug}")
+        |> html_response(200)
+        |> LazyHTML.from_document()
+        |> LazyHTML.query("figure button img")
+
+      assert [srcset] = LazyHTML.attribute(img, "srcset")
+      assert srcset =~ "w=480 480w"
+      assert srcset =~ "w=1024 1024w"
+      assert [sizes] = LazyHTML.attribute(img, "sizes")
+      assert sizes =~ "48rem"
+    end
+
     test "renders gallery block images as lightbox triggers", %{conn: conn} do
       article = article_fixture()
       gallery_block_fixture(article, [upload_fixture(), upload_fixture()])
