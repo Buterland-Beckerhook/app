@@ -44,6 +44,31 @@
             {de_range(@next_event.starts_at, @next_event.ends_at, @next_event.all_day)}
             <span :if={@next_event.location}>· {@next_event.location.name}</span>
           </p>
+          <%!-- a festival's running or next programme item --%>
+          <a
+            :if={@next_child}
+            id="next-programme-item"
+            href={BbhWeb.EventPaths.path(@next_child)}
+            class="mt-4 block rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-left transition-colors hover:bg-white/15"
+          >
+            <span class="text-[11px] font-bold tracking-widest uppercase opacity-80">
+              {if BbhWeb.EventHTML.item_state(@next_child, @now) == :running,
+                do: "Jetzt",
+                else: "Als Nächstes"}
+            </span>
+            <span class="block text-lg leading-snug font-semibold">
+              {@next_child.title}
+              <span
+                :if={@next_child.status == "canceled"}
+                class="ml-1 rounded bg-white/20 px-1.5 py-0.5 text-xs font-bold uppercase"
+              >
+                Abgesagt
+              </span>
+            </span>
+            <span class="text-sm opacity-85">
+              {BbhWeb.EventHTML.item_when(@next_child)}<span :if={@next_child.location}> · {@next_child.location.name}</span>
+            </span>
+          </a>
           <div class="mt-5 flex flex-wrap justify-center gap-3.5 md:justify-start">
             <a
               href={BbhWeb.EventPaths.path(@next_event)}
@@ -60,13 +85,15 @@
           </div>
         </div>
         <%!-- countdown --%>
-        <div :if={countdown_visible?(@next_event)} class="flex flex-col items-center gap-3">
-          <span class="text-xs font-bold tracking-widest uppercase opacity-80">Es beginnt in</span>
+        <div :if={@countdown} class="flex flex-col items-center gap-3">
+          <span class="text-xs font-bold tracking-widest uppercase opacity-80">
+            {@countdown.label}
+          </span>
           <div
             id="bb-countdown"
             class="flex gap-2.5"
-            data-countdown-to={countdown_target(@next_event.starts_at)}
-            data-countdown-now={countdown_target(Bbh.Time.now())}
+            data-countdown-to={countdown_target(@countdown.at)}
+            data-countdown-now={countdown_target(@now)}
           >
             <div
               :for={

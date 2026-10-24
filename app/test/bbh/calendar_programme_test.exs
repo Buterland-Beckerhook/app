@@ -205,7 +205,7 @@ defmodule Bbh.CalendarProgrammeTest do
       assert [%Event{id: ^id}] = Calendar.events_pending_notification(~U[2030-01-01 00:00:00Z])
     end
 
-    test "next_child/2 is the first item that has not ended" do
+    test "next_child/2 is the first published item that has not ended" do
       fest = festival_fixture()
 
       first =
@@ -233,6 +233,49 @@ defmodule Bbh.CalendarProgrammeTest do
       assert Calendar.next_child(fest, ~U[2030-07-21 10:30:00Z]).id == second.id
       assert Calendar.next_child(fest, ~U[2030-07-21 12:30:00Z]) == nil
       assert Calendar.next_child(fest, ~U[2030-07-21 11:00:00Z]).parent.id == fest.id
+    end
+
+    test "next_child_to_start/2 skips running and canceled items" do
+      fest = festival_fixture()
+
+      running =
+        programme_item_fixture(fest,
+          starts_at: ~U[2030-07-21 09:30:00Z],
+          ends_at: ~U[2030-07-21 10:30:00Z]
+        )
+
+      _canceled =
+        programme_item_fixture(fest,
+          status: "canceled",
+          starts_at: ~U[2030-07-21 10:30:00Z],
+          ends_at: ~U[2030-07-21 11:00:00Z]
+        )
+
+      later =
+        programme_item_fixture(fest,
+          starts_at: ~U[2030-07-21 14:00:00Z],
+          ends_at: ~U[2030-07-21 15:00:00Z]
+        )
+
+      now = ~U[2030-07-21 10:00:00Z]
+      assert Calendar.next_child(fest, now).id == running.id
+      assert Calendar.next_child_to_start(fest, now).id == later.id
+      # The canceled item is never highlighted, even during its slot.
+      assert Calendar.next_child(fest, ~U[2030-07-21 10:45:00Z]).id == later.id
+      assert Calendar.next_child_to_start(fest, ~U[2030-07-21 14:00:00Z]) == nil
+    end
+
+    test "next_event/1 keeps a festival until its last item has ended" do
+      fest = festival_fixture()
+
+      _kehraus =
+        programme_item_fixture(fest,
+          starts_at: ~U[2030-07-23 20:00:00Z],
+          ends_at: ~U[2030-07-24 02:00:00Z]
+        )
+
+      assert Calendar.next_event(~U[2030-07-24 01:59:00Z]).id == fest.id
+      assert Calendar.next_event(~U[2030-07-24 02:00:00Z]) == nil
     end
   end
 

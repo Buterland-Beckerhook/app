@@ -83,6 +83,24 @@ Copyright are fields on `media`; an embedding (article image, gallery file) only
 and not merely deleted), and the libvips operation cache — libvips memoizes by file name
 and would otherwise keep serving the old orientation from memory.
 
+## Event programme (festival + items)
+
+A multi-day festival (the Schützenfest) is one all-day event; each programme item is a
+timed child event (`parent_id`, one level deep). Rules that constrain changes:
+
+- **Items only appear through their festival.** `/termine`, search, the sitemap, the
+  homepage's next event and the "Neuer Termin" push are top-level only
+  (`Bbh.Calendar.public_top_level/0`); items show on the festival page, in the
+  homepage's "Jetzt / Als Nächstes" box (which drives the countdown) and in iCal (with
+  `RELATED-TO`). An item is public when it is published or canceled *and* its festival
+  is public; drafts let the programme be prepared ahead.
+- **Build event URLs with `BbhWeb.EventPaths`** — an item's URL depends on its parent
+  and on `config :bbh, :event_child_pages` (anchor `#item` vs. own page; still being
+  decided, `EVENT_CHILD_PAGES=true make dev` shows the page variant).
+- The changeset (`Bbh.Calendar.Event`) keeps items inside the festival (overnight grace
+  until 06:00 after the last day) and festivals around their items. `make seed-demo`
+  adds a demo festival; walk through it with `/dev/zeitreise`.
+
 ## E-mail addresses
 
 Addresses are stored in the clear and obfuscated **at render time** — never write one

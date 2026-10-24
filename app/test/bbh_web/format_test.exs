@@ -6,6 +6,14 @@ defmodule BbhWeb.FormatTest do
   alias Bbh.Media.Upload
   alias BbhWeb.Format
 
+  describe "de_weekday_abbr/1 and de_short_datetime/1" do
+    test "compact German date with weekday" do
+      assert Format.de_weekday_abbr(~U[2026-07-19 09:25:00Z]) == "So."
+      assert Format.de_weekday_abbr(~U[2026-07-20 09:25:00Z]) == "Mo."
+      assert Format.de_short_datetime(~U[2026-07-19 09:05:00Z]) == "So., 19.07.2026 09:05"
+    end
+  end
+
   describe "media_url/2" do
     defp upload(attrs \\ %{}), do: struct(%Upload{storage_key: "2026/x.jpg"}, attrs)
 
