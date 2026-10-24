@@ -42,6 +42,29 @@ defmodule BbhWeb.EventControllerTest do
       assert html =~ "Königsschießen"
     end
 
+    test "the calendar link opens a dialog that leads with the subscription",
+         %{conn: conn} do
+      event = event_fixture(title: "Königsschießen", enable_ical: true)
+      html = conn |> get(~p"/termine/#{event.year}/#{event.slug}") |> html_response(200)
+      doc = LazyHTML.from_document(html)
+      ics = "/termine/#{event.year}/#{event.slug}/event.ics"
+
+      # Without JavaScript the link still is the event's file.
+      [link] = doc |> LazyHTML.query("a[data-calendar-dialog]") |> Enum.to_list()
+      assert LazyHTML.attribute(link, "href") == [ics]
+      assert LazyHTML.text(link) =~ "Zum Kalender hinzufügen"
+      refute html =~ "(.ics)"
+
+      [dialog_id] = LazyHTML.attribute(link, "data-calendar-dialog")
+      dialog = LazyHTML.query(doc, "dialog##{dialog_id}")
+
+      assert LazyHTML.text(dialog) =~
+               "Alle Termine automatisch im eigenen Kalender, immer aktuell."
+
+      assert dialog |> LazyHTML.query(~s(a[href^="webcal://"])) |> Enum.count() == 1
+      assert dialog |> LazyHTML.query(~s(a[href="#{ics}"])) |> LazyHTML.text() =~ "Königsschießen"
+    end
+
     test "returns 404 for an unknown event", %{conn: conn} do
       assert conn |> get(~p"/termine/2026/nada") |> response(404)
     end

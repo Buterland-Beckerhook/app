@@ -1024,6 +1024,16 @@ document.addEventListener("change", (e) => {
   if (sel && sel.value) location.assign(sel.value)
 })
 
+// --- "Zum Kalender hinzufügen": open the dialog that offers the subscription first.
+// The link itself is the event's .ics file, so without JavaScript it still works. ---
+document.addEventListener("click", (e) => {
+  const link = e.target.closest("a[data-calendar-dialog]")
+  const dialog = link && document.getElementById(link.dataset.calendarDialog)
+  if (!dialog) return
+  e.preventDefault()
+  dialog.showModal()
+})
+
 // --- Readonly "zum Kopieren" inputs: click selects all. Delegated so it works on
 // dead pages and LiveView-rendered panels alike; an inline onclick would be blocked
 // by the CSP (script-src has no 'unsafe-inline'). ---

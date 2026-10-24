@@ -32,8 +32,9 @@ defmodule Bbh.Calendar.ShareNotifier do
 
     #{webcal_url}
 
-    Google Kalender / Android — öffne Google Kalender am Computer, dann
-    „Weitere Kalender“ (+) → „Per URL“ und füge diese Adresse ein:
+    Google Kalender / Android — öffne am Computer
+    https://calendar.google.com/calendar/r/settings/addbyurl
+    und füge diese Adresse ein (danach erscheint der Kalender auch in der App):
 
     #{https_url}
 
