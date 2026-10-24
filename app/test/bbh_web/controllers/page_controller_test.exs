@@ -116,6 +116,131 @@ defmodule BbhWeb.PageControllerTest do
     end
   end
 
+  describe "next_child_shown?/2" do
+    test "only within 48 hours of the item's start, or while it runs" do
+      item = %{starts_at: ~U[2030-07-20 14:00:00Z]}
+
+      refute PageHTML.next_child_shown?(item, ~U[2030-07-10 12:00:00Z])
+      refute PageHTML.next_child_shown?(item, ~U[2030-07-18 14:00:00Z])
+      assert PageHTML.next_child_shown?(item, ~U[2030-07-18 14:01:00Z])
+      assert PageHTML.next_child_shown?(item, ~U[2030-07-20 15:00:00Z])
+    end
+  end
+
+  describe "countdown/4 for a festival" do
+    defp fest_at(attrs \\ %{}) do
+      Map.merge(
+        %{
+          show_countdown: true,
+          countdown_lead_days: 60,
+          all_day: true,
+          starts_at: ~U[2030-07-20 00:00:00Z]
+        },
+        attrs
+      )
+    end
+
+    defp item(starts_at), do: %{starts_at: starts_at}
+
+    @first ~U[2030-07-20 14:00:00Z]
+
+    test "before the festival: its first item, not the all-day 00:00" do
+      assert %{at: @first, label: "Es beginnt in"} =
+               PageHTML.countdown(fest_at(), item(@first), item(@first), ~U[2030-07-10 12:00:00Z])
+
+      # also on the first day, before the first item
+      assert %{at: @first, label: "Es beginnt in"} =
+               PageHTML.countdown(fest_at(), item(@first), item(@first), ~U[2030-07-20 09:00:00Z])
+    end
+
+    test "a festival start with a real time counts when it is earlier" do
+      fest = fest_at(%{starts_at: ~U[2030-07-20 13:00:00Z]})
+
+      assert %{at: ~U[2030-07-20 13:00:00Z]} =
+               PageHTML.countdown(fest, item(@first), item(@first), ~U[2030-07-10 12:00:00Z])
+
+      later = fest_at(%{starts_at: ~U[2030-07-20 15:00:00Z]})
+
+      assert %{at: @first} =
+               PageHTML.countdown(later, item(@first), item(@first), ~U[2030-07-10 12:00:00Z])
+    end
+
+    test "during a running item: the one after it" do
+      after_it = item(~U[2030-07-21 10:30:00Z])
+
+      assert %{at: ~U[2030-07-21 10:30:00Z], label: "Nächster Programmpunkt in"} =
+               PageHTML.countdown(fest_at(), item(@first), after_it, ~U[2030-07-21 10:00:00Z])
+    end
+
+    test "with nothing left to start: no countdown" do
+      assert PageHTML.countdown(fest_at(), item(@first), nil, ~U[2030-07-23 21:00:00Z]) == nil
+    end
+
+    test "the festival's own switch and lead window still apply" do
+      next = item(~U[2030-07-21 14:15:00Z])
+
+      assert PageHTML.countdown(
+               fest_at(%{show_countdown: false}),
+               item(@first),
+               next,
+               ~U[2030-07-21 13:00:00Z]
+             ) ==
+               nil
+
+      assert PageHTML.countdown(fest_at(), item(@first), item(@first), ~U[2030-01-01 00:00:00Z]) ==
+               nil
+    end
+
+    test "an event without a programme counts down to its own start" do
+      event = fest_at(%{all_day: false, starts_at: ~U[2030-07-20 14:00:00Z]})
+
+      assert %{at: ~U[2030-07-20 14:00:00Z], label: "Es beginnt in"} =
+               PageHTML.countdown(event, nil, nil, ~U[2030-07-10 12:00:00Z])
+
+      assert PageHTML.countdown(event, nil, nil, ~U[2030-07-20 15:00:00Z]) == nil
+      assert PageHTML.countdown(nil, nil, nil, ~U[2030-07-20 15:00:00Z]) == nil
+    end
+  end
+
+  test "GET / shows a festival's running item and counts down to the next", %{conn: conn} do
+    now = Bbh.Time.now() |> DateTime.truncate(:second) |> Map.put(:second, 0)
+    today = DateTime.to_date(now)
+    at = fn date -> DateTime.new!(date, ~T[00:00:00], "Etc/UTC") end
+
+    fest =
+      festival_fixture(%{
+        title: "Schützenfest jetzt",
+        starts_at: at.(Date.add(today, -1)),
+        ends_at: at.(Date.add(today, 2))
+      })
+
+    programme_item_fixture(fest, %{
+      title: "Frühschoppen",
+      slug: "fruehschoppen",
+      starts_at: DateTime.add(now, -30, :minute),
+      ends_at: DateTime.add(now, 30, :minute)
+    })
+
+    next_start = DateTime.add(now, 2, :hour)
+
+    programme_item_fixture(fest, %{
+      title: "Festumzug",
+      slug: "festumzug",
+      starts_at: next_start,
+      ends_at: DateTime.add(now, 3, :hour)
+    })
+
+    html = conn |> get(~p"/") |> html_response(200)
+
+    assert html =~ "Schützenfest jetzt"
+    assert html =~ ~s(href="/termine/#{fest.year}/#{fest.slug}#fruehschoppen")
+    assert html =~ "Jetzt"
+    assert html =~ "Frühschoppen"
+    assert html =~ "Nächster Programmpunkt in"
+    assert html =~ ~s(data-countdown-to="#{PageHTML.countdown_target(next_start)}")
+    assert html =~ "data-countdown-now="
+  end
+
   test "renders the home notice as (sanitized) HTML", %{conn: conn} do
     {:ok, _} =
       Bbh.Settings.update(%{

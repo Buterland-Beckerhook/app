@@ -55,7 +55,13 @@ defmodule Bbh.ICal do
     """
   end
 
-  @doc "A single-event VCALENDAR (for download)."
+  @doc """
+  A single-event VCALENDAR (for download). A festival with its programme loaded comes
+  with every item as its own event.
+  """
+  def single(%Event{children: [_ | _] = items} = festival, site_url),
+    do: feed([festival | items], site_url)
+
   def single(%Event{} = event, site_url), do: feed([event], site_url)
 
   defp vevent(%Event{} = e, site_url) do
@@ -70,6 +76,8 @@ defmodule Bbh.ICal do
         e.location && "LOCATION:#{escape(location_text(e.location))}",
         e.body && "DESCRIPTION:#{escape(strip_html(e.body))}",
         e.status == "canceled" && "STATUS:CANCELLED",
+        # A programme item points at its festival (RFC 5545 §3.8.4.5).
+        e.parent_id && "RELATED-TO;RELTYPE=PARENT:#{e.parent_id}@buterland-beckerhook.de",
         # Only public events have a page at /termine/:year/:slug; internal
         # (shared-calendar) events would 404, so omit the link for them.
         is_nil(e.calendar) && "URL:#{BbhWeb.EventPaths.url(e, site_url)}",

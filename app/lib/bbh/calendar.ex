@@ -11,6 +11,8 @@ defmodule Bbh.Calendar do
   event in progress keeps its spot on the homepage. "Over" is the event's end
   when set; otherwise (and for all-day events) the end of the relevant day, so a
   same-day event without an explicit end time doesn't vanish the moment it begins.
+  A festival is not over before its last visible programme item ends either — the
+  Kehraus runs past midnight after the last day.
   """
   def next_event(now \\ Bbh.Time.now()) do
     Repo.one(
@@ -18,17 +20,22 @@ defmodule Bbh.Calendar do
         where:
           fragment(
             """
-            (CASE
-               WHEN ? OR ? IS NULL
-                 THEN date_trunc('day', COALESCE(?, ?)) + interval '1 day'
-               ELSE ?
-             END) > ?
+            GREATEST(
+              CASE
+                WHEN ? OR ? IS NULL
+                  THEN date_trunc('day', COALESCE(?, ?)) + interval '1 day'
+                ELSE ?
+              END,
+              (SELECT max(c."end") FROM events c WHERE c.parent_id = ? AND c.status = ANY(?))
+            ) > ?
             """,
             e.all_day,
             e.ends_at,
             e.ends_at,
             e.starts_at,
             e.ends_at,
+            e.id,
+            ^Event.visible_child_statuses(),
             ^now
           ),
         order_by: [asc: e.starts_at],
@@ -116,13 +123,30 @@ defmodule Bbh.Calendar do
   end
 
   @doc """
-  The programme item of `parent` to show next at `now`: the first visible one that
-  has not ended yet (so a running item counts), or `nil` once the programme is over.
+  The programme item of `parent` to highlight at `now` (the homepage's "Jetzt" /
+  "Als Nächstes"): the first published one that has not ended yet, so a running item
+  counts; `nil` once the programme is over. Canceled items are skipped — the
+  festival page lists them, the homepage highlights what actually takes place.
   """
-  def next_child(%Event{id: parent_id} = parent, now \\ Bbh.Time.now()) do
+  def next_child(%Event{} = parent, now \\ Bbh.Time.now()),
+    do: first_child(parent, dynamic([c], c.ends_at > ^now))
+
+  @doc """
+  The first published programme item of `parent` that has not started yet at `now` —
+  what the homepage countdown counts down to (a running item has nothing left to
+  count down to).
+  """
+  def next_child_to_start(%Event{} = parent, now \\ Bbh.Time.now()),
+    do: first_child(parent, dynamic([c], c.starts_at > ^now))
+
+  @doc "The first published programme item of `parent`, or `nil` without a programme."
+  def first_child(%Event{} = parent), do: first_child(parent, true)
+
+  defp first_child(%Event{id: parent_id} = parent, condition) do
     Repo.one(
       from c in visible_children(),
-        where: c.parent_id == ^parent_id and c.ends_at > ^now,
+        where: c.parent_id == ^parent_id and c.status == "published",
+        where: ^condition,
         limit: 1
     )
     |> case do

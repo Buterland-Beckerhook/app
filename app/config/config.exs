@@ -33,6 +33,11 @@ config :gettext, :default_locale, "de"
 # DST rules, so a non-CET zone also needs matching transition rules in Bbh.ICal.
 config :bbh, :time_zone, "Europe/Berlin"
 
+# Programme items of a festival: anchors on the festival page (false) or pages of
+# their own at /termine/:year/:festival/:item (true). Undecided — both variants exist
+# for comparison; override with EVENT_CHILD_PAGES (runtime.exs). See BbhWeb.EventPaths.
+config :bbh, :event_child_pages, false
+
 # Contact published in /.well-known/security.txt (RFC 9116).
 config :bbh, :security_contact, "webmaster@buterland-beckerhook.de"
 

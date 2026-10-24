@@ -33,6 +33,9 @@ services:
       DB_HOST: postgres
       MIX_ENV: dev
       PORT: "4000"
+      # Programme items as their own pages (true) or anchors (false), for comparing
+      # the two variants: `EVENT_CHILD_PAGES=true make dev`.
+      EVENT_CHILD_PAGES: ${EVENT_CHILD_PAGES:-false}
     ports:
       # Published for direct access / `make test`; Caddy proxies this internally.
       - "4000:4000"

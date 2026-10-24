@@ -154,6 +154,8 @@ defmodule BbhWeb.Router do
     # Legacy feed URL — keep so existing calendar subscriptions don't break.
     get "/termine/index.ics", EventController, :feed
     get "/termine/:year/:slug/event.ics", EventController, :ics
+    # A programme item's own download — only when items have pages (event_child_pages).
+    get "/termine/:year/:slug/:child/event.ics", EventController, :child_ics
 
     # Revocable per-recipient share of one internal calendar (read-only .ics feed).
     get "/kalender/geteilt/:token", CalendarShareController, :feed
@@ -169,6 +171,9 @@ defmodule BbhWeb.Router do
 
     get "/termine", EventController, :index
     get "/termine/:year/:slug", EventController, :show
+    # A programme item: its own page, or a redirect to its anchor on the festival page
+    # (event_child_pages). Must stay below the :ical scope's .../event.ics routes.
+    get "/termine/:year/:slug/:child", EventController, :child
 
     get "/thron", ThroneController, :index
     get "/thron/:type", ThroneController, :index_type
