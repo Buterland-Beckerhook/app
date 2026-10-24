@@ -105,6 +105,19 @@ defmodule BbhWeb.Format do
   def throne_picture(_), do: nil
 
   @doc """
+  Public path of the article behind a throne, or `nil` when there is nothing to link
+  to: a „Nur Thron-Anzeige“ entry (`no_article`), or an article that is not public
+  (draft, archived, scheduled) and would only answer with a 404.
+  """
+  def throne_article_path(%{article: %Article{no_article: false, status: "published"} = a})
+      when is_integer(a.year) and is_binary(a.slug) do
+    if DateTime.compare(a.date_published, Bbh.Time.now()) != :gt,
+      do: "/aktuell/#{a.year}/#{a.slug}"
+  end
+
+  def throne_article_path(_), do: nil
+
+  @doc """
   Alt text for an image: the media item's Beschreibung — the field that exists for it
   — falling back to caption, then title, then a generic label.
 

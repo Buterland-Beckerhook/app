@@ -129,6 +129,44 @@ defmodule BbhWeb.FormatTest do
       throne = %Throne{image: nil, article: %Article{image: nil}}
       assert is_nil(Format.throne_picture(throne))
     end
+
+    defp throne_with_article(attrs) do
+      article =
+        struct(
+          %Article{
+            status: "published",
+            no_article: false,
+            year: 2025,
+            slug: "koenigsschiessen",
+            date_published: ~U[2025-07-20 18:00:00Z]
+          },
+          attrs
+        )
+
+      %Throne{article: article}
+    end
+
+    test "throne_article_path/1 links a published article" do
+      assert Format.throne_article_path(throne_with_article(%{})) ==
+               "/aktuell/2025/koenigsschiessen"
+    end
+
+    test "throne_article_path/1 is nil for „Nur Thron-Anzeige“" do
+      assert is_nil(Format.throne_article_path(throne_with_article(%{no_article: true})))
+    end
+
+    test "throne_article_path/1 is nil for an article that is not public" do
+      assert is_nil(Format.throne_article_path(throne_with_article(%{status: "draft"})))
+      assert is_nil(Format.throne_article_path(throne_with_article(%{status: "archived"})))
+
+      scheduled = ~U[2999-01-01 12:00:00Z]
+
+      assert is_nil(Format.throne_article_path(throne_with_article(%{date_published: scheduled})))
+    end
+
+    test "throne_article_path/1 is nil without an article" do
+      assert is_nil(Format.throne_article_path(%Throne{article: nil}))
+    end
   end
 
   describe "render_richtext/1" do
