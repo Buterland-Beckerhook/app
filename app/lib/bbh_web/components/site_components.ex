@@ -459,7 +459,7 @@ defmodule BbhWeb.SiteComponents do
       <div>
         <p class="mb-2">
           <span class="font-medium">Google Kalender / Android:</span>
-          Adresse kopieren und in Google Kalender am Computer unter
+          Adresse kopieren und in Google Kalender unter
           „Weitere Kalender“ (+) → „Per URL“ einfügen.
         </p>
         <input
