@@ -156,6 +156,8 @@ config :bbh, Oban,
        {"30 3 * * *", Bbh.Workers.AuthPruner},
        # Forget 404-log entries nobody has hit for 90 days.
        {"45 3 * * *", Bbh.Workers.NotFoundPruner},
+       # Fold visitor hashes older than seven days into daily totals and delete them.
+       {"50 3 * * *", Bbh.Workers.AnalyticsRollup},
        # Refresh the map archive monthly — OSM edits are slow to matter here.
        {"17 4 3 * *", Bbh.Workers.MapTilesUpdater}
      ]}

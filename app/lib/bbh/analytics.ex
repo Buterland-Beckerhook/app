@@ -9,13 +9,32 @@ defmodule Bbh.Analytics do
 
   Recording is fire-and-forget (see `BbhWeb.Plugs.TrackPageView`); the read
   side powers the admin dashboard.
+
+  The visitor hashes (`DailyVisitor`, `IcalFetch`) are pseudonymous rather than
+  anonymous: the daily salt is derived from `secret_key_base`, so whoever holds it could
+  re-derive a day's hashes from candidate IPs. They are therefore only kept for
+  seven days — `roll_up/1` (run nightly by `Bbh.Workers.AnalyticsRollup`) folds every
+  older day into `DailyVisitorCount` / `IcalFetchCount` and deletes the hash rows. The
+  read functions below combine both, so a range spanning the cut-over counts the same
+  as before.
   """
   import Ecto.Query
 
-  alias Bbh.Analytics.{DailyPageView, DailyReferrer, DailyVisitor, IcalFetch}
+  alias Bbh.Analytics.{
+    DailyPageView,
+    DailyReferrer,
+    DailyVisitor,
+    DailyVisitorCount,
+    IcalFetch,
+    IcalFetchCount
+  }
+
   alias Bbh.Repo
 
   @path_max 255
+
+  # Days a visitor hash is kept before `roll_up/1` replaces it with the day's total.
+  @retention_days 7
 
   @doc """
   Record a single page view. Expects `%{path:, referrer_host:, visitor_hash:}`
@@ -93,6 +112,59 @@ defmodule Bbh.Analytics do
   end
 
   @doc """
+  Replace the per-hash rows of every day older than `retention_days` (default
+  #{@retention_days}) with that day's totals, then delete them. Runs in one transaction,
+  so a failure leaves both sides as they were.
+
+  Additive: a day that somehow already has a total gets the remaining rows added to it
+  rather than overwriting it — the rows are deleted in the same step, so nothing is
+  counted twice. Returns `{:ok, %{visitors: deleted_rows, ical: deleted_rows}}`.
+  """
+  def roll_up(retention_days \\ @retention_days) do
+    cutoff = Date.add(Date.utc_today(), -retention_days)
+
+    Repo.transaction(fn ->
+      visitor_totals =
+        from v in DailyVisitor,
+          where: v.day < ^cutoff,
+          group_by: v.day,
+          select: %{day: v.day, visitors: count(v.id)}
+
+      Repo.insert_all(DailyVisitorCount, visitor_totals,
+        on_conflict:
+          from(c in DailyVisitorCount,
+            update: [set: [visitors: fragment("? + EXCLUDED.visitors", c.visitors)]]
+          ),
+        conflict_target: [:day]
+      )
+
+      ical_totals =
+        from f in IcalFetch,
+          where: f.day < ^cutoff,
+          group_by: [f.day, f.client],
+          select: %{day: f.day, client: f.client, clients: count(f.id), fetches: sum(f.fetches)}
+
+      Repo.insert_all(IcalFetchCount, ical_totals,
+        on_conflict:
+          from(c in IcalFetchCount,
+            update: [
+              set: [
+                clients: fragment("? + EXCLUDED.clients", c.clients),
+                fetches: fragment("? + EXCLUDED.fetches", c.fetches)
+              ]
+            ]
+          ),
+        conflict_target: [:day, :client]
+      )
+
+      {visitors, _} = Repo.delete_all(from v in DailyVisitor, where: v.day < ^cutoff)
+      {ical, _} = Repo.delete_all(from f in IcalFetch, where: f.day < ^cutoff)
+
+      %{visitors: visitors, ical: ical}
+    end)
+  end
+
+  @doc """
   iCal feed retrievals in `[from, to]`: total `fetches` and `subscribers` (the
   peak daily unique-client count, a rough proxy for the number of subscriptions).
   """
@@ -102,16 +174,30 @@ defmodule Bbh.Analytics do
         from f in IcalFetch,
           where: f.day >= ^from and f.day <= ^to,
           select: coalesce(sum(f.fetches), 0)
-      )
+      ) +
+        Repo.one(
+          from c in IcalFetchCount,
+            where: c.day >= ^from and c.day <= ^to,
+            select: coalesce(sum(c.fetches), 0)
+        )
 
-    subscribers =
+    live =
       Repo.all(
         from f in IcalFetch,
           where: f.day >= ^from and f.day <= ^to,
           group_by: f.day,
-          select: count(f.id)
+          select: {f.day, count(f.id)}
       )
-      |> Enum.max(fn -> 0 end)
+
+    rolled_up =
+      Repo.all(
+        from c in IcalFetchCount,
+          where: c.day >= ^from and c.day <= ^to,
+          group_by: c.day,
+          select: {c.day, sum(c.clients)}
+      )
+
+    subscribers = (live ++ rolled_up) |> sum_by_key() |> Map.values() |> Enum.max(fn -> 0 end)
 
     %{fetches: fetches, subscribers: subscribers}
   end
@@ -123,12 +209,26 @@ defmodule Bbh.Analytics do
   fetches, both descending.
   """
   def ical_clients(from, to) do
-    from(f in IcalFetch,
-      where: f.day >= ^from and f.day <= ^to,
-      group_by: [f.client, f.day],
-      select: {f.client, count(f.id), sum(f.fetches)}
-    )
-    |> Repo.all()
+    live =
+      Repo.all(
+        from f in IcalFetch,
+          where: f.day >= ^from and f.day <= ^to,
+          group_by: [f.client, f.day],
+          select: {{f.client, f.day}, {count(f.id), sum(f.fetches)}}
+      )
+
+    rolled_up =
+      Repo.all(
+        from c in IcalFetchCount,
+          where: c.day >= ^from and c.day <= ^to,
+          select: {{c.client, c.day}, {c.clients, c.fetches}}
+      )
+
+    (live ++ rolled_up)
+    |> Enum.reduce(%{}, fn {key, {clients, fetches}}, acc ->
+      Map.update(acc, key, {clients, fetches}, fn {c, f} -> {c + clients, f + fetches} end)
+    end)
+    |> Enum.map(fn {{client, _day}, {clients, fetches}} -> {client, clients, fetches} end)
     |> Enum.group_by(&elem(&1, 0))
     |> Enum.map(fn {client, days} ->
       %{
@@ -153,7 +253,12 @@ defmodule Bbh.Analytics do
     visits =
       Repo.one(
         from v in DailyVisitor, where: v.day >= ^from and v.day <= ^to, select: count(v.id)
-      )
+      ) +
+        Repo.one(
+          from c in DailyVisitorCount,
+            where: c.day >= ^from and c.day <= ^to,
+            select: coalesce(sum(c.visitors), 0)
+        )
 
     %{views: views, visits: visits}
   end
@@ -198,16 +303,28 @@ defmodule Bbh.Analytics do
 
   @doc "Daily unique-visitor counts across `[from, to]`, gap-filled, oldest first."
   def visitors_by_day(from, to) do
-    rows =
+    live =
       Repo.all(
         from v in DailyVisitor,
           where: v.day >= ^from and v.day <= ^to,
           group_by: v.day,
           select: {v.day, count(v.id)}
       )
-      |> Map.new()
 
-    fill_days(from, to, rows)
+    rolled_up =
+      Repo.all(
+        from c in DailyVisitorCount,
+          where: c.day >= ^from and c.day <= ^to,
+          select: {c.day, c.visitors}
+      )
+
+    fill_days(from, to, sum_by_key(live ++ rolled_up))
+  end
+
+  # `[{key, n}]` -> `%{key => sum of n}`. Live hash rows and rolled-up totals never cover
+  # the same day, but adding rather than overwriting keeps that an assumption-free merge.
+  defp sum_by_key(pairs) do
+    Enum.reduce(pairs, %{}, fn {key, n}, acc -> Map.update(acc, key, n, &(&1 + n)) end)
   end
 
   defp fill_days(from, to, counts) do
