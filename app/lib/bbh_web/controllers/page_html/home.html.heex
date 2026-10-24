@@ -17,12 +17,20 @@
   <%!-- ===== NÄCHSTER TERMIN (highlight banner) ===== --%>
   <section :if={@next_event} id="termine" class="mt-2 scroll-mt-24 md:mt-6">
     <div class="relative overflow-hidden rounded-[22px] bg-[linear-gradient(120deg,#0f4d2c_0%,#15693c_58%,#1c7d47_100%)] text-white shadow-[0_30px_60px_-28px_rgba(15,77,44,0.6)]">
-      <img
-        src={~p"/images/logo.svg"}
-        alt=""
-        aria-hidden="true"
-        class="pointer-events-none absolute top-1/2 right-5 hidden h-75 -translate-y-1/2 opacity-10 md:block"
-      />
+      <%!-- Decorative logo, desktop only. An <img> hidden with CSS is still downloaded, so
+            the URL comes from a `md`-only <source>; below 48rem the browser takes the
+            empty placeholder instead. From `md` up it is the banner's largest element —
+            the page's LCP candidate — hence `fetchpriority`. --%>
+      <picture>
+        <source media="(min-width: 48rem)" srcset={~p"/images/logo.svg"} />
+        <img
+          src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+          alt=""
+          aria-hidden="true"
+          fetchpriority="high"
+          class="pointer-events-none absolute top-1/2 right-5 hidden h-75 -translate-y-1/2 opacity-10 md:block"
+        />
+      </picture>
       <div class="relative grid items-center gap-8 p-8 md:grid-cols-[auto_1fr_auto] md:p-11">
         <%!-- date badge --%>
         <div class="mx-auto flex size-32 flex-col items-center justify-center rounded-2xl border border-white/25 bg-white/10 md:mx-0">

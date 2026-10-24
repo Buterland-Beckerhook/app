@@ -307,6 +307,20 @@ fields blank.
 - Override without a rebuild: drop a newer `blz.tsv` at `/data/blz.tsv` in the uploads
   volume (or set `BLZ_DATA_FILE`); it wins over the shipped copy on next boot.
 
+## Performance checks (Lighthouse)
+
+Run Lighthouse in an **incognito/guest profile without extensions** — password managers
+and ad blockers inject scripts that Lighthouse counts as the page's own (in Oct 2026
+they turned a mobile 100 into an 85 and added ~390 KiB "unused JavaScript"). Check the
+homepage, an article and `/termine` before a release, mobile and desktop. The image
+pipeline (`srcset`, WebP q75), immutable media caching and the lazy JS/CSS bundles
+exist because of these reports; a regression usually shows up as image bytes or as
+`app.js`/`app.css` growing again.
+
+Fonts on purpose: Barlow 300 is the body face (preloaded together with Oranienbaum
+400), and templates use 500/600/700 — five files on the homepage. Dropping a weight is
+a design decision, not a performance fix.
+
 ## Git & Workflow
 
 - Default branch: `main`. Feature branches off it (e.g. `feat/…`).
