@@ -11,7 +11,6 @@ defmodule Bbh.Calendar.Location do
     field :lat, :float
     field :lng, :float
     field :url, :string
-    field :maps_url, :string
 
     has_many :events, Bbh.Calendar.Event
 
@@ -21,7 +20,7 @@ defmodule Bbh.Calendar.Location do
   @doc false
   def changeset(location, attrs) do
     location
-    |> cast(attrs, [:key, :name, :street, :zip, :city, :lat, :lng, :url, :maps_url])
+    |> cast(attrs, [:key, :name, :street, :zip, :city, :lat, :lng, :url])
     |> validate_required([:key, :name])
     |> unique_constraint(:key)
   end

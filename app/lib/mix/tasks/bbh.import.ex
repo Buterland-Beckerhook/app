@@ -56,8 +56,7 @@ defmodule Mix.Tasks.Bbh.Import do
           "city" => y["city"],
           # Source swaps lat/lng (lat holds the longitude); correct it here.
           "lat" => y["lng"],
-          "lng" => y["lat"],
-          "maps_url" => y["maps"]
+          "lng" => y["lat"]
         }
 
         upsert(Location, [key: attrs["key"]], &Location.changeset(&1, attrs))

@@ -102,7 +102,6 @@ defmodule BbhWeb.Admin.LocationLive.Form do
           <.input field={@form[:lat]} type="number" step="any" label="Breitengrad" />
           <.input field={@form[:lng]} type="number" step="any" label="Längengrad" />
         </div>
-        <.input field={@form[:maps_url]} label="Karten-URL" />
         <.input field={@form[:url]} label="Website" />
 
         <div class="flex gap-2">
