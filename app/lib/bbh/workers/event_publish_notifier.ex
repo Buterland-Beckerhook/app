@@ -33,7 +33,7 @@ defmodule Bbh.Workers.EventPublishNotifier do
       # Mark first so a retry after a crash mid-send doesn't double-notify.
       {:ok, event} = Calendar.mark_event_notified(event)
 
-      url = BbhWeb.Endpoint.url() <> "/termine/#{event.year}/#{event.slug}"
+      url = BbhWeb.EventPaths.url(event)
       Bbh.Notifications.notify("termine", %{title: "Neuer Termin", body: event.title, url: url})
 
       :ok

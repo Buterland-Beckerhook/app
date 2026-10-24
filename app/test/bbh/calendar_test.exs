@@ -28,6 +28,17 @@ defmodule Bbh.CalendarTest do
       assert Calendar.dev_festival(now).id == running.id
     end
 
+    test "prefers a festival with a programme" do
+      _plain = fest(~U[2030-07-20 00:00:00Z], ~U[2030-07-23 00:00:00Z])
+      demo = fest(~U[2030-07-20 00:00:00Z], ~U[2030-07-23 00:00:00Z])
+      item = programme_item_fixture(demo)
+
+      found = Calendar.dev_festival(~U[2030-07-01 00:00:00Z])
+      assert found.id == demo.id
+      assert [%{id: item_id, parent: %{id: parent_id}}] = found.children
+      assert {item_id, parent_id} == {item.id, demo.id}
+    end
+
     test "falls back to the most recent one" do
       _older = fest(~U[2024-07-20 00:00:00Z], ~U[2024-07-23 00:00:00Z])
       recent = fest(~U[2025-07-19 00:00:00Z], ~U[2025-07-22 00:00:00Z])

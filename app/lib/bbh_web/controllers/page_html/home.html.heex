@@ -46,7 +46,7 @@
           </p>
           <div class="mt-5 flex flex-wrap justify-center gap-3.5 md:justify-start">
             <a
-              href={~p"/termine/#{@next_event.year}/#{@next_event.slug}"}
+              href={BbhWeb.EventPaths.path(@next_event)}
               class="rounded-full bg-white px-5 py-2.5 font-bold text-[#0f4d2c] transition-shadow hover:shadow-md"
             >
               Zum Termin

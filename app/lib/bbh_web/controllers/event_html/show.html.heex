@@ -62,7 +62,7 @@
 
     <div :if={@event.enable_ical} class="mt-8">
       <a
-        href={~p"/termine/#{@event.year}/#{@event.slug}/event.ics"}
+        href={BbhWeb.EventPaths.path(@event) <> "/event.ics"}
         class="text-sm text-primary hover:underline"
       >
         Zum Kalender hinzufügen (.ics)

@@ -72,7 +72,7 @@ defmodule Bbh.ICal do
         e.status == "canceled" && "STATUS:CANCELLED",
         # Only public events have a page at /termine/:year/:slug; internal
         # (shared-calendar) events would 404, so omit the link for them.
-        is_nil(e.calendar) && "URL:#{site_url}/termine/#{e.year}/#{e.slug}",
+        is_nil(e.calendar) && "URL:#{BbhWeb.EventPaths.url(e, site_url)}",
         "END:VEVENT"
       ]
       |> Enum.reject(&(&1 in [nil, false]))
@@ -84,7 +84,11 @@ defmodule Bbh.ICal do
   defp dtstart(%Event{starts_at: s}), do: "DTSTART;TZID=#{time_zone()}:#{local_stamp(s)}"
 
   defp dtend(%Event{all_day: true, ends_at: nil}), do: nil
-  defp dtend(%Event{all_day: true, ends_at: e}), do: "DTEND;VALUE=DATE:#{date(e)}"
+  # The site treats an all-day `ends_at` as the *inclusive* last day ("18. – 21. Juli"),
+  # but a DATE-valued DTEND is exclusive (RFC 5545 §3.6.1): emit the day after, or a
+  # Sat–Tue festival shows up as Sat–Mon in calendar apps.
+  defp dtend(%Event{all_day: true, ends_at: e}),
+    do: "DTEND;VALUE=DATE:#{e |> DateTime.add(1, :day) |> date()}"
 
   # A timed event without an explicit end gets start + 6h so calendar apps render a
   # sensible block instead of a zero-length event — but never past the start's day.

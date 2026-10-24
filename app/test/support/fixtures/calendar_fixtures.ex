@@ -36,6 +36,38 @@ defmodule Bbh.CalendarFixtures do
   end
 
   @doc """
+  A published festival: all-day, Sat 20 – Tue 23 July 2030 unless overridden. Pass
+  `starts_at:`/`ends_at:` to move it.
+  """
+  def festival_fixture(attrs \\ %{}) do
+    attrs
+    |> Enum.into(%{
+      title: "Schützenfest",
+      slug: "schuetzenfest-#{System.unique_integer([:positive])}",
+      all_day: true,
+      starts_at: ~U[2030-07-20 00:00:00Z],
+      ends_at: ~U[2030-07-23 00:00:00Z]
+    })
+    |> event_fixture()
+  end
+
+  @doc """
+  A published programme item of `parent`, Sunday 10:00–11:00 of a
+  `festival_fixture/1` unless overridden.
+  """
+  def programme_item_fixture(parent, attrs \\ %{}) do
+    attrs
+    |> Enum.into(%{
+      parent_id: parent.id,
+      title: "Programmpunkt",
+      slug: "punkt-#{System.unique_integer([:positive])}",
+      starts_at: ~U[2030-07-21 10:00:00Z],
+      ends_at: ~U[2030-07-21 11:00:00Z]
+    })
+    |> event_fixture()
+  end
+
+  @doc """
   A calendar share. Returns the `%CalendarShare{}`; pass `calendar:` (default
   `"vorstand"`), `recipient_label:` and `expires_at:` to control it. Use
   `share_with_token/1` when you need the plaintext token too.

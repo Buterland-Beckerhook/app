@@ -26,6 +26,9 @@ dump: ## Snapshot dev DB + uploads into ./seed (stack must be running)
 seed: ## Restore ./seed snapshot into the dev DB + uploads (stack must be running)
 	./scripts/seed.sh
 
+seed-demo: ## Add/refresh the demo Schützenfest with its programme (stack must be running)
+	$(MIX) run priv/repo/seeds/schuetzenfest_demo.exs
+
 deps: ## Fetch Elixir dependencies (in the phoenix container)
 	$(MIX) deps.get
 

@@ -92,7 +92,7 @@ defmodule Bbh.Redirects.Legacy do
   end
 
   defp article_path(article), do: "/aktuell/#{article.year}/#{article.slug}"
-  defp event_path(event), do: "/termine/#{event.year}/#{event.slug}"
+  defp event_path(event), do: BbhWeb.EventPaths.path(event)
 
   # Never answer a path with itself (it 404s for some other reason, e.g. unpublished).
   defp unless_same(target, path), do: if(target != path, do: target)

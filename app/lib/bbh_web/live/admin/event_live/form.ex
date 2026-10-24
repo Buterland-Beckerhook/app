@@ -124,9 +124,10 @@ defmodule BbhWeb.Admin.EventLive.Form do
   # Notify subscribers the first time a public event becomes published. Routed
   # through EventPublishNotifier so it marks the event (no repeat) and honours
   # quiet hours — anything held back overnight is delivered by the cron tick.
+  # Programme items (parent_id set) never get this push; their festival does.
   defp maybe_notify(
          old_status,
-         %Event{status: "published", announce: true, calendar: nil} = event
+         %Event{status: "published", announce: true, calendar: nil, parent_id: nil} = event
        )
        when old_status != "published" do
     Bbh.Notifications.dispatch(fn -> Bbh.Workers.EventPublishNotifier.notify(event) end)

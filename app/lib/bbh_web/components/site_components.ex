@@ -168,7 +168,7 @@ defmodule BbhWeb.SiteComponents do
   def event_card(assigns) do
     ~H"""
     <a
-      href={~p"/termine/#{@event.year}/#{@event.slug}"}
+      href={BbhWeb.EventPaths.path(@event)}
       class="flex flex-col rounded-lg border border-base-300 bg-card p-4 transition-shadow hover:shadow-md"
     >
       <div class="flex items-center gap-2">
