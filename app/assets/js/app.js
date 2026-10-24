@@ -96,6 +96,15 @@ const ImageSize = new Parchment.ClassAttributor("bbhImgSize", "bbh-img", {
 })
 Quill.register(ImageSize, true)
 
+// Text wrap around an image -> <img class="bbh-float-right">. Drives the "Umfließen"
+// dropdown; same mechanism and server whitelist as ImageSize. The public side reads
+// both classes off the wrapper BbhWeb.RichtextImages builds around the image.
+const ImageFloat = new Parchment.ClassAttributor("bbhImgFloat", "bbh-float", {
+  scope: Parchment.Scope.INLINE,
+  whitelist: ["left", "right"],
+})
+Quill.register(ImageFloat, true)
+
 // Font weight, text size and "muted" text as inline class attributors -> spans
 // like <span class="bbh-weight-500">. Same mechanism as image size; the server
 // sanitizer whitelists these class tokens (bbh-weight-*, bbh-size-*, bbh-muted).
@@ -337,7 +346,7 @@ const Hooks = {
               [{list: "ordered"}, {list: "bullet"}],
               ["blockquote", "link"],
               [{align: ""}, {align: "center"}, {align: "right"}],
-              [{bbhImgSize: ["sm", "md", "lg", "full"]}],
+              [{bbhImgSize: ["sm", "md", "lg", "full"]}, {bbhImgFloat: ["", "left", "right"]}],
               ["media"],
               ["clean"],
             ],
@@ -369,6 +378,21 @@ const Hooks = {
         mutedBtn.innerHTML = MUTED_ICON
         mutedBtn.title = "Gedämpfter Text"
       }
+
+      // Tooltips for the image pickers (their German labels come from app.css).
+      const pickerTitles = {bbhImgSize: "Bildgröße", bbhImgFloat: "Bild umfließen"}
+      for (const [format, title] of Object.entries(pickerTitles)) {
+        const label = toolbarEl.querySelector(`.ql-picker.ql-${format} .ql-picker-label`)
+        if (label) label.title = title
+      }
+
+      // Quill does not select an embed on click, so the image formats above would
+      // only apply after Shift+Arrow. Select the clicked image instead.
+      quill.root.addEventListener("click", (e) => {
+        if (e.target.tagName !== "IMG") return
+        const blot = Quill.find(e.target)
+        if (blot && blot !== quill) quill.setSelection(quill.getIndex(blot), 1, "user")
+      })
 
       // Load the stored HTML. Done before wiring text-change so restoring an
       // existing value doesn't mark the form dirty on mount.
@@ -698,9 +722,11 @@ window.liveSocket = liveSocket
 
 // --- Navigable image lightbox for public galleries (plain JS — no LiveView) ---
 // Triggers carry `data-lightbox-src`, `data-lightbox-alt`, optional
-// `data-lightbox-caption` / `data-lightbox-copyright`, and (for galleries)
-// `data-lightbox-group="<id>"`. Clicking one opens a native <dialog> and lets the
-// visitor move through every image sharing that group via on-screen arrows, keyboard
+// `data-lightbox-caption` / `data-lightbox-copyright`, and optionally
+// `data-lightbox-group="<id>"` — galleries and rich-text images all share "content"
+// (BbhWeb.RichtextImages), so one lightbox walks a page's pictures in document order.
+// Clicking one opens a native <dialog> and lets the visitor move through every image
+// sharing that group via on-screen arrows, keyboard
 // (←/→ and h/l, Esc to close), and touch swipe. Gallery thumbnails stay bare, so the
 // enlarged view is where caption and copyright are shown. Delegated so it works on
 // server-rendered pages too.

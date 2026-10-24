@@ -863,7 +863,7 @@ defmodule BbhWeb.SiteComponents do
       data-lightbox-alt={image_alt(@file)}
       data-lightbox-caption={image_caption(@file)}
       data-lightbox-copyright={copyright_label(image_copyright(@file))}
-      data-lightbox-group={"gallery-#{@block.id}"}
+      data-lightbox-group="content"
       class="block w-full cursor-zoom-in"
       aria-label="Bild vergrößern"
     >

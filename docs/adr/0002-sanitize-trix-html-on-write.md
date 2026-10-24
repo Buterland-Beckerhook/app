@@ -2,6 +2,12 @@
 
 **Status:** Accepted (2026-07-14)
 
+> **Note (2026-10-24):** the editor was replaced by **Quill 2** soon after this was
+> written; "Trix" below reads as "the rich-text editor". The decision itself — sanitize
+> on write — is unchanged. `Bbh.Html.sanitize/1` has since grown a custom scrubber, a
+> class whitelist and a block merge (see its moduledoc), and images are enriched at
+> render time ([ADR 0013](0013-richtext-images-enriched-at-render.md)).
+
 ## Context
 
 Admin rich-text fields use the Trix editor and store raw HTML in `body`

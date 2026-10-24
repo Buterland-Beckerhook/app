@@ -471,27 +471,116 @@ h1, h2, h3, h4, h5, h6 {
   text-align: justify;
 }
 
-/* Image size presets from the editor's "Größe" dropdown (bbh-img-*). Scoped to
-   both the public output (.prose) and the editor itself (.ql-editor) so the
-   chosen size is visible while editing, not only once published. */
-.prose img.bbh-img-sm,
-.ql-editor img.bbh-img-sm {
-  width: 25%;
+/* Image size presets from the editor's "Größe" dropdown (bbh-img-*) and text wrap
+   from "Umfließen" (bbh-float-*). The editor holds a bare <img> carrying the classes;
+   the public side gets the `.bbh-fig` wrapper BbhWeb.RichtextImages builds around it,
+   and the classes move onto that wrapper. Both are written here so authoring stays
+   WYSIWYG. */
+
+/* A float never leaks out of its block into the next one (a gallery, say), and a
+   heading always starts below a floated image. */
+.prose,
+.ql-editor {
+  display: flow-root;
 }
-.prose img.bbh-img-md,
-.ql-editor img.bbh-img-md {
-  width: 50%;
+.prose :is(h1, h2, h3, h4),
+.ql-editor :is(h1, h2, h3, h4) {
+  clear: both;
 }
-.prose img.bbh-img-lg,
-.ql-editor img.bbh-img-lg {
-  width: 75%;
+
+.prose .bbh-fig {
+  display: inline-block;
+  vertical-align: top;
+  max-width: 100%;
 }
-.prose img.bbh-img-full,
+.prose .bbh-fig-zoom {
+  display: block;
+  width: 100%;
+  cursor: zoom-in;
+}
+.prose .bbh-fig img {
+  display: block;
+  margin: 0;
+}
+.prose .bbh-fig:is(.bbh-img-sm, .bbh-img-md, .bbh-img-lg, .bbh-img-full) img {
+  width: 100%;
+}
+/* Same look as the `image_credit` component (site_components.ex). The wrapper is an
+   inline-block, so a link around the image does not underline its caption. */
+.prose .bbh-fig-caption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  column-gap: 0.75rem;
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  line-height: 1.375;
+  font-style: normal;
+  font-weight: 400;
+  text-align: left;
+  color: var(--bb-text-muted);
+}
+.prose .bbh-fig-text {
+  min-width: 0;
+}
+.prose .bbh-fig-copyright {
+  margin-left: auto;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* Below the md breakpoint nothing floats and every image is full width — a quarter of
+   a phone screen is a thumbnail. */
+.prose .bbh-fig {
+  width: 100%;
+}
 .ql-editor img.bbh-img-full {
   width: 100%;
 }
-/* A centered block that wraps an image centers the image itself. */
-.prose .ql-align-center img,
+
+@media (min-width: 48rem) {
+  .prose .bbh-fig {
+    width: auto;
+  }
+  .prose .bbh-fig.bbh-img-sm,
+  .ql-editor img.bbh-img-sm {
+    width: 25%;
+  }
+  .prose .bbh-fig.bbh-img-md,
+  .ql-editor img.bbh-img-md {
+    width: 50%;
+  }
+  .prose .bbh-fig.bbh-img-lg,
+  .ql-editor img.bbh-img-lg {
+    width: 75%;
+  }
+  .prose .bbh-fig.bbh-img-full {
+    width: 100%;
+  }
+
+  /* A float without a size would fill the column; half width is the useful default
+     (the srcset `sizes` in BbhWeb.RichtextImages assume the same). Full width never
+     floats. */
+  .prose .bbh-fig:is(.bbh-float-left, .bbh-float-right):not([class*="bbh-img-"]),
+  .ql-editor img:is(.bbh-float-left, .bbh-float-right):not([class*="bbh-img-"]) {
+    width: 50%;
+  }
+  .prose .bbh-float-left:not(.bbh-img-full),
+  .ql-editor img.bbh-float-left:not(.bbh-img-full) {
+    float: left;
+    margin: 0.25rem 1.5rem 0.75rem 0;
+  }
+  .prose .bbh-float-right:not(.bbh-img-full),
+  .ql-editor img.bbh-float-right:not(.bbh-img-full) {
+    float: right;
+    margin: 0.25rem 0 0.75rem 1.5rem;
+  }
+}
+
+/* A centered block that wraps an image centers the image itself. (The public
+   wrapper is an inline-block, so the paragraph's text-align already centers it.) */
+.prose .ql-align-center > img,
 .ql-editor .ql-align-center img {
   display: block;
   margin-inline: auto;
@@ -577,6 +666,30 @@ h1, h2, h3, h4, h5, h6 {
 }
 .ql-snow .ql-picker.ql-bbhImgSize .ql-picker-item[data-value="full"]::before {
   content: "Volle Breite";
+}
+
+/* Label the "Umfließen" (image float) picker. Empty value = no wrap. */
+.ql-snow .ql-picker.ql-bbhImgFloat {
+  width: 7.5rem;
+}
+.ql-snow .ql-picker.ql-bbhImgFloat .ql-picker-label::before {
+  content: "Umfließen";
+}
+.ql-snow .ql-picker.ql-bbhImgFloat .ql-picker-label[data-value="left"]::before {
+  content: "Bild links";
+}
+.ql-snow .ql-picker.ql-bbhImgFloat .ql-picker-label[data-value="right"]::before {
+  content: "Bild rechts";
+}
+.ql-snow .ql-picker.ql-bbhImgFloat .ql-picker-item:not([data-value])::before,
+.ql-snow .ql-picker.ql-bbhImgFloat .ql-picker-item[data-value=""]::before {
+  content: "Kein Umfließen";
+}
+.ql-snow .ql-picker.ql-bbhImgFloat .ql-picker-item[data-value="left"]::before {
+  content: "Bild links";
+}
+.ql-snow .ql-picker.ql-bbhImgFloat .ql-picker-item[data-value="right"]::before {
+  content: "Bild rechts";
 }
 
 /* Label the "Stärke" (font weight) picker. The selected label shows the numeric
