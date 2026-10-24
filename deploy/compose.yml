@@ -24,10 +24,23 @@
 # postgres major tag on its own: the new server cannot open the old data.
 name: ${STACK_NAME:-bbh}
 
+# Container logs go to the host's systemd journal instead of Docker's default
+# json-file, which never expires (it rotates by size at best). The app logs carry
+# personal data (e.g. recipient addresses of sent mail), and the privacy policy
+# promises at most 30 days — journald enforces that by age via MaxRetentionSec,
+# see journald-bbh.conf and README "Logs & shutdown". `docker compose logs` keeps
+# working with this driver; the tag (the container name, e.g. bbh-prod-phoenix-1)
+# also lets `journalctl -t <container>` pick out one service.
+x-logging: &logging
+  driver: journald
+  options:
+    tag: "{{.Name}}"
+
 services:
   postgres:
     image: postgres:18-alpine
     restart: unless-stopped
+    logging: *logging
     networks:
       - internal
     environment:
@@ -54,6 +67,7 @@ services:
   restore:
     image: postgres:18-alpine
     restart: "no"
+    logging: *logging
     depends_on:
       postgres:
         condition: service_healthy
@@ -74,6 +88,7 @@ services:
   phoenix:
     image: ${IMAGE:-ghcr.io/buterland-beckerhook/app:beta}
     restart: unless-stopped
+    logging: *logging
     # Hard resource ceiling so a runaway image-processing spike (libvips is native
     # and allocates OUTSIDE the BEAM's accounting) can only ever OOM-kill THIS
     # container — never the shared host (mailcow, Postgres, Traefik, sshd). The

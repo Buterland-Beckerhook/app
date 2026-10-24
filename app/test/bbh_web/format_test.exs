@@ -53,6 +53,58 @@ defmodule BbhWeb.FormatTest do
     end
   end
 
+  describe "media_srcset/2" do
+    defp photo(attrs \\ %{}),
+      do: upload(Map.merge(%{width: 4000, height: 3000, content_type: "image/jpeg"}, attrs))
+
+    test "offers the ladder widths below the requested one, plus that width" do
+      assert Format.media_srcset(photo(), width: 640) ==
+               "/media/2026/x.jpg?w=320 320w, /media/2026/x.jpg?w=480 480w, " <>
+                 "/media/2026/x.jpg?w=640 640w"
+    end
+
+    test "a cover crop keeps its aspect ratio — and the focal point — at every width" do
+      up = photo(%{focal_point_x: 0.25, focal_point_y: 0.75})
+      srcset = Format.media_srcset(up, width: 960, height: 720)
+
+      assert srcset =~ "w=320&h=240&fx=0.25&fy=0.75 320w"
+      assert srcset =~ "w=640&h=480&fx=0.25&fy=0.75 640w"
+      assert srcset =~ "w=960&h=720&fx=0.25&fy=0.75 960w"
+    end
+
+    test "the largest candidate is the variant `media_url/2` builds for the same options" do
+      [largest | _] =
+        photo()
+        |> Format.media_srcset(width: 640, height: 380)
+        |> String.split(", ")
+        |> Enum.reverse()
+
+      assert largest == Format.media_url(photo(), width: 640, height: 380) <> " 640w"
+    end
+
+    test "never above the original's width, so the descriptor matches the file" do
+      srcset = Format.media_srcset(photo(%{width: 818, height: 900}), width: 960, height: 720)
+
+      assert srcset =~ "w=800&h=600 800w"
+      assert srcset =~ "w=818&h=614 818w"
+      refute srcset =~ "960w"
+    end
+
+    test "carries the revision like media_url/2" do
+      assert Format.media_srcset(photo(%{revision: 2}), width: 480) =~ "w=320&v=2 320w"
+    end
+
+    test "nil when there is nothing to choose from" do
+      assert Format.media_srcset(photo(), width: 320) == nil
+      assert Format.media_srcset(photo(%{width: 300}), width: 640) == nil
+      assert Format.media_srcset(photo(), []) == nil
+      assert Format.media_srcset(photo(%{width: nil}), width: 640) == nil
+      assert Format.media_srcset(photo(%{content_type: "image/svg+xml"}), width: 640) == nil
+      assert Format.media_srcset(photo(%{content_type: "image/gif"}), width: 640) == nil
+      assert Format.media_srcset(nil, width: 640) == nil
+    end
+  end
+
   describe "image metadata" do
     alias Bbh.Content.Blocks.GalleryFile
 

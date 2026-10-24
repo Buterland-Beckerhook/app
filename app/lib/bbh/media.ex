@@ -656,9 +656,11 @@ defmodule Bbh.Media do
   end
 
   @doc """
-  Resolve a media request to a servable file. Returns `{:ok, path, content_type}`
-  or `:error`. With no dimensions, serves the original; otherwise a cached WebP
-  variant (`fit=cover` when both dimensions are given).
+  Resolve a media request to a servable file. Returns `{:ok, path, content_type}`,
+  `{:fallback, path, content_type}` or `:error`. With no dimensions, serves the
+  original; otherwise a cached WebP variant (`fit=cover` when both dimensions are
+  given). `:fallback` means a variant was asked for but could not be generated, so
+  the original stands in — servable, but not to be cached as if it were the variant.
 
   `focal_x`/`focal_y` (fractions in `0.0..1.0`) shift a cover crop's window off
   center toward that point; `nil` keeps the default center crop.
@@ -791,7 +793,12 @@ defmodule Bbh.Media do
   end
 
   defp variant(source, key, width, height, focal) do
-    seed = key |> cache_seed(width, height, focal) |> revision_seed(revision_for(key))
+    seed =
+      key
+      |> cache_seed(width, height, focal)
+      |> revision_seed(revision(key))
+      |> encoding_seed()
+
     dest = Path.join(variant_dir(key), "#{hash(seed)}.webp")
 
     cond do
@@ -803,7 +810,7 @@ defmodule Bbh.Media do
 
       # On any processing failure, fall back to the original so the page still shows.
       true ->
-        {:ok, source, content_type(source)}
+        {:fallback, source, content_type(source)}
     end
   end
 
@@ -821,9 +828,34 @@ defmodule Bbh.Media do
   defp revision_seed(seed, 0), do: seed
   defp revision_seed(seed, revision), do: "#{seed}|r#{revision}"
 
-  # Read from the database, never from the request: taking it from the client's `?v=`
-  # would let anyone mint unbounded cache entries.
-  defp revision_for(key) do
+  # The encoder settings join the key for the same reason the revision does: a change
+  # to them (quality, metadata) has to make every variant written with the old ones
+  # unreachable, or the disk cache would keep serving them indefinitely. Bump
+  # @variant_encoding together with @variant_write_opts. The orphaned files cost only
+  # disk until the upload's next purge — or delete the cache dir after deploying.
+  @variant_encoding "e2"
+  defp encoding_seed(seed), do: "#{seed}|#{@variant_encoding}"
+
+  # WebP quality 75 (was 82): for photos at web sizes the difference is hard to see, the
+  # files are noticeably smaller. Metadata is stripped — a variant needs no EXIF (camera,
+  # GPS position), XMP or ICC profile. Dropping the profile is only safe because
+  # @thumbnail_opts converts every variant to sRGB first, which is what a browser assumes
+  # for an untagged image.
+  @variant_write_opts [quality: 75, strip_metadata: true]
+
+  # Without an export profile libvips' thumbnail keeps the source's own colour space and
+  # embedded profile (Display P3 from a phone, Adobe RGB from a camera), so stripping it
+  # on write would shift the colours. Converting to sRGB here makes the variant correct
+  # without a profile.
+  @thumbnail_opts [export_icc_profile: :srgb]
+
+  @doc """
+  The current revision of the upload stored under `key` (`0` when never rotated or
+  unknown). Read from the database, never from the request: taking it from the
+  client's `?v=` would let anyone mint unbounded cache entries — the media controller
+  compares the two to decide whether a URL may be cached as immutable.
+  """
+  def revision(key) do
     Repo.one(from u in Upload, where: u.storage_key == ^key, select: u.revision) || 0
   end
 
@@ -843,18 +875,19 @@ defmodule Bbh.Media do
     # directly instead of first materializing the full-resolution pixel buffer.
     # This keeps peak memory at tens of MB even for very large source images.
     with {:ok, thumb} <- thumbnail(source, width, height, focal),
-         {:ok, _} <- Image.write(thumb, dest, quality: 82) do
+         {:ok, _} <- Image.write(thumb, dest, @variant_write_opts) do
       :ok
     else
       _ -> :error
     end
   end
 
-  defp thumbnail(source, width, nil, _focal), do: Image.thumbnail(source, width)
-  defp thumbnail(source, nil, height, _focal), do: Image.thumbnail(source, "x#{height}")
+  defp thumbnail(source, width, nil, _focal), do: Image.thumbnail(source, width, @thumbnail_opts)
 
-  defp thumbnail(source, width, height, nil),
-    do: Image.thumbnail(source, width, height: height, crop: :center)
+  defp thumbnail(source, nil, height, _focal),
+    do: Image.thumbnail(source, "x#{height}", @thumbnail_opts)
+
+  defp thumbnail(source, width, height, nil), do: center_crop(source, width, height)
 
   # Focal cover crop: scale the source so it just covers the box (shrink-on-load
   # from the path, same as the center path), then extract the target window
@@ -868,15 +901,19 @@ defmodule Bbh.Media do
         left = crop_offset(fx, sw, width)
         top = crop_offset(fy, sh, height)
 
-        with {:ok, cover} <- Image.thumbnail(source, "#{sw}x#{sh}", crop: :none) do
+        with {:ok, cover} <-
+               Image.thumbnail(source, "#{sw}x#{sh}", [crop: :none] ++ @thumbnail_opts) do
           Image.crop(cover, left, top, width, height)
         end
 
       # Dimensions unreadable — fall back to a center crop rather than failing.
       _ ->
-        Image.thumbnail(source, width, height: height, crop: :center)
+        center_crop(source, width, height)
     end
   end
+
+  defp center_crop(source, width, height),
+    do: Image.thumbnail(source, width, [height: height, crop: :center] ++ @thumbnail_opts)
 
   # Top-left of a `size`-wide window centered on fraction `f` of `full`, clamped
   # so the window stays inside the scaled image.

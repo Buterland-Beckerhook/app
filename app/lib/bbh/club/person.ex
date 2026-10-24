@@ -3,7 +3,8 @@ defmodule Bbh.Club.Person do
   use Bbh.Schema
 
   @roles ~w(oberst oberstleutnant major praesident vizepraesident geschaeftsfuehrer
-            schriftfuehrer kassierer vorstand offizier jungschuetzensprecher mitglied)
+            schriftfuehrer kassierer vorstand offizier jungschuetzensprecher mitglied
+            verantwortlich)
 
   @vorstand_roles ~w(praesident vizepraesident geschaeftsfuehrer schriftfuehrer kassierer vorstand)
   @offiziere_roles ~w(oberst oberstleutnant major offizier)
@@ -20,7 +21,9 @@ defmodule Bbh.Club.Person do
     "vorstand" => "Vorstand",
     "offizier" => "Offizier",
     "jungschuetzensprecher" => "Jungschützensprecher",
-    "mitglied" => "Mitglied"
+    "mitglied" => "Mitglied",
+    # Spelled out in full: the Impressum renders it via `{{ verantwortlich.role }}`.
+    "verantwortlich" => "Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV"
   }
 
   def roles, do: @roles

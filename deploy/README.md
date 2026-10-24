@@ -142,7 +142,30 @@ docker compose --env-file .env up -d phoenix
 
 ```sh
 docker compose --env-file .env logs -f phoenix     # follow app logs
+journalctl -t bbh-prod-phoenix-1 --since today     # same, straight from the journal
 ```
+
+- **Retention: 30 days.** All services log through Docker's `journald` driver (the
+  `x-logging` anchor in `compose.yml`), because the logs contain personal data (e.g.
+  recipient addresses of sent mail) and the privacy policy promises at most 30 days.
+  Docker's default `json-file`/`local` drivers can only rotate by size, so they cannot
+  guarantee an age limit; journald can. Set it up **once per host**:
+
+  ```sh
+  sudo install -D -m 0644 journald-bbh.conf /etc/systemd/journald.conf.d/bbh.conf
+  sudo systemctl restart systemd-journald
+  docker compose --env-file .env up -d          # recreate the containers with the new driver
+  ```
+
+  `journald-bbh.conf` sets `MaxRetentionSec=30day` and `MaxFileSec=1day`. The second
+  matters: journald only deletes whole journal files once their newest entry is past
+  the limit, and with the default monthly rotation entries could survive up to a month
+  longer. The setting applies to the whole host journal. Check that the drop-in is
+  active with `systemd-analyze cat-config systemd/journald.conf`, and see the oldest
+  kept entry with `journalctl -t bbh-prod-phoenix-1 -o short-iso | head -n 2`.
+  Recreating a container drops its old `json-file` log together with the container.
+  Other stacks on the host (mailcow, Traefik) keep their own logging config — check
+  them separately.
 
 - **Log level** is set by `LOG_LEVEL` in `.env` — any Elixir Logger level
   (`debug|info|notice|warning|error|critical|alert|emergency`), default `info`.
@@ -197,6 +220,71 @@ on the same host — typically to test a new feature on Beta against current Pro
 - Guards: refuses identical stacks and any target whose `PHX_HOST` is not `beta.*`
   unless `--allow-prod-target` is given; asks you to type the target host (`--yes` skips
   that, e.g. for cron). `--no-uploads` syncs the DB only.
+
+## Backups (Prod → Hetzner Storage Box)
+
+`deploy/backup.sh` runs nightly as root and writes two encrypted, deduplicated Borg
+archives per night: `bbh-prod-db-DATE` (the `pg_dump -Fc`) and `bbh-prod-uploads-DATE`
+(the uploaded originals; variant cache and map archive are regenerable and skipped).
+Retention: 7 daily, 4 weekly, 6 monthly. The last 3 dumps also stay in
+`/var/backups/bbh` for a quick restore. Only Prod is backed up — Beta is refilled from
+Prod with `sync-data.sh`.
+
+### One-time setup
+
+1. **Storage Box:** in the Hetzner console create a **sub-account** for this backup
+   (own login, own base directory, so it cannot touch other repos on the box, e.g.
+   mailcow's) with *SSH support* and *External reachability* enabled. Borg runs over
+   port **23**; below, `uXXXXXX-subN` is that sub-account.
+2. **Borg on the host:** `apt install borgbackup` (`borg --version`; 1.2 or newer).
+3. **SSH key** for root, used only for the backup:
+   ```sh
+   ssh-keygen -t ed25519 -N '' -f /root/.ssh/bbh-backup -C bbh-backup
+   cat /root/.ssh/bbh-backup.pub | ssh -p 23 uXXXXXX-subN@uXXXXXX.your-storagebox.de install-ssh-key
+   ```
+4. **Config** `/etc/bbh-backup.env` (`chmod 600`, owned by root):
+   ```sh
+   BORG_REPO=ssh://uXXXXXX-subN@uXXXXXX.your-storagebox.de:23/./bbh-borg
+   BORG_PASSPHRASE=<openssl rand -base64 32>
+   BORG_RSH="ssh -i /root/.ssh/bbh-backup -o BatchMode=yes"
+   BORG_REMOTE_PATH=borg-1.4   # the Storage Box offers several; match the host's major.minor
+   HC_PING_URL=https://hc-ping.com/<uuid>
+   ```
+5. **healthchecks.io:** create a check with period *1 day* and grace *2 hours*, and
+   paste its ping URL above. The script pings `/start`, success, or `/fail` with the
+   log tail — and a night without any ping alerts too (cron dead, host down).
+6. **Create the repo** — and store the passphrase **and** the printed key in the
+   password manager. The key lives in the repo too, but if the box is lost or the
+   passphrase forgotten, the backup is unreadable:
+   ```sh
+   ./backup.sh init
+   ```
+7. **First run by hand**, then check the archives:
+   ```sh
+   ./backup.sh
+   set -a; . /etc/bbh-backup.env; set +a; borg list
+   ```
+8. **Cron** (`crontab -e` as root):
+   ```
+   15 3 * * *  /path/to/prod/deploy/backup.sh >> /var/log/bbh-backup.log 2>&1
+   ```
+
+### Restore
+
+```sh
+set -a; . /etc/bbh-backup.env; set +a
+borg list                                              # pick a date
+cd /path/to/prod/deploy/restore
+borg extract    ::bbh-prod-db-2026-10-24               # -> bbh-2026-10-24.dump
+borg export-tar ::bbh-prod-uploads-2026-10-24 uploads-2026-10-24.tar.gz
+cd .. && docker compose --env-file .env stop phoenix && docker compose --env-file .env up -d
+```
+
+The archives are laid out exactly as the `restore` service expects (see
+[Restoring a dump](#restoring-a-dump)). For a quick DB-only rollback, copy one of the
+local dumps from `/var/backups/bbh` instead. Do **not** restore a Prod backup into
+Beta: unlike `sync-data.sh` it is not sanitized, so Beta would hold the real push
+subscriptions and queued Oban jobs.
 
 ## Postgres major upgrade (16 → 18)
 

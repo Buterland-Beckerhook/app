@@ -67,6 +67,55 @@ defmodule BbhWeb.Format do
     end
   end
 
+  # Candidate widths for `media_srcset/2`. A fixed ladder, so every template asks for
+  # the same handful of variants and the on-disk cache does not fan out per call site.
+  @srcset_widths [320, 480, 640, 800, 960, 1280, 1600]
+
+  # Animation (GIF) and vector markup (SVG) do not survive a WebP variant; those are
+  # served as the original and get no `srcset`.
+  @unresized_types ~w(image/gif image/svg+xml)
+
+  @doc """
+  `srcset` for the variant `media_url(upload, opts)` points at: the ladder widths below
+  the requested `:width`, plus that width itself, so the browser can pick a smaller
+  file on a narrow or low-density screen. With `:height` too (a cover crop) every
+  candidate keeps the requested aspect ratio, and with it the focal point.
+
+  Never above the original's own width: the media controller would upscale, and the
+  `w` descriptor has to state the width the browser actually gets. `nil` when there
+  is nothing to choose from (no width requested, unknown dimensions, GIF/SVG, or a
+  single candidate), so `srcset={...}` simply drops the attribute. Pair it with a
+  `sizes` that matches the rendered width.
+  """
+  def media_srcset(upload, opts)
+
+  def media_srcset(%Upload{width: original, content_type: type} = upload, opts)
+      when is_integer(original) and original > 0 and type not in @unresized_types do
+    case opts[:width] do
+      width when is_integer(width) and width > 0 ->
+        top = min(width, original)
+
+        case Enum.filter(@srcset_widths, &(&1 < top)) ++ [top] do
+          [_only] ->
+            nil
+
+          widths ->
+            Enum.map_join(widths, ", ", fn w ->
+              height = scaled_height(opts[:height], w, width)
+              "#{media_url(upload, width: w, height: height)} #{w}w"
+            end)
+        end
+
+      _ ->
+        nil
+    end
+  end
+
+  def media_srcset(_upload, _opts), do: nil
+
+  defp scaled_height(nil, _w, _width), do: nil
+  defp scaled_height(height, w, width), do: max(1, round(height * w / width))
+
   # A focal point only changes a cover crop (both dimensions requested), so it is
   # only carried on the URL then. Rounded to keep the URL — and the derived
   # variant cache key — stable across insignificant float noise.
@@ -80,9 +129,11 @@ defmodule BbhWeb.Format do
   defp focal_params(_upload, _opts), do: []
 
   # Rotating an image rewrites the original in place, so the URL has to change or a
-  # browser cache (max-age=604800) would keep the old orientation. Only carried once
-  # something actually changed, which keeps every untouched URL — and the variant
-  # cache entries derived from it — exactly as before. The server ignores `v`.
+  # browser cache (a year for variants, see BbhWeb.MediaController) would keep the old
+  # orientation. Only carried once something actually changed, which keeps every
+  # untouched URL — and the variant cache entries derived from it — exactly as before.
+  # The server does not resolve by `v`; it only compares it with the current revision
+  # to decide how long the response may be cached.
   defp revision_param(%Upload{revision: rev}) when is_integer(rev) and rev > 0, do: [v: rev]
   defp revision_param(_upload), do: []
 

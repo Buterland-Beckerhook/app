@@ -55,23 +55,18 @@
         </p>
       </div>
 
-      <div>
-        <label class="flex items-start gap-2 text-sm">
-          <input type="checkbox" name="privacy" value="true" class="mt-1" />
-          <span>
-            Ich habe die
-            <a href={~p"/datenschutz"} class="text-primary hover:underline">Datenschutzerklärung</a>
-            gelesen und stimme zu.
-          </span>
-        </label>
-        <p :if={error_for(@errors, :privacy)} class="mt-1 text-sm text-error">
-          {error_for(@errors, :privacy)}
-        </p>
-      </div>
-
       <div :if={@altcha}>
         <altcha-widget challengejson={Jason.encode!(@altcha)} auto="onload"></altcha-widget>
       </div>
+
+      <%!-- A notice, not a checkbox: answering a contact request needs no consent
+            (Art. 6(1)(f) GDPR), and a mandatory "I agree" would not be freely given. --%>
+      <p id="privacy-notice" class="text-sm text-muted">
+        Informationen zur Verarbeitung Ihrer Daten finden Sie in unserer <a
+          href={~p"/datenschutz"}
+          class="text-primary hover:underline"
+        >Datenschutzerklärung</a>.
+      </p>
 
       <button
         type="submit"
