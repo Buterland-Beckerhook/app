@@ -94,9 +94,9 @@ timed child event (`parent_id`, one level deep). Rules that constrain changes:
   homepage's "Jetzt / Als Nächstes" box (which drives the countdown) and in iCal (with
   `RELATED-TO`). An item is public when it is published or canceled *and* its festival
   is public; drafts let the programme be prepared ahead.
-- **Build event URLs with `BbhWeb.EventPaths`** — an item's URL depends on its parent
-  and on `config :bbh, :event_child_pages` (anchor `#item` vs. own page; still being
-  decided, `EVENT_CHILD_PAGES=true make dev` shows the page variant).
+- **Build event URLs with `BbhWeb.EventPaths`** — an item has no page of its own; its
+  URL is an anchor on the festival page (`/termine/:year/:festival#:item`), and
+  `/termine/:year/:festival/:item` only redirects there.
 - **"Neuer Termin" is bundled.** Events are published in bulk (the whole year after
   the JHV), so `Bbh.Workers.EventPublishNotifier` waits until no pending event changed
   for 30 minutes and sends one push for all of them. Don't add an immediate push to

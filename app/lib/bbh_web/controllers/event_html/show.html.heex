@@ -73,16 +73,7 @@
             </div>
             <div class="min-w-0">
               <div class="flex flex-wrap items-center gap-2">
-                <a
-                  :if={BbhWeb.EventPaths.child_pages?()}
-                  href={BbhWeb.EventPaths.path(item)}
-                  class="font-semibold hover:text-primary hover:underline"
-                >
-                  {item.title}
-                </a>
-                <span :if={!BbhWeb.EventPaths.child_pages?()} class="font-semibold">
-                  {item.title}
-                </span>
+                <span class="font-semibold">{item.title}</span>
                 <span
                   :if={item_state(item) == :running}
                   class="rounded bg-primary px-2 py-0.5 text-xs font-bold text-primary-content uppercase"
@@ -102,10 +93,7 @@
               <p :if={loc = item_location(item, @event)} class="text-sm text-muted sm:hidden">
                 {loc.name}
               </p>
-              <details
-                :if={item.body && !BbhWeb.EventPaths.child_pages?()}
-                class="group mt-1 text-sm"
-              >
+              <details :if={item.body} class="group mt-1 text-sm">
                 <summary class="cursor-pointer text-primary hover:underline">
                   Mehr erfahren
                 </summary>

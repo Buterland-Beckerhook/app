@@ -33,13 +33,6 @@ end
 # that is independent of the reverse-proxy `noindex` middleware. Leave unset in prod.
 config :bbh, :noindex, System.get_env("BETA_NOINDEX") in ~w(true 1)
 
-# Programme items as pages of their own instead of anchors (see config.exs). Lets
-# both variants be compared locally: `EVENT_CHILD_PAGES=true make dev`.
-# Not in test: the suite sets the flag per test and must not depend on the shell.
-if (child_pages = System.get_env("EVENT_CHILD_PAGES")) && config_env() != :test do
-  config :bbh, :event_child_pages, child_pages in ~w(true 1)
-end
-
 if config_env() == :dev do
   # Reload browser tabs when matching files change.
   config :bbh, BbhWeb.Endpoint,
