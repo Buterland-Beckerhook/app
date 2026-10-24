@@ -10,7 +10,7 @@ defmodule Bbh.Placeholders do
   A token has the form `{{ <role>.<field> }}`:
 
     * `<role>` — one of `Bbh.Club.Person.roles/0` (e.g. `geschaeftsfuehrer`, `praesident`)
-    * `<field>` — `name`, `email` or `role` (the German role label)
+    * `<field>` — `name`, `email`, `street`, `city` or `role` (the German role label)
 
   The role is resolved to its current holder via `Bbh.Club.role_holder/1`. A valid token
   whose person or field value is missing renders as an empty string. A token with an
@@ -20,7 +20,7 @@ defmodule Bbh.Placeholders do
   alias Bbh.Club
   alias Bbh.Club.Person
 
-  @fields ~w(name email role)
+  @fields ~w(name email street city role)
 
   @token ~r/\{\{\s*([a-zA-Z_]+)\.([a-zA-Z_]+)\s*\}\}/
 
@@ -49,5 +49,7 @@ defmodule Bbh.Placeholders do
   defp field_value(nil, _field), do: ""
   defp field_value(person, "name"), do: person.name || ""
   defp field_value(person, "email"), do: person.email || ""
+  defp field_value(person, "street"), do: person.street || ""
+  defp field_value(person, "city"), do: person.city || ""
   defp field_value(person, "role"), do: Person.role_label(person.role)
 end

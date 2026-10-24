@@ -16,6 +16,20 @@ defmodule Bbh.PlaceholdersTest do
       assert Placeholders.render("{{ geschaeftsfuehrer.role }}") == "Geschäftsführer"
     end
 
+    test "resolves the address fields (the club address in the Impressum)" do
+      person_fixture(role: "geschaeftsfuehrer", street: "Musterweg 1", city: "48599 Gronau")
+
+      assert Placeholders.render("{{ geschaeftsfuehrer.street }}, {{ geschaeftsfuehrer.city }}") ==
+               "Musterweg 1, 48599 Gronau"
+    end
+
+    test "resolves the Impressum's responsible person with the full legal label" do
+      person_fixture(role: "verantwortlich", name: "Max Muster")
+
+      assert Placeholders.render("{{ verantwortlich.role }}: {{ verantwortlich.name }}") ==
+               "Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV: Max Muster"
+    end
+
     test "picks the current/last holder: no end year wins, else the latest year_end" do
       person_fixture(role: "praesident", name: "Alt", year_end: 2010)
       person_fixture(role: "praesident", name: "Neuer", year_end: 2020)
