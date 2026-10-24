@@ -100,6 +100,39 @@ defmodule BbhWeb.ThroneControllerTest do
     refute html =~ "König Karl"
   end
 
+  test "GET /thron links the throne picture to its article", %{conn: conn} do
+    article = article_fixture(slug: "koenigsschiessen", date_published: ~U[2025-07-20 18:00:00Z])
+    throne_fixture(article: article, image_id: upload_fixture().id, begin_year: 2025)
+
+    html = conn |> get(~p"/thron") |> html_response(200)
+
+    # Picture and „Zum Artikel“ both point at the article.
+    assert count(html, ~s(href="/aktuell/2025/koenigsschiessen")) == 2
+    assert html =~ "Zum Artikel"
+  end
+
+  test "GET /thron does not link a „Nur Thron-Anzeige“ entry", %{conn: conn} do
+    throne_fixture(image_id: upload_fixture().id)
+
+    html = conn |> get(~p"/thron") |> html_response(200)
+
+    assert html =~ "<img"
+    refute html =~ ~s(href="/aktuell/)
+    refute html =~ "Zum Artikel"
+  end
+
+  test "GET /thron does not link an unpublished article", %{conn: conn} do
+    article = article_fixture(status: "draft", slug: "entwurf")
+    throne_fixture(article: article, image_id: upload_fixture().id)
+
+    html = conn |> get(~p"/thron") |> html_response(200)
+
+    refute html =~ "entwurf"
+    refute html =~ "Zum Artikel"
+  end
+
+  defp count(haystack, needle), do: length(String.split(haystack, needle)) - 1
+
   test "GET /thron with an unknown type returns 404", %{conn: conn} do
     assert conn |> get(~p"/thron/gibtsnicht") |> response(404)
   end

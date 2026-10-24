@@ -43,6 +43,25 @@ defmodule BbhWeb.PageControllerTest do
     assert html =~ "Hans Hansen"
   end
 
+  test "GET / links a throne to its article", %{conn: conn} do
+    article = article_fixture(slug: "koenigsschiessen", date_published: ~U[2025-07-20 18:00:00Z])
+    throne_fixture(article: article, begin_year: 2098, end_year: 2099, king: "Hans Hansen")
+
+    html = conn |> get(~p"/") |> html_response(200)
+
+    assert html =~ ~s(href="/aktuell/2025/koenigsschiessen")
+    assert html =~ "Zum Artikel →"
+  end
+
+  test "GET / does not link a „Nur Thron-Anzeige“ throne", %{conn: conn} do
+    throne_fixture(begin_year: 2098, end_year: 2099, king: "Hans Hansen")
+
+    html = conn |> get(~p"/") |> html_response(200)
+
+    assert html =~ "Hans Hansen"
+    refute html =~ "Zum Artikel →"
+  end
+
   describe "month_abbr/1" do
     test "returns the short German month label for the date badge" do
       assert PageHTML.month_abbr(DateTime.new!(~D[2026-01-18], ~T[14:00:00], "Etc/UTC")) == "Jan"

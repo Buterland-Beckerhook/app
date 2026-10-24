@@ -12,19 +12,34 @@
     </h2>
 
     <% pic = throne_picture(throne) %>
+    <% article_path = throne_article_path(throne) %>
     <figure :if={pic} class="mb-6">
-      <img
-        src={media_url(pic, width: 1024)}
-        alt={image_alt(pic)}
-        class="w-full rounded-lg object-cover"
-      />
+      <%!-- Das Bild führt zum Thron-Artikel, außer bei „Nur Thron-Anzeige“. Der Link ist
+           eine Dublette von „Zum Artikel“ und bleibt deshalb aus Tab-Reihenfolge und
+           Screenreader heraus. --%>
+      <.dynamic_tag
+        tag_name={if article_path, do: "a", else: "div"}
+        href={article_path}
+        tabindex={article_path && "-1"}
+        aria-hidden={article_path && "true"}
+        class="block overflow-hidden rounded-lg"
+      >
+        <img
+          src={media_url(pic, width: 1024)}
+          alt={image_alt(pic)}
+          class={[
+            "w-full rounded-lg object-cover",
+            article_path && "transition-transform duration-300 hover:scale-[1.02]"
+          ]}
+        />
+      </.dynamic_tag>
       <.image_credit caption={image_caption(pic)} copyright={image_copyright(pic)} />
     </figure>
     <div class="rounded-lg border border-base-300 p-4">
       <.throne_table throne={throne} show_caption={false} />
       <a
-        :if={throne.article && !throne.article.no_article}
-        href={~p"/aktuell/#{throne.article.year}/#{throne.article.slug}"}
+        :if={article_path}
+        href={article_path}
         class="mt-4 inline-block text-sm text-primary hover:underline"
       >
         Zum Artikel
