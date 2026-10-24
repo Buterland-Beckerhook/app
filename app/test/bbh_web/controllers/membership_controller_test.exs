@@ -16,9 +16,7 @@ defmodule BbhWeb.MembershipControllerTest do
     "iban" => "DE89370400440532013000",
     "bic" => "COBADEFFXXX",
     "kreditinstitut" => "Commerzbank",
-    "sepa" => "true",
-    "datenspeicherung" => "true",
-    "privacy" => "true"
+    "sepa" => "true"
   }
 
   # A form_ts token signed as if issued 10s ago, so the min-fill-time check passes.
@@ -33,6 +31,19 @@ defmodule BbhWeb.MembershipControllerTest do
 
   test "GET /verein/mitglied-werden renders the form", %{conn: conn} do
     assert conn |> get(~p"/verein/mitglied-werden") |> html_response(200) =~ "Mitglied werden"
+  end
+
+  test "only the SEPA mandate is a checkbox; privacy is a notice", %{conn: conn} do
+    doc =
+      conn |> get(~p"/verein/mitglied-werden") |> html_response(200) |> LazyHTML.from_document()
+
+    assert doc |> LazyHTML.query("input[type=checkbox][name=sepa]") |> Enum.any?()
+
+    assert doc
+           |> LazyHTML.query("input[name=privacy], input[name=datenspeicherung]")
+           |> Enum.empty?()
+
+    assert doc |> LazyHTML.query("#privacy-notice a[href='/datenschutz']") |> Enum.any?()
   end
 
   describe "POST /verein/mitglied-werden (altcha disabled)" do
