@@ -102,6 +102,7 @@ defmodule BbhWeb.ThroneControllerTest do
 
   test "GET /thron links the throne picture to its article", %{conn: conn} do
     article = article_fixture(slug: "koenigsschiessen", date_published: ~U[2025-07-20 18:00:00Z])
+
     throne_fixture(
       article: article,
       image_id: upload_fixture().id,
