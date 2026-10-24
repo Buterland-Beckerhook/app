@@ -26,6 +26,9 @@ RUN apt-get update \
 RUN mix local.hex --force && mix local.rebar --force
 
 ENV MIX_ENV=dev
+# Keep prefetched NIFs (bin/prefetch-precompiled.sh) in the deps volume so they
+# survive container rebuilds.
+ENV ELIXIR_MAKE_CACHE_DIR=/app/deps/.elixir_make_cache
 
 WORKDIR /app
 

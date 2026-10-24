@@ -78,6 +78,11 @@ jobs:
       - name: Install dependencies
         run: mix deps.get
 
+      # mix's :httpc can't download from GitHub releases (header size limit, see the
+      # script), so precompiled NIFs + tailwind are fetched with curl first.
+      - name: Prefetch precompiled artifacts
+        run: ./bin/prefetch-precompiled.sh
+
       - name: Check for unused deps in mix.lock
         run: mix deps.unlock --check-unused
 
