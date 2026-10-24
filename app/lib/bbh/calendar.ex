@@ -37,6 +37,30 @@ defmodule Bbh.Calendar do
     )
   end
 
+  @doc """
+  The festival the dev time travel (`/dev/zeitreise`) walks through: the next public
+  all-day event spanning several days that is not over yet, or else the most recent
+  one. Children are preloaded chronologically. Takes the *real* time, never the
+  simulated one, so the target does not move while you travel.
+  """
+  def dev_festival(now \\ Bbh.Time.real_now()) do
+    multi_day =
+      from e in public_events(),
+        where:
+          e.all_day and not is_nil(e.ends_at) and
+            fragment("?::date > ?::date", e.ends_at, e.starts_at),
+        preload: [:location, children: ^from(c in Event, order_by: c.starts_at)],
+        limit: 1
+
+    today = DateTime.to_date(now)
+
+    Repo.one(
+      from e in multi_day,
+        where: fragment("?::date >= ?", e.ends_at, ^today),
+        order_by: [asc: e.starts_at]
+    ) || Repo.one(from e in multi_day, order_by: [desc: e.starts_at])
+  end
+
   @doc "All public events for a given year, chronological."
   def list_events_by_year(year) do
     Repo.all(

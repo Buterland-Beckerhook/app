@@ -1,0 +1,65 @@
+<main class="min-h-screen bg-base-200 p-4 text-base-content">
+  <header class="mb-4 flex flex-wrap items-center gap-x-6 gap-y-2">
+    <h1 class="text-xl font-bold">Zeitreise</h1>
+    <p :if={@fest} class="text-sm text-muted">
+      {@fest.title} · {BbhWeb.Format.de_range(@fest.starts_at, @fest.ends_at, @fest.all_day)} · {length(
+        @fest.children
+      )} Programmpunkte
+    </p>
+    <p :if={!@fest} class="text-sm text-warning">
+      Kein mehrtägiges, ganztägiges öffentliches Fest gefunden.
+    </p>
+    <nav class="flex gap-1 text-sm">
+      <a
+        :for={{key, label} <- @views}
+        href={"/dev/zeitreise?ansicht=#{key}&breite=#{@width}"}
+        class={[
+          "rounded-full px-3 py-1",
+          key == @view && "bg-primary text-primary-content",
+          key != @view && "hover:bg-base-300"
+        ]}
+      >
+        {label}
+      </a>
+    </nav>
+    <nav class="flex gap-1 text-sm">
+      <a
+        :for={w <- ~w(desktop mobil)}
+        href={"/dev/zeitreise?ansicht=#{@view}&breite=#{w}"}
+        class={[
+          "rounded-full px-3 py-1 capitalize",
+          w == @width && "bg-primary text-primary-content",
+          w != @width && "hover:bg-base-300"
+        ]}
+      >
+        {w}
+      </a>
+    </nav>
+  </header>
+
+  <% {w, h, scale} = @frame %>
+  <div class="flex flex-wrap gap-4">
+    <figure :for={p <- @points} class="rounded-lg bg-base-100 p-2 shadow">
+      <figcaption class="mb-1.5 flex items-baseline justify-between gap-3 text-xs">
+        <a
+          href={"#{@path}#{if String.contains?(@path, "?"), do: "&", else: "?"}jetzt=#{BbhWeb.DevClock.param(p.at)}"}
+          class="font-semibold tabular-nums hover:underline"
+        >
+          {BbhWeb.Format.de_short_datetime(p.at)}
+        </a>
+        <span class="truncate text-muted" title={p.hint}>{p.hint}</span>
+      </figcaption>
+      <div
+        class="overflow-hidden rounded border border-base-300"
+        style={"width: #{round(w * scale)}px; height: #{round(h * scale)}px"}
+      >
+        <iframe
+          src={frame_src(@path, p.at)}
+          loading="lazy"
+          title={BbhWeb.Format.de_short_datetime(p.at)}
+          style={"width: #{w}px; height: #{h}px; transform: scale(#{scale}); transform-origin: 0 0"}
+        ></iframe>
+      </div>
+    </figure>
+  </div>
+</main>

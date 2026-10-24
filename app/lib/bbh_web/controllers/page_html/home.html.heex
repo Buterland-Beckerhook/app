@@ -66,6 +66,7 @@
             id="bb-countdown"
             class="flex gap-2.5"
             data-countdown-to={countdown_target(@next_event.starts_at)}
+            data-countdown-now={countdown_target(Bbh.Time.now())}
           >
             <div
               :for={

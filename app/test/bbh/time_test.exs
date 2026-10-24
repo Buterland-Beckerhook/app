@@ -39,5 +39,22 @@ defmodule Bbh.TimeTest do
     test "truncates to the requested precision" do
       assert BTime.now(:second).microsecond == {0, 0}
     end
+
+    test "ignores a dev-clock offset outside dev" do
+      Process.put(BTime.offset_key(), 86_400)
+      on_exit(fn -> Process.delete(BTime.offset_key()) end)
+
+      assert_in_delta DateTime.to_unix(BTime.now()), DateTime.to_unix(BTime.real_now()), 2
+    end
+  end
+
+  describe "apply_offset/2" do
+    test "shifts by whole seconds, in both directions" do
+      dt = ~U[2026-07-19 09:25:00Z]
+
+      assert BTime.apply_offset(dt, 0) == dt
+      assert BTime.apply_offset(dt, 300) == ~U[2026-07-19 09:30:00Z]
+      assert BTime.apply_offset(dt, -86_400) == ~U[2026-07-18 09:25:00Z]
+    end
   end
 end

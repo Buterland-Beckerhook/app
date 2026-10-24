@@ -65,6 +65,10 @@ config :bbh, BbhWeb.Endpoint,
 # Enable dev routes for dashboard and mailbox
 config :bbh, dev_routes: true
 
+# Time travel for the public pages: `?jetzt=2026-07-19T09:25` shifts Bbh.Time.now/1
+# for that request (see BbhWeb.Plugs.DevClock and /dev/zeitreise).
+config :bbh, dev_clock: true
+
 # Do not include metadata nor timestamps in development logs
 config :logger, :default_formatter, format: "[$level] $message\n"
 
