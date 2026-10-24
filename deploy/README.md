@@ -142,7 +142,30 @@ docker compose --env-file .env up -d phoenix
 
 ```sh
 docker compose --env-file .env logs -f phoenix     # follow app logs
+journalctl -t bbh-prod-phoenix-1 --since today     # same, straight from the journal
 ```
+
+- **Retention: 30 days.** All services log through Docker's `journald` driver (the
+  `x-logging` anchor in `compose.yml`), because the logs contain personal data (e.g.
+  recipient addresses of sent mail) and the privacy policy promises at most 30 days.
+  Docker's default `json-file`/`local` drivers can only rotate by size, so they cannot
+  guarantee an age limit; journald can. Set it up **once per host**:
+
+  ```sh
+  sudo install -D -m 0644 journald-bbh.conf /etc/systemd/journald.conf.d/bbh.conf
+  sudo systemctl restart systemd-journald
+  docker compose --env-file .env up -d          # recreate the containers with the new driver
+  ```
+
+  `journald-bbh.conf` sets `MaxRetentionSec=30day` and `MaxFileSec=1day`. The second
+  matters: journald only deletes whole journal files once their newest entry is past
+  the limit, and with the default monthly rotation entries could survive up to a month
+  longer. The setting applies to the whole host journal. Check that the drop-in is
+  active with `systemd-analyze cat-config systemd/journald.conf`, and see the oldest
+  kept entry with `journalctl -t bbh-prod-phoenix-1 -o short-iso | head -n 2`.
+  Recreating a container drops its old `json-file` log together with the container.
+  Other stacks on the host (mailcow, Traefik) keep their own logging config — check
+  them separately.
 
 - **Log level** is set by `LOG_LEVEL` in `.env` — any Elixir Logger level
   (`debug|info|notice|warning|error|critical|alert|emergency`), default `info`.
