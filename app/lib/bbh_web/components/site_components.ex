@@ -459,9 +459,17 @@ defmodule BbhWeb.SiteComponents do
       <div>
         <p class="mb-2">
           <span class="font-medium">Google Kalender / Android:</span>
-          Adresse kopieren und in Google Kalender unter
-          „Weitere Kalender“ (+) → „Per URL“ einfügen.
+          Adresse kopieren und am Computer bei Google Kalender unter
+          <a
+            href="https://calendar.google.com/calendar/r/settings/addbyurl"
+            target="_blank"
+            rel="noopener"
+            class="font-semibold text-primary hover:underline"
+          >„Per URL hinzufügen“</a>
+          einfügen. Danach erscheinen die Termine auch in der App auf dem Handy.
         </p>
+        <%!-- „Am Computer" on purpose: neither the Google Calendar app nor its mobile
+              site can add a calendar by URL; once added, it syncs to the app. --%>
         <input
           type="text"
           readonly
