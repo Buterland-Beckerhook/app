@@ -24,14 +24,9 @@ import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/bbh"
 import topbar from "../vendor/topbar"
-// Quill 2 rich text editor (self-hosted, vendored — no npm). Default import
-// unwraps the UMD module.exports (the Quill constructor) via esbuild interop.
-import Quill from "../vendor/quill/quill.js"
-// flatpickr date/time picker (self-hosted; sets window.flatpickr + German locale).
-import "../vendor/flatpickr/flatpickr.min.js"
-import "../vendor/flatpickr/l10n/de.js"
-// Altcha proof-of-work spam protection (self-hosted; registers <altcha-widget>).
-import "../vendor/altcha/altcha.js"
+// Quill (rich-text editor), flatpickr (date picker) and Altcha (spam protection) are
+// bundles of their own, fetched only by pages that use them — see js/lazy/.
+import {loadLazy} from "./lazy.js"
 // Homepage "Nächster Termin" live countdown (progressive enhancement, no LiveView).
 import "./countdown.js"
 // Flash toast auto-hide countdown (plain JS so it works on dead pages too).
@@ -64,123 +59,6 @@ function bufToB64url(buffer) {
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
 }
 
-// --- Quill setup: register custom formats once, before any editor mounts. ---
-// Default Quill strips alt from images; keep it (and the dimensions) so they survive
-// editing round-trips.
-//
-// The image formats (size, float, caption line) are class attributors, and Quill
-// applies an attributor to an embed by wrapping it in a <span> that carries the class
-// — the <img> itself stays bare, so neither the editor CSS nor the server
-// (BbhWeb.RichtextImages reads the classes off the <img>) would see it. BbhImage
-// therefore claims those formats and sets the class on its own node. Filled in below,
-// once the attributors exist.
-const QuillImage = Quill.import("formats/image")
-const IMG_ATTRS = ["alt", "width", "height"]
-const IMAGE_CLASS_FORMATS = {}
-class BbhImage extends QuillImage {
-  static formats(domNode) {
-    const formats = IMG_ATTRS.reduce((formats, attr) => {
-      if (domNode.hasAttribute(attr)) formats[attr] = domNode.getAttribute(attr)
-      return formats
-    }, {})
-    for (const [name, attributor] of Object.entries(IMAGE_CLASS_FORMATS)) {
-      const value = attributor.value(domNode)
-      if (value) formats[name] = value
-    }
-    return formats
-  }
-  format(name, value) {
-    const attributor = IMAGE_CLASS_FORMATS[name]
-    if (attributor) {
-      if (value) attributor.add(this.domNode, value)
-      else attributor.remove(this.domNode)
-      if (!this.domNode.classList.length) this.domNode.removeAttribute("class")
-    } else if (IMG_ATTRS.includes(name)) {
-      if (value) this.domNode.setAttribute(name, value)
-      else this.domNode.removeAttribute(name)
-    } else {
-      super.format(name, value)
-    }
-  }
-  formatAt(index, length, name, value) {
-    if (IMAGE_CLASS_FORMATS[name]) this.format(name, value)
-    else super.formatAt(index, length, name, value)
-  }
-}
-Quill.register(BbhImage, true)
-
-// Image size as a class attributor -> <img class="bbh-img-md"> etc. Drives the
-// "Größe" toolbar dropdown; the server sanitizer whitelists these class tokens.
-const Parchment = Quill.import("parchment")
-const ImageSize = new Parchment.ClassAttributor("bbhImgSize", "bbh-img", {
-  scope: Parchment.Scope.INLINE,
-  whitelist: ["sm", "md", "lg", "full"],
-})
-Quill.register(ImageSize, true)
-
-// Text wrap around an image -> <img class="bbh-float-right">. Drives the "Umfließen"
-// dropdown; same mechanism and server whitelist as ImageSize. The public side reads
-// both classes off the wrapper BbhWeb.RichtextImages builds around the image.
-const ImageFloat = new Parchment.ClassAttributor("bbhImgFloat", "bbh-float", {
-  scope: Parchment.Scope.INLINE,
-  whitelist: ["left", "right"],
-})
-Quill.register(ImageFloat, true)
-
-// What the line under the image shows -> <img class="bbh-cap-copyright">. No class
-// means caption and copyright (the default); the texts themselves come from the media
-// library at render time (BbhWeb.RichtextImages).
-const ImageCaption = new Parchment.ClassAttributor("bbhImgCaption", "bbh-cap", {
-  scope: Parchment.Scope.INLINE,
-  whitelist: ["none", "caption", "copyright"],
-})
-Quill.register(ImageCaption, true)
-
-Object.assign(IMAGE_CLASS_FORMATS, {
-  bbhImgSize: ImageSize,
-  bbhImgFloat: ImageFloat,
-  bbhImgCaption: ImageCaption,
-})
-
-// Font weight, text size and "muted" text as inline class attributors -> spans
-// like <span class="bbh-weight-500">. Same mechanism as image size; the server
-// sanitizer whitelists these class tokens (bbh-weight-*, bbh-size-*, bbh-muted).
-const TextWeight = new Parchment.ClassAttributor("bbhWeight", "bbh-weight", {
-  scope: Parchment.Scope.INLINE,
-  whitelist: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
-})
-Quill.register(TextWeight, true)
-
-const TextSize = new Parchment.ClassAttributor("bbhTextSize", "bbh-size", {
-  scope: Parchment.Scope.INLINE,
-  whitelist: ["xs", "sm", "lg", "xl", "2xl"],
-})
-Quill.register(TextSize, true)
-
-const MutedText = new Parchment.ClassAttributor("bbhMuted", "bbh-muted", {
-  scope: Parchment.Scope.INLINE,
-  whitelist: ["on"],
-})
-Quill.register(MutedText, true)
-
-// Media-library toolbar button icon (Quill-styled 18x18 SVG so it inherits
-// hover/active colouring via .ql-stroke / .ql-fill).
-const MEDIA_ICON =
-  '<svg viewBox="0 0 18 18">' +
-  '<rect class="ql-stroke" height="10" width="12" x="3" y="4"></rect>' +
-  '<circle class="ql-fill" cx="6" cy="7" r="1"></circle>' +
-  '<polyline class="ql-even ql-fill" points="5 12 7 9 9 11 12 7 15 12"></polyline>' +
-  "</svg>"
-
-// Muted-text toolbar button icon: an "A" with a half-filled contrast disc, hinting
-// at a dimmed text colour. Quill-styled so it inherits hover/active colouring.
-const MUTED_ICON =
-  '<svg viewBox="0 0 18 18">' +
-  '<path class="ql-fill" d="M9 3a6 6 0 0 0 0 12V3z"></path>' +
-  '<circle class="ql-stroke" cx="9" cy="9" r="6"></circle>' +
-  "</svg>"
-
-// Sync a Quill editor's content into its hidden input and notify LiveView.
 const Hooks = {
   PushThisDevice,
 
@@ -364,106 +242,16 @@ const Hooks = {
       input.dispatchEvent(new Event("input", {bubbles: true}))
     },
   },
+  // Rich-text editor. Quill itself (~200 KB) lives in a lazily loaded bundle
+  // (js/lazy/editor.js), so only pages with an editor fetch it.
   QuillEditor: {
     mounted() {
-      const input = this.el.querySelector("input[type=hidden]")
-      const target = this.el.querySelector("[data-quill-editor]")
-
-      const quill = new Quill(target, {
-        theme: "snow",
-        modules: {
-          toolbar: {
-            container: [
-              [
-                {header: [1, 2, 3, 4, false]},
-                {bbhWeight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"]},
-              ],
-              ["bold", "italic", "underline", "strike", "bbhMuted"],
-              [{bbhTextSize: ["xs", "sm", "", "lg", "xl", "2xl"]}],
-              [{list: "ordered"}, {list: "bullet"}],
-              ["blockquote", "link"],
-              [{align: ""}, {align: "center"}, {align: "right"}],
-              [
-                {bbhImgSize: ["sm", "md", "lg", "full"]},
-                {bbhImgFloat: ["", "left", "right"]},
-                {bbhImgCaption: ["", "caption", "copyright", "none"]},
-              ],
-              ["media"],
-              ["clean"],
-            ],
-            handlers: {
-              // Files come from the media library — no direct uploads.
-              media: () => this.pushEventTo("#media-picker", "open", {editor: this.el.id}),
-              // Muted text is a boolean class (bbh-muted); toggle it on the selection.
-              bbhMuted: () => {
-                const fmt = quill.getFormat()
-                quill.format("bbhMuted", fmt.bbhMuted ? false : "on")
-              },
-            },
-          },
-        },
+      loadLazy("editor").then(() => {
+        if (!this._destroyed) window.BbhEditor.mount(this)
       })
-      this.quill = quill
-
-      // Label the custom media button (Quill renders it empty by default).
-      const toolbarEl = quill.getModule("toolbar").container
-      const mediaBtn = toolbarEl.querySelector("button.ql-media")
-      if (mediaBtn) {
-        mediaBtn.innerHTML = MEDIA_ICON
-        mediaBtn.title = "Aus Mediathek einfügen"
-      }
-
-      // Label the custom muted-text toggle (also renders empty by default).
-      const mutedBtn = toolbarEl.querySelector("button.ql-bbhMuted")
-      if (mutedBtn) {
-        mutedBtn.innerHTML = MUTED_ICON
-        mutedBtn.title = "Gedämpfter Text"
-      }
-
-      // Tooltips for the image pickers (their German labels come from app.css).
-      const pickerTitles = {
-        bbhImgSize: "Bildgröße",
-        bbhImgFloat: "Bild umfließen",
-        bbhImgCaption: "Zeile unter dem Bild",
-      }
-      for (const [format, title] of Object.entries(pickerTitles)) {
-        const label = toolbarEl.querySelector(`.ql-picker.ql-${format} .ql-picker-label`)
-        if (label) label.title = title
-      }
-
-      // Quill does not select an embed on click, so the image formats above would
-      // only apply after Shift+Arrow. Select the clicked image instead.
-      quill.root.addEventListener("click", (e) => {
-        if (e.target.tagName !== "IMG") return
-        const blot = Quill.find(e.target)
-        if (blot && blot !== quill) quill.setSelection(quill.getIndex(blot), 1, "user")
-      })
-
-      // Load the stored HTML. Done before wiring text-change so restoring an
-      // existing value doesn't mark the form dirty on mount.
-      if (input.value) quill.clipboard.dangerouslyPasteHTML(input.value)
-
-      const serialize = () => {
-        // getSemanticHTML() yields portable HTML — real <ul>/<ol> lists and
-        // class-based alignment (ql-align-*) — unlike root.innerHTML, whose
-        // list markers are editor-only CSS. But it escapes *every* space as
-        // &nbsp;, which breaks {{ placeholder }} resolution and text wrapping,
-        // so restore normal spaces. An empty Quill doc is length 1 (the trailing
-        // newline); store "" then.
-        input.value =
-          quill.getLength() <= 1 ? "" : quill.getSemanticHTML().replaceAll("&nbsp;", " ")
-        input.dispatchEvent(new Event("input", {bubbles: true}))
-      }
-      quill.on("text-change", serialize)
-
-      // The picker (a LiveComponent) pushes the chosen file back to this editor.
-      // Every mounted editor receives the event; only the addressed one inserts.
-      this.handleEvent("media_picker:insert", ({editor: id, html}) => {
-        if (id !== this.el.id) return
-        const range = quill.getSelection(true)
-        const index = range ? range.index : quill.getLength()
-        quill.clipboard.dangerouslyPasteHTML(index, html)
-      })
+    },
+    destroyed() {
+      this._destroyed = true
     },
   },
 
@@ -473,6 +261,11 @@ const Hooks = {
   // keeps an ISO-ish value LiveView can parse.
   DatePicker: {
     mounted() {
+      loadLazy("datepicker").then(() => {
+        if (!this._destroyed) this.setup()
+      })
+    },
+    setup() {
       const sel = this.el.dataset.allDaySelector
       this.checkbox = sel ? document.querySelector(sel) : null
       this._onToggle = () => this.build()
@@ -480,6 +273,7 @@ const Hooks = {
       this.build()
     },
     destroyed() {
+      this._destroyed = true
       if (this.checkbox) this.checkbox.removeEventListener("change", this._onToggle)
       if (this._fp) this._fp.destroy()
     },
@@ -758,6 +552,13 @@ window.addEventListener("phx:page-loading-stop", _info => topbar.hide())
 
 // connect if there are any LiveViews on the page
 liveSocket.connect()
+
+// Spam protection only where a form asks for it. app.js runs deferred, so the
+// server-rendered page is complete by now; the widget upgrades once its element is
+// defined (it is never rendered by a LiveView).
+if (document.querySelector("altcha-widget")) {
+  loadLazy("altcha").catch(err => console.error(err))
+}
 
 // expose liveSocket on window for web console debug logs and latency simulation:
 // >> liveSocket.enableDebug()

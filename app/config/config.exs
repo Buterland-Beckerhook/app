@@ -84,9 +84,13 @@ config :bbh, Bbh.Mailer, adapter: Swoosh.Adapters.Local
 # Configure esbuild (the version is required)
 config :esbuild,
   version: "0.25.4",
+  # app.js plus the bundles it loads on demand (js/lazy/*: Quill, flatpickr, Altcha),
+  # each built as its own IIFE next to it — assets/js/lazy/<name>.js. Listed one by one
+  # (no glob): a new lazy bundle also needs its <meta name="bbh-lazy-…"> in the root
+  # layout, so adding it here is a deliberate step.
   bbh: [
     args:
-      ~w(js/app.js --bundle --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),
+      ~w(js/app.js js/lazy/editor.js js/lazy/datepicker.js js/lazy/altcha.js --bundle --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),
     cd: Path.expand("../assets", __DIR__),
     env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
   ],
