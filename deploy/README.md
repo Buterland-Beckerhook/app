@@ -242,6 +242,23 @@ Then test on Beta (log in, edit and save an article, upload an image, run
   then `make dev` and `make seed`. Remove the old volume with
   `docker volume rm app_pg_data` (name depends on your checkout directory).
 
+## Event map archive
+
+The embedded map on event pages is served from `/data/map/region.pmtiles` in the
+uploads volume. The app fetches it by itself: once after the first boot, then monthly,
+and whenever a venue outside the covered area is saved (needs outbound HTTPS to
+`build.protomaps.com`; the extract is ~10 MB). Watch for `[map]` lines in the log. To
+force a refresh:
+
+```sh
+docker compose --env-file .env exec phoenix bin/bbh rpc "Bbh.Map.enqueue_update()"
+```
+
+Until an archive exists, event pages simply show the address and OpenStreetMap links.
+`MAP_TILES_FILE=/data/…` pins a hand-made archive instead (the updater then leaves it
+alone). The archive is regenerable and not part of the backup. See
+[ADR 0014](../docs/adr/0014-self-hosted-osm-map.md).
+
 ## Backups
 
 `deploy/backup.sh` — nightly `pg_dump` + uploads, offsite via Borg (cron as root). To

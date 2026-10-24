@@ -21,7 +21,8 @@ mkdir -p "$STAGING"
 docker compose --env-file "$COMPOSE_DIR/.env" -f "$COMPOSE_DIR/compose.yml" exec -T postgres \
   pg_dump -U "${DB_USER}" -Fc bbh > "$STAGING/bbh-$STAMP.dump"
 
-# 2. Uploaded originals (variant cache is regenerable and skipped)
+# 2. Uploaded originals (the variant cache and the map archive in /data/map are
+#    regenerable and skipped)
 docker run --rm -v "${STACK_NAME}_uploads":/data -v "$STAGING":/backup alpine \
   tar czf "/backup/uploads-$STAMP.tar.gz" -C /data uploads
 

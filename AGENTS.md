@@ -250,6 +250,28 @@ Notes:
 - Nightly production backups (dump + uploads, offsite via Borg) are handled
   separately by `deploy/backup.sh`.
 
+## Event map (self-hosted OpenStreetMap)
+
+Venues are linked to openstreetmap.org (view + route), built from `lat`/`lng` by
+`BbhWeb.EventHTML.osm_url/1` / `osm_route_url/1` — there is no stored map URL. The
+event page also embeds a map (`<.location_map>`): MapLibre rendering a regional
+PMTiles extract of the Protomaps build, entirely from our own origin. See
+`docs/adr/0014-self-hosted-osm-map.md`. Rules that constrain changes:
+
+- **No third-party map requests at view time** — no `tile.openstreetmap.org`, no
+  CDN for glyphs/sprites. Everything is under `/karte` (`BbhWeb.Plugs.Map`) or in the
+  `bbh_map` esbuild bundle (`assets/map/`), so the CSP stays at `'self'`.
+- **The archive is fetched, never committed.** `Bbh.Workers.MapTilesUpdater` extracts
+  `Bbh.Map.needed_bbox/0` with the `pmtiles` CLI (shipped in both Docker images) into
+  `Bbh.Map` `:dir` (`priv/tiles` in dev, `/data/map` in prod). It runs monthly, at
+  boot without an archive, and when a location is saved outside the covered area;
+  `mix bbh.map.update` runs it now. `MAP_TILES_FILE` pins a hand-made archive.
+- **Degrade, don't fail.** No archive, no JS/WebGL, or a venue outside the extract
+  (anything over 50 km from Gronau stays out on purpose) → address and links only.
+- **Vendored versions move together.** `assets/vendor/map/VERSIONS.md` lists them; the
+  basemaps style major must match the tile schema the updater accepts
+  (`Bbh.Map.tile_schema_major/0`).
+
 ## BLZ table (IBAN → BIC/Kreditinstitut)
 
 The membership form derives BIC/Kreditinstitut from a German IBAN via a stripped

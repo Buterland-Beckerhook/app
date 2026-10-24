@@ -144,3 +144,27 @@ multi-MB binary would bloat git history on every refresh.
 ## Deferred / Skipped
 - Clustered overview map on `/termine` — not needed now.
 - Routing inside our own map — out of scope; route link goes to openstreetmap.org.
+
+## Implementation notes (2026-10-24)
+- **Range serving:** Plug 1.20's `Plug.Static` already answers `Range` (206/416/ETag/304),
+  so instead of `MapTilesController` there is `BbhWeb.Plugs.Map` in the endpoint, which
+  points `Plug.Static` at the runtime-resolved archive. Same plug serves glyphs/sprites
+  from `priv/map` under `/karte`, answering unshipped glyph ranges with an empty set.
+- **Reverse proxy:** prod is behind Traefik (compress middleware), dev behind Caddy;
+  tiles are sent with `Cache-Control: no-transform`, verified uncompressed 206 via Caddy.
+  Re-check on Beta: `curl -sI -H 'Range: bytes=0-126' -H 'Accept-Encoding: gzip' …/karte/region.pmtiles`.
+- **maxzoom:** Protomaps builds stop at z15 → 15 is fixed (MapLibre overzooms to 18).
+  Home extract with current venues: ~9–11 MB.
+- **Far locations:** capped at 50 km from the home box; beyond that links only.
+- **Vendoring:** single dir `assets/vendor/map/` (MapLibre 6.15.0 ESM + worker,
+  pmtiles 4.5.0 + fflate 0.8.3, @protomaps/basemaps 5.7.2), `VERSIONS.md` there.
+  MapLibre 6 is ESM-only with a module worker → `bbh_map` profile builds `--format=esm`
+  with the worker as second entry point; `map.js` is a nonced `type="module"` script.
+- **Glyphs:** only Latin/Greek/Cyrillic/punctuation ranges (~2.3 MB) committed.
+- **Attribution:** a visible `<figcaption>` (OSM/ODbL + Protomaps) instead of the
+  MapLibre control; the figure is `hidden` until the script mounts the map.
+- **Validation** reads the PMTiles header + metadata in Elixir (`Bbh.Map.read_header/1`)
+  rather than parsing `pmtiles show` output.
+- **pmtiles CLI** in both Dockerfiles (dev image too, so dev self-heals on boot).
+  Renovate rule: `extractVersion ^v`, never automerge (checksums are manual).
+- **Manual run on the server:** `bin/bbh rpc "Bbh.Map.enqueue_update()"`.
