@@ -121,6 +121,7 @@ defmodule BbhWeb.MCP.View do
       layout: b.layout,
       lightbox: b.lightbox,
       aspect_ratio: b.aspect_ratio,
+      grid_fit: b.grid_fit,
       autoplay: b.autoplay,
       images: gallery_files(b.files)
     }

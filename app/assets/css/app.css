@@ -505,9 +505,10 @@ h1, h2, h3, h4, h5, h6 {
 .prose .bbh-fig:is(.bbh-img-sm, .bbh-img-md, .bbh-img-lg, .bbh-img-full) img {
   width: 100%;
 }
-/* Same look as the `image_credit` component (site_components.ex). The wrapper is an
-   inline-block, so a link around the image does not underline its caption. */
-.prose .bbh-fig-caption {
+/* Same look as the `image_credit` component (site_components.ex); also the gallery
+   title below its pictures. In running text the wrapper is an inline-block, so a link
+   around the image does not underline its caption. */
+.bbh-fig-caption {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
@@ -521,10 +522,10 @@ h1, h2, h3, h4, h5, h6 {
   text-align: left;
   color: var(--bb-text-muted);
 }
-.prose .bbh-fig-text {
+.bbh-fig-text {
   min-width: 0;
 }
-.prose .bbh-fig-copyright {
+.bbh-fig-copyright {
   margin-left: auto;
   flex-shrink: 0;
   white-space: nowrap;
@@ -817,6 +818,35 @@ h1, h2, h3, h4, h5, h6 {
   outline: 2px solid var(--color-primary);
   outline-offset: -2px;
   border-radius: var(--radius-field);
+}
+
+/* Gallery block, grid in "Originalformat" (BbhWeb.SiteComponents.gallery_justified):
+   justified rows. Each item carries its ratio as `--r`; basis and grow proportional to
+   it make every item of a row grow by the same factor, and `aspect-ratio` turns the
+   shared factor into a shared height. `max-width` keeps a lone portrait from filling
+   the column at a height no screen shows (it stops at 70vh tall). The filler on
+   `-fill` soaks up a short last row so it keeps the row height instead of stretching. */
+.bbh-justified {
+  --row-h: 11rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+@media (min-width: 48rem) {
+  .bbh-justified {
+    --row-h: 14rem;
+  }
+}
+.bbh-justified-fill::after {
+  content: "";
+  flex-grow: 999;
+}
+.bbh-justified-item {
+  flex-grow: var(--r);
+  flex-basis: calc(var(--row-h) * var(--r));
+  aspect-ratio: var(--r);
+  max-width: calc(70vh * var(--r));
+  min-width: 0;
 }
 
 /* Gallery block, "Diashow" layout (BbhWeb.SiteComponents.gallery_slideshow +

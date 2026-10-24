@@ -101,13 +101,21 @@ defmodule Bbh.Content.Blocks do
 
     @doc """
     The frames a slideshow can crop its images to, widest first, landscape before
-    portrait. Only used by the `slideshow` layout — the grid crops to squares.
+    portrait. Only used by the `slideshow` layout — the grid follows `grid_fits/0`.
 
     Every entry is `W:H`; the renderer hands it to CSS `aspect-ratio` after swapping the
     colon for a slash, so a ratio that is not two numbers would break the crop silently.
     """
     @aspect_ratios ~w(16:9 3:2 4:3 1:1 3:4 2:3 9:16)
     def aspect_ratios, do: @aspect_ratios
+
+    @doc """
+    How the `grid` layout frames its images: `square` crops every picture to a square,
+    `original` lays them out in justified rows, each in its own aspect ratio. The
+    slideshow ignores it.
+    """
+    @grid_fits ~w(square original)
+    def grid_fits, do: @grid_fits
 
     schema "block_image_gallery" do
       field :title, :string
@@ -118,6 +126,8 @@ defmodule Bbh.Content.Blocks do
       field :layout, :string, default: "grid"
       field :lightbox, :boolean, default: true
       field :aspect_ratio, :string, default: "16:9"
+      # "square", matching `Content.@block_defaults` and the column default (see `layout`).
+      field :grid_fit, :string, default: "square"
       field :autoplay, :boolean, default: false
 
       has_many :files, Bbh.Content.Blocks.GalleryFile,
@@ -129,13 +139,14 @@ defmodule Bbh.Content.Blocks do
 
     def changeset(block, attrs) do
       block
-      |> cast(attrs, [:title, :layout, :lightbox, :aspect_ratio, :autoplay])
-      # `validate_inclusion/3` skips nil, and both columns are NOT NULL — without this
+      |> cast(attrs, [:title, :layout, :lightbox, :aspect_ratio, :grid_fit, :autoplay])
+      # `validate_inclusion/3` skips nil, and these columns are NOT NULL — without this
       # an explicit nil would pass the changeset and come back as a Postgrex error
       # instead of `{:error, changeset}`.
-      |> validate_required([:layout, :aspect_ratio])
+      |> validate_required([:layout, :aspect_ratio, :grid_fit])
       |> validate_inclusion(:layout, @layouts)
       |> validate_inclusion(:aspect_ratio, @aspect_ratios)
+      |> validate_inclusion(:grid_fit, @grid_fits)
     end
   end
 

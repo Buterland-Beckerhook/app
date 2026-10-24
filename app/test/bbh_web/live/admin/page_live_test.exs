@@ -199,6 +199,24 @@ defmodule BbhWeb.Admin.PageLiveTest do
       # and one the schema allows but the dropdown omits is unreachable.
       assert offered == Bbh.Content.Blocks.ImageGallery.aspect_ratios()
     end
+
+    test "the grid fit is offered from the schema and saved", ctx do
+      offered =
+        ctx.lv
+        |> render()
+        |> LazyHTML.from_document()
+        |> LazyHTML.query(~s(select[name="block[grid_fit]"] option))
+        |> LazyHTML.attribute("value")
+
+      assert offered == Bbh.Content.Blocks.ImageGallery.grid_fits()
+
+      ctx.lv
+      |> form("#block-#{ctx.pb.id}", %{"block" => %{"grid_fit" => "original"}})
+      |> render_submit()
+
+      [{_pb, gallery}] = Content.load_blocks(Content.get_page!(ctx.page.id))
+      assert gallery.grid_fit == "original"
+    end
   end
 
   describe "event block" do

@@ -395,6 +395,12 @@ defmodule BbhWeb.MCP.Tools do
         enum: ["16:9", "3:2", "4:3", "1:1", "3:4", "2:3", "9:16"],
         description: "image_gallery slideshows."
       },
+      "grid_fit" => %{
+        type: "string",
+        enum: ["square", "original"],
+        description:
+          "image_gallery grids: square crops, or justified rows in each image's own ratio."
+      },
       "autoplay" => %{type: "boolean", description: "image_gallery slideshows."},
       "filter_roles" => %{
         type: "array",
