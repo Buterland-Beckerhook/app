@@ -308,6 +308,7 @@ defmodule BbhWeb.MCP.Tools.Articles do
        "layout" => :layout,
        "lightbox" => :lightbox,
        "aspect_ratio" => :aspect_ratio,
+       "grid_fit" => :grid_fit,
        "autoplay" => :autoplay
      })}
   end

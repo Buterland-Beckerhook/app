@@ -554,7 +554,19 @@ defmodule Bbh.ContentTest do
     } do
       assert gallery.layout == "grid"
       assert gallery.aspect_ratio == "16:9"
+      assert gallery.grid_fit == "square"
       assert gallery.autoplay == false
+    end
+
+    test "the grid fit is editable, and only to a known value", %{pb: pb} do
+      assert {:ok, %{grid_fit: "original"}} =
+               Content.update_block(pb, %{"grid_fit" => "original"})
+
+      assert {:error, changeset} = Content.update_block(pb, %{"grid_fit" => "stretch"})
+      assert %{grid_fit: [_]} = errors_on(changeset)
+
+      assert {:error, changeset} = Content.update_block(pb, %{"grid_fit" => nil})
+      assert %{grid_fit: [_]} = errors_on(changeset)
     end
 
     test "the slideshow settings are editable", %{pb: pb} do

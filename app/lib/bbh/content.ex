@@ -691,6 +691,7 @@ defmodule Bbh.Content do
       layout: "grid",
       lightbox: true,
       aspect_ratio: "16:9",
+      grid_fit: "square",
       autoplay: false
     },
     "person_list" => %{
