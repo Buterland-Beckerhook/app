@@ -77,6 +77,14 @@ Copyright are fields on `media`; an embedding (article image, gallery file) only
 `image_caption/1` and `image_copyright/1` — never off the embedding. See
 `docs/adr/0004-media-library-owns-image-metadata.md`.
 
+**Images in running text** are stored as a bare inline `<img src="/media/<key>">` plus
+whitelisted size/float/caption classes (`bbh-img-*`, `bbh-float-*`, `bbh-cap-*`) — never
+as a `<figure>`, which would defeat `Bbh.Html.sanitize/1`'s block merge.
+`BbhWeb.RichtextImages` (a step of `render_richtext/1`) turns each into a
+`<span class="bbh-fig">` with `srcset`, dimensions, the lightbox trigger (group `content`,
+shared with galleries and the article hero) and the caption, all read live from the media
+library. See `docs/adr/0013-richtext-images-enriched-at-render.md`.
+
 **Rotation** (`Bbh.Media.rotate_upload/2`) rewrites the original in place and bumps
 `media.revision`, which busts three caches: the browser's (it rides on media URLs as
 `?v=`), the variant cache on disk (it joins the cache key, so a stale file is unreachable

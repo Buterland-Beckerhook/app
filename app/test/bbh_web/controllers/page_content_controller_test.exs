@@ -174,6 +174,88 @@ defmodule BbhWeb.PageContentControllerTest do
     assert html =~ "© BBH e.V."
   end
 
+  describe "gallery block, grid in Originalformat" do
+    setup %{conn: conn} do
+      page = page_fixture(slug: "raster", title: "Raster", status: "published")
+      {:ok, _} = Bbh.Content.add_block(page, "image_gallery")
+      [{pb, gallery}] = Bbh.Content.load_blocks(Bbh.Content.get_page!(page.id))
+
+      add = fn attrs ->
+        upload = upload_fixture(attrs)
+        {:ok, _} = Bbh.Content.add_gallery_file(gallery, upload.id)
+      end
+
+      html = fn attrs ->
+        {:ok, _} = Bbh.Content.update_block(pb, attrs)
+        conn |> get(~p"/verein/raster") |> html_response(200)
+      end
+
+      %{add: add, html: html}
+    end
+
+    defp items(markup) do
+      markup |> LazyHTML.from_document() |> LazyHTML.query(".bbh-justified-item")
+    end
+
+    test "square stays the default crop", %{add: add, html: html} do
+      add.(%{width: 3000, height: 2000})
+      markup = html.(%{"title" => "Antreten"})
+
+      refute markup =~ "bbh-justified"
+      assert markup =~ "aspect-square"
+    end
+
+    test "each item carries its own ratio and a width-only variant", %{add: add, html: html} do
+      add.(%{width: 3000, height: 2000})
+      add.(%{width: 2000, height: 3000})
+      add.(%{width: 4000, height: 3000})
+
+      markup = html.(%{"grid_fit" => "original"})
+      list = items(markup)
+
+      assert LazyHTML.attribute(list, "style") == ["--r: 1.5", "--r: 0.6667", "--r: 1.3333"]
+      # 2 × 14rem rows × ratio, rounded up to 100px; no height, so no crop server-side.
+      assert ["/media/" <> a, _, _] = list |> LazyHTML.query("img") |> LazyHTML.attribute("src")
+      assert a =~ ~r/\?w=700\z/
+      # More than two pictures: the filler keeps the last row at row height.
+      assert markup =~ "bbh-justified-fill"
+    end
+
+    test "a picture without dimensions counts as square", %{add: add, html: html} do
+      add.(%{width: nil, height: nil})
+
+      assert html.(%{"grid_fit" => "original"}) |> items() |> LazyHTML.attribute("style") ==
+               ["--r: 1"]
+    end
+
+    test "one or two pictures fill the width; never above the original", %{
+      add: add,
+      html: html
+    } do
+      add.(%{width: 800, height: 600})
+      markup = html.(%{"grid_fit" => "original"})
+
+      refute markup =~ "bbh-justified-fill"
+      assert [src] = markup |> items() |> LazyHTML.query("img") |> LazyHTML.attribute("src")
+      assert src =~ ~r/\?w=800\z/
+    end
+
+    test "the title is the caption below the pictures", %{add: add, html: html} do
+      add.(%{width: 3000, height: 2000})
+
+      for fit <- ~w(original square) do
+        markup = html.(%{"title" => "Die ersten Jungschützen", "grid_fit" => fit})
+        doc = LazyHTML.from_document(markup)
+
+        assert doc |> LazyHTML.query("figure > figcaption.bbh-fig-caption") |> LazyHTML.text() ==
+                 "Die ersten Jungschützen"
+
+        assert doc |> LazyHTML.query("figure > figcaption:last-child") |> LazyHTML.text() ==
+                 "Die ersten Jungschützen"
+      end
+    end
+  end
+
   describe "gallery block, Diashow layout" do
     setup %{conn: conn} do
       page = page_fixture(slug: "bilder", title: "Bilder", status: "published")

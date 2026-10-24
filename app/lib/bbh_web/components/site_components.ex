@@ -638,10 +638,19 @@ defmodule BbhWeb.SiteComponents do
   def block(%{type: "image_gallery"} = assigns) do
     ~H"""
     <figure>
-      <figcaption :if={@block.title} class="mb-2 font-semibold">{@block.title}</figcaption>
       <%!-- Files arrive in the editor's order (ImageGallery.has_many :preload_order). --%>
       <.gallery_slideshow :if={@block.layout == "slideshow"} block={@block} />
-      <.gallery_grid :if={@block.layout != "slideshow"} block={@block} />
+      <.gallery_justified
+        :if={@block.layout != "slideshow" and @block.grid_fit == "original"}
+        block={@block}
+      />
+      <.gallery_grid
+        :if={@block.layout != "slideshow" and @block.grid_fit != "original"}
+        block={@block}
+      />
+      <%!-- The title reads as the gallery's caption: below it, in the same small, muted
+            line as a picture's caption in running text (BbhWeb.RichtextImages). --%>
+      <figcaption :if={@block.title} class="bbh-fig-caption">{@block.title}</figcaption>
     </figure>
     """
   end
@@ -732,6 +741,52 @@ defmodule BbhWeb.SiteComponents do
       />
     </div>
     """
+  end
+
+  # Justified rows in each picture's own aspect ratio, without JavaScript. Every item's
+  # flex-basis and flex-grow are proportional to its ratio, so the items of one row
+  # grow by the same factor and come out equally tall (`aspect-ratio` sets the height
+  # from the width). `.bbh-justified` in app.css holds the row height; the filler that
+  # keeps a short last row from stretching only pays off with more than two pictures —
+  # one or two should fill the width instead. Order is the editor's, left to right.
+  attr :block, :any, required: true
+
+  defp gallery_justified(assigns) do
+    assigns = assign(assigns, :fill, length(assigns.block.files) > 2)
+
+    ~H"""
+    <div class={["bbh-justified", @fill && "bbh-justified-fill"]}>
+      <div :for={f <- @block.files} class="bbh-justified-item" style={"--r: #{ratio(f.media)}"}>
+        <.gallery_image
+          file={f}
+          block={@block}
+          size={{justified_width(f.media, @fill), nil}}
+          class="h-full w-full rounded object-cover"
+        />
+      </div>
+    </div>
+    """
+  end
+
+  # Width over height, rounded so the inline style stays short; a picture without
+  # recorded dimensions counts as square.
+  defp ratio(%{width: w, height: h}) when is_integer(w) and is_integer(h) and w > 0 and h > 0,
+    do: Float.round(w / h, 4)
+
+  defp ratio(_media), do: 1
+
+  # About twice the item's flex-basis (14rem rows ≈ 224px) for sharp rendering on dense
+  # screens; a gallery of one or two fills the column, so it gets a column-wide variant.
+  # Rounded up to 100px so variants are shared, and never above the original — the media
+  # controller would upscale.
+  defp justified_width(media, fill?) do
+    wanted = if fill?, do: 2 * 224 * ratio(media), else: 1200
+    stepped = trunc(Float.ceil(wanted / 100)) * 100
+
+    case media do
+      %{width: w} when is_integer(w) and w > 0 -> min(stepped, w)
+      _ -> stepped
+    end
   end
 
   # One horizontal strip of slides, one slide wide, snapping to each. The strip is a
@@ -863,7 +918,7 @@ defmodule BbhWeb.SiteComponents do
       data-lightbox-alt={image_alt(@file)}
       data-lightbox-caption={image_caption(@file)}
       data-lightbox-copyright={copyright_label(image_copyright(@file))}
-      data-lightbox-group={"gallery-#{@block.id}"}
+      data-lightbox-group="content"
       class="block w-full cursor-zoom-in"
       aria-label="Bild vergrößern"
     >

@@ -75,6 +75,18 @@ defmodule Bbh.Media do
   def get_by_key(key), do: Repo.get_by(Upload, storage_key: key)
 
   @doc """
+  The uploads for `keys` in one query, as `%{storage_key => upload}`. Keys without a
+  row are simply absent from the map.
+  """
+  def get_uploads_by_storage_keys([]), do: %{}
+
+  def get_uploads_by_storage_keys(keys) when is_list(keys) do
+    from(u in Upload, where: u.storage_key in ^Enum.uniq(keys))
+    |> Repo.all()
+    |> Map.new(&{&1.storage_key, &1})
+  end
+
+  @doc """
   List uploads, optionally filtered by `:search` (filename/title), `:folder`
   (`:root` = unfiled, a folder id, a list of folder ids, or absent = all),
   `:images_only`, and `:sort`.

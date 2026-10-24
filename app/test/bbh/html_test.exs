@@ -44,6 +44,41 @@ defmodule Bbh.HtmlTest do
                ~s(class="bbh-muted-on")
     end
 
+    test "keeps image float classes, drops unknown float values" do
+      out = Html.sanitize(~s(<p><img src="/media/1.jpg" class="bbh-img-md bbh-float-right"></p>))
+      assert out =~ ~s(class="bbh-img-md bbh-float-right")
+
+      assert Html.sanitize(~s(<p><img src="/media/1.jpg" class="bbh-float-left"></p>)) =~
+               ~s(class="bbh-float-left")
+
+      refute Html.sanitize(~s(<p><img src="/media/1.jpg" class="bbh-float-center"></p>)) =~
+               "bbh-float"
+    end
+
+    test "moves image classes from Quill's wrapping span onto the image" do
+      html =
+        ~s(<p><span class="bbh-float-left bbh-img-sm bbh-cap-none">) <>
+          ~s(<img src="/media/1.jpg" alt="A"></span></p>)
+
+      assert Html.sanitize(html) ==
+               ~s(<p><img src="/media/1.jpg" alt="A" class="bbh-float-left bbh-img-sm bbh-cap-none" /></p>)
+    end
+
+    test "leaves a span around an image alone when it carries text formatting" do
+      html = ~s(<p><span class="bbh-weight-700"><img src="/media/1.jpg" /></span></p>)
+      assert Html.sanitize(html) =~ ~s(<span class="bbh-weight-700"><img)
+    end
+
+    test "keeps image caption classes, drops unknown caption values" do
+      for mode <- ~w(none caption copyright) do
+        assert Html.sanitize(~s(<p><img src="/media/1.jpg" class="bbh-cap-#{mode}"></p>)) =~
+                 ~s(class="bbh-cap-#{mode}")
+      end
+
+      refute Html.sanitize(~s(<p><img src="/media/1.jpg" class="bbh-cap-both"></p>)) =~
+               "bbh-cap"
+    end
+
     test "keeps only whitelisted tokens within a class attribute" do
       out = Html.sanitize(~s(<p class="ql-align-center fixed inset-0">x</p>))
 
@@ -111,6 +146,14 @@ defmodule Bbh.HtmlTest do
     test "merges paragraphs that share the same alignment class" do
       html = ~s(<p class="ql-align-center">a</p><p class="ql-align-center">b</p>)
       assert Html.sanitize(html) == ~s(<p class="ql-align-center">a<br />b</p>)
+    end
+
+    test "a paragraph holding a floated image merges with its neighbours" do
+      html =
+        ~s(<p>a</p><p><img src="/media/1.jpg" class="bbh-float-right">b</p><p>c</p><p></p><p>d</p>)
+
+      assert Html.sanitize(html) ==
+               ~s(<p>a<br /><img src="/media/1.jpg" class="bbh-float-right" />b<br />c</p><p>d</p>)
     end
 
     test "headings and lists remain paragraph boundaries (never merged in)" do

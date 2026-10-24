@@ -175,6 +175,12 @@ defmodule BbhWeb.Admin.BlockEditor do
       label="Seitenverhältnis der Diashow"
       options={@aspect_ratios}
     />
+    <.input
+      field={@f[:grid_fit]}
+      type="select"
+      label="Bildzuschnitt im Raster"
+      options={grid_fit_options()}
+    />
     <.input field={@f[:lightbox]} type="checkbox" label="Lightbox aktivieren" />
     <.input field={@f[:autoplay]} type="checkbox" label="Diashow automatisch weiterblättern" />
     """
@@ -308,6 +314,13 @@ defmodule BbhWeb.Admin.BlockEditor do
         label -> {"#{ratio} · #{label}", ratio}
       end
     end
+  end
+
+  # Same read-off-the-schema contract as aspect ratios above.
+  @grid_fit_labels %{"square" => "Quadratisch", "original" => "Originalformat"}
+
+  defp grid_fit_options do
+    for fit <- Blocks.ImageGallery.grid_fits(), do: {@grid_fit_labels[fit] || fit, fit}
   end
 
   # The single image of a media_card block.

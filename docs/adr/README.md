@@ -15,3 +15,4 @@ what (the code shows the what). One file per decision, numbered.
 - [0010](0010-mcp-oauth.md) — The app is its own OAuth authorization server, and the site login is the OAuth login
 - [0011](0011-redirects-on-the-404-path.md) — Redirects are resolved on the 404 path only; old Hugo URLs by rule, misses in a 404 log
 - [0012](0012-postgres-major-upgrade-by-dump-and-restore.md) — Postgres majors move by dump & restore into a new volume; the old one stays as the rollback
+- [0013](0013-richtext-images-enriched-at-render.md) — Rich-text images are stored bare and enriched at render time

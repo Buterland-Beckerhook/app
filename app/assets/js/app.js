@@ -65,24 +65,46 @@ function bufToB64url(buffer) {
 }
 
 // --- Quill setup: register custom formats once, before any editor mounts. ---
-// Default Quill strips class/alt from images; keep them so image size
-// (bbh-img-*) and alt text survive editing round-trips.
+// Default Quill strips alt from images; keep it (and the dimensions) so they survive
+// editing round-trips.
+//
+// The image formats (size, float, caption line) are class attributors, and Quill
+// applies an attributor to an embed by wrapping it in a <span> that carries the class
+// — the <img> itself stays bare, so neither the editor CSS nor the server
+// (BbhWeb.RichtextImages reads the classes off the <img>) would see it. BbhImage
+// therefore claims those formats and sets the class on its own node. Filled in below,
+// once the attributors exist.
 const QuillImage = Quill.import("formats/image")
-const IMG_ATTRS = ["alt", "width", "height", "class"]
+const IMG_ATTRS = ["alt", "width", "height"]
+const IMAGE_CLASS_FORMATS = {}
 class BbhImage extends QuillImage {
   static formats(domNode) {
-    return IMG_ATTRS.reduce((formats, attr) => {
+    const formats = IMG_ATTRS.reduce((formats, attr) => {
       if (domNode.hasAttribute(attr)) formats[attr] = domNode.getAttribute(attr)
       return formats
     }, {})
+    for (const [name, attributor] of Object.entries(IMAGE_CLASS_FORMATS)) {
+      const value = attributor.value(domNode)
+      if (value) formats[name] = value
+    }
+    return formats
   }
   format(name, value) {
-    if (IMG_ATTRS.includes(name)) {
+    const attributor = IMAGE_CLASS_FORMATS[name]
+    if (attributor) {
+      if (value) attributor.add(this.domNode, value)
+      else attributor.remove(this.domNode)
+      if (!this.domNode.classList.length) this.domNode.removeAttribute("class")
+    } else if (IMG_ATTRS.includes(name)) {
       if (value) this.domNode.setAttribute(name, value)
       else this.domNode.removeAttribute(name)
     } else {
       super.format(name, value)
     }
+  }
+  formatAt(index, length, name, value) {
+    if (IMAGE_CLASS_FORMATS[name]) this.format(name, value)
+    else super.formatAt(index, length, name, value)
   }
 }
 Quill.register(BbhImage, true)
@@ -95,6 +117,30 @@ const ImageSize = new Parchment.ClassAttributor("bbhImgSize", "bbh-img", {
   whitelist: ["sm", "md", "lg", "full"],
 })
 Quill.register(ImageSize, true)
+
+// Text wrap around an image -> <img class="bbh-float-right">. Drives the "Umfließen"
+// dropdown; same mechanism and server whitelist as ImageSize. The public side reads
+// both classes off the wrapper BbhWeb.RichtextImages builds around the image.
+const ImageFloat = new Parchment.ClassAttributor("bbhImgFloat", "bbh-float", {
+  scope: Parchment.Scope.INLINE,
+  whitelist: ["left", "right"],
+})
+Quill.register(ImageFloat, true)
+
+// What the line under the image shows -> <img class="bbh-cap-copyright">. No class
+// means caption and copyright (the default); the texts themselves come from the media
+// library at render time (BbhWeb.RichtextImages).
+const ImageCaption = new Parchment.ClassAttributor("bbhImgCaption", "bbh-cap", {
+  scope: Parchment.Scope.INLINE,
+  whitelist: ["none", "caption", "copyright"],
+})
+Quill.register(ImageCaption, true)
+
+Object.assign(IMAGE_CLASS_FORMATS, {
+  bbhImgSize: ImageSize,
+  bbhImgFloat: ImageFloat,
+  bbhImgCaption: ImageCaption,
+})
 
 // Font weight, text size and "muted" text as inline class attributors -> spans
 // like <span class="bbh-weight-500">. Same mechanism as image size; the server
@@ -337,7 +383,11 @@ const Hooks = {
               [{list: "ordered"}, {list: "bullet"}],
               ["blockquote", "link"],
               [{align: ""}, {align: "center"}, {align: "right"}],
-              [{bbhImgSize: ["sm", "md", "lg", "full"]}],
+              [
+                {bbhImgSize: ["sm", "md", "lg", "full"]},
+                {bbhImgFloat: ["", "left", "right"]},
+                {bbhImgCaption: ["", "caption", "copyright", "none"]},
+              ],
               ["media"],
               ["clean"],
             ],
@@ -369,6 +419,25 @@ const Hooks = {
         mutedBtn.innerHTML = MUTED_ICON
         mutedBtn.title = "Gedämpfter Text"
       }
+
+      // Tooltips for the image pickers (their German labels come from app.css).
+      const pickerTitles = {
+        bbhImgSize: "Bildgröße",
+        bbhImgFloat: "Bild umfließen",
+        bbhImgCaption: "Zeile unter dem Bild",
+      }
+      for (const [format, title] of Object.entries(pickerTitles)) {
+        const label = toolbarEl.querySelector(`.ql-picker.ql-${format} .ql-picker-label`)
+        if (label) label.title = title
+      }
+
+      // Quill does not select an embed on click, so the image formats above would
+      // only apply after Shift+Arrow. Select the clicked image instead.
+      quill.root.addEventListener("click", (e) => {
+        if (e.target.tagName !== "IMG") return
+        const blot = Quill.find(e.target)
+        if (blot && blot !== quill) quill.setSelection(quill.getIndex(blot), 1, "user")
+      })
 
       // Load the stored HTML. Done before wiring text-change so restoring an
       // existing value doesn't mark the form dirty on mount.
@@ -698,9 +767,11 @@ window.liveSocket = liveSocket
 
 // --- Navigable image lightbox for public galleries (plain JS — no LiveView) ---
 // Triggers carry `data-lightbox-src`, `data-lightbox-alt`, optional
-// `data-lightbox-caption` / `data-lightbox-copyright`, and (for galleries)
-// `data-lightbox-group="<id>"`. Clicking one opens a native <dialog> and lets the
-// visitor move through every image sharing that group via on-screen arrows, keyboard
+// `data-lightbox-caption` / `data-lightbox-copyright`, and optionally
+// `data-lightbox-group="<id>"` — galleries and rich-text images all share "content"
+// (BbhWeb.RichtextImages), so one lightbox walks a page's pictures in document order.
+// Clicking one opens a native <dialog> and lets the visitor move through every image
+// sharing that group via on-screen arrows, keyboard
 // (←/→ and h/l, Esc to close), and touch swipe. Gallery thumbnails stay bare, so the
 // enlarged view is where caption and copyright are shown. Delegated so it works on
 // server-rendered pages too.
@@ -720,7 +791,10 @@ window.liveSocket = liveSocket
       // Image + caption stack, centred and shrink-wrapped so the caption's left
       // edge lines up with the image's left edge.
       "dialog.lightbox .lb-figure{margin:auto;display:flex;flex-direction:column;max-width:92vw;max-height:92vh}" +
-      "dialog.lightbox img{max-width:100%;max-height:86vh;object-fit:contain;border-radius:.25rem}" +
+      // Sized by fit() below, not by max-width:100% against the shrink-wrapped figure:
+      // that is circular, and browsers resolve it differently (Safari kept the first
+      // picture's width for every later one).
+      "dialog.lightbox img{display:block;max-width:none;border-radius:.25rem}" +
       // Caption sits directly under the image, left-aligned.
       "dialog.lightbox .lb-caption{margin-top:.5rem;color:rgba(255,255,255,.8);font-size:.8125rem;line-height:1.3;text-align:left}" +
       "dialog.lightbox .lb-caption[hidden]{display:none}" +
@@ -756,6 +830,8 @@ window.liveSocket = liveSocket
       '<div class="lb-copyright"></div>' +
       "</div>"
     imgEl = dialog.querySelector("img")
+    imgEl.addEventListener("load", fit)
+    window.addEventListener("resize", () => { if (dialog.open) fit() })
     captionEl = dialog.querySelector(".lb-caption")
     counterEl = dialog.querySelector(".lb-counter")
     copyrightEl = dialog.querySelector(".lb-copyright")
@@ -781,6 +857,20 @@ window.liveSocket = liveSocket
 
     document.body.appendChild(dialog)
     return dialog
+  }
+
+  // Scale the picture to the largest size that fits 92vw × 86vh — up as well as down,
+  // so a small original reads at the same size as every other picture in the group.
+  // The figure takes the image's width so the caption wraps under the picture.
+  function fit() {
+    const w = imgEl.naturalWidth
+    const h = imgEl.naturalHeight
+    if (!w || !h) return
+    const scale = Math.min((window.innerWidth * 0.92) / w, (window.innerHeight * 0.86) / h)
+    const width = Math.round(w * scale)
+    imgEl.style.width = `${width}px`
+    imgEl.style.height = `${Math.round(h * scale)}px`
+    imgEl.parentElement.style.width = `${width}px`
   }
 
   function show(i) {
