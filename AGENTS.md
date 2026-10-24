@@ -286,7 +286,10 @@ PMTiles extract of the Protomaps build, entirely from our own origin. See
 They are extra entry points of the `bbh` esbuild profile (`config/config.exs`), the root
 layout publishes their digested URLs as `<meta name="bbh-lazy-<name>">`, and
 `loadLazy(name)` (`assets/js/lazy.js`) injects the script once. A hook that needs one
-loads it in `mounted()` and checks it was not destroyed meanwhile. Adding a bundle means
+loads it in `mounted()` and checks it was not destroyed meanwhile. A bundle may import
+its library's CSS: esbuild emits `<name>.css` beside it, the `<meta>` carries it as
+`data-css`, and `loadLazy` links it **before** `#app-css`, so overrides in `app.css`
+keep winning. Adding a bundle means
 all three places: the entry in `config.exs`, the `<meta>` in `root.html.heex`, and the
 `loadLazy` call.
 

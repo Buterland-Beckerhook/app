@@ -6,6 +6,8 @@
 // Quill 2 rich text editor (self-hosted, vendored — no npm). Default import
 // unwraps the UMD module.exports (the Quill constructor) via esbuild interop.
 import Quill from "../../vendor/quill/quill.js"
+// Emitted as lazy/editor.css next to this bundle; loadLazy() links it.
+import "../../vendor/quill/quill.snow.css"
 
 // --- Quill setup: register custom formats once, before any editor mounts. ---
 // Default Quill strips alt from images; keep it (and the dimensions) so they survive

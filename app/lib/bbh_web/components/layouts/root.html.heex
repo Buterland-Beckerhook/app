@@ -42,10 +42,19 @@
       type="font/woff2"
       crossorigin
     />
-    <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
-    <%!-- Digested URLs of the bundles app.js loads on demand (assets/js/lazy.js). --%>
-    <meta name="bbh-lazy-editor" content={~p"/assets/js/lazy/editor.js"} />
-    <meta name="bbh-lazy-datepicker" content={~p"/assets/js/lazy/datepicker.js"} />
+    <link id="app-css" phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
+    <%!-- Digested URLs of the bundles app.js loads on demand (assets/js/lazy.js), with
+          the stylesheet esbuild emits next to a bundle that imports CSS. --%>
+    <meta
+      name="bbh-lazy-editor"
+      content={~p"/assets/js/lazy/editor.js"}
+      data-css={~p"/assets/js/lazy/editor.css"}
+    />
+    <meta
+      name="bbh-lazy-datepicker"
+      content={~p"/assets/js/lazy/datepicker.js"}
+      data-css={~p"/assets/js/lazy/datepicker.css"}
+    />
     <meta name="bbh-lazy-altcha" content={~p"/assets/js/lazy/altcha.js"} />
     <script
       defer

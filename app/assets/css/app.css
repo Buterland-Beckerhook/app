@@ -140,11 +140,11 @@
 /* Make LiveView wrapper divs transparent for layout */
 [data-phx-session], [data-phx-teleported-src] { display: contents }
 
-/* Quill 2 rich text editor styles (self-hosted, snow theme). */
-@import "../vendor/quill/quill.snow.css";
-
-/* flatpickr date/time picker styles (self-hosted). */
-@import "../vendor/flatpickr/flatpickr.min.css";
+/* Quill (snow theme) and flatpickr bring their own stylesheets with their lazy bundles
+   (assets/js/lazy/editor.js, datepicker.js), so public pages do not download them.
+   loadLazy() inserts them *before* this file, which keeps the overrides below
+   (.ql-editor headings, image classes, …) winning exactly as when they were
+   imported here. */
 
 /* Self-hosted webfonts (priv/static/fonts, GDPR — no font CDN). Latin subset
    covers German. Oranienbaum = display/headline face (the wordmark's original
