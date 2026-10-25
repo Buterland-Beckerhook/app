@@ -380,6 +380,65 @@ defmodule BbhWeb.PageContentControllerTest do
     end
   end
 
+  describe "trophy_table block" do
+    import Bbh.ClubFixtures
+
+    setup %{conn: conn} do
+      page = page_fixture(slug: "pokale", title: "Pokale", status: "published")
+      {:ok, _} = Bbh.Content.add_block(page, "trophy_table")
+      [{pb, _block}] = Bbh.Content.load_blocks(Bbh.Content.get_page!(page.id))
+
+      html = fn attrs ->
+        {:ok, _} = Bbh.Content.update_block(pb, attrs)
+        conn |> get(~p"/verein/pokale") |> html_response(200)
+      end
+
+      %{html: html}
+    end
+
+    defp trophy_table(markup) do
+      markup |> LazyHTML.from_document() |> LazyHTML.query(".bbh-trophy-table")
+    end
+
+    test "renders year × trophy with rings, a dash for a gap, and the records", %{html: html} do
+      t = trophy_fixture(name: "Schützenpokal", since: 1965, description: "Für alle.")
+      for y <- [2022, 2023, 2024], do: trophy_win_fixture(trophy: t, year: y, winner: "Anna")
+      trophy_win_fixture(trophy: t, year: 2026, winner: "Simon Sell", rings: 29)
+
+      table = html.(%{"show_records" => "true", "show_descriptions" => "true"}) |> trophy_table()
+      text = LazyHTML.text(table)
+
+      assert text =~ "Schützenpokal"
+      assert text =~ "Simon Sell (29)"
+      # 2025 had no winner: the row is there, with a dash.
+      assert text =~ "2025"
+      assert LazyHTML.query(table, ~s([aria-label="kein Sieger bekannt"])) |> Enum.count() == 1
+      assert text =~ "Rekordsieger"
+      assert text =~ "Anna (3×)"
+      assert text =~ "seit 1965"
+      assert text =~ "Für alle."
+    end
+
+    test "hides records and descriptions when switched off", %{html: html} do
+      t = trophy_fixture(name: "Königspokal", description: "Nur Könige.")
+      for y <- [2001, 2002, 2003], do: trophy_win_fixture(trophy: t, year: y, winner: "Anna")
+
+      text =
+        html.(%{"show_records" => "false", "show_descriptions" => "false"})
+        |> trophy_table()
+        |> LazyHTML.text()
+
+      assert text =~ "Anna"
+      refute text =~ "Rekordsieger"
+      refute text =~ "Nur Könige."
+    end
+
+    test "renders nothing without winners", %{html: html} do
+      trophy_fixture()
+      assert html.(%{}) |> trophy_table() |> Enum.empty?()
+    end
+  end
+
   describe "person_list block" do
     setup %{conn: conn} do
       page = page_fixture(slug: "personen", title: "Personen", status: "published")

@@ -283,6 +283,15 @@ defmodule BbhWeb.MCP.Tools.Articles do
   defp block_attrs("richtext", args), do: with_body(%{}, args)
   defp block_attrs("separator", _args), do: {:ok, %{}}
 
+  defp block_attrs("trophy_table", args) do
+    {:ok,
+     merge_take(%{}, args, %{
+       "title" => :title,
+       "show_records" => :show_records,
+       "show_descriptions" => :show_descriptions
+     })}
+  end
+
   defp block_attrs("alert", args) do
     %{} |> merge_take(args, %{"icon" => :icon}) |> with_body(args)
   end
