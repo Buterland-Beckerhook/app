@@ -456,17 +456,29 @@ defmodule Bbh.MediaTest do
   end
 
   describe "folders" do
-    test "creates two levels but rejects a third" do
-      {:ok, root} = Media.create_folder(%{"name" => "Dokumente"})
+    test "creates three levels but rejects a fourth" do
+      {:ok, root} = Media.create_folder(%{"name" => "Archiv"})
       assert is_nil(root.parent_id)
 
-      {:ok, sub} = Media.create_folder(%{"name" => "2026", "parent_id" => root.id})
-      assert sub.parent_id == root.id
+      {:ok, year} = Media.create_folder(%{"name" => "2026", "parent_id" => root.id})
+      assert year.parent_id == root.id
+
+      {:ok, category} = Media.create_folder(%{"name" => "Schützenfest", "parent_id" => year.id})
+      assert category.parent_id == year.id
 
       assert {:error, changeset} =
-               Media.create_folder(%{"name" => "zu-tief", "parent_id" => sub.id})
+               Media.create_folder(%{"name" => "zu-tief", "parent_id" => category.id})
 
-      assert %{parent_id: [_]} = errors_on(changeset)
+      assert %{parent_id: ["Ordner dürfen nur 3 Ebenen tief sein"]} = errors_on(changeset)
+    end
+
+    test "get_folder/1 loads the whole path for a third-level folder" do
+      {:ok, root} = Media.create_folder(%{"name" => "Archiv"})
+      {:ok, year} = Media.create_folder(%{"name" => "2026", "parent_id" => root.id})
+      {:ok, category} = Media.create_folder(%{"name" => "Schützenfest", "parent_id" => year.id})
+
+      assert ["Archiv", "2026", "Schützenfest"] ==
+               category.id |> Media.get_folder() |> Folder.path() |> Enum.map(& &1.name)
     end
 
     test "rejects duplicate names within the same parent" do
@@ -599,15 +611,34 @@ defmodule Bbh.MediaTest do
       assert [0, 1] == positions()
     end
 
-    test "refuses to nest a folder that has sub-folders of its own", ctx do
-      {:ok, _child} = Media.create_folder(%{"name" => "2026", "parent_id" => ctx.a.id})
+    test "nests a folder together with its sub-folders while the branch fits", ctx do
+      {:ok, child} = Media.create_folder(%{"name" => "2026", "parent_id" => ctx.a.id})
 
+      {:ok, moved} = Media.move_folder(ctx.a, ctx.b.id, 0)
+
+      assert moved.parent_id == ctx.b.id
+      assert Repo.get!(Folder, child.id).parent_id == ctx.a.id
+    end
+
+    test "refuses a move that would push a sub-folder past the cap", ctx do
+      {:ok, child} = Media.create_folder(%{"name" => "2026", "parent_id" => ctx.a.id})
+      {:ok, _grandchild} = Media.create_folder(%{"name" => "Fest", "parent_id" => child.id})
+
+      # A itself would land on level 2, which is fine — its grandchild on level 4 is not.
       assert {:error, changeset} = Media.move_folder(ctx.a, ctx.b.id, 0)
       assert %{parent_id: [_]} = errors_on(changeset)
 
       # Rolled back whole: neither the parent nor the ordering moved.
       assert Repo.get!(Folder, ctx.a.id).parent_id == nil
       assert ["A", "B", "C"] == names()
+    end
+
+    test "refuses to drop a folder into one of its own sub-folders", ctx do
+      {:ok, child} = Media.create_folder(%{"name" => "2026", "parent_id" => ctx.a.id})
+
+      assert {:error, changeset} = Media.move_folder(ctx.a, child.id, 0)
+      assert %{parent_id: ["Ordner kann nicht in sich selbst liegen" | _]} = errors_on(changeset)
+      assert Repo.get!(Folder, ctx.a.id).parent_id == nil
     end
 
     test "a malformed target id is rejected, not read as the top level", ctx do
@@ -651,12 +682,14 @@ defmodule Bbh.MediaTest do
       assert ["A", "B", "C"] == names()
     end
 
-    test "refuses to nest below the second level", ctx do
+    test "nests a leaf on the third level but refuses a fourth", ctx do
       {:ok, child} = Media.create_folder(%{"name" => "2026", "parent_id" => ctx.a.id})
+      {:ok, _} = Media.move_folder(ctx.b, child.id, 0)
+      assert Repo.get!(Folder, ctx.b.id).parent_id == child.id
 
-      assert {:error, changeset} = Media.move_folder(ctx.b, child.id, 0)
+      assert {:error, changeset} = Media.move_folder(ctx.c, ctx.b.id, 0)
       assert %{parent_id: [_]} = errors_on(changeset)
-      assert Repo.get!(Folder, ctx.b.id).parent_id == nil
+      assert Repo.get!(Folder, ctx.c.id).parent_id == nil
     end
   end
 
@@ -687,6 +720,32 @@ defmodule Bbh.MediaTest do
       # Summed from the direct counts, so the branch fold cannot double-count a parent.
       assert tree.total == 4
       assert tree.unfiled == 1
+    end
+
+    test "builds and counts the third level" do
+      {:ok, archiv} = Media.create_folder(%{"name" => "Archiv"})
+      {:ok, y2026} = Media.create_folder(%{"name" => "2026", "parent_id" => archiv.id})
+      {:ok, fest} = Media.create_folder(%{"name" => "Schützenfest", "parent_id" => y2026.id})
+
+      upload_fixture(folder_id: fest.id)
+      upload_fixture(folder_id: fest.id)
+      upload_fixture(folder_id: y2026.id)
+
+      tree = Media.list_folder_tree()
+
+      assert [%{children: [%{name: "2026", children: [%{name: "Schützenfest"}]}]}] = tree.roots
+      assert tree.counts[fest.id] == 2
+      assert tree.counts[y2026.id] == 3
+      assert tree.counts[archiv.id] == 3
+      assert tree.total == 3
+
+      assert Enum.sort([archiv.id, y2026.id, fest.id]) ==
+               Enum.sort(Media.branch_ids(tree, archiv.id))
+
+      assert [{"— Kein Ordner —", ""}, {"Archiv", _}, {"Archiv / 2026", _}, {label, _}] =
+               Media.folder_options(tree.roots)
+
+      assert label == "Archiv / 2026 / Schützenfest"
     end
 
     test "a parent whose pictures all live in its sub-folder counts them anyway" do
