@@ -44,15 +44,18 @@ defmodule BbhWeb.Admin.MediaLive.Index do
   defp scope_from("none"), do: :unfiled
   defp scope_from(id), do: Media.get_folder(id) || :all
 
-  defp reveal_scope(socket), do: reveal_parent(socket, socket.assigns.scope)
+  defp reveal_scope(socket), do: reveal(socket, socket.assigns.scope)
 
-  # Only a sub-folder can be out of sight, so its parent is unfolded. A top-level folder
-  # is left as the editor had it: the row is visible either way, and its files are in the
-  # grid regardless of whether the branch below it is open.
-  defp reveal_parent(socket, %Folder{parent_id: parent_id}) when not is_nil(parent_id),
-    do: assign(socket, :expanded, MapSet.put(socket.assigns.expanded, parent_id))
+  # Unfold every folder above this one, so its row is in sight. The folder's own branch is
+  # left as the editor had it: the row is visible either way, and its files are in the
+  # grid regardless of whether the branch below it is open. Needs the parent chain
+  # Media.get_folder/1 preloads.
+  defp reveal(socket, %Folder{} = folder) do
+    ancestors = folder |> Folder.path() |> Enum.drop(-1) |> Enum.map(& &1.id)
+    assign(socket, :expanded, MapSet.union(socket.assigns.expanded, MapSet.new(ancestors)))
+  end
 
-  defp reveal_parent(socket, _scope), do: socket
+  defp reveal(socket, _scope), do: socket
 
   defp load_tree(socket) do
     tree = Media.list_folder_tree()
@@ -75,36 +78,32 @@ defmodule BbhWeb.Admin.MediaLive.Index do
   defp folder_scope(:unfiled, _tree), do: :root
   defp folder_scope(%Folder{} = folder, tree), do: branch_ids(tree, folder)
 
-  # The folders a scope lists: the chosen one plus its sub-folders, so a folded branch
-  # hides nothing. Read off the already-loaded tree for the same reason
-  # `Media.folder_options/1` takes loaded roots — re-querying would double the preload on
-  # every folder change, upload, edit and drop. A sub-folder has no children (two-level
-  # cap); a folder gone between render and click stands for itself alone.
+  # The folders a scope lists: the chosen one plus everything below it, so a folded
+  # branch hides nothing. Read off the already-loaded tree for the same reason
+  # `Media.folder_options/1` takes loaded roots — re-querying would double the work on
+  # every folder change, upload, edit and drop.
   #
   # The price of reusing the tree: "filter" re-lists against the tree the last load_tree/1
   # left, so a sub-folder another admin created mid-session is missed until the editor
   # clicks anything. Self-healing, and this is a handful of editors, not a busy multi-tenant
   # app — but it is the one place the reuse is observable.
-  defp branch_ids(tree, %Folder{parent_id: nil, id: id}) do
-    case Enum.find(tree.roots, &(&1.id == id)) do
-      %Folder{children: children} -> [id | Enum.map(children, & &1.id)]
-      nil -> [id]
-    end
-  end
-
-  defp branch_ids(_tree, %Folder{id: id}), do: [id]
+  defp branch_ids(tree, %Folder{id: id}), do: Media.branch_ids(tree, id)
 
   # The folder an upload lands in. A sub-folder is a fine home for a file.
   defp folder_scope_id(%Folder{id: id}), do: id
   defp folder_scope_id(_scope), do: nil
 
-  # The parent a new folder is created under — *not* the same question. A sub-folder
-  # cannot take children (two-level cap), so creating while standing in one has to go to
-  # the top level. Reusing folder_scope_id/1 here handed the sub-folder's id to
+  # The parent a new folder is created under — *not* the same question. A folder on the
+  # deepest level cannot take children, so creating while standing in one has to go to
+  # the top level. Reusing folder_scope_id/1 here handed that folder's id to
   # create_folder/1, which then failed the depth check — while the hint under the form
   # had already promised the top level.
-  defp new_folder_parent_id(%Folder{parent_id: nil, id: id}), do: id
+  defp new_folder_parent_id(%Folder{id: id} = folder),
+    do: if(can_nest?(folder), do: id, else: nil)
+
   defp new_folder_parent_id(_scope), do: nil
+
+  defp can_nest?(folder), do: length(Folder.path(folder)) < Folder.max_depth()
 
   @impl true
   def handle_event("validate", _params, socket), do: {:noreply, socket}
@@ -188,10 +187,10 @@ defmodule BbhWeb.Admin.MediaLive.Index do
     do: {:noreply, assign(socket, :edit_mode, Map.has_key?(params, "edit"))}
 
   # `expanded` lives for the life of the socket, and this event is reachable by pushEvent
-  # and not only from the button the server rendered — so an id that is not a branch is
+  # and not only from the button the server rendered — so an id that is not a folder is
   # dropped rather than kept forever. That also keeps the ids of deleted folders from
   # collecting in it. Unlike the drop payloads there is nothing to validate the *shape* of:
-  # a non-id simply matches no root.
+  # a non-id simply matches no folder. `counts` has an entry for every folder in the tree.
   def handle_event("toggle_folder", %{"id" => id}, socket) do
     expanded = socket.assigns.expanded
 
@@ -199,7 +198,7 @@ defmodule BbhWeb.Admin.MediaLive.Index do
       MapSet.member?(expanded, id) ->
         {:noreply, assign(socket, :expanded, MapSet.delete(expanded, id))}
 
-      Enum.any?(socket.assigns.tree.roots, &(&1.id == id)) ->
+      Map.has_key?(socket.assigns.tree.counts, id) ->
         {:noreply, assign(socket, :expanded, MapSet.put(expanded, id))}
 
       true ->
@@ -245,17 +244,17 @@ defmodule BbhWeb.Admin.MediaLive.Index do
 
   # Dropped a folder onto/between others in the tree, or moved it with Alt+arrow. The
   # ids come from the browser, so everything is re-read and re-validated here; the
-  # two-level cap is enforced in Bbh.Media.Folder.move_changeset/4.
+  # depth cap is enforced in Bbh.Media.Folder.move_changeset/4.
   def handle_event("move_folder", %{"id" => id} = params, socket) do
     with %Folder{} = folder <- Media.get_folder(id),
          {:ok, moved} <- Media.move_folder(folder, params["parent_id"], params["position"]) do
-      # Unfold the new parent, or the folder just dragged in disappears the moment sorting
-      # is switched back off.
+      # Unfold the new parents, or the folder just dragged in disappears the moment sorting
+      # is switched back off. Re-read for the parent chain reveal/2 walks.
       listed = listed_folders(socket)
 
       {:noreply,
        socket
-       |> reveal_parent(moved)
+       |> reveal(Media.get_folder(moved.id))
        |> load_tree()
        |> reload_scope()
        |> reload_if_branch_changed(listed)}
@@ -390,15 +389,21 @@ defmodule BbhWeb.Admin.MediaLive.Index do
 
   defp scope_title(:all), do: "Alle Medien"
   defp scope_title(:unfiled), do: "Ohne Ordner"
-  defp scope_title(%Folder{parent: %Folder{name: parent}, name: name}), do: "#{parent} / #{name}"
-  defp scope_title(%Folder{name: name}), do: name
+
+  defp scope_title(%Folder{} = folder),
+    do: folder |> Folder.path() |> Enum.map_join(" / ", & &1.name)
 
   # Same folder, same wording as the heading above the grid — a sub-folder's bare name
   # is ambiguous when two parents both hold a "2026".
   defp upload_target(%Folder{} = folder), do: " · Ziel: #{scope_title(folder)}"
   defp upload_target(_scope), do: ""
 
-  defp new_folder_hint(%Folder{parent_id: nil, name: name}), do: "Neuer Unterordner in #{name}"
+  defp new_folder_hint(%Folder{} = folder) do
+    if can_nest?(folder),
+      do: "Neuer Unterordner in #{scope_title(folder)}",
+      else: "Neuer Ordner auf oberster Ebene"
+  end
+
   defp new_folder_hint(_scope), do: "Neuer Ordner auf oberster Ebene"
 
   @impl true
@@ -511,6 +516,7 @@ defmodule BbhWeb.Admin.MediaLive.Index do
         id="media-tree"
         phx-hook="MediaTree"
         data-edit-mode={to_string(@edit_mode)}
+        data-max-depth={Folder.max_depth()}
         aria-label="Ordner"
         aria-describedby={@edit_mode && "tree-keys"}
         class="mt-3"
@@ -544,11 +550,12 @@ defmodule BbhWeb.Admin.MediaLive.Index do
           </li>
           <.tree_branch
             :for={root <- @tree.roots}
-            root={root}
+            folder={root}
+            depth={1}
             counts={@tree.counts}
             scope={@scope}
             edit_mode={@edit_mode}
-            expanded={MapSet.member?(@expanded, root.id)}
+            expanded={@expanded}
           />
         </ul>
         <p :if={@tree.roots == []} class="mt-2 text-sm text-base-content/50">
@@ -656,32 +663,42 @@ defmodule BbhWeb.Admin.MediaLive.Index do
   defp selected?(%Folder{id: id}, %Folder{id: id}), do: true
   defp selected?(_scope, _folder), do: false
 
-  attr :root, Folder, required: true
+  attr :folder, Folder, required: true
+  # 1 on the top level. Carried down rather than looked up: the tree is rendered top-down
+  # anyway, and the hook needs it on every row to work out which drops fit under the cap.
+  attr :depth, :integer, required: true
   attr :counts, :map, required: true
   attr :scope, :any, required: true
   attr :edit_mode, :boolean, required: true
-  attr :expanded, :boolean, required: true
+  # The set of unfolded folder ids, passed whole: each level asks it about its own folder.
+  attr :expanded, MapSet, required: true
 
-  # One top-level folder and the sub-folders under it. A component rather than two nested
-  # loops in render/1 so the four facts about a branch — does it have children, is it
-  # folded, is it visible, can it be dragged — are each stated once. Spelled inline they
-  # were restated five times, with the list's `hidden` negating the row's `expanded`:
-  # exactly the shape where a later edit updates one and not the other.
+  # One folder and, recursively, the branch under it. A component rather than nested loops
+  # in render/1 so the four facts about a branch — does it have children, is it folded, is
+  # it visible, can it be dragged — are each stated once. Spelled inline they were
+  # restated five times, with the list's `hidden` negating the row's `expanded`: exactly
+  # the shape where a later edit updates one and not the other.
+  #
+  # The <li> carries `data-branch` so the hook can tell a row inside the dragged folder's
+  # own branch — a target that would hang the folder from itself — without stashing nodes.
   defp tree_branch(assigns) do
+    assigns = assign(assigns, :open, MapSet.member?(assigns.expanded, assigns.folder.id))
+
     ~H"""
-    <li class="pt-0.5">
+    <li class="pt-0.5" data-branch={@folder.id}>
       <.tree_row
-        patch={~p"/admin/medien?#{[folder: @root.id]}"}
+        patch={~p"/admin/medien?#{[folder: @folder.id]}"}
         icon="hero-folder"
-        label={@root.name}
-        count={Map.get(@counts, @root.id, 0)}
-        selected={selected?(@scope, @root)}
+        label={@folder.name}
+        count={Map.get(@counts, @folder.id, 0)}
+        selected={selected?(@scope, @folder)}
         accepts="folder media"
-        folder_id={@root.id}
-        parent_id=""
-        leaf={@root.children == []}
+        folder_id={@folder.id}
+        parent_id={@folder.parent_id || ""}
+        depth={@depth}
+        height={height(@folder)}
         draggable={@edit_mode}
-        expanded={@expanded}
+        expanded={@open}
       />
       <%!-- Folded with `hidden`, not `:if`: the list keeps existing, so the toggle's
             aria-controls always resolves and folding is an attribute patch rather than a
@@ -689,29 +706,29 @@ defmodule BbhWeb.Admin.MediaLive.Index do
             either — and in edit mode nothing is folded, which is what keeps the hook's
             siblings() measuring a fully visible level. --%>
       <ul
-        :if={@root.children != []}
-        id={"subfolders-#{@root.id}"}
+        :if={@folder.children != []}
+        id={"subfolders-#{@folder.id}"}
         data-subfolders
-        hidden={not (@edit_mode or @expanded)}
+        hidden={not (@edit_mode or @open)}
         class="ml-5 space-y-0.5 border-l border-base-300 pl-2"
       >
-        <li :for={child <- @root.children}>
-          <.tree_row
-            patch={~p"/admin/medien?#{[folder: child.id]}"}
-            icon="hero-folder"
-            label={child.name}
-            count={Map.get(@counts, child.id, 0)}
-            selected={selected?(@scope, child)}
-            accepts="folder media"
-            folder_id={child.id}
-            parent_id={@root.id}
-            draggable={@edit_mode}
-          />
-        </li>
+        <.tree_branch
+          :for={child <- @folder.children}
+          folder={child}
+          depth={@depth + 1}
+          counts={@counts}
+          scope={@scope}
+          edit_mode={@edit_mode}
+          expanded={@expanded}
+        />
       </ul>
     </li>
     """
   end
+
+  # Levels in the folder's branch, itself included: a leaf is 1.
+  defp height(%Folder{children: children}),
+    do: 1 + (children |> Enum.map(&height/1) |> Enum.max(fn -> 0 end))
 
   attr :patch, :string, required: true
   attr :icon, :string, required: true
@@ -723,9 +740,11 @@ defmodule BbhWeb.Admin.MediaLive.Index do
   attr :accepts, :string, default: ""
   attr :folder_id, :string, default: nil
   attr :parent_id, :string, default: nil
-  # A folder with sub-folders cannot be nested (two-level cap), so the hook refuses to
-  # offer "drop into" for it instead of letting the server reject the move afterwards.
-  attr :leaf, :boolean, default: true
+  # Where the row sits and how deep its branch goes. The hook adds them up against
+  # `data-max-depth` and refuses a drop that would push the branch past the cap, instead
+  # of letting the server reject the move afterwards.
+  attr :depth, :integer, default: nil
+  attr :height, :integer, default: 1
   # One slot in front of the label, three states: the grip while sorting, otherwise the
   # fold toggle if there is a branch to fold, otherwise a spacer keeping the rows aligned.
   attr :draggable, :boolean, default: false
@@ -734,7 +753,7 @@ defmodule BbhWeb.Admin.MediaLive.Index do
   defp tree_row(assigns) do
     # Derived, not passed: the grip and the toggle share one slot, so a caller able to ask
     # for both could render two and lose the spacer that keeps the level aligned.
-    assigns = assign(assigns, :expandable, not assigns.draggable and not assigns.leaf)
+    assigns = assign(assigns, :expandable, not assigns.draggable and assigns.height > 1)
 
     ~H"""
     <div
@@ -742,7 +761,8 @@ defmodule BbhWeb.Admin.MediaLive.Index do
       data-accepts={@accepts}
       data-folder-id={@folder_id}
       data-parent-id={@parent_id}
-      data-leaf={to_string(@leaf)}
+      data-depth={@depth}
+      data-height={@height}
       class={[
         "group relative flex items-center gap-1 rounded px-1 py-1",
         @selected && "bg-base-200 font-semibold"

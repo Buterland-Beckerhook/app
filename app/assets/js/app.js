@@ -43,7 +43,7 @@ import {step, nearestSlide} from "./slideshow.js"
 // URL slug generation from a title — mirrors Mix.Tasks.Bbh.Import.slugify/1.
 import {slugify} from "./slug.js"
 // Drop-target geometry and payload types for the admin media folder tree.
-import {dropIntent, FOLDER_TYPE, MEDIA_TYPE} from "./tree_dnd.js"
+import {dropIntent, fits, FOLDER_TYPE, MEDIA_TYPE} from "./tree_dnd.js"
 
 // base64url <-> ArrayBuffer helpers for the WebAuthn ceremony (credential ids,
 // challenges and signatures cross the wire as pad-less base64url strings).
@@ -304,9 +304,9 @@ const Hooks = {
   // would be dead after the first move. The container itself keeps its identity.
   //
   // The hook only draws the affordance and reports the move. Which moves are legal is
-  // decided server-side (Bbh.Media.Folder.move_changeset/4); the one rule mirrored here
-  // is the two-level cap, so an impossible nest is never offered in the first place
-  // rather than being flashed as an error after the drop.
+  // decided server-side (Bbh.Media.Folder.move_changeset/4); the rules mirrored here are
+  // the depth cap and "not into its own branch", so an impossible nest is never offered
+  // in the first place rather than being flashed as an error after the drop.
   //
   // Moving a folder needs "Ordner sortieren" on. For drags that needs no check: start()
   // begins at [data-drag-handle], and the grip is only rendered in that mode. The keys
@@ -342,8 +342,7 @@ const Hooks = {
       // detaches `row`, and node-identity comparisons would then quietly stop matching —
       // letting a folder be dropped on itself and skipping the index correction below.
       this.draggingId = row.dataset.folderId
-      this.draggingLeaf = row.dataset.leaf === "true"
-      this.draggingParentId = row.dataset.parentId
+      this.draggingHeight = Number(row.dataset.height)
 
       e.dataTransfer.effectAllowed = "move"
       e.dataTransfer.setData(FOLDER_TYPE, row.dataset.folderId)
@@ -391,8 +390,8 @@ const Hooks = {
     },
 
     // The row under the pointer, what is being dragged, and where it would land — or
-    // null when this is not a target at all (wrong payload, own row, view-only node,
-    // or a move the two-level cap forbids). Reads the dragged folder from hook state;
+    // null when this is not a target at all (wrong payload, own branch, view-only node,
+    // or a move the depth cap forbids). Reads the dragged folder from hook state;
     // both callers run before reset(), so there is nothing to thread through.
     resolveTarget(e) {
       const row = e.target.closest?.("[data-node]")
@@ -408,17 +407,21 @@ const Hooks = {
       if (!kind) return null
       if (!(row.dataset.accepts || "").split(" ").includes(kind)) return null
       if (kind === "media") return {row, kind, intent: "into"}
-      if (row.dataset.folderId === this.draggingId) return null
+      // The dragged folder's own row and every row below it: landing there would hang
+      // the folder from itself. Looked up fresh rather than stashed at dragstart, because
+      // a patch mid-drag replaces the nodes.
+      const branch = this.el.querySelector(`[data-branch="${this.draggingId}"]`)
+      if (branch?.contains(row)) return null
 
-      // A folder that has sub-folders can never change level — only reorder among its
-      // own siblings. Refusing the whole row (not just the "into" third) is what makes
-      // the affordance honest: dropping between two sub-folders would otherwise draw an
-      // insertion line and then be rejected by the server, because landing there means
-      // taking their parent.
-      if (!this.draggingLeaf && row.dataset.parentId !== this.draggingParentId) return null
+      // Dropping between two rows means taking their parent, one level above the row.
+      // When even that pushes the dragged branch past the cap, refuse the whole row (not
+      // just the "into" half) so no insertion line is drawn for a move the server would
+      // reject. "into" goes one level deeper still, so it fits only if "between" does.
+      const depth = Number(row.dataset.depth)
+      const max = Number(this.el.dataset.maxDepth)
+      if (!fits(depth - 1, this.draggingHeight, max)) return null
 
-      // Nesting additionally needs a top-level target: one level down is the limit.
-      const allowInto = row.dataset.parentId === "" && this.draggingLeaf
+      const allowInto = fits(depth, this.draggingHeight, max)
 
       return {row, kind, intent: dropIntent(row.getBoundingClientRect(), e.clientY, {allowInto})}
     },
@@ -450,7 +453,7 @@ const Hooks = {
 
     // Keyboard equivalent of the two drag gestures, so the tree is not drag-only:
     // Alt+Up/Down reorders among siblings, Alt+Right nests under the row above,
-    // Alt+Left lifts a sub-folder back to the top level.
+    // Alt+Left lifts a sub-folder out by one level, next to the folder it came from.
     key(e) {
       if (!e.altKey) return
       // Only while sorting is on. Not merely to match the grips: outside that mode folded
@@ -486,17 +489,23 @@ const Hooks = {
 
         case "ArrowRight": {
           const previous = siblings[index - 1]
-          if (parentId !== "" || !previous || row.dataset.leaf !== "true") return null
+          const max = Number(this.el.dataset.maxDepth)
+          if (!previous || !fits(Number(row.dataset.depth), Number(row.dataset.height), max)) {
+            return null
+          }
           const target = previous.dataset.folderId
           return {parent_id: target, position: this.siblings(target).length}
         }
 
         case "ArrowLeft": {
           if (!parentId) return null
-          const roots = this.siblings("")
-          const parentRow = roots.find(r => r.dataset.folderId === parentId)
+          const parentRow = this.el.querySelector(
+            `[data-node][data-folder-id="${parentId}"]`,
+          )
+          const grandparentId = parentRow?.dataset.parentId ?? ""
+          const level = this.siblings(grandparentId)
           // Land directly below the folder it came out of, not at the bottom.
-          return {parent_id: "", position: roots.indexOf(parentRow) + 1}
+          return {parent_id: grandparentId, position: level.indexOf(parentRow) + 1}
         }
 
         default:
@@ -506,8 +515,7 @@ const Hooks = {
 
     reset() {
       this.draggingId = null
-      this.draggingLeaf = false
-      this.draggingParentId = null
+      this.draggingHeight = 1
       this.clearMarkers()
     },
 

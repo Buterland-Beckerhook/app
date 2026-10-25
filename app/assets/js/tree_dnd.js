@@ -16,9 +16,9 @@ export const MEDIA_TYPE = "application/x-bbh-media"
  *
  * With nesting allowed the middle half means "into" and the outer quarters mean
  * "between" — a quarter is narrow enough that hitting it reads as deliberate. With
- * nesting refused (the row is already a sub-folder, or the dragged folder has children
- * of its own and the two-level cap forbids it) the row splits in half instead, so every
- * pixel still resolves to a reorder rather than a dead zone.
+ * nesting refused (the dragged branch would not fit under the row, see `fits`) the row
+ * splits in half instead, so every pixel still resolves to a reorder rather than a dead
+ * zone.
  *
  * @param {{top: number, height: number}} rect
  * @param {number} clientY
@@ -37,4 +37,19 @@ export function dropIntent(rect, clientY, {allowInto = true} = {}) {
   if (offset < height * 0.25) return "before"
   if (offset > height * 0.75) return "after"
   return "into"
+}
+
+/**
+ * Whether a folder whose branch is `height` levels deep (a leaf is 1) may hang below a
+ * folder on level `parentDepth` (0 = the top level itself) without its deepest folder
+ * passing `maxDepth`. Mirrors Bbh.Media.Folder.move_changeset/4; the server stays the
+ * authority, this only keeps an impossible drop from being offered.
+ *
+ * @param {number} parentDepth
+ * @param {number} height
+ * @param {number} maxDepth
+ * @returns {boolean}
+ */
+export function fits(parentDepth, height, maxDepth) {
+  return parentDepth + height <= maxDepth
 }

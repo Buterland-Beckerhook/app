@@ -1,7 +1,7 @@
 // Run with: node --test assets/js/tree_dnd.test.js  (no dependencies required)
 import {test} from "node:test"
 import assert from "node:assert/strict"
-import {dropIntent, FOLDER_TYPE, MEDIA_TYPE} from "./tree_dnd.js"
+import {dropIntent, fits, FOLDER_TYPE, MEDIA_TYPE} from "./tree_dnd.js"
 
 // A 20px-tall row starting at y=100: quarters at 105 and 115.
 const row = {top: 100, height: 20}
@@ -59,4 +59,19 @@ test("payload types are distinct and namespaced", () => {
   assert.notEqual(FOLDER_TYPE, MEDIA_TYPE)
   assert.match(FOLDER_TYPE, /^application\/x-bbh-/)
   assert.match(MEDIA_TYPE, /^application\/x-bbh-/)
+})
+
+test("a leaf fits on every level down to the cap", () => {
+  assert.equal(fits(0, 1, 3), true)
+  assert.equal(fits(2, 1, 3), true)
+  assert.equal(fits(3, 1, 3), false)
+})
+
+test("a branch brings its own levels along", () => {
+  // "2026" with categories inside: two levels, so it fits below a top-level folder but
+  // not below one on the second level, where the categories would land on a fourth.
+  assert.equal(fits(1, 2, 3), true)
+  assert.equal(fits(2, 2, 3), false)
+  assert.equal(fits(0, 3, 3), true)
+  assert.equal(fits(1, 3, 3), false)
 })
