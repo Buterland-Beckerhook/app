@@ -44,8 +44,10 @@ defmodule Bbh.Repo.Migrations.AddHonoraryMembers do
     {"Joachim Diekmann", 2021, nil, "König 1991/92."},
     {"Bernhard Schmeing", 2021, nil, "König 2006/07."},
     {"Alois Verst", 2021, nil, "König 1982/83, später Oberstleutnant."},
-    {"Hermann Thebelt", 2021, nil,
-     "König 1977/78 und 1993/94, Jubiläumskaiser 1984. Stifter des Königspokals."},
+    # Not the Jubiläumskaiser of 1984: the club had two Hermann Thebelts (the Königstreffen
+    # 2001 lists „Kaiser Hermann Thebelt und Hermann Thebelt"; the Kaiser was 86 in 2006).
+    # Which König years belong to whom is open, so no biography yet.
+    {"Hermann Thebelt", 2021, nil, nil},
     {"Josef Lütke-Glanemann", 2021, nil, nil},
     {"Norbert Wülker", 2022, nil,
      "Gehörte 31 Jahre dem Offizierscorps an, zuletzt als Oberstleutnant."},
