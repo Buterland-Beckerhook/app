@@ -274,7 +274,10 @@ defmodule BbhWeb.MCP.Tools do
       },
       %{
         name: "move_article_block",
-        description: "Move a block one position up or down within its article.",
+        description: """
+        Move a block within its article: one position "up" or "down", or straight to
+        the "top" or "bottom".
+        """,
         section: :articles,
         write?: true,
         handler: {Articles, :move_article_block},
@@ -282,7 +285,7 @@ defmodule BbhWeb.MCP.Tools do
           object(
             %{
               "block_id" => %{type: "string"},
-              "direction" => %{type: "string", enum: ["up", "down"]}
+              "direction" => %{type: "string", enum: ["up", "down", "top", "bottom"]}
             },
             ["block_id", "direction"]
           )

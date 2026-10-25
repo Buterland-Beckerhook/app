@@ -262,6 +262,36 @@ defmodule BbhWeb.Api.MCPControllerTest do
       assert first_id == second["id"]
     end
 
+    test "moves a block straight to the top or bottom", %{conn: conn, bearer: bearer} do
+      article = conn |> tool_call(bearer, "create_article", %{"title" => "X"}) |> tool_data()
+
+      for body <- ["eins", "zwei", "drei"] do
+        tool_call(conn, bearer, "add_article_block", %{
+          "article_id" => article["id"],
+          "type" => "richtext",
+          "body" => body
+        })
+      end
+
+      [a, b, c] =
+        conn
+        |> tool_call(bearer, "get_article", %{"article_id" => article["id"]})
+        |> tool_data()
+        |> Map.fetch!("blocks")
+        |> Enum.map(& &1["id"])
+
+      move = fn id, direction ->
+        conn
+        |> tool_call(bearer, "move_article_block", %{"block_id" => id, "direction" => direction})
+        |> tool_data()
+        |> Map.fetch!("blocks")
+        |> Enum.map(& &1["id"])
+      end
+
+      assert move.(c, "top") == [c, a, b]
+      assert move.(c, "bottom") == [a, b, c]
+    end
+
     test "a single newline stays one paragraph, a blank line starts a new one", %{
       conn: conn,
       bearer: bearer
@@ -333,7 +363,7 @@ defmodule BbhWeb.Api.MCPControllerTest do
                "block_id" => block["id"],
                "direction" => "sideways"
              })
-             |> tool_error() =~ ~s("up" or "down")
+             |> tool_error() =~ ~s("up", "down", "top" or "bottom")
     end
 
     test "creates and updates every block type", %{conn: conn, bearer: bearer} do
