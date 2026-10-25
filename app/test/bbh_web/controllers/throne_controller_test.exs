@@ -89,6 +89,19 @@ defmodule BbhWeb.ThroneControllerTest do
     refute html =~ "Jungkönig Jonas"
   end
 
+  test "the Thron menu links published Kaiser articles only", %{conn: conn} do
+    published = article_fixture(%{slug: "kaiserthron", title: "Kaiser 1984"})
+    draft = article_fixture(%{slug: "kaiserthron-entwurf", title: "Kaiser 1922", status: "draft"})
+    throne_fixture(type: "kaiser", begin_year: 1984, king: "Hermann Thebelt", article: published)
+    throne_fixture(type: "kaiser", begin_year: 1922, king: "Gerhard Agten", article: draft)
+
+    html = conn |> get(~p"/thron") |> html_response(200)
+
+    assert html =~ "Kaiserthron 1984"
+    # A draft has no public page — linking it would be a dead link in the menu.
+    refute html =~ "Kaiserthron 1922"
+  end
+
   test "GET /thron/stadtkaiser lists only Stadtkaiser with its own heading", %{conn: conn} do
     throne_fixture(type: "koenig", king: "König Karl")
     throne_fixture(type: "stadtkaiser", king: "Stadtkaiser Sven")

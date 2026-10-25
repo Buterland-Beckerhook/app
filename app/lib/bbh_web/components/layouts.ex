@@ -12,13 +12,14 @@ defmodule BbhWeb.Layouts do
   embed_templates "layouts/*"
 
   # The Thron dropdown, built per request: a König list, one direct link per Kaiser
-  # reign (rare — roughly every 25 years), and a filtered list per remaining type.
+  # reign (rare — roughly every 25 years), and a filtered list per remaining type. A
+  # Kaiser whose article is still a draft has no page to link to yet.
   defp thron_children do
     %{kaiser: kaiser, types_present: types} = Bbh.Content.throne_menu()
 
     kaiser_links =
       kaiser
-      |> Enum.filter(&(&1.article && !&1.article.no_article))
+      |> Enum.filter(&(&1.article && !&1.article.no_article && &1.article.status == "published"))
       |> Enum.map(fn t ->
         %{
           href: "/aktuell/#{t.article.year}/#{t.article.slug}",
