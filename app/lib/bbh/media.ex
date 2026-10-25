@@ -326,16 +326,29 @@ defmodule Bbh.Media do
   # dragged (they all sit at the position the migration gave them).
   @folder_order [asc: :position, asc: :name]
 
-  @doc "Top-level folders (parent_id nil), in editor order, with their sub-folders preloaded."
-  def list_root_folders do
-    children = from(c in Folder, order_by: ^@folder_order)
+  @doc """
+  Top-level folders (parent_id nil), in editor order, with `children` filled in all the
+  way down, every level in editor order.
 
-    Repo.all(
-      from f in Folder,
-        where: is_nil(f.parent_id),
-        order_by: ^@folder_order,
-        preload: [children: ^children]
-    )
+  One query for the whole table, assembled in memory: a nested preload would need one
+  query per level and a fixed depth spelled out in it, and the table is a handful of
+  rows. Assembling by `parent_id` also means a folder deeper than the cap (which the
+  changesets prevent, but a hand-edited row could create) still shows up in the tree
+  instead of stranding its media.
+  """
+  def list_root_folders do
+    by_parent =
+      from(f in Folder, order_by: ^@folder_order)
+      |> Repo.all()
+      |> Enum.group_by(& &1.parent_id)
+
+    attach_children(Map.get(by_parent, nil, []), by_parent)
+  end
+
+  defp attach_children(folders, by_parent) do
+    Enum.map(folders, fn folder ->
+      %{folder | children: attach_children(Map.get(by_parent, folder.id, []), by_parent)}
+    end)
   end
 
   @doc """
@@ -344,7 +357,7 @@ defmodule Bbh.Media do
   shown on every node.
 
   A count is the number the node actually lists when clicked, which since the branch
-  scope means a parent counts its sub-folders' files too. `counts` holds every folder,
+  scope means a folder counts the files of every folder below it too. `counts` holds every folder,
   `unfiled` the files in none. One grouped query covers the lot; per-node counting
   would be N+1.
   """
@@ -364,16 +377,37 @@ defmodule Bbh.Media do
     }
   end
 
-  defp branch_counts(roots, direct) do
-    Enum.reduce(roots, %{}, fn root, acc ->
-      children = Map.new(root.children, &{&1.id, Map.get(direct, &1.id, 0)})
-      own = Map.get(direct, root.id, 0)
+  defp branch_counts(folders, direct) do
+    Enum.reduce(folders, %{}, fn folder, acc ->
+      below = branch_counts(folder.children, direct)
+      children = folder.children |> Enum.map(&Map.fetch!(below, &1.id)) |> Enum.sum()
 
       acc
-      |> Map.merge(children)
-      |> Map.put(root.id, own + (children |> Map.values() |> Enum.sum()))
+      |> Map.merge(below)
+      |> Map.put(folder.id, Map.get(direct, folder.id, 0) + children)
     end)
   end
+
+  @doc """
+  The ids a folder's branch spans — the folder and every folder below it — read off a
+  loaded `list_folder_tree/0`. A folder missing from the tree (deleted since it was
+  loaded) stands for itself alone.
+  """
+  def branch_ids(%{roots: roots}, id) do
+    case find_folder(roots, id) do
+      %Folder{} = folder -> folder_and_descendant_ids(folder)
+      nil -> [id]
+    end
+  end
+
+  defp find_folder(folders, id) do
+    Enum.find_value(folders, fn folder ->
+      if folder.id == id, do: folder, else: find_folder(folder.children, id)
+    end)
+  end
+
+  defp folder_and_descendant_ids(%Folder{id: id, children: children}),
+    do: [id | Enum.flat_map(children, &folder_and_descendant_ids/1)]
 
   @doc """
   A flat, indented `{label, value}` option list of all folders (plus a "no folder"
@@ -384,21 +418,23 @@ defmodule Bbh.Media do
   every folder change, upload, edit and drop.
   """
   def folder_options(roots \\ list_root_folders()) do
-    [{"— Kein Ordner —", ""}] ++
-      Enum.flat_map(roots, fn root ->
-        [{root.name, root.id}] ++
-          Enum.map(root.children, fn child -> {"#{root.name} / #{child.name}", child.id} end)
-      end)
+    [{"— Kein Ordner —", ""} | folder_option_list(roots, "")]
+  end
+
+  # Labelled with the full path: a bare "2026" is ambiguous once two parents hold one.
+  defp folder_option_list(folders, prefix) do
+    Enum.flat_map(folders, fn folder ->
+      label = prefix <> folder.name
+      [{label, folder.id} | folder_option_list(folder.children, label <> " / ")]
+    end)
   end
 
   @doc """
   The sub-folders to offer while browsing `folder`: the root lists all top-level
-  folders, a top-level folder lists its children, and a second-level folder has none
-  (nesting is capped at two levels).
+  folders, any other folder its direct children (none on the deepest level).
   """
   def child_folders(nil), do: list_subfolders(nil)
-  def child_folders(%Folder{parent_id: nil, id: id}), do: list_subfolders(id)
-  def child_folders(%Folder{}), do: []
+  def child_folders(%Folder{id: id}), do: list_subfolders(id)
 
   @doc """
   Direct sub-folders of `parent_id` (nil = top level), in editor order.
@@ -420,7 +456,8 @@ defmodule Bbh.Media do
   end
 
   @doc """
-  Fetch a folder by id, with its parent preloaded, or `nil`.
+  Fetch a folder by id, with its whole parent chain preloaded (see `Folder.path/1`), or
+  `nil`.
 
   The id reaches this straight from a URL query string and from drag & drop payloads,
   so anything that is not a UUID is a miss rather than an `Ecto.Query.CastError`.
@@ -428,11 +465,16 @@ defmodule Bbh.Media do
   def get_folder(id) do
     with {:ok, uuid} <- cast_uuid(id),
          %Folder{} = folder <- Repo.get(Folder, uuid) do
-      Repo.preload(folder, :parent)
+      Repo.preload(folder, parent_chain())
     else
       _ -> nil
     end
   end
+
+  # `parent: [parent: …]`, one level short of the cap — the deepest folder has
+  # max_depth - 1 ancestors.
+  defp parent_chain,
+    do: Enum.reduce(3..Folder.max_depth()//1, :parent, fn _, acc -> [parent: acc] end)
 
   defp cast_uuid(id) when is_binary(id), do: Ecto.UUID.cast(id)
   defp cast_uuid(_id), do: :error
@@ -442,7 +484,7 @@ defmodule Bbh.Media do
   def change_folder(%Folder{} = folder \\ %Folder{}, attrs \\ %{}),
     do: Folder.changeset(folder, attrs)
 
-  @doc "Create a folder. `parent_id` nil = top level; nesting under a sub-folder is rejected."
+  @doc "Create a folder. `parent_id` nil = top level; nesting below the depth cap is rejected."
   def create_folder(attrs) do
     case normalize_parent_id(attrs["parent_id"] || attrs[:parent_id]) do
       {:ok, parent_id} -> do_create_folder(attrs, parent_id)
@@ -455,13 +497,13 @@ defmodule Bbh.Media do
       Repo.transaction(fn ->
         lock_folder_tree()
 
-        # Re-read under the lock rather than trusting a value read before it:
-        # move_folder/3 may be turning this very folder into a sub-folder, and the
-        # depth check has to see the outcome of that race, not the state before it.
-        parent = parent_id && Repo.get(Folder, parent_id)
+        # Read under the lock rather than trusting a value read before it: move_folder/3
+        # may be moving this very parent deeper, and the depth check has to see the
+        # outcome of that race, not the state before it.
+        tree = folder_index()
 
         %Folder{}
-        |> Folder.changeset(attrs, parent)
+        |> Folder.changeset(attrs, depth(tree, parent_id))
         # Neither is cast from `attrs`: the position is ours to assign (a new folder
         # belongs at the bottom of its level, not jumping to the top), and parent_id has
         # been through normalize_parent_id/1, which cast/3 would undo.
@@ -482,7 +524,7 @@ defmodule Bbh.Media do
 
   Both affected levels are renumbered: the target so the folder lands where it was
   dropped, the old one so it does not keep a gap. All of it in one transaction, so a
-  move the two-level cap forbids (`Folder.move_changeset/4`) leaves the tree untouched
+  move the depth cap forbids (`Folder.move_changeset/4`) leaves the tree untouched
   and returns `{:error, changeset}`.
   """
   def move_folder(%Folder{} = folder, parent_id, index) do
@@ -519,12 +561,14 @@ defmodule Bbh.Media do
         # Deleted between the caller's read and now — nothing left to move.
         locked = Repo.get(Folder, folder.id) || Repo.rollback(:not_found)
 
+        tree = folder_index()
+
         moved =
           locked
           |> Folder.move_changeset(
             %{parent_id: parent_id},
-            parent_id && Repo.get(Folder, parent_id),
-            children?(locked)
+            depth(tree, parent_id),
+            branch(tree, locked.id)
           )
           |> Repo.update()
           |> or_rollback()
@@ -589,7 +633,39 @@ defmodule Bbh.Media do
   defp set_folder_position!(id, position),
     do: Repo.update_all(from(f in Folder, where: f.id == ^id), set: [position: position])
 
-  defp children?(%Folder{id: id}), do: Repo.exists?(from f in Folder, where: f.parent_id == ^id)
+  # The shape of the tree as plain ids, for the depth checks of the writers above. Read
+  # whole and under the lock: a handful of rows, and a chain walked query by query could
+  # see a concurrent move halfway.
+  defp folder_index do
+    pairs = Repo.all(from f in Folder, select: {f.id, f.parent_id})
+
+    %{
+      parents: Map.new(pairs),
+      children: Enum.group_by(pairs, &elem(&1, 1), &elem(&1, 0))
+    }
+  end
+
+  # The level a folder sits on, the top level being 1 and "no folder" 0. An id that is
+  # not in the table counts as 0 too — the foreign key reports it with a proper message.
+  defp depth(_index, nil), do: 0
+
+  defp depth(index, id) do
+    case Map.fetch(index.parents, id) do
+      {:ok, parent_id} -> 1 + depth(index, parent_id)
+      :error -> 0
+    end
+  end
+
+  # A folder and everything below it: the ids, and how many levels deep it goes (a leaf
+  # is 1).
+  defp branch(index, id) do
+    below = index.children |> Map.get(id, []) |> Enum.map(&branch(index, &1))
+
+    %{
+      ids: [id | Enum.flat_map(below, & &1.ids)],
+      height: 1 + (below |> Enum.map(& &1.height) |> Enum.max(fn -> 0 end))
+    }
+  end
 
   defp next_folder_position(parent_id) do
     query = from f in Folder, select: max(f.position)

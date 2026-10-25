@@ -135,21 +135,50 @@ defmodule BbhWeb.Admin.MediaLiveTest do
                index_of(html, ~s(data-folder-id="#{aktuelles.id}"))
     end
 
-    test "creating from inside a sub-folder does what the hint promises", %{conn: conn} do
+    test "creating from inside a deepest-level folder does what the hint promises", %{conn: conn} do
       {:ok, presse} = Media.create_folder(%{"name" => "Presse"})
-      {:ok, child} = Media.create_folder(%{"name" => "2026", "parent_id" => presse.id})
+      {:ok, year} = Media.create_folder(%{"name" => "2026", "parent_id" => presse.id})
+      {:ok, child} = Media.create_folder(%{"name" => "Fest", "parent_id" => year.id})
 
       {:ok, lv, _html} = live(conn, ~p"/admin/medien?#{[folder: child.id]}")
       html = render_click(lv, "toggle_new_folder", %{})
 
-      # A sub-folder cannot take children, so the hint says top level — and the create
-      # has to agree instead of failing the depth check.
+      # The deepest level cannot take children, so the hint says top level — and the
+      # create has to agree instead of failing the depth check.
       assert html =~ "Neuer Ordner auf oberster Ebene"
 
       html = render_submit(lv, "create_folder", %{"name" => "Satzungen"})
 
-      refute html =~ "zwei Ebenen tief"
+      refute html =~ "Ebenen tief"
       assert %{parent_id: nil} = Enum.find(Media.list_subfolders(nil), &(&1.name == "Satzungen"))
+    end
+
+    test "creating from inside a second-level folder makes a third level", %{conn: conn} do
+      {:ok, archiv} = Media.create_folder(%{"name" => "Archiv"})
+      {:ok, year} = Media.create_folder(%{"name" => "2026", "parent_id" => archiv.id})
+
+      {:ok, lv, html} = live(conn, ~p"/admin/medien?#{[folder: year.id]}")
+      assert html =~ "Archiv / 2026"
+
+      html = render_click(lv, "toggle_new_folder", %{})
+      assert html =~ "Neuer Unterordner in Archiv / 2026"
+
+      html = render_submit(lv, "create_folder", %{"name" => "Schützenfest"})
+
+      assert ["Schützenfest"] == Media.list_subfolders(year.id) |> Enum.map(& &1.name)
+      # Rendered as a row of its own, one level further in.
+      assert html =~ ~s(data-depth="3")
+    end
+
+    test "opening a third-level folder unfolds every folder above it", %{conn: conn} do
+      {:ok, archiv} = Media.create_folder(%{"name" => "Archiv"})
+      {:ok, year} = Media.create_folder(%{"name" => "2026", "parent_id" => archiv.id})
+      {:ok, fest} = Media.create_folder(%{"name" => "Fest", "parent_id" => year.id})
+
+      {:ok, lv, _html} = live(conn, ~p"/admin/medien?#{[folder: fest.id]}")
+
+      refute has_element?(lv, "#subfolders-#{archiv.id}[hidden]")
+      refute has_element?(lv, "#subfolders-#{year.id}[hidden]")
     end
 
     test "creating from inside a top-level folder makes a sub-folder", %{conn: conn} do
@@ -528,10 +557,11 @@ defmodule BbhWeb.Admin.MediaLiveTest do
       assert Media.get_folder(b.id).parent_id == a.id
     end
 
-    test "a move the two-level cap forbids flashes an error and changes nothing", %{conn: conn} do
+    test "a move the depth cap forbids flashes an error and changes nothing", %{conn: conn} do
       {:ok, a} = Media.create_folder(%{"name" => "A"})
       {:ok, b} = Media.create_folder(%{"name" => "B"})
-      {:ok, _child} = Media.create_folder(%{"name" => "2026", "parent_id" => a.id})
+      {:ok, child} = Media.create_folder(%{"name" => "2026", "parent_id" => a.id})
+      {:ok, _} = Media.create_folder(%{"name" => "Fest", "parent_id" => child.id})
 
       {:ok, lv, _html} = live(conn, ~p"/admin/medien")
       html = render_hook(lv, "move_folder", %{"id" => a.id, "parent_id" => b.id, "position" => 0})

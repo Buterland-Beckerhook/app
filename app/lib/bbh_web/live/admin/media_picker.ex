@@ -267,10 +267,9 @@ defmodule BbhWeb.Admin.MediaPicker do
     """
   end
 
-  # Folder path for the breadcrumb, root → current. Nesting is capped at two levels
-  # (Bbh.Media.Folder), so a parent plus the folder itself is the whole trail.
-  defp folder_crumbs(%Folder{parent: %Folder{} = parent} = folder), do: [parent, folder]
-  defp folder_crumbs(%Folder{} = folder), do: [folder]
+  # Folder path for the breadcrumb, root → current, off the parent chain
+  # Media.get_folder/1 preloads.
+  defp folder_crumbs(%Folder{} = folder), do: Folder.path(folder)
   defp folder_crumbs(_folder), do: []
 
   defp empty_label("", nil), do: "Noch keine Dateien außerhalb von Ordnern."

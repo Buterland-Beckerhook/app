@@ -17,3 +17,4 @@ what (the code shows the what). One file per decision, numbered.
 - [0012](0012-postgres-major-upgrade-by-dump-and-restore.md) — Postgres majors move by dump & restore into a new volume; the old one stays as the rollback
 - [0013](0013-richtext-images-enriched-at-render.md) — Rich-text images are stored bare and enriched at render time
 - [0014](0014-self-hosted-osm-map.md) — The event map is a self-hosted PMTiles extract, fetched by the app itself
+- [0015](0015-media-folders-three-levels.md) — Media folders go three levels deep, and the cap is one number
