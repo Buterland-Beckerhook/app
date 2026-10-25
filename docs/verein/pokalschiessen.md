@@ -118,8 +118,9 @@ wo ein Bericht sie nennt (max. 30). `–` = Pokal gab es noch nicht / nicht verg
 ### Auffälligkeiten (für eine spätere Statistik)
 
 - Rekord Schützenpokal: **Bernhard Wermert, 8×** (1983, 1985, 1989, 1990, 1993, 1996, 2002, 2005).
-- Rekord Königspokal: **Michael Wessendorf, 5×** (1998, 2002, 2005, 2007, 2013) – 2024 dazu Seniorenpokal.
+- Rekord Königspokal: **Michael Wessendorf, 6×** (1998, 2002, 2005, 2007, 2013, 2024) – 2024 zugleich Seniorenpokal.
 - Rekord Seniorenpokal: **Eduard Nickisch, 5×** (1986, 1990–1992, 1994).
+- Rekord Biwakpokal: **Gerd Lübbers** (2001, 2005, 2006, 2017) und **Günter Wenker** (1983, 1986, 1993, 2012), je 4×.
 - Juniorenpokal je 4×: Klaus-Dieter Haupt (1972, 1975–1977), Bernhard de Boer jun. (1978–1980, 1982).
 - Doppelsieg in einem Jahr: Günter Wenker 2012 (Senioren + Biwak), Joachim Diekmann 2004
   (Schützen + König), Michael Wessendorf 2024 (Senioren + König).
@@ -132,7 +133,9 @@ wo ein Bericht sie nennt (max. 30). `–` = Pokal gab es noch nicht / nicht verg
 3. **Juniorenpokal 2026** fehlt im Bericht (nicht vergeben?).
 4. **Anfangsjahre**: Schützenpokal 1965–1968, Juniorenpokal 1966–1968, Biwak 1975/76,
    Seniorenpokal 1981 – evtl. in Protokollbüchern oder auf den Pokalen selbst (Gravur!).
-5. **Namensschreibweisen vereinheitlichen** (Quelle schreibt uneinheitlich):
+5. **Namensschreibweisen vereinheitlichen** (Quelle schreibt uneinheitlich; beim Import
+   in die Website vereinheitlicht: Wessendorf, Klaus-Dieter Haupt, Oude Lansink,
+   Torsten Arnzen, Gerd Duesmann, „Jan Achteresch" 2019 wie gedruckt):
    „Michael Wesendorf" (1997) → Wessendorf; „Gerd/Gerhard Duesmann"; „Henrick/Hendrick
    Schmidt"; „Heiko Oude Lansink/Oude-Lansink"; „Torsten/Thorsten Arnzen";
    „Bernd/Bernhard Schmeing"; „Jan/Jan-Hendrik Achteresch" (2019);
