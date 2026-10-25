@@ -555,6 +555,21 @@ defmodule Bbh.ContentTest do
       assert ids(gallery) == [c.id, a.id, b.id]
     end
 
+    test "moving to the edge jumps over every neighbour", %{gallery: gallery} do
+      {:ok, a} = Content.add_gallery_file(gallery, upload_fixture().id)
+      {:ok, b} = Content.add_gallery_file(gallery, upload_fixture().id)
+      {:ok, c} = Content.add_gallery_file(gallery, upload_fixture().id)
+
+      assert {:ok, _} = Content.move_gallery_file(gallery.id, c, :top)
+      assert ids(gallery) == [c.id, a.id, b.id]
+
+      assert {:ok, _} = Content.move_gallery_file(gallery.id, c, :bottom)
+      assert ids(gallery) == [a.id, b.id, c.id]
+
+      assert {:ok, :noop} = Content.move_gallery_file(gallery.id, a, :top)
+      assert {:ok, :noop} = Content.move_gallery_file(gallery.id, c, :bottom)
+    end
+
     test "moving past the edge is a no-op", %{gallery: gallery} do
       {:ok, a} = Content.add_gallery_file(gallery, upload_fixture().id)
       {:ok, b} = Content.add_gallery_file(gallery, upload_fixture().id)

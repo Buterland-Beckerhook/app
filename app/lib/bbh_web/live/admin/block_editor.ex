@@ -43,6 +43,15 @@ defmodule BbhWeb.Admin.BlockEditor do
 
   def normalize_block(_type, params), do: params
 
+  @doc """
+  The `:up | :down | :top | :bottom` a move button's `phx-value-dir` stands for.
+  Anything unknown counts as one step down, as before the edge buttons existed.
+  """
+  def move_direction("top"), do: :top
+  def move_direction("up"), do: :up
+  def move_direction("bottom"), do: :bottom
+  def move_direction(_), do: :down
+
   @doc "The full block-editor section for a page or article."
   attr :blocks, :list, required: true
 
@@ -66,8 +75,20 @@ defmodule BbhWeb.Admin.BlockEditor do
                 class="btn btn-ghost btn-xs"
                 phx-click="move"
                 phx-value-pb_id={pb.id}
+                phx-value-dir="top"
+                disabled={i == 0}
+                aria-label="Ganz nach oben"
+                title="Ganz nach oben"
+              >⤒</button>
+              <button
+                type="button"
+                class="btn btn-ghost btn-xs"
+                phx-click="move"
+                phx-value-pb_id={pb.id}
                 phx-value-dir="up"
                 disabled={i == 0}
+                aria-label="Nach oben"
+                title="Nach oben"
               >↑</button>
               <button
                 type="button"
@@ -76,7 +97,19 @@ defmodule BbhWeb.Admin.BlockEditor do
                 phx-value-pb_id={pb.id}
                 phx-value-dir="down"
                 disabled={i == length(@blocks) - 1}
+                aria-label="Nach unten"
+                title="Nach unten"
               >↓</button>
+              <button
+                type="button"
+                class="btn btn-ghost btn-xs"
+                phx-click="move"
+                phx-value-pb_id={pb.id}
+                phx-value-dir="bottom"
+                disabled={i == length(@blocks) - 1}
+                aria-label="Ganz nach unten"
+                title="Ganz nach unten"
+              >⤓</button>
               <button
                 type="button"
                 class="btn btn-ghost btn-xs text-error"
@@ -423,22 +456,44 @@ defmodule BbhWeb.Admin.BlockEditor do
             <div class="flex">
               <button
                 type="button"
-                class="btn btn-ghost btn-xs"
+                class="btn btn-ghost btn-xs px-1.5"
+                phx-click="move_gallery_file"
+                phx-value-file_id={file.id}
+                phx-value-dir="top"
+                disabled={i == 0}
+                aria-label="Ganz nach vorne"
+                title="Ganz nach vorne"
+              >⤒</button>
+              <button
+                type="button"
+                class="btn btn-ghost btn-xs px-1.5"
                 phx-click="move_gallery_file"
                 phx-value-file_id={file.id}
                 phx-value-dir="up"
                 disabled={i == 0}
                 aria-label="Nach vorne"
+                title="Nach vorne"
               >↑</button>
               <button
                 type="button"
-                class="btn btn-ghost btn-xs"
+                class="btn btn-ghost btn-xs px-1.5"
                 phx-click="move_gallery_file"
                 phx-value-file_id={file.id}
                 phx-value-dir="down"
                 disabled={i == length(@block.files) - 1}
                 aria-label="Nach hinten"
+                title="Nach hinten"
               >↓</button>
+              <button
+                type="button"
+                class="btn btn-ghost btn-xs px-1.5"
+                phx-click="move_gallery_file"
+                phx-value-file_id={file.id}
+                phx-value-dir="bottom"
+                disabled={i == length(@block.files) - 1}
+                aria-label="Ganz nach hinten"
+                title="Ganz nach hinten"
+              >⤓</button>
             </div>
             <button
               type="button"

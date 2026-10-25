@@ -1,7 +1,7 @@
 defmodule BbhWeb.Admin.ArticleLive.Form do
   use BbhWeb, :live_view
 
-  import BbhWeb.Admin.BlockEditor, only: [block_editor: 1, normalize_block: 2]
+  import BbhWeb.Admin.BlockEditor, only: [block_editor: 1, normalize_block: 2, move_direction: 1]
 
   alias Bbh.Content
   alias Bbh.Content.{Article, Throne}
@@ -106,7 +106,7 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
 
   def handle_event("move_gallery_file", %{"file_id" => file_id, "dir" => dir}, socket) do
     file = Content.get_gallery_file!(file_id)
-    direction = if dir == "up", do: :up, else: :down
+    direction = move_direction(dir)
 
     case Content.move_gallery_file(file.gallery_id, file, direction) do
       {:ok, _} ->
@@ -118,7 +118,7 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
   end
 
   def handle_event("move", %{"pb_id" => pb_id, "dir" => dir}, socket) do
-    direction = if dir == "up", do: :up, else: :down
+    direction = move_direction(dir)
 
     case Content.move_block(find_pb(socket, pb_id), direction) do
       {:ok, _} ->
