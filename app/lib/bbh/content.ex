@@ -530,7 +530,7 @@ defmodule Bbh.Content do
   def delete_gallery_file(%Blocks.GalleryFile{} = file),
     do: file |> Repo.delete() |> Bbh.Search.reindex_after()
 
-  @doc "Move a gallery image one step in the given direction (:up | :down)."
+  @doc "Move a gallery image one step (:up | :down) or to the edge (:top | :bottom)."
   def move_gallery_file(gallery_id, %Blocks.GalleryFile{} = file, direction) do
     files = list_gallery_files(gallery_id)
     reorder(files, Enum.find_index(files, &(&1.id == file.id)), direction, &set_gallery_sort!/2)
@@ -736,7 +736,7 @@ defmodule Bbh.Content do
     Repo.transaction(fn -> delete_block!(pb) end) |> Bbh.Search.reindex_after()
   end
 
-  @doc "Move a block one step in the given direction (:up | :down) within its owner."
+  @doc "Move a block one step (:up | :down) or to the edge (:top | :bottom) within its owner."
   def move_block(pb, direction) do
     {join, key, owner_id} = block_join_of(pb)
     blocks = Repo.all(from x in join, where: field(x, ^key) == ^owner_id, order_by: x.position)
@@ -753,7 +753,7 @@ defmodule Bbh.Content do
   # Bbh.Ordering for why the whole list is renumbered instead of two values swapped,
   # and for the unique-index constraint that follows from it.
   defp reorder(items, idx, direction, write_position),
-    do: Bbh.Ordering.move_step(items, idx, direction, write_position)
+    do: Bbh.Ordering.move(items, idx, direction, write_position)
 
   defp delete_block!(pb) do
     schema = Blocks.schema_for(pb.block_type)

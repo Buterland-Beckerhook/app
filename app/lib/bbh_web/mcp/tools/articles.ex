@@ -237,7 +237,9 @@ defmodule BbhWeb.MCP.Tools.Articles do
     case Args.string(args, "direction") do
       "up" -> {:ok, :up}
       "down" -> {:ok, :down}
-      _ -> {:error, ~s(Argument "direction" must be "up" or "down".)}
+      "top" -> {:ok, :top}
+      "bottom" -> {:ok, :bottom}
+      _ -> {:error, ~s(Argument "direction" must be "up", "down", "top" or "bottom".)}
     end
   end
 

@@ -36,15 +36,22 @@ defmodule Bbh.Ordering do
   end
 
   @doc """
-  Move the item at `idx` one step (`:up` | `:down`) and renumber.
+  Move the item at `idx` one step (`:up` | `:down`) or to the edge (`:top` |
+  `:bottom`) and renumber.
 
   `idx` is `nil` when the row is not in the list at all — a stale id, or a row
   belonging to another parent — which must not blow up on the arithmetic.
   """
-  def move_step(items, idx, direction, write_position) when is_integer(idx) do
-    to = if direction == :up, do: idx - 1, else: idx + 1
+  def move(items, idx, direction, write_position) when is_integer(idx) do
+    to =
+      case direction do
+        :up -> idx - 1
+        :down -> idx + 1
+        :top -> 0
+        :bottom -> length(items) - 1
+      end
 
-    if to >= 0 and to < length(items) do
+    if to != idx and to >= 0 and to < length(items) do
       items
       |> List.delete_at(idx)
       |> List.insert_at(to, Enum.at(items, idx))
@@ -55,5 +62,5 @@ defmodule Bbh.Ordering do
     end
   end
 
-  def move_step(_items, _idx, _direction, _write_position), do: {:error, :not_found}
+  def move(_items, _idx, _direction, _write_position), do: {:error, :not_found}
 end

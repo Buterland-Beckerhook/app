@@ -167,6 +167,14 @@ defmodule BbhWeb.Admin.PageLiveTest do
       assert Enum.map(gallery_files(ctx.page), & &1.media.filename) == ["zwei.webp", "eins.webp"]
 
       ctx.lv
+      |> element(
+        ~s(button[phx-click="move_gallery_file"][phx-value-file_id="#{b.id}"][phx-value-dir="bottom"])
+      )
+      |> render_click()
+
+      assert Enum.map(gallery_files(ctx.page), & &1.media.filename) == ["eins.webp", "zwei.webp"]
+
+      ctx.lv
       |> element(~s(button[phx-click="remove_gallery_file"][phx-value-file_id="#{b.id}"]))
       |> render_click()
 
