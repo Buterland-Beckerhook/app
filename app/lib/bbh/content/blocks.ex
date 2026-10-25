@@ -13,7 +13,8 @@ defmodule Bbh.Content.Blocks do
     "image_gallery" => __MODULE__.ImageGallery,
     "person_list" => __MODULE__.PersonList,
     "separator" => __MODULE__.Separator,
-    "event" => __MODULE__.Event
+    "event" => __MODULE__.Event,
+    "trophy_table" => __MODULE__.TrophyTable
   }
 
   def types, do: @types
@@ -183,6 +184,26 @@ defmodule Bbh.Content.Blocks do
 
     # No editable fields; the no-op changeset keeps the shared admin form/save path happy.
     def changeset(block, _attrs), do: change(block)
+  end
+
+  defmodule TrophyTable do
+    @moduledoc """
+    „Pokalsieger": every winner of every trophy, year × trophy, read live from
+    `Bbh.Club` — so a new winner entered under Pokale shows up without touching the page.
+    """
+    use Bbh.Schema
+
+    schema "block_trophy_table" do
+      field :title, :string
+      # „Rekordsieger": per trophy, who won it most often (from three wins on).
+      field :show_records, :boolean, default: true
+      # Each trophy's „seit" and description (who may shoot, who donated it).
+      field :show_descriptions, :boolean, default: false
+      timestamps()
+    end
+
+    def changeset(block, attrs),
+      do: cast(block, attrs, [:title, :show_records, :show_descriptions])
   end
 
   defmodule PersonList do

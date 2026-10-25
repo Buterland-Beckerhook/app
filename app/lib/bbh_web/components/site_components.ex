@@ -502,6 +502,23 @@ defmodule BbhWeb.SiteComponents do
     """
   end
 
+  # One Pokalsieger cell: the winner, the rings when a report named them, a dash for
+  # „no winner known" (not shot yet, no shooting that year, or a gap in the records).
+  attr :win, :any, required: true
+
+  defp trophy_cell(%{win: nil} = assigns) do
+    ~H"""
+    <span class="text-muted" aria-label="kein Sieger bekannt">–</span>
+    """
+  end
+
+  defp trophy_cell(assigns) do
+    ~H"""
+    {@win.winner}<span :if={@win.rings} class="text-muted"> ({@win.rings})</span>
+    <span :if={@win.note} class="block text-xs text-muted">{@win.note}</span>
+    """
+  end
+
   @doc """
   How to subscribe to the public events feed: one tap for Apple Kalender / Outlook
   (`webcal://`), the address to paste for Google. Shown on `/termine` and in the
@@ -743,6 +760,68 @@ defmodule BbhWeb.SiteComponents do
         show_address={@block.show_address}
       />
     </div>
+    """
+  end
+
+  # Read live from `Bbh.Club`: a winner entered under „Pokale" shows up on every page that
+  # carries this block, without editing it.
+  def block(%{type: "trophy_table"} = assigns) do
+    %{trophies: trophies, rows: rows} = Bbh.Club.trophy_table()
+
+    assigns =
+      assign(assigns,
+        trophies: trophies,
+        rows: rows,
+        records: if(assigns.block.show_records, do: Bbh.Club.trophy_records(), else: [])
+      )
+
+    ~H"""
+    <section :if={@rows != []} class="bbh-trophy-table">
+      <h3 :if={@block.title} class="mb-2 text-lg font-semibold">{@block.title}</h3>
+      <%!-- Five trophies do not fit a phone: the table scrolls sideways inside its own
+            box, with the year column pinned so a row stays readable. --%>
+      <div class="overflow-x-auto rounded-[18px] border border-base-300">
+        <table class="w-full text-left text-sm">
+          <thead class="bg-base-200">
+            <tr>
+              <th scope="col" class="sticky left-0 bg-base-200 px-3 py-2">Jahr</th>
+              <th :for={t <- @trophies} scope="col" class="whitespace-nowrap px-3 py-2">
+                {t.name}
+              </th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-base-300">
+            <tr :for={{year, wins} <- @rows}>
+              <th scope="row" class="sticky left-0 bg-card px-3 py-2 font-medium tabular-nums">
+                {year}
+              </th>
+              <td :for={t <- @trophies} class="whitespace-nowrap px-3 py-2">
+                <.trophy_cell win={wins[t.id]} />
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div :if={@records != []} class="mt-6">
+        <h4 class="font-semibold">Rekordsieger</h4>
+        <ul class="mt-2 space-y-1 text-sm">
+          <li :for={{trophy, count, names} <- @records}>
+            <span class="font-medium">{trophy.name}:</span>
+            {Enum.join(names, ", ")} ({count}×)
+          </li>
+        </ul>
+      </div>
+
+      <dl :if={@block.show_descriptions} class="mt-6 space-y-3 text-sm">
+        <div :for={t <- @trophies}>
+          <dt class="font-medium">
+            {t.name}<span :if={t.since} class="text-muted"> · seit {t.since}</span>
+          </dt>
+          <dd :if={t.description} class="text-muted">{t.description}</dd>
+        </div>
+      </dl>
+    </section>
     """
   end
 

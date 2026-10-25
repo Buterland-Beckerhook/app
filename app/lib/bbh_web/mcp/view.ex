@@ -102,6 +102,9 @@ defmodule BbhWeb.MCP.View do
   defp block_fields("alert", b), do: %{icon: b.icon, body: b.body}
   defp block_fields("separator", _b), do: %{}
 
+  defp block_fields("trophy_table", b),
+    do: %{title: b.title, show_records: b.show_records, show_descriptions: b.show_descriptions}
+
   defp block_fields("media_card", b) do
     %{
       title: b.title,

@@ -125,6 +125,22 @@ timed child event (`parent_id`, one level deep). Rules that constrain changes:
   until 06:00 after the last day) and festivals around their items. `make seed-demo`
   adds a demo festival; walk through it with `/dev/zeitreise`.
 
+## Pokale (trophy winners)
+
+Every year's winners of the club's trophies live in `trophies` / `trophy_wins`
+(`Bbh.Club`, admin at `/admin/pokale`) and reach the site only through the
+„Pokalsieger" content block (`Bbh.Content.Blocks.TrophyTable`), which reads them live.
+
+- **Winners are plain names**, like `thrones` — no link to `people`, which only holds
+  office bearers.
+- **One winner per trophy and year** (unique index); the table is year × trophy and
+  shows every year in its range, so a gap stays visible.
+- A trophy with winners cannot be deleted (`on_delete: :restrict`, refused in
+  `Club.delete_trophy/1`).
+- The history 1969–2026 came in once via `priv/repo/data/pokalsieger.tsv`
+  (`20261025150100_import_trophy_winners`); the source with gaps and caveats is
+  `docs/verein/pokalschiessen.md`.
+
 ## E-mail addresses
 
 Addresses are stored in the clear and obfuscated **at render time** — never write one

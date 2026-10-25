@@ -647,7 +647,8 @@ defmodule Bbh.Content do
       only_active: false
     },
     "separator" => %{},
-    "event" => %{show_header: true, show_body: false, show_programme: true}
+    "event" => %{show_header: true, show_body: false, show_programme: true},
+    "trophy_table" => %{title: "Pokalsieger", show_records: true, show_descriptions: false}
   }
 
   @doc "Append a new, empty block of the given type to an owner (page or article)."

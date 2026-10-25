@@ -253,6 +253,12 @@ defmodule BbhWeb.Router do
       live "/personen/neu", PersonLive.Form, :new
       live "/personen/:id/bearbeiten", PersonLive.Form, :edit
 
+      live "/pokale", TrophyLive.Index, :index
+      live "/pokale/neu", TrophyLive.TrophyForm, :new
+      live "/pokale/:id/bearbeiten", TrophyLive.TrophyForm, :edit
+      live "/pokale/sieger/neu", TrophyLive.WinForm, :new
+      live "/pokale/sieger/:id/bearbeiten", TrophyLive.WinForm, :edit
+
       live "/medien", MediaLive.Index, :index
 
       live "/seiten", PageLive.Index, :index

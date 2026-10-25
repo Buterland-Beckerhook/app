@@ -23,7 +23,8 @@ defmodule BbhWeb.Admin.BlockEditor do
     {"Galerie", "image_gallery"},
     {"Personenliste", "person_list"},
     {"Trennlinie", "separator"},
-    {"Termin", "event"}
+    {"Termin", "event"},
+    {"Pokalsieger", "trophy_table"}
   ]
 
   @doc "The block types offered in the add-block picker as `{label, value}` tuples."
@@ -230,6 +231,22 @@ defmodule BbhWeb.Admin.BlockEditor do
         </label>
       </div>
     </fieldset>
+    """
+  end
+
+  def block_fields(%{type: "trophy_table"} = assigns) do
+    ~H"""
+    <.input field={@f[:title]} label="Titel" />
+    <.input field={@f[:show_records]} type="checkbox" label="Rekordsieger anzeigen" />
+    <.input
+      field={@f[:show_descriptions]}
+      type="checkbox"
+      label="Pokale beschreiben (seit wann, wer schießen darf)"
+    />
+    <p class="text-xs text-base-content/60">
+      Zeigt alle Sieger aus „Pokale“ – neue Sieger dort eintragen, der Block ist dann
+      sofort aktuell.
+    </p>
     """
   end
 
@@ -469,5 +486,6 @@ defmodule BbhWeb.Admin.BlockEditor do
   defp block_label("person_list"), do: "Personenliste"
   defp block_label("separator"), do: "Trennlinie"
   defp block_label("event"), do: "Termin"
+  defp block_label("trophy_table"), do: "Pokalsieger"
   defp block_label(other), do: other
 end

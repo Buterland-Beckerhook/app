@@ -403,6 +403,7 @@ defmodule BbhWeb.Layouts do
     {:shares, "/admin/termine/teilen", "Kalender teilen"},
     {:locations, "/admin/orte", "Orte"},
     {:people, "/admin/personen", "Personen"},
+    {:trophies, "/admin/pokale", "Pokale"},
     {:pages, "/admin/seiten", "Seiten"},
     {:media, "/admin/medien", "Medien"},
     {:site_settings, "/admin/website", "Website"},

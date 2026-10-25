@@ -1,8 +1,10 @@
 defmodule Bbh.Club do
-  @moduledoc "Read/query API for people (board, officers, historical figures)."
+  @moduledoc "Read/query API for people (board, officers, historical figures) and Pokale."
   import Ecto.Query
   alias Bbh.Repo
   alias Bbh.Club.Person
+  alias Bbh.Club.Trophy
+  alias Bbh.Club.TrophyWin
 
   @doc """
   People holding any of the given roles, sorted. An **empty** role list means every role.
@@ -100,4 +102,91 @@ defmodule Bbh.Club do
 
   @doc "Role options as {label, value} tuples for a form select."
   def role_options, do: Enum.map(Person.roles(), &{Person.role_label(&1), &1})
+
+  ## Pokale
+
+  @doc "All trophies in display order."
+  def list_trophies do
+    Repo.all(from t in Trophy, order_by: [asc: t.sort_order, asc: t.name])
+  end
+
+  def get_trophy!(id), do: Repo.get!(Trophy, id)
+  def create_trophy(attrs), do: %Trophy{} |> Trophy.changeset(attrs) |> Repo.insert()
+  def update_trophy(%Trophy{} = t, attrs), do: t |> Trophy.changeset(attrs) |> Repo.update()
+  def change_trophy(%Trophy{} = t, attrs \\ %{}), do: Trophy.changeset(t, attrs)
+
+  @doc """
+  Deletes a trophy that has no winners. One with winners is refused — `trophy_wins`
+  restricts the delete, and the history should not vanish with a click.
+  """
+  def delete_trophy(%Trophy{} = trophy) do
+    if Repo.exists?(from w in TrophyWin, where: w.trophy_id == ^trophy.id),
+      do: {:error, :has_wins},
+      else: Repo.delete(trophy)
+  end
+
+  @doc "Winners, newest year first, trophy preloaded."
+  def list_trophy_wins do
+    Repo.all(
+      from w in TrophyWin,
+        join: t in assoc(w, :trophy),
+        order_by: [desc: w.year, asc: t.sort_order],
+        preload: [trophy: t]
+    )
+  end
+
+  def get_trophy_win!(id), do: TrophyWin |> Repo.get!(id) |> Repo.preload(:trophy)
+  def create_trophy_win(attrs), do: %TrophyWin{} |> TrophyWin.changeset(attrs) |> Repo.insert()
+
+  def update_trophy_win(%TrophyWin{} = w, attrs),
+    do: w |> TrophyWin.changeset(attrs) |> Repo.update()
+
+  def delete_trophy_win(%TrophyWin{} = w), do: Repo.delete(w)
+  def change_trophy_win(%TrophyWin{} = w, attrs \\ %{}), do: TrophyWin.changeset(w, attrs)
+
+  @doc "Trophy options as {label, id} tuples for a form select."
+  def trophy_options, do: Enum.map(list_trophies(), &{&1.name, &1.id})
+
+  @doc """
+  The Pokalsieger table: trophies (columns) and one row per year from the newest win
+  down to the oldest — every year in between, so a gap (no shooting, unknown winner)
+  shows as an empty row rather than vanishing.
+
+  Returns `%{trophies: [...], rows: [{year, %{trophy_id => win}}]}`.
+  """
+  def trophy_table do
+    trophies = list_trophies()
+    wins = Repo.all(from w in TrophyWin, select: w)
+    by_year = Enum.group_by(wins, & &1.year, &{&1.trophy_id, &1})
+
+    rows =
+      case Map.keys(by_year) do
+        [] -> []
+        years -> for y <- Enum.max(years)..Enum.min(years)//-1, do: {y, Map.new(by_year[y] || [])}
+      end
+
+    %{trophies: trophies, rows: rows}
+  end
+
+  @doc """
+  Per trophy, whoever won it most often — if that is at least `min` times. Ties list
+  every name. Returns `[{trophy, count, [winner]}]` in trophy order.
+  """
+  def trophy_records(min \\ 3) do
+    counts =
+      Repo.all(
+        from w in TrophyWin,
+          group_by: [w.trophy_id, w.winner],
+          select: {w.trophy_id, w.winner, count(w.id)}
+      )
+      |> Enum.group_by(&elem(&1, 0), &{elem(&1, 1), elem(&1, 2)})
+
+    for trophy <- list_trophies(),
+        tally = Map.get(counts, trophy.id, []),
+        tally != [],
+        best = tally |> Enum.map(&elem(&1, 1)) |> Enum.max(),
+        best >= min do
+      {trophy, best, for({name, ^best} <- tally, do: name) |> Enum.sort()}
+    end
+  end
 end

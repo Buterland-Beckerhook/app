@@ -23,7 +23,7 @@ defmodule BbhWeb.MCP.Tools do
   require Logger
 
   @statuses ~w(draft published archived)
-  @block_types ~w(richtext alert media_card image_gallery person_list separator event)
+  @block_types ~w(richtext alert media_card image_gallery person_list separator event trophy_table)
 
   @doc "Every tool this server knows, regardless of who is asking."
   def all, do: articles_tools() ++ media_tools() ++ events_tools()
@@ -236,7 +236,8 @@ defmodule BbhWeb.MCP.Tools do
         "richtext" block holds the prose, "image_gallery" holds pictures (fill it with
         add_gallery_image), "separator" draws a rule, "event" shows an event with its
         programme — always current, so a festival's programme need not be typed into
-        the text (find the event_id with search_events).
+        the text (find the event_id with search_events), "trophy_table" lists every
+        Pokal winner, read live.
 
         Block text is Markdown by default.
         """,
@@ -381,7 +382,18 @@ defmodule BbhWeb.MCP.Tools do
         enum: ["info", "warning", "success", "danger"],
         description: "alert blocks."
       },
-      "title" => %{type: "string", description: "media_card, image_gallery, person_list."},
+      "title" => %{
+        type: "string",
+        description: "media_card, image_gallery, person_list, trophy_table."
+      },
+      "show_records" => %{
+        type: "boolean",
+        description: "trophy_table: who won each trophy most often (default true)."
+      },
+      "show_descriptions" => %{
+        type: "boolean",
+        description: "trophy_table: each trophy's description (default false)."
+      },
       "subtitle" => %{type: "string", description: "media_card."},
       "image_media_id" => %{type: "string", description: "media_card's picture."},
       "image_position" => %{type: "string", enum: ["left", "right"], description: "media_card."},
