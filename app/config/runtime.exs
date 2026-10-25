@@ -28,10 +28,16 @@ if tz = System.get_env("TIME_ZONE") do
   config :bbh, :time_zone, tz
 end
 
-# Keep the public beta deployment out of search indexes. When true, BbhWeb.Plugs.NoIndex
-# stamps `X-Robots-Tag: noindex, nofollow` on every response — an app-level safety net
-# that is independent of the reverse-proxy `noindex` middleware. Leave unset in prod.
-config :bbh, :noindex, System.get_env("BETA_NOINDEX") in ~w(true 1)
+# The public beta: never indexed, banner on every page linking the live site (BbhWeb.Beta).
+# `BETA=true` turns it on (`BETA_NOINDEX` is its former name); a `beta.` host turns it on
+# by itself, so a forgotten variable cannot expose the beta. Independent of the
+# reverse-proxy `noindex` middleware. Leave unset in prod.
+config :bbh,
+       :beta,
+       String.starts_with?(System.get_env("PHX_HOST", ""), "beta.") or
+         Enum.any?(~w(BETA BETA_NOINDEX), &(System.get_env(&1) in ~w(true 1)))
+
+config :bbh, :live_url, System.get_env("LIVE_URL", "https://buterland-beckerhook.de")
 
 if config_env() == :dev do
   # Reload browser tabs when matching files change.

@@ -85,8 +85,15 @@ setup.)
 docker compose --env-file .env ps                             # all services "healthy"
 curl -fsS https://beta.buterland-beckerhook.de/health/liveness # 200 (once TLS is issued)
 ```
-In the browser: the Basic-Auth dialog (Beta), then the home page renders; the response
-carries `X-Robots-Tag: noindex, nofollow` (Beta). Admin login at `/users/log-in`.
+In the browser: the Basic-Auth dialog (Beta), then the home page renders. Admin login
+at `/users/log-in`.
+
+On Beta the app itself also keeps crawlers out and marks the site, independent of the
+Traefik `noindex` middleware (`BbhWeb.Beta`): every response carries `X-Robots-Tag`,
+`/robots.txt` disallows everything (AI crawlers by name), and every page shows a
+„Beta-Version“ banner at the top and bottom linking the same page on the live site. It
+switches on by itself for a `beta.` `PHX_HOST`; `BETA=true` in `.env` forces it for
+any other host.
 
 ## Restoring a dump
 

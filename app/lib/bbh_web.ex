@@ -21,7 +21,7 @@ defmodule BbhWeb do
   # these exact paths even without a <link>, so they cannot live under images/.
   @static_paths ~w(
     assets fonts images
-    favicon.ico robots.txt sw.js manifest.webmanifest
+    favicon.ico sw.js manifest.webmanifest
     apple-touch-icon.png apple-touch-icon-precomposed.png
   )
 

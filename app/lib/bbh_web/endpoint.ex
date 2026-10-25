@@ -16,7 +16,7 @@ defmodule BbhWeb.Endpoint do
     longpoll: [connect_info: [:peer_data, :x_headers, session: @session_options]]
 
   # First in the pipeline so its `register_before_send` covers every response,
-  # including the static assets Plug.Static halts on. No-op unless :noindex is set.
+  # including the static assets Plug.Static halts on. No-op unless the beta flag is set.
   plug BbhWeb.Plugs.NoIndex
 
   # Serve at "/" the static files from "priv/static" directory.
