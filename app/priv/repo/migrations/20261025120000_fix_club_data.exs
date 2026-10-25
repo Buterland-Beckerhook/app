@@ -12,11 +12,9 @@ defmodule Bbh.Repo.Migrations.FixClubData do
     WHERE name = 'Gerhard Gleis-Preister' AND role = 'praesident' AND year_end = 2018
     """
 
-    # The card already prints its own "*"; the stored one doubled it.
-    execute """
-    UPDATE people SET birth_date = regexp_replace(birth_date, '^\\*\\s*', '')
-    WHERE birth_date LIKE '*%'
-    """
+    # Wilhelm Hoff's doubled "*" before his birth date is dropped by the next migration,
+    # which turns the free text into a date — touching the text column here would break
+    # if that one ran first.
 
     # The 1930/31 throne article was imported without its throne, so /thron skipped it.
     insert_throne("thron", 1930,
