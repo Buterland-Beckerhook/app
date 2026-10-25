@@ -197,6 +197,7 @@ defmodule BbhWeb.Router do
 
     get "/media/*path", MediaController, :show
     get "/sitemap.xml", SitemapController, :index
+    get "/robots.txt", RobotsController, :index
   end
 
   # Other scopes may use custom stacks.

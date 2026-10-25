@@ -1,7 +1,7 @@
 defmodule BbhWeb.Plugs.NoIndex do
   @moduledoc """
-  Stamps `X-Robots-Tag: noindex, nofollow` on every response when the
-  `:noindex` flag is enabled (set via `BETA_NOINDEX=true` in `runtime.exs`).
+  Stamps `X-Robots-Tag` (`BbhWeb.Beta.robots_directives/0`) on every response when
+  the beta flag is on (`BbhWeb.Beta.enabled?/0`, set in `runtime.exs`).
 
   This is the app-level safety net for the public beta deployment: it keeps the
   site out of search indexes independently of the reverse-proxy `noindex`
@@ -24,8 +24,11 @@ defmodule BbhWeb.Plugs.NoIndex do
 
   @impl true
   def call(conn, _opts) do
-    if Application.get_env(:bbh, :noindex, false) do
-      register_before_send(conn, &put_resp_header(&1, "x-robots-tag", "noindex, nofollow"))
+    if BbhWeb.Beta.enabled?() do
+      register_before_send(
+        conn,
+        &put_resp_header(&1, "x-robots-tag", BbhWeb.Beta.robots_directives())
+      )
     else
       conn
     end

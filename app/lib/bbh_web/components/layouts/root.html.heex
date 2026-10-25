@@ -18,6 +18,10 @@
           "Schützenverein Buterland-Beckerhook e.V. – Neuigkeiten, Termine und die Geschichte unserer Throne."
       }
     />
+    <%= if BbhWeb.Beta.enabled?() do %>
+      <meta name="robots" content={BbhWeb.Beta.robots_directives()} />
+      <link rel="canonical" href={BbhWeb.Beta.live_url(@conn.request_path)} />
+    <% end %>
     <meta property="og:title" content={assigns[:page_title] || "Buterland-Beckerhook e.V."} />
     <meta property="og:type" content="website" />
     <meta property="og:image" content={url(~p"/images/og-logo.png")} />
@@ -94,7 +98,18 @@
     </script>
   </head>
   <body>
+    <%!-- The beta says what it is at both ends of every page (BbhWeb.Beta). --%>
+    <BbhWeb.Beta.banner
+      :if={BbhWeb.Beta.enabled?()}
+      id="beta-banner-top"
+      path={Phoenix.Controller.current_path(@conn)}
+    />
     {@inner_content}
+    <BbhWeb.Beta.banner
+      :if={BbhWeb.Beta.enabled?()}
+      id="beta-banner-bottom"
+      path={Phoenix.Controller.current_path(@conn)}
+    />
     <%!-- Dev-only time travel (BbhWeb.Plugs.DevClock); never assigned outside dev. --%>
     <BbhWeb.DevClock.banner
       :if={assigns[:simulated_now] && !assigns[:dev_clock_frame]}
