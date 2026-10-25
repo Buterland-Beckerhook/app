@@ -131,6 +131,20 @@
   }
 }
 
+/* Height of the beta banner pinned above the sticky header (BbhWeb.Beta) — 0 off the
+   beta. Anchor jumps and the admin sidebar, sticky at the top as well, clear it too. */
+:root {
+  --bb-beta-h: 0px;
+}
+:root.beta {
+  --bb-beta-h: 2.25rem;
+  scroll-padding-top: var(--bb-beta-h);
+}
+:root.beta .drawer-side {
+  top: var(--bb-beta-h);
+  height: calc(100dvh - var(--bb-beta-h));
+}
+
 @theme inline {
   --color-muted: var(--bb-text-muted);
   --color-tag: var(--bb-tag-bg);

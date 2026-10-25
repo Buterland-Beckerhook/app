@@ -119,7 +119,7 @@ defmodule BbhWeb.Layouts do
         </div>
       </div>
 
-      <header class="sticky top-0 z-40 border-b border-base-300 bg-(--bb-header-bg) backdrop-blur-md backdrop-saturate-150">
+      <header class="sticky top-(--bb-beta-h) z-40 border-b border-base-300 bg-(--bb-header-bg) backdrop-blur-md backdrop-saturate-150">
         <nav class="mx-auto flex max-w-6xl items-center justify-between gap-6 px-4 py-3">
           <a href="/" class="flex shrink-0 items-center gap-3.5">
             <img
@@ -227,7 +227,7 @@ defmodule BbhWeb.Layouts do
           </div>
 
           <%!-- Mobile menu (daisyUI dropdown, no custom JS). Capped to the viewport below
-               the sticky header (~5rem) and scrollable on its own; overscroll-contain
+               the sticky header (~5rem, plus a pinned beta banner) and scrollable on its own; overscroll-contain
                keeps a swipe at either end from scrolling the page underneath. --%>
           <div class="dropdown dropdown-end md:hidden">
             <button
@@ -239,7 +239,7 @@ defmodule BbhWeb.Layouts do
             </button>
             <ul
               tabindex="0"
-              class="dropdown-content menu z-50 mt-2 max-h-[calc(100dvh-6rem)] w-64 flex-nowrap overflow-y-auto overscroll-contain rounded-box border border-base-300 bg-card p-2 shadow-lg"
+              class="dropdown-content menu z-50 mt-2 max-h-[calc(100dvh-6rem-var(--bb-beta-h))] w-64 flex-nowrap overflow-y-auto overscroll-contain rounded-box border border-base-300 bg-card p-2 shadow-lg"
             >
               <%= for link <- @nav do %>
                 <li>
