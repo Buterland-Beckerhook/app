@@ -133,8 +133,10 @@ Amtsgerichts.
 
 ## Anmerkungen
 
-- **„Gerh. Teufenne"** – so gedruckt; vermutlich Satz- oder Lesefehler für **Tenvenne**
-  (Johann und Bernhard Tenvenne sind Könige 1912 und 1929). Am Original prüfen.
+- **„Gerh. Teufenne"** – so gedruckt; die Chronik der Festschrift 1959 schreibt „Gerhard
+  Tenfenne" und nennt ihn 1. Kassierer. Gemeint ist sehr wahrscheinlich **Tenvenne /
+  ten Venne** (Bernhard und Johann ten Venne sind Könige 1912 und 1929). Die Chronik
+  verteilt auch die übrigen Ämter etwas anders – siehe festschrift-1959.md.
 - **H. Lewing** (2. Schriftführer) ist sehr wahrscheinlich Hermann Lewing, später Oberst
   und Präsident – seine Biografie sagt, er sei „bei Vereinsgründung in den Vorstand
   gewählt" worden. **L. Sundag** dürfte Lambert Sundag sein (Oberst 1926–1931).

@@ -83,6 +83,9 @@ photos/dates of living members (see open points in the doc).
 | `people` Theodor Eimann, Heinrich Lammers, Heinrich Pieper, Wilhelm Hoff | `honorary_member` = false, but Ehrenvorsitzender / Ehrenmitglied | superseded: set `honorary_since` in the 1.2 migration |
 | `thrones` 1930/31 Heinrich Meyer | article exists, **no throne row** – missing from `/thron` | add the throne row |
 | `thrones` Stadtkaiser | only 2025 of our four | add **2000 Ludger Bußjan / Birgit Theissing**, **2011 Andreas Lösing / Renate Büscher**, **2022 Martin Schreiber / Maria Oude Lansink** – each needs an article (`thrones.article_id` is required); drafts created in prod via MCP. Reports may still be found in the WN archive. |
+| `thrones` 1911–1938 | eleven kings and the **1922 Kaiser (Gerhard Agten)** missing – the Festschrift 1959 lists them all | `20261025130000_add_early_thrones_from_festschrift_1959` adds them like the existing early thrones (published „Nur Thron-Anzeige“); the Kaiser 1922 article is a draft in prod, the migration attaches his throne |
+| `thrones` 1935, 1958 | Festschrift says „Franz Stipinzky“ and (twice) „Bernhard Heßling“; the site has „Wladislaus Stypinski“ and „Bernhard Hesselink“ | not changed – needs a decision (see `verein/festschrift-1959.md`) |
+| Thron menu | linked Kaiser articles even while still drafts (dead link) | only published Kaiser articles are linked |
 | `verein/vereinsgeschichte.md` | Ehrenmitglieder table had unverified claims | moved and corrected in `verein/ehrenmitglieder.md` |
 
 ## 3. Should have – *Der Verein* pages

@@ -35,10 +35,20 @@ Bauerschaftsvereine gegründet.
 - Zweck laut § 2: „echte deutsche Sitte für Kaiser und Reich zu hegen und zu pflegen und
   untereinander gegenseitige Achtung, Treue, Anhänglichkeit, Liebe und Einigkeit zu
   wecken."
+- Laut Chronik der Festschrift 1959: erste Gründungsversammlung am **13. Juni 1909**,
+  einberufen von **Theodor Lammers**; **erstes Schützenfest 14.–16. August 1909**, erster
+  König Bernhard Terdenge trug die alte Königskette des Vereins Buterland. Details und
+  Abweichungen: [festschrift-1959.md](festschrift-1959.md).
+- **1922** gab es mit **Gerhard Agten** bereits einen Kaiser (Festschrift 1959) – nicht
+  erst 1984.
+- **1934** (25 Jahre) wurde das **Ehrenmal** von Bildhauer Erich Halbach eingeweiht – ohne
+  das von der NS-Parteileitung gewünschte Hoheitszeichen.
+- **1949** (40 Jahre) wurde der König mit **Pfeil und Bogen** ermittelt, weil Waffen
+  verboten waren.
 - Um 1949/51 trat der Verein als **„Schützengilde Buterland-Beckerhook"** auf
   (Mitgliedskarte, siehe [quellen.md](quellen.md)).
-- Nach dem Zweiten Weltkrieg wurde wegen des alliierten Waffenverbots zunächst mit der
-  **Armbrust** geschossen (Festschrift 1959).
+- Nach dem Zweiten Weltkrieg durfte wegen des alliierten Waffenverbots zunächst nicht
+  mit Gewehren geschossen werden (Geleitwort: „Armbrust", Chronik: „Pfeil und Bogen").
 - Das **50-jährige Jubiläum 1959** wurde mit einem Treffen der münsterländischen und
   Grenzland-Schützenvereine gefeiert; Präsident war Gerhard Gleis-Preister,
   Ehrenpräsident Friedrich Dropmann.
@@ -62,8 +72,10 @@ dem Titel **„De Kuckuck up den Tunne satt"**. Es beschreibt das damalige
 Schützenfest und nennt bis heute im Vereinsbezirk bekannte Familiennamen
 wie Lewing, Möllenbuer, Blömer, Tönjann und Doetkotte.
 
-> **Hinweis:** Der vollständige Text des Gedichts liegt noch nicht
-> digital vor. `[PLATZHALTER: Transkription einfügen, sobald verfügbar]`
+Der vollständige Text steht in der Festschrift 1959 (S. 25) und ist transkribiert in
+[festschrift-1959.md](festschrift-1959.md). Das Original liegt laut Festschrift „bei den
+Vereinsakten"; es wurde im Zweiten Weltkrieg anonym unter Fritz Dropmanns Tür geschoben
+und stammt aus dem Haus von Johann Thebelt (1875–1955).
 
 ## Vereinsfahne, Königsketten und Insignien
 

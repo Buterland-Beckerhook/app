@@ -7,7 +7,8 @@ oder ins Vereinsarchiv.
 ## Satzung von 1909
 
 Gedruckte „Statuten des Schützen-Vereins ‚Buterland-Beckerhook'", 7 Seiten, Fraktur.
-Vollständige Transkription: [satzung-1909.md](satzung-1909.md).
+Vollständige Transkription: [satzung-1909.md](satzung-1909.md). Aufbereitet als
+`Satzung-1909.pdf` (aufrecht, 7 Seiten).
 
 Kernfakten:
 
@@ -20,39 +21,23 @@ Kernfakten:
 
 ## Festschrift 1959 (50 Jahre)
 
-„1909–1959 · 50 Jahre Schützenverein Buterland-Beckerhook Gronau (Westf)". Gescannt
-liegen 18 Seiten (Umschlag bis Heftseite 16) – **vermutlich unvollständig**; die
-Geschichte des Vereins, Thronlisten o. ä. fehlen im Scan. Weitere Seiten scannen, falls
-vorhanden.
+Vollständig gescannt (48 Seiten + Umschlag). Inhalt, Chronik-Fakten, Königsliste
+1909–1958 mit Abgleich, Vorstand und Jubilare 1959, Festprogramm und das Gedicht
+„De Kuckuck up den Tunne satt": [festschrift-1959.md](festschrift-1959.md).
 
-Inhalt des Scans:
+Aufbereitet (lokal, für die Medienbibliothek): `Festschrift-1959.pdf` (aufrecht,
+entdoppelt) und die Fotoseiten einzeln – Präsident Gleis-Preister 1959, Hermann Lewing,
+Ehrenpräsident Dropmann, **1. Thron 1909**, **Verein mit Thron 1934**,
+Ehrenmal-Einweihung, **Vorstand 1959**, **Thron mit Offizieren 1958**.
 
-| Heftseite | Inhalt |
-|---|---|
-| 2 | **Prolog** – Gedicht von (Friedrich) Dropmann, „Es liegt zwischen Dinkel und Glane …" |
-| 3 | **Zum Geleit** – Bürgermeister und Stadtdirektor, Juli 1959 (Geschichte des Schützenwesens im Kreis Ahaus) |
-| 4 | **Willkommensgruß des Präsidenten** Gerh. Gleis-Preister |
-| 5 | Foto: Der Präsident im Jahr des 50-jährigen Jubiläums (Gleis-Preister) |
-| 7 | „Wir gedenken unserer toten Kameraden" |
-| 9–11 | **Zum Geleit** – Text von Dropmann über Kameradschaft |
-| 13 | **Hermann Lewing zum Gedächtnis** (mit Foto) |
-| 15 | **Ehrenpräsident Friedrich Dropmann** (mit Foto) |
-| 10, 12, 14, 16 | Anzeigen (u. a. Restaurant „Zum Jägerhaus", Inh. Joh. Nieuwmeyer; B. Lammerskötter; Wicküler/Adolf Assmann; Salon Dolinar; Sütfeld; Bäuerliche Bezugs- und Absatzgenossenschaft) |
-
-Neue Fakten daraus:
+Weitere Fakten aus dem Geleitwort und den Würdigungen:
 
 - Das Jubiläumsschützenfest 1959 war **verbunden mit einem Treffen der münsterländischen
   und Grenzland-Schützenvereine**.
-- Laut Geleitwort bestanden die alten Vereine „Buterland" und „Beckerhook" 1909 nicht
-  mehr; ihre Gründung „dürfte in das 16.–19. Jahrhundert zurückreichen".
-- Nach dem Zweiten Weltkrieg durfte wegen des alliierten Waffenverbots zunächst nur mit
-  der **Armbrust** geschossen werden.
 - Friedrich Dropmann: „über 35 Jahre" Präsident, 1955 aus gesundheitlichen Gründen
-  zurückgetreten und zum **Ehrenpräsidenten** ernannt; 1959 noch aktiv.
-- Hermann Lewing: „jahrzehntelang Oberst", „**1956** wurde er Präsident", beerdigt am
-  26. Februar 1958. → **Widerspruch** zur Präsidenten-Biografie auf der Website
-  (gewählt am 05.11.1955) und zu seinem Sterbedatum 26.02.1958 (Beerdigung ≠ Tod?).
-  Klären.
+  zurückgetreten und zum **Ehrenpräsidenten** ernannt.
+- Hermann Lewing: „jahrzehntelang Oberst", „1956 wurde er Präsident" – Widerspruch zur
+  Website (05.11.1955), siehe festschrift-1959.md.
 
 Der **Prolog** (Dropmann, 1959) als Text:
 
