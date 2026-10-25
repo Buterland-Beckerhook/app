@@ -437,17 +437,21 @@ defmodule BbhWeb.SiteComponents do
           <.person_portrait person={p} />
           <div class="md:w-3/5">
             <p class="text-lg font-semibold">{p.name}</p>
-            <%!-- Both dates are free text ("1920 in Buterland"), and plenty of people are
-                  still alive — hence two independent lines rather than one formatted
-                  string. „*" and „†" are the German convention but announce as "asterisk"
-                  and "dagger", so the label a screen reader needs is carried alongside. --%>
+            <%!-- Plenty of people are still alive — hence two independent lines rather than
+                  one formatted string. „*" and „†" are the German convention but announce as
+                  "asterisk" and "dagger", so the label a screen reader needs is carried
+                  alongside. --%>
             <p :if={p.birth_date} class="text-sm text-muted">
               <span aria-hidden="true">*</span><span class="sr-only">geboren</span>
-              {p.birth_date}
+              {de_life_date(p.birth_date, p.birth_place)}
             </p>
             <p :if={p.death_date} class="text-sm text-muted">
               <span aria-hidden="true">†</span><span class="sr-only">gestorben</span>
-              {p.death_date}
+              {de_life_date(p.death_date, p.death_place)}
+            </p>
+            <%!-- 1900 is the "year unknown" placeholder: honorary, but nothing to print. --%>
+            <p :if={Person.honorary_year(p)} class="text-sm text-muted">
+              Ehrenmitglied seit {Person.honorary_year(p)}
             </p>
             <div :if={biography?(p.biography)}>
               <div class="mt-3 h-px bg-base-300"></div>
@@ -723,6 +727,7 @@ defmodule BbhWeb.SiteComponents do
         :people,
         Bbh.Club.list_people(assigns.block.filter_roles,
           honorary: assigns.block.filter_honorary,
+          alive: assigns.block.filter_alive,
           only_active: assigns.block.only_active,
           sort: assigns.block.sort_by
         )

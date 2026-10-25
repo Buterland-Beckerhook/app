@@ -10,13 +10,16 @@ defmodule Bbh.Club do
   Options:
 
     * `:honorary` — `"all"` (default), `"only"` or `"exclude"`
+    * `:alive` — `"all"` (default), `"living"` or `"deceased"` (by `death_date`)
     * `:only_active` — when true, drop everyone whose „Amt bis" is set
-    * `:sort` — `"sort_order"` (default) or `"year_start"` (Amtsantritt, oldest first)
+    * `:sort` — `"sort_order"` (default), `"year_start"` (Amtsantritt, oldest first) or
+      `"honorary_since"` (Ernennung zum Ehrenmitglied, oldest first)
   """
   def list_people(roles, opts \\ []) when is_list(roles) do
     from(p in Person)
     |> filter_roles(roles)
     |> filter_honorary(Keyword.get(opts, :honorary, "all"))
+    |> filter_alive(Keyword.get(opts, :alive, "all"))
     |> filter_active(Keyword.get(opts, :only_active, false))
     |> order_people(Keyword.get(opts, :sort, "sort_order"))
     |> preload(:portrait)
@@ -27,6 +30,11 @@ defmodule Bbh.Club do
   # last, then the manual `sort_order`, then `name`. Any other value keeps the default order.
   defp order_people(query, "year_start"),
     do: order_by(query, [p], asc_nulls_last: p.year_start, asc: p.sort_order, asc: p.name)
+
+  # The unknown-year placeholder (1900) sorts first; those appointments predate the
+  # known ones anyway.
+  defp order_people(query, "honorary_since"),
+    do: order_by(query, [p], asc_nulls_last: p.honorary_since, asc: p.sort_order, asc: p.name)
 
   defp order_people(query, _),
     do: order_by(query, [p], asc: p.sort_order, asc: p.name)
@@ -58,12 +66,17 @@ defmodule Bbh.Club do
   defp filter_roles(query, []), do: query
   defp filter_roles(query, roles), do: where(query, [p], p.role in ^roles)
 
-  defp filter_honorary(query, "only"), do: where(query, [p], p.honorary_member == true)
-  defp filter_honorary(query, "exclude"), do: where(query, [p], p.honorary_member == false)
+  defp filter_honorary(query, "only"), do: where(query, [p], not is_nil(p.honorary_since))
+  defp filter_honorary(query, "exclude"), do: where(query, [p], is_nil(p.honorary_since))
   defp filter_honorary(query, _all), do: query
 
+  defp filter_alive(query, "living"), do: where(query, [p], is_nil(p.death_date))
+  defp filter_alive(query, "deceased"), do: where(query, [p], not is_nil(p.death_date))
+  defp filter_alive(query, _all), do: query
+
   # An empty „Amt bis" is the only signal the data carries for "still serving" — the same
-  # one `role_holder/1` orders by. `death_date` is free text and cannot be compared.
+  # one `role_holder/1` orders by. A `death_date` says nothing about the office: the
+  # Präsidenten list shows the dead next to the serving one.
   #
   # No catch-all clause on purpose, unlike `filter_honorary/2` above: that one degrades to
   # its documented widest default, while silently ignoring a truthy-but-not-`true` flag here

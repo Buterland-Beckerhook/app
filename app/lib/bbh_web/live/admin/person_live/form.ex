@@ -130,7 +130,6 @@ defmodule BbhWeb.Admin.PersonLive.Form do
         <.input field={@form[:name]} label="Name" required />
         <.input field={@form[:role]} type="select" label="Rolle" options={Club.role_options()} />
         <.input field={@form[:email]} type="email" label="E-Mail" />
-        <.input field={@form[:honorary_member]} type="checkbox" label="Ehrenmitglied" />
         <div class="grid grid-cols-2 gap-4">
           <.input field={@form[:street]} label="Straße" />
           <.input field={@form[:city]} label="Ort" />
@@ -140,9 +139,26 @@ defmodule BbhWeb.Admin.PersonLive.Form do
           <.input field={@form[:year_end]} type="number" label="Amt bis (Jahr)" />
         </div>
         <div class="grid grid-cols-2 gap-4">
-          <.input field={@form[:birth_date]} label="Geboren" />
-          <.input field={@form[:death_date]} label="Gestorben" />
+          <.datetime_field field={@form[:birth_date]} label="Geboren am" enable_time={false} />
+          <.input field={@form[:birth_place]} label="Geburtsort" placeholder="Gronau" />
         </div>
+        <div class="grid grid-cols-2 gap-4">
+          <.datetime_field field={@form[:death_date]} label="Gestorben am" enable_time={false} />
+          <.input field={@form[:death_place]} label="Sterbeort" placeholder="Gronau" />
+        </div>
+        <p class="-mt-2 text-sm text-base-content/60">
+          Der Ort erscheint als „in Gronau“. Mit eigener Präposition klein beginnen,
+          z. B. „im Kirchspiel Epe“.
+        </p>
+        <.input
+          field={@form[:honorary_since]}
+          type="number"
+          label="Ehrenmitglied seit (Jahr)"
+          placeholder="leer = kein Ehrenmitglied"
+        />
+        <p class="-mt-2 text-sm text-base-content/60">
+          Leer = kein Ehrenmitglied. Ist das Jahr unbekannt, {Person.unknown_honorary_year()} eintragen – es wird dann nicht angezeigt.
+        </p>
         <.input field={@form[:sort_order]} type="number" label="Sortierung" />
         <.portrait_field portrait={@portrait} field={@form[:portrait_id]} />
         <.rich_text field={@form[:biography]} label="Biografie" />
