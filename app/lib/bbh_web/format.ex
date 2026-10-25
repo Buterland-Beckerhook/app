@@ -270,6 +270,10 @@ defmodule BbhWeb.Format do
   `rel="noopener noreferrer"`); internal page links (relative, or absolute to our
   own host) open in place. `tel:` links are left untouched.
 
+  Headings (`h2`–`h4`) get an `id` derived from their text, so a section can be
+  linked directly („De Kuckuck up den Tune satt" → `#de_kuckuck_up_den_tune_satt`).
+  Ids are unique within one body; a repeated heading gets a `_2`, `_3`, … suffix.
+
   Inline images become responsive, lightbox-enabled figures with their caption from
   the media library — see `BbhWeb.RichtextImages.rewrite/1`. That step runs ahead of
   the obfuscation so an address in a caption is covered too.
@@ -289,6 +293,7 @@ defmodule BbhWeb.Format do
   def render_richtext(body) when is_binary(body) do
     body
     |> Bbh.Placeholders.render()
+    |> anchor_headings()
     # Order matters: obfuscation rewrites a mailto: anchor's href to /kontakt, which
     # `new_tab?/1` reads as an internal link. Retargeting afterwards would still be
     # correct, but only by accident — keep it ahead, where the schemes are intact.
@@ -317,6 +322,44 @@ defmodule BbhWeb.Format do
   # which modules are dark and never appears in the markup.
   def qr_code(text, width) when is_binary(text) do
     text |> EQRCode.encode() |> EQRCode.svg(width: width) |> Phoenix.HTML.raw()
+  end
+
+  @heading_re ~r{<(h[2-4])((?:\s[^>]*)?)>(.*?)</\1\s*>}is
+
+  # Stored HTML is re-serialized by the sanitizer, so a regex is enough here too. The
+  # id follows the slug rules, with `_` for the separator: `Bbh.Slug` transliterates
+  # umlauts the way German readers expect.
+  defp anchor_headings(html) do
+    {html, _taken} =
+      @heading_re
+      |> Regex.split(html, include_captures: true)
+      |> Enum.map_reduce(MapSet.new(), &anchor_heading/2)
+
+    IO.iodata_to_binary(html)
+  end
+
+  defp anchor_heading(chunk, taken) do
+    with [_, tag, attrs, inner] <- Regex.run(@heading_re, chunk),
+         false <- attrs =~ ~r/\sid=/i,
+         base when base != "" <- heading_id(inner) do
+      id = unique_id(base, taken)
+      {~s(<#{tag} id="#{id}"#{attrs}>#{inner}</#{tag}>), MapSet.put(taken, id)}
+    else
+      _ -> {chunk, taken}
+    end
+  end
+
+  defp heading_id(inner) do
+    inner
+    |> String.replace(~r/<[^>]*>/, "")
+    |> String.replace(~r/&(amp|quot|#39|lt|gt|nbsp);/, " ")
+    |> Bbh.Slug.slugify()
+    |> String.replace("-", "_")
+  end
+
+  defp unique_id(base, taken, n \\ 1) do
+    id = if n == 1, do: base, else: "#{base}_#{n}"
+    if MapSet.member?(taken, id), do: unique_id(base, taken, n + 1), else: id
   end
 
   defp retarget_links(html), do: Regex.replace(~r/<a\b[^>]*>/i, html, &rewrite_anchor/1)

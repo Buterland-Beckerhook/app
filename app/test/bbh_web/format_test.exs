@@ -278,6 +278,18 @@ defmodule BbhWeb.FormatTest do
       assert html =~ ~s(class="eml")
     end
 
+    test "headings get an id from their text" do
+      html = render(~s(<h2>„De Kuckuck up den <strong>Tune</strong> satt"</h2><p>x</p>))
+      assert html =~ ~s(<h2 id="de_kuckuck_up_den_tune_satt">)
+    end
+
+    test "heading ids transliterate umlauts and stay unique" do
+      html = render(~s(<h3>Frei übersetzt</h3><h3 class="a">Frei übersetzt</h3><h2>&amp;</h2>))
+      assert html =~ ~s(<h3 id="frei_uebersetzt">)
+      assert html =~ ~s(<h3 id="frei_uebersetzt_2" class="a">)
+      assert html =~ "<h2>&amp;</h2>"
+    end
+
     test "resolves placeholders alongside link retargeting" do
       html = render(~s(See <a href="https://example.com">site</a>))
       assert html =~ ~s(target="_blank")
