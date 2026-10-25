@@ -445,11 +445,37 @@ defmodule Bbh.Content do
     end
   end
 
-  def create_article(attrs),
-    do: %Article{} |> Article.changeset(attrs) |> Repo.insert() |> Bbh.Search.reindex_after()
+  @doc """
+  Create an article.
 
-  def update_article(%Article{} = article, attrs),
-    do: article |> Article.changeset(attrs) |> Repo.update() |> Bbh.Search.reindex_after()
+  `silent: true` marks it as already notified, so publishing it sends no "Neuer Artikel"
+  push — neither now nor from the notifier cron. For backfilled old articles.
+  """
+  def create_article(attrs, opts \\ []) do
+    %Article{}
+    |> Article.changeset(attrs)
+    |> put_silent(opts)
+    |> Repo.insert()
+    |> Bbh.Search.reindex_after()
+  end
+
+  @doc "Update an article. Takes `silent: true` like `create_article/2`."
+  def update_article(%Article{} = article, attrs, opts \\ []) do
+    article
+    |> Article.changeset(attrs)
+    |> put_silent(opts)
+    |> Repo.update()
+    |> Bbh.Search.reindex_after()
+  end
+
+  # Set in the same write as the publish, so the cron can never see the article
+  # published but unmarked in between.
+  defp put_silent(changeset, opts) do
+    if Keyword.get(opts, :silent, false) and
+         is_nil(Ecto.Changeset.get_field(changeset, :notified_at)),
+       do: Ecto.Changeset.put_change(changeset, :notified_at, Bbh.Time.now()),
+       else: changeset
+  end
 
   @doc "Delete an article together with its content blocks (concrete block rows included)."
   def delete_article(%Article{} = article) do

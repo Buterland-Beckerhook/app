@@ -8,9 +8,15 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
 
   @statuses [{"Entwurf", "draft"}, {"Veröffentlicht", "published"}, {"Archiviert", "archived"}]
 
+  # Publishing an article dated further back than this asks whether to send the push.
+  @backdate_days 30
+
   @impl true
   def mount(params, _session, socket) do
-    {:ok, apply_action(socket, socket.assigns.live_action, params)}
+    {:ok,
+     socket
+     |> assign(:push_prompt, nil)
+     |> apply_action(socket.assigns.live_action, params)}
   end
 
   defp apply_action(socket, :new, _params) do
@@ -44,7 +50,27 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
   end
 
   def handle_event("save", %{"article" => params}, socket) do
-    save(socket, socket.assigns.live_action, normalize(params))
+    params = normalize(params)
+
+    case backdated_publish(socket.assigns.article, params) do
+      %DateTime{} = date ->
+        {:noreply, assign(socket, :push_prompt, %{params: params, date: date})}
+
+      nil ->
+        save(socket, socket.assigns.live_action, params)
+    end
+  end
+
+  # The answer to the push prompt: publish the held params, with or without the push.
+  def handle_event("publish_backdated", %{"push" => push}, socket) do
+    %{params: params} = socket.assigns.push_prompt
+    socket = assign(socket, :push_prompt, nil)
+
+    save(socket, socket.assigns.live_action, params, silent: push != "true")
+  end
+
+  def handle_event("cancel_publish", _params, socket) do
+    {:noreply, assign(socket, :push_prompt, nil)}
   end
 
   def handle_event("delete", %{"confirm" => confirm}, socket) do
@@ -241,8 +267,10 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
   defp throne_or_new(%Article{throne: %Throne{} = t}), do: t
   defp throne_or_new(%Article{id: id}), do: %Throne{article_id: id}
 
-  defp save(socket, :new, params) do
-    case Content.create_article(params) do
+  defp save(socket, action, params, opts \\ [])
+
+  defp save(socket, :new, params, opts) do
+    case Content.create_article(params, opts) do
       {:ok, article} ->
         maybe_notify(nil, article)
 
@@ -257,10 +285,10 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
     end
   end
 
-  defp save(socket, :edit, params) do
+  defp save(socket, :edit, params, opts) do
     old_status = socket.assigns.article.status
 
-    case Content.update_article(socket.assigns.article, params) do
+    case Content.update_article(socket.assigns.article, params, opts) do
       {:ok, article} ->
         maybe_notify(old_status, article)
 
@@ -276,10 +304,14 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
     end
   end
 
-  # Push the first time an article becomes published (skip throne-only entries).
+  # Push the first time an article becomes published (skip throne-only entries, and
+  # articles already marked notified — e.g. published silently).
   # Future-dated ("vorveröffentlichte") articles are pushed by the cron notifier
   # (Bbh.Workers.ArticlePublishNotifier) once their publish date passes.
-  defp maybe_notify(old_status, %Article{status: "published", no_article: false} = article)
+  defp maybe_notify(
+         old_status,
+         %Article{status: "published", no_article: false, notified_at: nil} = article
+       )
        when old_status != "published" do
     if publish_due?(article) do
       Bbh.Notifications.dispatch(fn -> Bbh.Workers.ArticlePublishNotifier.notify(article) end)
@@ -294,6 +326,23 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
     do: DateTime.compare(dt, Bbh.Time.now()) != :gt
 
   defp publish_due?(_), do: false
+
+  # Publishing an article dated more than @backdate_days ago is a backfill (an old report
+  # entered after the fact), where a "Neuer Artikel" push would mislead. Those ask first:
+  # returns the publish date when the save needs the prompt, `nil` otherwise.
+  defp backdated_publish(%Article{} = article, params) do
+    changeset = Content.change_article(article, params)
+    date = Ecto.Changeset.get_field(changeset, :date_published)
+    cutoff = DateTime.add(Bbh.Time.now(), -@backdate_days, :day)
+
+    if changeset.valid? and article.status != "published" and is_nil(article.notified_at) and
+         Ecto.Changeset.get_field(changeset, :status) == "published" and
+         not Ecto.Changeset.get_field(changeset, :no_article) and
+         DateTime.compare(date, cutoff) == :lt,
+       do: date
+  end
+
+  defp backdate_days, do: @backdate_days
 
   defp assign_form(socket, changeset),
     do: assign(socket, :form, to_form(changeset, as: "article"))
@@ -545,6 +594,49 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
         Der Artikel „{@article.title}" wird mit allen Inhaltsblöcken dauerhaft gelöscht.
       </.danger_zone>
       <.live_component module={BbhWeb.Admin.MediaPicker} id="media-picker" />
+
+      <div
+        :if={@push_prompt}
+        id="push-prompt"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="push-prompt-title"
+        phx-window-keydown="cancel_publish"
+        phx-key="Escape"
+      >
+        <div class="w-full max-w-md rounded-lg bg-base-100 p-6 shadow-xl">
+          <h2 id="push-prompt-title" class="text-lg font-semibold">Push-Benachrichtigung senden?</h2>
+          <p class="mt-2 text-sm text-base-content/80">
+            Der Artikel ist auf den {de_date(@push_prompt.date)} datiert, also mehr
+            als {backdate_days()} Tage alt. Soll beim Veröffentlichen trotzdem
+            „Neuer Artikel" an alle Abonnenten gehen?
+          </p>
+          <div class="mt-6 flex flex-wrap justify-end gap-2">
+            <button type="button" class="btn btn-ghost" phx-click="cancel_publish">
+              Abbrechen
+            </button>
+            <button
+              id="publish-silent"
+              type="button"
+              class="btn btn-primary"
+              phx-click="publish_backdated"
+              phx-value-push="false"
+            >
+              Ohne Push veröffentlichen
+            </button>
+            <button
+              id="publish-with-push"
+              type="button"
+              class="btn btn-outline"
+              phx-click="publish_backdated"
+              phx-value-push="true"
+            >
+              Mit Push
+            </button>
+          </div>
+        </div>
+      </div>
     </Layouts.admin>
     """
   end
