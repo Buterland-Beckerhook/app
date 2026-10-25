@@ -124,6 +124,70 @@ defmodule BbhWeb.Admin.ArticleLiveTest do
     end
   end
 
+  describe "publishing a backdated article" do
+    setup do
+      {:ok, _} = Bbh.Settings.update(%{"quiet_hours_enabled" => false})
+      :ok
+    end
+
+    defp days_ago(n), do: Bbh.Time.now() |> DateTime.add(-n, :day) |> DateTime.truncate(:second)
+
+    defp publish(lv) do
+      lv |> form("#article-form", article: %{status: "published"}) |> render_submit()
+    end
+
+    test "asks before publishing and can publish without a push", %{conn: conn} do
+      article = article_fixture(status: "draft", date_published: days_ago(400))
+      {:ok, lv, _html} = live(conn, ~p"/admin/artikel/#{article.id}/bearbeiten")
+
+      publish(lv)
+      assert has_element?(lv, "#push-prompt")
+      assert Content.get_article!(article.id).status == "draft"
+
+      lv |> element("#publish-silent") |> render_click()
+
+      refute has_element?(lv, "#push-prompt")
+      updated = Content.get_article!(article.id)
+      assert updated.status == "published"
+      # Marked as notified, so the notifier cron leaves it alone too.
+      assert updated.notified_at
+      refute article.id in Enum.map(Content.articles_pending_notification(), & &1.id)
+    end
+
+    test "can publish with the push", %{conn: conn} do
+      article = article_fixture(status: "draft", date_published: days_ago(400))
+      {:ok, lv, _html} = live(conn, ~p"/admin/artikel/#{article.id}/bearbeiten")
+
+      publish(lv)
+      lv |> element("#publish-with-push") |> render_click()
+
+      updated = Content.get_article!(article.id)
+      assert updated.status == "published"
+      assert updated.notified_at
+    end
+
+    test "cancelling keeps the article unpublished", %{conn: conn} do
+      article = article_fixture(status: "draft", date_published: days_ago(400))
+      {:ok, lv, _html} = live(conn, ~p"/admin/artikel/#{article.id}/bearbeiten")
+
+      publish(lv)
+      lv |> element("#push-prompt button[phx-click=cancel_publish]") |> render_click()
+
+      refute has_element?(lv, "#push-prompt")
+      assert Content.get_article!(article.id).status == "draft"
+    end
+
+    test "does not ask for a recent article", %{conn: conn} do
+      article = article_fixture(status: "draft", date_published: days_ago(3))
+      {:ok, lv, _html} = live(conn, ~p"/admin/artikel/#{article.id}/bearbeiten")
+
+      publish(lv)
+
+      refute has_element?(lv, "#push-prompt")
+      assert Content.get_article!(article.id).status == "published"
+    end
+  end
+
   describe "article image (edit)" do
     test "shows the picker and current image, and can clear it", ctx do
       article = article_fixture()
