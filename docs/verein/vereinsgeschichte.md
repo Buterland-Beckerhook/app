@@ -24,6 +24,25 @@ Der heutige **Schützenverein Buterland-Beckerhook e.V.** wurde im Jahr
 **1909** durch den Zusammenschluss der beiden eigenständigen
 Bauerschaftsvereine gegründet.
 
+### Gründungsdaten (Satzung von 1909)
+
+- Statuten beschlossen in Gronau am **24. Juni 1909**; bei der Gründung hatten sich
+  **120 Mitglieder** eingezeichnet.
+- Eingetragen ins Vereinsregister des **Amtsgerichts Ahaus am 30. August 1909** unter
+  **Nr. 14** als „Schützen-Verein Buterland-Beckerhook".
+- Erster Vorsitzender: **Theodor Eimann**. Vollständiger erster Vorstand und Wortlaut:
+  [satzung-1909.md](satzung-1909.md).
+- Zweck laut § 2: „echte deutsche Sitte für Kaiser und Reich zu hegen und zu pflegen und
+  untereinander gegenseitige Achtung, Treue, Anhänglichkeit, Liebe und Einigkeit zu
+  wecken."
+- Um 1949/51 trat der Verein als **„Schützengilde Buterland-Beckerhook"** auf
+  (Mitgliedskarte, siehe [quellen.md](quellen.md)).
+- Nach dem Zweiten Weltkrieg wurde wegen des alliierten Waffenverbots zunächst mit der
+  **Armbrust** geschossen (Festschrift 1959).
+- Das **50-jährige Jubiläum 1959** wurde mit einem Treffen der münsterländischen und
+  Grenzland-Schützenvereine gefeiert; Präsident war Gerhard Gleis-Preister,
+  Ehrenpräsident Friedrich Dropmann.
+
 ## Der Hofbrand von 1911
 
 Nur zwei Jahre nach der Gründung ereignete sich eine Tragödie, die einen

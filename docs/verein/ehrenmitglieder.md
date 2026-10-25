@@ -22,6 +22,9 @@ gegen die aktuelle Satzung prüfen. Die Ernennung erfolgt in der Regel auf der
 Jahreshauptversammlung (JHV). Daneben gibt es die Würden **Ehrenvorsitzender /
 Ehrenpräsident** (ehemalige Vorsitzende).
 
+Historisch: Die Statuten von 1909 (§ 4) kannten „Ehrenmitglieder" nur als **auswärtige**
+Förderer ohne Stimmrecht – keine Auszeichnung. Die heutige Bedeutung kam später.
+
 Achtung, Begriffsverwechslung: **„Ehrenherr"** und **„Ehrendame"** sind Thronämter
 (Gefolge des Königspaares), keine Ehrenmitgliedschaft.
 
@@ -30,7 +33,7 @@ Achtung, Begriffsverwechslung: **„Ehrenherr"** und **„Ehrendame"** sind Thro
 | Name | Lebensdaten | Ehrenvorsitz seit | Amt |
 |---|---|---|---|
 | Theodor Eimann | * 09.05.1862 Warendorf, † 24.02.1930 Gronau | 1921 | Vorsitzender 1909–1921 |
-| Friedrich Dropmann | * 20.10.1882 Münster, † 05.04.1962 Gronau | 05.11.1955 | Vorsitzender 1921–1955, König 1933/34 |
+| Friedrich Dropmann | * 20.10.1882 Münster, † 05.04.1962 Gronau | 05.11.1955 | Vorsitzender 1921–1955, König 1933/34; in der Festschrift 1959 als „Ehrenpräsident" gewürdigt |
 | Heinz Verst | * 04.09.1954 Gronau | 24.11.2018 | Präsident 1998–2018, König 2010/11 |
 
 Unklar: Wurde Gerhard Gleis-Preister (Präsident 1958–1998, † 07.01.2007) Ehrenpräsident?

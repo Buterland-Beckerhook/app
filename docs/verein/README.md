@@ -18,6 +18,8 @@ Regeln:
 | [ehrenmitglieder.md](ehrenmitglieder.md) | Ehrenvorsitzende und Ehrenmitglieder inkl. verstorbener |
 | [pokalschiessen.md](pokalschiessen.md) | Pokale, Regeln, alle bekannten Pokalsieger seit 1969 |
 | [jahreslauf-und-brauchtum.md](jahreslauf-und-brauchtum.md) | Jahreslauf, Vereinslokal, Ausschüsse, Vogelbau, Stadtkaiser, Euregio |
+| [satzung-1909.md](satzung-1909.md) | Transkription der Gründungsstatuten vom 24.06.1909 mit erstem Vorstand |
+| [quellen.md](quellen.md) | Originalquellen: Satzung 1909, Festschrift 1959, Mitgliedskarten, Zeitungsarchiv – was drinsteht, was fehlt |
 
 Was davon noch auf die Website muss: [`../content-plan.md`](../content-plan.md).
 
