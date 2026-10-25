@@ -348,6 +348,11 @@ h1, h2, h3, h4, h5, h6 {
 .prose :where(p, li) {
   color: var(--tw-prose-body);
 }
+/* Rich-text headings carry an id (BbhWeb.Format.render_richtext/1); a jump to one
+   clears the sticky header, like the scroll-mt-24 sections elsewhere. */
+.prose :where(h2, h3, h4)[id] {
+  scroll-margin-top: 6rem;
+}
 /* Headings are styled for both the published output (.prose) and the editor
    (.ql-editor) so authoring is WYSIWYG. They render in Oranienbaum (single 400
    weight, set globally on h1–h6), so hierarchy comes from size, not weight. */
