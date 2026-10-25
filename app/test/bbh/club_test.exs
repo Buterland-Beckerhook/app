@@ -2,6 +2,7 @@ defmodule Bbh.ClubTest do
   use Bbh.DataCase, async: true
 
   alias Bbh.Club
+  alias Bbh.Club.Person
 
   import Bbh.ClubFixtures
   import Bbh.ContentFixtures, only: [upload_fixture: 1]
@@ -23,9 +24,9 @@ defmodule Bbh.ClubTest do
       assert ids == Enum.sort([praesident.id, offizier.id])
     end
 
-    test "honorary flag filters honorary members" do
-      honorary = person_fixture(role: "vorstand", honorary_member: true)
-      regular = person_fixture(role: "vorstand", honorary_member: false)
+    test "an appointment year makes an honorary member" do
+      honorary = person_fixture(role: "vorstand", honorary_since: 2018)
+      regular = person_fixture(role: "vorstand", honorary_since: nil)
 
       assert Club.list_people(["vorstand"], honorary: "only") |> Enum.map(& &1.id) == [
                honorary.id
@@ -54,8 +55,8 @@ defmodule Bbh.ClubTest do
     end
 
     test "only_active composes with the role and honorary filters" do
-      serving = person_fixture(role: "vorstand", name: "A", year_end: nil, honorary_member: false)
-      _serving_honorary = person_fixture(role: "vorstand", name: "B", honorary_member: true)
+      serving = person_fixture(role: "vorstand", name: "A", year_end: nil, honorary_since: nil)
+      _serving_honorary = person_fixture(role: "vorstand", name: "B", honorary_since: 2021)
       _former = person_fixture(role: "vorstand", name: "C", year_end: 1998)
       _other_role = person_fixture(role: "oberst", name: "D", year_end: nil)
 
@@ -64,6 +65,37 @@ defmodule Bbh.ClubTest do
         |> Enum.map(& &1.id)
 
       assert ids == [serving.id]
+    end
+
+    test "the unknown-year placeholder still counts as honorary" do
+      unknown = person_fixture(role: "mitglied", honorary_since: Person.unknown_honorary_year())
+
+      assert Club.list_people([], honorary: "only") |> Enum.map(& &1.id) == [unknown.id]
+    end
+
+    test "alive splits on the death date" do
+      living = person_fixture(role: "mitglied", name: "Lebt")
+      dead = person_fixture(role: "mitglied", name: "Tot", death_date: ~D[2019-10-25])
+
+      assert Club.list_people([], alive: "living") |> Enum.map(& &1.id) == [living.id]
+      assert Club.list_people([], alive: "deceased") |> Enum.map(& &1.id) == [dead.id]
+      assert Club.list_people([], alive: "all") |> length() == 2
+    end
+
+    test "sort: honorary_since orders by appointment, oldest first, placeholder before" do
+      late = person_fixture(role: "mitglied", name: "Spät", honorary_since: 2024)
+      early = person_fixture(role: "mitglied", name: "Früh", honorary_since: 1978)
+      unknown = person_fixture(role: "mitglied", name: "Unbekannt", honorary_since: 1900)
+
+      assert Club.list_people([], honorary: "only", sort: "honorary_since")
+             |> Enum.map(& &1.id) == [unknown.id, early.id, late.id]
+    end
+
+    test "rejects an appointment year before the placeholder" do
+      assert {:error, changeset} =
+               Club.create_person(%{name: "X", role: "mitglied", honorary_since: 1899})
+
+      assert %{honorary_since: [_]} = errors_on(changeset)
     end
 
     test "sorts by sort_order then name by default" do

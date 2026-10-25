@@ -203,6 +203,12 @@ defmodule BbhWeb.Admin.BlockEditor do
       options={[{"Alle", "all"}, {"Nur Ehrenmitglieder", "only"}, {"Ohne Ehrenmitglieder", "exclude"}]}
     />
     <.input
+      field={@f[:filter_alive]}
+      type="select"
+      label="Lebend / verstorben"
+      options={[{"Alle", "all"}, {"Nur lebende", "living"}, {"Nur verstorbene", "deceased"}]}
+    />
+    <.input
       field={@f[:only_active]}
       type="checkbox"
       label="Nur aktive Personen (ohne „Amt bis“)"
@@ -289,7 +295,11 @@ defmodule BbhWeb.Admin.BlockEditor do
   end
 
   # Same read-off-the-schema contract as display styles above.
-  @sort_by_labels %{"sort_order" => "Reihenfolge (manuell)", "year_start" => "Amtsantritt (Jahr)"}
+  @sort_by_labels %{
+    "sort_order" => "Reihenfolge (manuell)",
+    "year_start" => "Amtsantritt (Jahr)",
+    "honorary_since" => "Ernennung zum Ehrenmitglied (Jahr)"
+  }
 
   defp sort_by_options do
     for k <- Blocks.PersonList.sort_bys(), do: {@sort_by_labels[k] || k, k}

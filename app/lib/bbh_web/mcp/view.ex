@@ -132,6 +132,7 @@ defmodule BbhWeb.MCP.View do
       title: b.title,
       filter_roles: b.filter_roles,
       filter_honorary: b.filter_honorary,
+      filter_alive: b.filter_alive,
       display_style: b.display_style,
       show_address: b.show_address,
       only_active: b.only_active,
