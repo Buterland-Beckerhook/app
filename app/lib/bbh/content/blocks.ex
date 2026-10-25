@@ -210,10 +210,12 @@ defmodule Bbh.Content.Blocks do
     use Bbh.Schema
 
     @honorary ~w(all only exclude)
+    @alive ~w(all living deceased)
     @styles ~w(table cards)
-    @sort_bys ~w(sort_order year_start)
+    @sort_bys ~w(sort_order year_start honorary_since)
 
     def honorary_options, do: @honorary
+    def alive_options, do: @alive
 
     @doc """
     How the list is drawn. The editor's dropdown is built from this, so an option cannot
@@ -223,8 +225,8 @@ defmodule Bbh.Content.Blocks do
     def styles, do: @styles
 
     @doc """
-    How the list is ordered: „Reihenfolge (manuell)" (`sort_order`) or „Amtsantritt (Jahr)"
-    (`Person.year_start`). Same contract as `styles/0` — the editor's dropdown reads this so
+    How the list is ordered: „Reihenfolge (manuell)" (`sort_order`), „Amtsantritt (Jahr)"
+    (`Person.year_start`) or „Ernennung (Jahr)" (`Person.honorary_since`). Same contract as `styles/0` — the editor's dropdown reads this so
     it cannot offer a value the changeset rejects. `Bbh.Club.list_people/2` interprets it.
     """
     def sort_bys, do: @sort_bys
@@ -233,6 +235,9 @@ defmodule Bbh.Content.Blocks do
       field :title, :string
       field :filter_roles, {:array, :string}, default: []
       field :filter_honorary, :string, default: "all"
+      # Lebend / verstorben, read off `Person.death_date` — the Ehrenmitglieder page
+      # lists the living and the dead in two blocks.
+      field :filter_alive, :string, default: "all"
       field :display_style, :string, default: "table"
       field :show_address, :boolean, default: false
       # „Amt bis" (Person.year_end) empty means still serving.
@@ -247,12 +252,14 @@ defmodule Bbh.Content.Blocks do
         :title,
         :filter_roles,
         :filter_honorary,
+        :filter_alive,
         :display_style,
         :show_address,
         :only_active,
         :sort_by
       ])
       |> validate_inclusion(:filter_honorary, @honorary)
+      |> validate_inclusion(:filter_alive, @alive)
       |> validate_inclusion(:display_style, @styles)
       |> validate_inclusion(:sort_by, @sort_bys)
     end

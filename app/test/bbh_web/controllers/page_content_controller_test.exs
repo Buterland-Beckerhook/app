@@ -461,8 +461,11 @@ defmodule BbhWeb.PageContentControllerTest do
       person_fixture(
         role: "vorstand",
         name: "Heinrich Meyer",
-        birth_date: "1920 in Buterland",
-        death_date: "1998 in Ahaus",
+        birth_date: ~D[1920-03-01],
+        birth_place: "Buterland",
+        death_date: ~D[1998-11-07],
+        death_place: "Ahaus",
+        honorary_since: 1978,
         biography: "<p>Gründungsmitglied und Fahnenträger.</p>"
       )
 
@@ -472,8 +475,9 @@ defmodule BbhWeb.PageContentControllerTest do
       text = html.(%{"display_style" => "cards"}) |> person_cards() |> LazyHTML.text()
 
       assert text =~ "Heinrich Meyer"
-      assert text =~ "1920 in Buterland"
-      assert text =~ "1998 in Ahaus"
+      assert text =~ "1. März 1920 in Buterland"
+      assert text =~ "7. November 1998 in Ahaus"
+      assert text =~ "Ehrenmitglied seit 1978"
       assert text =~ "Gründungsmitglied und Fahnenträger."
       # „†" announces as "dagger", so each date line carries a visually hidden label.
       assert text =~ "geboren"
@@ -481,13 +485,37 @@ defmodule BbhWeb.PageContentControllerTest do
     end
 
     test "a living person gets no death line at all", %{html: html} do
-      person_fixture(role: "vorstand", name: "Karl Bauer", birth_date: "1954 in Ahaus")
+      person_fixture(role: "vorstand", name: "Karl Bauer", birth_date: ~D[1954-09-04])
 
       text = html.(%{"display_style" => "cards"}) |> person_cards() |> LazyHTML.text()
 
-      assert text =~ "1954 in Ahaus"
+      # No place stored: the date stands alone, without a dangling „in".
+      assert text =~ "4. September 1954"
+      refute text =~ "1954 in"
       refute text =~ "†"
       refute text =~ "gestorben"
+    end
+
+    test "a place with its own preposition is printed as is", %{html: html} do
+      person_fixture(
+        role: "vorstand",
+        name: "Anton Sundag",
+        birth_date: ~D[1847-05-06],
+        birth_place: "im Kirchspiel Epe"
+      )
+
+      text = html.(%{"display_style" => "cards"}) |> person_cards() |> LazyHTML.text()
+
+      assert text =~ "6. Mai 1847 im Kirchspiel Epe"
+      refute text =~ "in im"
+    end
+
+    test "the unknown appointment year is not shown", %{html: html} do
+      person_fixture(role: "vorstand", name: "Willi Hoff", honorary_since: 1900)
+
+      text = html.(%{"display_style" => "cards"}) |> person_cards() |> LazyHTML.text()
+
+      refute text =~ "Ehrenmitglied seit"
     end
 
     test "an emptied biography draws no divider above a blank box", %{html: html} do

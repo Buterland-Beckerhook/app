@@ -641,6 +641,7 @@ defmodule Bbh.Content do
     "person_list" => %{
       display_style: "table",
       filter_honorary: "all",
+      filter_alive: "all",
       filter_roles: [],
       show_address: false,
       only_active: false

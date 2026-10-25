@@ -76,7 +76,7 @@ defmodule BbhWeb.Admin.PersonLive.Index do
       <:col :let={p} label="Rolle">{Person.role_label(p.role)}</:col>
       <:col :let={p} label="Amtszeit">{amtszeit(p)}</:col>
       <:col :let={p} label="E-Mail">{p.email || "–"}</:col>
-      <:col :let={p} label="Ehrenmitglied">{if p.honorary_member, do: "ja", else: "–"}</:col>
+      <:col :let={p} label="Ehrenmitglied">{ehrenmitglied(p)}</:col>
       <:action :let={p}>
         <.link
           navigate={~p"/admin/personen/#{p.id}/bearbeiten"}
@@ -89,6 +89,15 @@ defmodule BbhWeb.Admin.PersonLive.Index do
       </:action>
     </.table>
     """
+  end
+
+  defp ehrenmitglied(%{honorary_since: nil}), do: "–"
+
+  defp ehrenmitglied(p) do
+    case Person.honorary_year(p) do
+      nil -> "ja (Jahr unbekannt)"
+      year -> "seit #{year}"
+    end
   end
 
   defp amtszeit(%{year_start: nil, year_end: nil}), do: "–"

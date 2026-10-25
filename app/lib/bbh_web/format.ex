@@ -11,6 +11,20 @@ defmodule BbhWeb.Format do
   def de_date(nil), do: ""
 
   def de_date(%DateTime{} = dt), do: "#{dt.day}. #{Enum.at(@months, dt.month - 1)} #{dt.year}"
+  def de_date(%Date{} = d), do: "#{d.day}. #{Enum.at(@months, d.month - 1)} #{d.year}"
+
+  @doc """
+  A life date with its place, e.g. "19. Februar 1929 in Gronau". A place that brings its
+  own preposition ("im Kirchspiel Epe") is printed as is; no place, just the date.
+  """
+  def de_life_date(nil, _place), do: ""
+  def de_life_date(date, place) when place in [nil, ""], do: de_date(date)
+
+  def de_life_date(date, place) do
+    if String.match?(place, ~r/^\p{Ll}/u),
+      do: "#{de_date(date)} #{place}",
+      else: "#{de_date(date)} in #{place}"
+  end
 
   @doc ~s(German date + time, e.g. "14. Juli 2024, 19:30 Uhr".)
   def de_datetime(nil), do: ""

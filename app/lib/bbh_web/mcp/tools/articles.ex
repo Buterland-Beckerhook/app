@@ -327,6 +327,7 @@ defmodule BbhWeb.MCP.Tools.Articles do
       merge_take(%{}, args, %{
         "title" => :title,
         "filter_honorary" => :filter_honorary,
+        "filter_alive" => :filter_alive,
         "display_style" => :display_style,
         "show_address" => :show_address,
         "only_active" => :only_active,

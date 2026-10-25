@@ -389,6 +389,7 @@ defmodule BbhWeb.CoreComponents do
   defp dt_value(%{year: y, month: mo, day: d, hour: h, minute: mi}),
     do: "#{y}-#{pad(mo)}-#{pad(d)}T#{pad(h)}:#{pad(mi)}"
 
+  defp dt_value(%Date{} = d), do: Date.to_iso8601(d)
   defp dt_value(v) when is_binary(v), do: v
   defp dt_value(_), do: ""
 

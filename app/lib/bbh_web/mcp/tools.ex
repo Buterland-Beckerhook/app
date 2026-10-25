@@ -424,12 +424,17 @@ defmodule BbhWeb.MCP.Tools do
         enum: ["all", "only", "exclude"],
         description: "person_list."
       },
+      "filter_alive" => %{
+        type: "string",
+        enum: ["all", "living", "deceased"],
+        description: "person_list: by death date."
+      },
       "display_style" => %{type: "string", enum: ["table", "cards"], description: "person_list."},
       "show_address" => %{type: "boolean", description: "person_list."},
       "only_active" => %{type: "boolean", description: "person_list."},
       "sort_by" => %{
         type: "string",
-        enum: ["sort_order", "year_start"],
+        enum: ["sort_order", "year_start", "honorary_since"],
         description: "person_list."
       },
       "event_id" => %{type: "string", description: "event: the event, from search_events."},
