@@ -58,8 +58,9 @@ Data: [`verein/ehrenmitglieder.md`](verein/ehrenmitglieder.md) – 3 honorary ch
 Decided (2026-10-25):
 
 - **`honorary_since` (year) replaces the `honorary_member` boolean.** Set = honorary
-  member, empty = not. Migration maps known years (see the doc); members whose year is
-  unknown need a value before they can show up – collect from the Vorstand.
+  member, empty = not. Migration maps known years (see the doc); an unknown year is
+  stored as **1900** (placeholder, not rendered). The page stays unpublished until the
+  data is complete; death dates may come from the local paper's archive.
 - **Deceased = `death_date` set.** `birth_date` / `death_date` become real `date`
   columns with the date picker; new `birth_place` / `death_place`. Cards render as today:
   long German date, „in <Ort>" when present.
@@ -81,7 +82,7 @@ photos/dates of living members (see open points in the doc).
 | `people` Wilhelm Hoff | `birth_date` = „* 21. Juli 1942 …" | drop the leading „* " |
 | `people` Theodor Eimann, Heinrich Lammers, Heinrich Pieper, Wilhelm Hoff | `honorary_member` = false, but Ehrenvorsitzender / Ehrenmitglied | superseded: set `honorary_since` in the 1.2 migration |
 | `thrones` 1930/31 Heinrich Meyer | article exists, **no throne row** – missing from `/thron` | add the throne row |
-| `thrones` Stadtkaiser | only 2025 | add **2000 Ludger Bußjan / Birgit Theissing** and **2011 Andreas Lösing / Renate Büscher** (both ours) – needs an article each (`thrones.article_id` is required), source text in old `thron/stkaiser*.html` |
+| `thrones` Stadtkaiser | only 2025 of our four | add **2000 Ludger Bußjan / Birgit Theissing**, **2011 Andreas Lösing / Renate Büscher**, **2022 Martin Schreiber / Maria Oude Lansink** – each needs an article (`thrones.article_id` is required); drafts created in prod via MCP. Reports may still be found in the WN archive. |
 | `verein/vereinsgeschichte.md` | Ehrenmitglieder table had unverified claims | moved and corrected in `verein/ehrenmitglieder.md` |
 
 ## 3. Should have – *Der Verein* pages
@@ -143,7 +144,7 @@ has 589 items. A full import is not sensible on the small shared host; a curated
 ## Suggested order
 
 1. Data fixes (§2) – done in `20261025120000_fix_club_data` plus two Stadtkaiser
-   article drafts (2000, 2011) created in prod; publish them after the deploy. Honorary
+   article drafts (2000, 2011, 2022) created in prod; publish them after the deploy. Honorary
    flags are handled by step 2 instead.
 2. Ehrenmitglieder: decide the role/dedupe question, add `honorary_since` + grouping,
    enter data, publish once the Vorstand has answered.

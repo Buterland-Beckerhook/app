@@ -4,6 +4,13 @@ Wissensstand: Oktober 2026. Ersetzt die Tabelle, die vorher in
 [`vereinsgeschichte.md`](vereinsgeschichte.md) stand (dort waren einige Angaben
 ungeprüft, siehe „Korrekturen" unten). `?` = noch zu recherchieren.
 
+## Hinweis zur Datenpflege
+
+Auf der Website ersetzt das **Ernennungsjahr** den Ehrenmitglied-Schalter (leer = kein
+Ehrenmitglied). Wo das Jahr unbekannt ist, wird **1900** als Ersatzjahr eingetragen und
+nicht angezeigt – bis die echten Jahre vorliegen. Die Seite wird erst veröffentlicht,
+wenn die Daten vollständig sind.
+
 ## Grundlage
 
 > Mitglieder, die sich in besonderer Weise um den Schützenverein Buterland-Beckerhook
@@ -65,7 +72,7 @@ heißt nur, dass er 2020 noch auf der Liste der aktiven Ehrenmitglieder stand.
 | Hermann Thebelt | 09.10.2021 | lebt | König 1977 und 1993, Jubiläumskaiser 1984, Stifter des Königspokals |
 | Josef Lütke-Glanemann | 09.10.2021 | lebt | ? |
 | Norbert Wülker | JHV 2022 | lebt | 31 Jahre Offizier, zuletzt Major/Oberstleutnant |
-| Andreas Lösing | JHV 2023 | lebt | König 1992/93, Stadtkaiser 2011 |
+| Andreas Lösing | JHV 2023 | lebt | König 1992/93, Stadtkaiser 2011 (WN: 2010) |
 | Georg Doetkotte | Mitgliederversammlung 2024 | lebt | König 2001/02, 30 Jahre Offizier |
 | Heinrich Thebelt | JHV 2024 | lebt | Vereinswirt Dinkelhof, König 1997 |
 
@@ -85,7 +92,8 @@ sowie `ErichSkoda1.jpg` (Erich Zgodda? Gründer des Kinderfests – war er Ehren
 
 ## Offene Punkte (an den Vorstand)
 
-1. Wer ist seit 2020 verstorben? Sterbedaten der Ehrenmitglieder vor 2020.
+1. Wer ist seit 2020 verstorben? Sterbedaten der Ehrenmitglieder vor 2020 – ggf. über
+   Traueranzeigen/Berichte der Lokalzeitung (WN Gronau) recherchieren.
 2. Ernennungsjahre der Ehrenmitglieder vor 2018 (Protokollbuch).
 3. Die vollständige Liste vor 1984 – Festschrift 1984 / 2009 prüfen.
 4. Die beiden „Josef Verst" auf dem Foto 1984.

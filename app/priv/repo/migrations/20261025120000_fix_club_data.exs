@@ -28,8 +28,9 @@ defmodule Bbh.Repo.Migrations.FixClubData do
       queen: "Elisabeth Feldevert"
     )
 
-    # Our two earlier Stadtkaiser. Their articles were created as drafts through the MCP
-    # endpoint; where one doesn't exist (dev snapshots, tests) this is a no-op.
+    # Our three earlier Stadtkaiser (2025 already has its throne). Their articles were
+    # created as drafts through the MCP endpoint; where one doesn't exist (dev snapshots,
+    # tests) this is a no-op.
     insert_throne("stadtkaiser", 2000,
       type: "stadtkaiser",
       begin: 2000,
@@ -42,6 +43,13 @@ defmodule Bbh.Repo.Migrations.FixClubData do
       begin: 2011,
       king: "Andreas Lösing",
       queen: "Renate Büscher"
+    )
+
+    insert_throne("stadtkaiser", 2022,
+      type: "stadtkaiser",
+      begin: 2022,
+      king: "Martin Schreiber",
+      queen: "Maria Oude Lansink"
     )
   end
 

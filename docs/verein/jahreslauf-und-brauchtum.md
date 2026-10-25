@@ -92,7 +92,23 @@ noch stattfindet: ?
 | 2000 | **Ludger Bußjan** | Birgit Theissing | Buterland-Beckerhook (König 1995/96) |
 | 2005 | Karsten Stienemann | Karin Bosch | Bürgerschützengilde Gronau |
 | 2011 | **Andreas Lösing** | Renate Büscher | Buterland-Beckerhook (König 1992/93) |
-| 2025 | **Gerd Lübbers** | Silvia Daldrup | Buterland-Beckerhook – „unser vierter Stadtkaiser" bzw. vierter Stadtkaiser insgesamt |
+| ? (ca. 2015/16) | ? | ? | anderer Verein – 4. Stadtschützenfest, Daten fehlen |
+| 2022 | **Martin Schreiber** | Maria Oude Lansink | Buterland-Beckerhook (im selben Jahr König des Vereins) |
+| 2025 | **Gerd Lübbers** | Silvia Daldrup | Buterland-Beckerhook |
+
+Vier der sechs Stadtkaiser kommen aus dem Buterland-Beckerhook (WN, Angelika Hoof:
+„Ein Quäntchen Glück", 2026). Das 6. Stadtschützenfest am **30.08.2025** richtete der
+SV Nachbarschaft Rentenburg vor der Bürgerhalle aus: 86 Bewerber aus zehn Vereinen
+(13 aus dem Buterland), Vogel von Niklas Agsten, 491. Schuss um 19:03 Uhr. Das
+7. Stadtschützenfest ist für August 2030 angekündigt, Ausrichter: Berger Schützen.
+
+**Widerspruch Lösing:** WN 2025 und unser eigener Artikel von 2025 nennen „2010"; die
+alte Vereinsseite sagt, das Fest 2010 sei wegen Hochwasser abgesagt und am 14.05.2011
+nachgeholt worden. Die Website führt 2011.
+
+Offen: Datum des Stadtschützenfests 2000 und 2022 (2022 vermutlich Sa., 03.09.),
+Ausrichter 2000/2011/2022, der Stadtkaiser des 4. Fests. Berichte im Archiv der
+Westfälischen Nachrichten suchen.
 
 - 2000: 37 Bewerber, Vogelschießen am Wolbertshof.
 - 2005 (27.08.): 2. Stadtschützenfest, Festwiese der Bürgerschützengilde am Dinkelhof,
