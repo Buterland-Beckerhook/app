@@ -127,6 +127,7 @@ defmodule BbhWeb.ThroneControllerTest do
 
       # 1995 is a König, not a Stadtkaiser.
       assert conn |> get(~p"/thron/stadtkaiser?jahr=1995") |> response(404)
+
       assert conn |> get(~p"/thron/stadtkaiser?seite=1") |> redirected_to(301) ==
                "/thron/stadtkaiser?jahr=2000"
     end
