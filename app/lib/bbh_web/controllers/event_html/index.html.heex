@@ -1,15 +1,10 @@
 <Layouts.app flash={@flash} current_scope={@current_scope} current_path={@conn.request_path}>
-  <% current_year = Date.utc_today().year %>
-  <% min_year = if @years == [], do: @year, else: Enum.min(@years) %>
-  <% prev_disabled = @year <= min_year %>
-  <% next_disabled = @year >= current_year %>
-
   <div class="mx-auto w-full max-w-4xl">
     <div class="flex flex-wrap items-center justify-between gap-4">
       <h1 class="font-logo text-4xl font-bold">Termine {@year}</h1>
 
       <div class="flex items-center gap-1.5 rounded-full border border-base-300 bg-card p-1">
-        <%= if prev_disabled do %>
+        <%= if @prev_disabled do %>
           <span
             aria-hidden="true"
             class="flex size-9 items-center justify-center rounded-full text-lg font-bold text-base-300"
@@ -26,7 +21,7 @@
           </a>
         <% end %>
         <span class="min-w-16 text-center text-sm font-bold">{@year}</span>
-        <%= if next_disabled do %>
+        <%= if @next_disabled do %>
           <span
             aria-hidden="true"
             class="flex size-9 items-center justify-center rounded-full text-lg font-bold text-base-300"

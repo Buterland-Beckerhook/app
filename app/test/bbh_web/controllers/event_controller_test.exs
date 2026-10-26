@@ -33,6 +33,25 @@ defmodule BbhWeb.EventControllerTest do
       # regressing to it as the primary action.
       refute html =~ ~s{href="/termine/index.ics"}
     end
+
+    test "the year switcher reaches a future year that has public events", %{conn: conn} do
+      next = Bbh.Time.now().year + 1
+      {:ok, starts_at, 0} = DateTime.from_iso8601("#{next}-03-14T19:00:00Z")
+      event_fixture(starts_at: starts_at)
+
+      html = conn |> get(~p"/termine") |> html_response(200)
+      assert html =~ ~s{href="/termine?jahr=#{next}"}
+
+      # …and stops there: nothing published beyond it.
+      html = build_conn() |> get(~p"/termine?jahr=#{next}") |> html_response(200)
+      refute html =~ ~s{href="/termine?jahr=#{next + 1}"}
+    end
+
+    test "without future events the switcher stops at the current year", %{conn: conn} do
+      year = Bbh.Time.now().year
+      html = conn |> get(~p"/termine?jahr=#{year}") |> html_response(200)
+      refute html =~ ~s{href="/termine?jahr=#{year + 1}"}
+    end
   end
 
   describe "GET /termine/:year/:slug" do

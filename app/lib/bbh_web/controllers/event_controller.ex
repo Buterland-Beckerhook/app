@@ -5,17 +5,25 @@ defmodule BbhWeb.EventController do
   alias BbhWeb.EventPaths
 
   def index(conn, params) do
+    current_year = Bbh.Time.now().year
+
     year =
       case params |> Map.get("jahr", "") |> Integer.parse() do
         {y, _} -> y
-        :error -> Date.utc_today().year
+        :error -> current_year
       end
+
+    # The year switcher spans every year with public events plus the current one, so
+    # a year published ahead (next year's dates after the JHV) is reachable.
+    years = Bbh.Calendar.event_years()
+    {min_year, max_year} = Enum.min_max([current_year | years])
 
     render(conn, :index,
       page_title: "Termine #{year}",
       year: year,
       events: Bbh.Calendar.list_events_by_year(year),
-      years: Bbh.Calendar.event_years()
+      prev_disabled: year <= min_year,
+      next_disabled: year >= max_year
     )
   end
 
