@@ -408,6 +408,7 @@ defmodule BbhWeb.Layouts do
     {:media, "/admin/medien", "Medien"},
     {:site_settings, "/admin/website", "Website"},
     {:push, "/admin/push", "Push"},
+    {:blz, "/admin/bankleitzahlen", "Bankleitzahlen"},
     {:redirects, "/admin/weiterleitungen", "Weiterleitungen"}
   ]
 

@@ -104,8 +104,8 @@ automatically on Phoenix startup. See the script header for flags.
   sanitizes push subscriptions/tokens/jobs. See [`deploy/README.md`](deploy/README.md#syncing-prod-data-to-beta).
 - **Logs** — `docker compose --env-file .env logs -f phoenix`; verbosity via
   `LOG_LEVEL` in `.env`.
-- **BLZ table** (IBAN→BIC lookup for the membership form) — refresh ~quarterly with
-  `mix bbh.blz.strip <csv>`; see [`AGENTS.md`](AGENTS.md#blz-table-iban--bickreditinstitut).
+- **BLZ table** (IBAN→BIC lookup for the membership form) — refresh ~quarterly by
+  uploading the Bundesbank CSV at `/admin/bankleitzahlen`; see [`AGENTS.md`](AGENTS.md#blz-table-iban--bickreditinstitut).
 - **Event map archive** — fetched and refreshed by the app itself (monthly, and when
   a venue outside the map is saved); force it with
   `bin/bbh rpc "Bbh.Map.enqueue_update()"`. See [ADR 0014](docs/adr/0014-self-hosted-osm-map.md).

@@ -6,14 +6,13 @@ defmodule Mix.Tasks.Bbh.Blz.Strip do
 
       mix bbh.blz.strip path/to/blz-aktuell-csv-data.csv [priv/data/blz.tsv]
 
-  The source is a `;`-separated, `"`-quoted, ISO-8859-1 file with one row per
-  bank branch. We keep only the *leading* record per Bankleitzahl (`Merkmal == "1"`,
-  the Hauptstelle) that actually carries a BIC, and emit a UTF-8 TSV of
+  Parsing is `Bbh.Blz.parse_bundesbank/1`, the same an admin upload at
+  `/admin/bankleitzahlen` goes through; the output is a UTF-8 TSV of
 
       BLZ<TAB>BIC<TAB>Bezeichnung
 
-  sorted by BLZ. Refresh it whenever the Bundesbank publishes a new quarterly file
-  (the download URL is not stable, so this is a manual step); commit the result.
+  sorted by BLZ. The running site is normally refreshed through that upload; use this
+  task to refresh the copy shipped in the release, then commit the result.
   """
   use Mix.Task
 
@@ -28,39 +27,14 @@ defmodule Mix.Tasks.Bbh.Blz.Strip do
         _ -> Mix.raise("usage: mix bbh.blz.strip <input.csv> [output.tsv]")
       end
 
-    rows =
-      input
-      |> File.read!()
-      # The Bundesbank file is Latin-1; convert to UTF-8 before parsing.
-      |> :unicode.characters_to_binary(:latin1)
-      |> String.split(~r/\r?\n/, trim: true)
-      |> Enum.drop(1)
-      |> Enum.flat_map(&parse_line/1)
-      |> Enum.uniq_by(fn {blz, _bic, _name} -> blz end)
-      |> Enum.sort_by(fn {blz, _bic, _name} -> blz end)
+    case input |> File.read!() |> Bbh.Blz.parse_bundesbank() do
+      {:ok, table} ->
+        File.mkdir_p!(Path.dirname(output))
+        File.write!(output, Bbh.Blz.encode(table))
+        Mix.shell().info("Wrote #{map_size(table)} BLZ entries to #{output}")
 
-    File.mkdir_p!(Path.dirname(output))
-    body = Enum.map_join(rows, "\n", fn {blz, bic, name} -> "#{blz}\t#{bic}\t#{name}" end)
-    File.write!(output, body <> "\n")
-
-    Mix.shell().info("Wrote #{length(rows)} BLZ entries to #{output}")
-  end
-
-  defp parse_line(line) do
-    fields = line |> String.split(";") |> Enum.map(&unquote_field/1)
-
-    case fields do
-      [blz, "1" | _] = list ->
-        bic = Enum.at(list, 7, "")
-        name = Enum.at(list, 2, "")
-        if bic == "", do: [], else: [{blz, bic, name}]
-
-      _ ->
-        []
+      {:error, :too_few_entries} ->
+        Mix.raise("#{input} does not look like the Bundesbank BLZ file (too few entries)")
     end
-  end
-
-  defp unquote_field(field) do
-    field |> String.trim() |> String.trim("\"") |> String.trim()
   end
 end

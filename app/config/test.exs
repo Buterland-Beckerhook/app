@@ -28,6 +28,12 @@ config :bbh, BbhWeb.RateLimit, enabled: false
 # tests turn it on with a stubbed HTTP client and a fake `pmtiles`.
 config :bbh, Bbh.Map, auto_update: false, req_options: [plug: {Req.Test, Bbh.Map}]
 
+# Uploaded BLZ table in a scratch path, so tests never see a dev upload. Tiny
+# fixtures pass the "is this the real file" check.
+config :bbh, Bbh.Blz,
+  upload_file: Path.expand("../tmp/test/blz.tsv", __DIR__),
+  min_entries: 2
+
 # Run Oban jobs manually in tests (no queues/cron polling); use Oban.Testing.
 config :bbh, Oban, testing: :manual
 

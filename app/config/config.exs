@@ -129,6 +129,10 @@ config :bbh, BbhWeb.RateLimit, enabled: true
 # Content-Security-Policy. Disabled in dev.exs so LiveReload keeps working.
 config :bbh, BbhWeb.Plugs.CSP, enabled: true
 
+# BLZ table (Bbh.Blz): an admin upload at /admin/bankleitzahlen is written to
+# :upload_file and wins over the shipped priv/data/blz.tsv. Overridden per-env.
+config :bbh, Bbh.Blz, upload_file: Path.expand("../priv/uploads/blz.tsv", __DIR__)
+
 # Self-hosted event map (Bbh.Map, ADR 0014). The archive is extracted from the
 # Protomaps daily build into :dir by Bbh.Workers.MapTilesUpdater, which needs the
 # `pmtiles` CLI (in both Docker images). Protomaps builds stop at zoom 15; MapLibre
