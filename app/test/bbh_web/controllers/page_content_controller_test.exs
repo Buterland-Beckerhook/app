@@ -412,7 +412,7 @@ defmodule BbhWeb.PageContentControllerTest do
       assert text =~ "Simon Sell (29)"
       # 2025 had no winner: the row is there, with a dash.
       assert text =~ "2025"
-      assert LazyHTML.query(table, ~s([aria-label="kein Sieger bekannt"])) |> Enum.count() == 1
+      assert LazyHTML.query(table, ~s(table [aria-label="kein Sieger bekannt"])) |> Enum.count() == 1
       assert text =~ "Rekordsieger"
       assert text =~ "Anna (3×)"
       assert text =~ "seit 1965"
@@ -431,6 +431,52 @@ defmodule BbhWeb.PageContentControllerTest do
       assert text =~ "Anna"
       refute text =~ "Rekordsieger"
       refute text =~ "Nur Könige."
+    end
+
+    test "shows the latest year's winners as cards, a dash card for an open trophy",
+         %{html: html} do
+      s = trophy_fixture(name: "Schützenpokal", sort_order: 1)
+      b = trophy_fixture(name: "Biwakpokal", sort_order: 2)
+      trophy_win_fixture(trophy: s, year: 2025, winner: "Bernd Verst", rings: 30)
+      trophy_win_fixture(trophy: b, year: 2025, winner: "Anna")
+      trophy_win_fixture(trophy: s, year: 2026, winner: "Simon Sell", rings: 29)
+
+      section = html.(%{}) |> trophy_table()
+      cards = LazyHTML.query(section, ".bbh-trophy-card")
+
+      assert LazyHTML.text(section) =~ "Die Sieger 2026"
+      assert Enum.count(cards) == 2
+      assert LazyHTML.text(cards) =~ "Simon Sell"
+      assert LazyHTML.text(cards) =~ "29 Ringe"
+      assert LazyHTML.text(cards) =~ "noch kein Sieger"
+      refute LazyHTML.text(cards) =~ "Bernd Verst"
+    end
+
+    test "offers the table and one view per trophy, starting at its first winner",
+         %{html: html} do
+      s = trophy_fixture(name: "Schützenpokal", sort_order: 1)
+      b = trophy_fixture(name: "Biwakpokal", sort_order: 2)
+      trophy_win_fixture(trophy: s, year: 2001, winner: "Anna")
+      trophy_win_fixture(trophy: b, year: 2010, winner: "Berta")
+      trophy_win_fixture(trophy: b, year: 2012, winner: "Carla")
+
+      section = html.(%{}) |> trophy_table()
+      tabs = LazyHTML.query(section, ".bbh-tab")
+      panels = LazyHTML.query(section, ".bbh-tab-panel")
+
+      assert tabs |> Enum.map(&LazyHTML.text/1) |> Enum.map(&String.trim/1) ==
+               ["Alle Pokale", "Schützenpokal", "Biwakpokal"]
+
+      # One radio group, the table checked by default.
+      radios = LazyHTML.query(section, ~s(input[type="radio"]))
+      assert radios |> LazyHTML.attribute("name") |> Enum.uniq() |> length() == 1
+      assert LazyHTML.query(section, ".bbh-tab-all input[checked]") |> Enum.count() == 1
+
+      biwak = panels |> Enum.at(2) |> LazyHTML.text()
+      assert biwak =~ "Carla"
+      assert biwak =~ "2011"
+      # Years before its first winner are left out of the trophy's own list.
+      refute biwak =~ "2009"
     end
 
     test "renders nothing without winners", %{html: html} do

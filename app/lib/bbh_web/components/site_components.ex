@@ -765,50 +765,84 @@ defmodule BbhWeb.SiteComponents do
 
   # Read live from `Bbh.Club`: a winner entered under „Pokale" shows up on every page that
   # carries this block, without editing it.
+  #
+  # Three parts: cards with the winners of the latest year that has any entry, then a
+  # switch between „Alle Pokale" (the year × trophy table) and one list per trophy, then
+  # records and descriptions. The switch is radios + CSS (`.bbh-tabs` in app.css), so it
+  # needs no JS; on a phone the table is left out of it and the first trophy is shown
+  # instead, since five columns do not fit there.
   def block(%{type: "trophy_table"} = assigns) do
     %{trophies: trophies, rows: rows} = Bbh.Club.trophy_table()
+    records = if assigns.block.show_records, do: Bbh.Club.trophy_records(), else: []
 
     assigns =
       assign(assigns,
         trophies: trophies,
         rows: rows,
-        records: if(assigns.block.show_records, do: Bbh.Club.trophy_records(), else: [])
+        latest: List.first(rows),
+        records: records,
+        records_by_trophy: Map.new(records, fn {t, count, names} -> {t.id, {count, names}} end),
+        group: "pokal-ansicht-#{assigns.block.id}"
       )
 
     ~H"""
     <section :if={@rows != []} class="bbh-trophy-table">
       <h3 :if={@block.title} class="mb-2 text-lg font-semibold">{@block.title}</h3>
-      <%!-- Names wrap, so on the content column all five trophies fit without scrolling
-            (one hidden column was easy to miss). Below the table's min width — a phone —
-            it scrolls sideways inside its own box: the year column stays pinned and a
-            shadow on the right edge shows there is more. --%>
-      <div class="bbh-scroll-x overflow-x-auto rounded-[18px] border border-base-300">
-        <table class="w-full min-w-[40rem] text-left text-sm">
-          <thead class="bg-base-200">
-            <tr>
-              <th scope="col" class="sticky left-0 bg-base-200 px-3 py-2">Jahr</th>
-              <th :for={t <- @trophies} scope="col" class="whitespace-nowrap px-3 py-2">
-                {t.name}
-              </th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-base-300">
-            <tr :for={{year, wins} <- @rows}>
-              <th
-                scope="row"
-                class="sticky left-0 bg-card px-3 py-2 align-top font-medium tabular-nums"
-              >
-                {year}
-              </th>
-              <td :for={t <- @trophies} class="px-3 py-2 align-top">
-                <.trophy_cell win={wins[t.id]} />
-              </td>
-            </tr>
-          </tbody>
-        </table>
+
+      <.trophy_latest year={elem(@latest, 0)} wins={elem(@latest, 1)} trophies={@trophies} />
+
+      <div class="bbh-tabs mt-8" role="radiogroup" aria-label="Ansicht der Pokalsieger">
+        <label class="bbh-tab bbh-tab-all">
+          <input type="radio" name={@group} class="sr-only" checked /> Alle Pokale
+        </label>
+        <div class="bbh-tab-panel">
+          <%!-- Names wrap, so on the content column all five trophies fit without
+                scrolling. Narrower than the table's min width it scrolls inside its own
+                box: the year column stays pinned and a shadow on the right edge shows
+                there is more. --%>
+          <div class="bbh-scroll-x overflow-x-auto rounded-[18px] border border-base-300">
+            <table class="w-full min-w-[40rem] text-left text-sm">
+              <thead class="bg-base-200">
+                <tr>
+                  <th scope="col" class="sticky left-0 bg-base-200 px-3 py-2">Jahr</th>
+                  <th :for={t <- @trophies} scope="col" class="whitespace-nowrap px-3 py-2">
+                    {t.name}
+                  </th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-base-300">
+                <tr :for={{year, wins} <- @rows}>
+                  <th
+                    scope="row"
+                    class="sticky left-0 bg-card px-3 py-2 align-top font-medium tabular-nums"
+                  >
+                    {year}
+                  </th>
+                  <td :for={t <- @trophies} class="px-3 py-2 align-top">
+                    <.trophy_cell win={wins[t.id]} />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <%= for {t, i} <- Enum.with_index(@trophies) do %>
+          <label class={["bbh-tab", i == 0 && "bbh-tab-first"]}>
+            <input type="radio" name={@group} class="sr-only" /> {t.name}
+          </label>
+          <div class="bbh-tab-panel">
+            <.trophy_single
+              trophy={t}
+              rows={trophy_rows(@rows, t)}
+              record={@records_by_trophy[t.id]}
+              show_description={@block.show_descriptions}
+            />
+          </div>
+        <% end %>
       </div>
 
-      <div :if={@records != []} class="mt-6">
+      <div :if={@records != []} class="mt-8">
         <h4 class="font-semibold">Rekordsieger</h4>
         <ul class="mt-2 space-y-1 text-sm">
           <li :for={{trophy, count, names} <- @records}>
@@ -828,6 +862,82 @@ defmodule BbhWeb.SiteComponents do
       </dl>
     </section>
     """
+  end
+
+  # The winners of the latest year with any entry — in January, before the Pokalschießen,
+  # that is still last year — one card per trophy.
+  attr :year, :integer, required: true
+  attr :wins, :map, required: true
+  attr :trophies, :list, required: true
+
+  defp trophy_latest(assigns) do
+    ~H"""
+    <div class="mt-4">
+      <h4 class="font-semibold">Die Sieger {@year}</h4>
+      <ul class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fit,minmax(8.5rem,1fr))]">
+        <.trophy_card :for={t <- @trophies} trophy={t} win={@wins[t.id]} />
+      </ul>
+    </div>
+    """
+  end
+
+  attr :trophy, :any, required: true
+  attr :win, :any, required: true
+
+  defp trophy_card(assigns) do
+    ~H"""
+    <li class="bbh-trophy-card rounded-[18px] border border-base-300 bg-card p-4">
+      <.icon name="hero-trophy" class="size-5 text-primary" />
+      <p class="mt-2 text-xs font-medium uppercase tracking-wide text-muted">{@trophy.name}</p>
+      <p :if={@win} class="mt-1 font-semibold leading-snug">{@win.winner}</p>
+      <p :if={@win && @win.rings} class="text-sm text-muted">{@win.rings} Ringe</p>
+      <p :if={@win && @win.note} class="text-xs text-muted">{@win.note}</p>
+      <p :if={!@win} class="mt-1 text-muted">noch kein Sieger</p>
+    </li>
+    """
+  end
+
+  # One trophy on its own: every year from its first recorded winner on, newest first,
+  # in two columns where there is room.
+  attr :trophy, :any, required: true
+  attr :rows, :list, required: true
+  attr :record, :any, default: nil
+  attr :show_description, :boolean, default: false
+
+  defp trophy_single(assigns) do
+    ~H"""
+    <div class="rounded-[18px] border border-base-300 bg-card p-4 sm:p-6">
+      <h4 class="text-lg font-semibold">
+        {@trophy.name}<span :if={@trophy.since} class="font-normal text-muted"> · seit {@trophy.since}</span>
+      </h4>
+      <p :if={@show_description && @trophy.description} class="mt-1 text-sm text-muted">
+        {@trophy.description}
+      </p>
+      <p :if={@record} class="mt-1 text-sm">
+        <span class="font-medium">Rekordsieger:</span>
+        {Enum.join(elem(@record, 1), ", ")} ({elem(@record, 0)}×)
+      </p>
+      <ol class="mt-4 gap-8 text-sm sm:columns-2">
+        <li
+          :for={{year, win} <- @rows}
+          class="flex break-inside-avoid gap-3 border-b border-base-300 py-1.5"
+        >
+          <span class="w-12 shrink-0 font-medium tabular-nums">{year}</span>
+          <span><.trophy_cell win={win} /></span>
+        </li>
+      </ol>
+    </div>
+    """
+  end
+
+  # `rows` cut to one trophy, from the newest year down to its first recorded winner
+  # (years before the trophy existed would only be dashes).
+  defp trophy_rows(rows, trophy) do
+    rows
+    |> Enum.map(fn {year, wins} -> {year, wins[trophy.id]} end)
+    |> Enum.reverse()
+    |> Enum.drop_while(fn {_year, win} -> is_nil(win) end)
+    |> Enum.reverse()
   end
 
   def block(%{type: "separator"} = assigns) do

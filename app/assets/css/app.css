@@ -982,3 +982,73 @@ h1, h2, h3, h4, h5, h6 {
       right center / 0.875rem 100% no-repeat scroll,
     var(--bb-card-bg);
 }
+
+/* View switch without JS (Pokalsieger: „Alle Pokale" | one tab per trophy). Each tab is
+   a <label> wrapping a visually hidden radio, directly followed by its panel — the
+   daisyUI radio-tab pattern, so any number of tabs works without per-tab rules. Panels
+   take `order: 1` and the full width, which puts the tabs in a row above them. */
+.bbh-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.bbh-tab {
+  position: relative;
+  cursor: pointer;
+  border: 1px solid var(--color-base-300);
+  border-radius: 9999px;
+  padding: 0.375rem 0.875rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--bb-nav-text);
+  transition: background-color 120ms, border-color 120ms, color 120ms;
+}
+.bbh-tab:hover {
+  border-color: var(--color-primary);
+}
+.bbh-tab:has(input:checked) {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-primary-content);
+}
+.bbh-tab:has(input:focus-visible) {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+.bbh-tab-panel {
+  order: 1;
+  width: 100%;
+  margin-top: 0.5rem;
+  display: none;
+}
+.bbh-tab:has(input:checked) + .bbh-tab-panel {
+  display: block;
+}
+
+/* Phone: five columns do not fit, so the table is not offered; while „Alle Pokale" is
+   still the checked radio (the default), the first trophy stands in for it. */
+@media (width < 40rem) {
+  .bbh-tab-all,
+  .bbh-tab-all + .bbh-tab-panel {
+    display: none !important;
+  }
+  .bbh-tabs:has(.bbh-tab-all input:checked) > .bbh-tab-first {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: var(--color-primary-content);
+  }
+  .bbh-tabs:has(.bbh-tab-all input:checked) > .bbh-tab-first + .bbh-tab-panel {
+    display: block;
+  }
+}
+
+/* Browsers without :has() (before 2023) cannot switch: show the table and hide the
+   tabs, which is the old layout. */
+@supports not selector(:has(*)) {
+  .bbh-tab {
+    display: none;
+  }
+  .bbh-tab-all + .bbh-tab-panel {
+    display: block;
+  }
+}
