@@ -1340,7 +1340,7 @@ defmodule BbhWeb.SiteComponents do
 
   @doc """
   Compact year-king pager for /thron. Linked via the starting year
-  (`?jahr=1995`), nicht über die Position — so bleibt die URL eines Throns stabil,
+  (`?year=1995`), not via the position; this keeps the URL of a throne stable,
   auch wenn jedes Jahr ein neuer davor rückt.
   """
   attr :current_year, :integer, default: nil, doc: "begin year of the throne shown"
