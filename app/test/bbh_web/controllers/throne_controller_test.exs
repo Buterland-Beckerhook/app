@@ -123,8 +123,7 @@ defmodule BbhWeb.ThroneControllerTest do
     test "?jahr= is scoped to the list's throne type", %{conn: conn} do
       throne_fixture(type: "stadtkaiser", begin_year: 2000, end_year: nil, king: "Ludger")
 
-      assert conn |> get(~p"/thron/stadtkaiser?jahr=2000") |> html_response(200) =~
-               "Ludger"
+      assert conn |> get(~p"/thron/stadtkaiser?jahr=2000") |> html_response(200) =~ "Ludger"
 
       # 1995 is a König, not a Stadtkaiser.
       assert conn |> get(~p"/thron/stadtkaiser?jahr=1995") |> response(404)
