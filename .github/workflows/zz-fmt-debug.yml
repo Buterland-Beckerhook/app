@@ -26,11 +26,11 @@ jobs:
           restore-keys: |
             mix-${{ runner.os }}-otp29.1.2-ex1.20.4-
       - run: mix deps.get
+      - run: mix format || true
       - run: |
-          mix format || true
           git diff --unified=0 | python3 -c '
           import sys,urllib.parse
           d=sys.stdin.read()
           for i in range(0,len(d),3000):
-              print("::warning title=fmt%d::%s" % (i//3000, d[i:i+3000].replace("%","%25").replace("\r","%0D").replace("\n","%0A")))
+              print("::error title=fmt%d::%s" % (i//3000, d[i:i+3000].replace("%","%25").replace("\r","%0D").replace("\n","%0A")))
           '
