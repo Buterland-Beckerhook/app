@@ -412,7 +412,8 @@ defmodule BbhWeb.PageContentControllerTest do
       assert text =~ "Simon Sell (29)"
       # 2025 had no winner: the row is there, with a dash.
       assert text =~ "2025"
-      assert LazyHTML.query(table, ~s(table [aria-label="kein Sieger bekannt"])) |> Enum.count() == 1
+      dashes = LazyHTML.query(table, ~s(table [aria-label="kein Sieger bekannt"]))
+      assert Enum.count(dashes) == 1
       assert text =~ "Rekordsieger"
       assert text =~ "Anna (3×)"
       assert text =~ "seit 1965"
