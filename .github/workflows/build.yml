@@ -10,8 +10,16 @@ name: Build & push image
 # into one multi-arch manifest. The legs run in parallel, so wall-clock is
 # roughly a single native build instead of the old emulated arm64 leg.
 #
-# Triggers on push to main (tags :beta rolling + :sha-XXXXXXX immutable) and via
-# "Run workflow" (workflow_dispatch) for ad-hoc builds from a feature branch.
+# Triggers on push to main and via "Run workflow" (workflow_dispatch) for ad-hoc
+# builds from a feature branch. Tags per build:
+#   :beta                    rolling, what the Beta stack runs
+#   :YYYYMMDD-HHMM-<sha>     immutable (UTC build time), what Prod pins — newest
+#                            one is what `deploy/update.sh --latest` picks
+#   :sha-XXXXXXX             newest build of that commit (moves on a rebuild)
+#
+# A weekly scheduled rebuild of main picks up Debian security updates for the
+# runtime packages (openssl, ca-certificates, …): it rebuilds the final stage
+# without cache, so its apt-get layer is fetched fresh even when no commit landed.
 on:
   push:
     branches: [main]
@@ -21,6 +29,9 @@ on:
   # Manual trigger — also used to build ad-hoc from a feature branch before it
   # merges to main (the push trigger only fires on main).
   workflow_dispatch:
+  # Weekly rebuild of main for OS security updates (see above).
+  schedule:
+    - cron: "17 4 * * 1"
 
 # Deny-all by default; each job re-grants exactly what it needs.
 permissions: {}
@@ -98,6 +109,9 @@ jobs:
           # Per-architecture cache scope so the two legs don't clobber each other.
           cache-from: type=gha,scope=${{ env.PLATFORM_PAIR }}
           cache-to: type=gha,mode=max,scope=${{ env.PLATFORM_PAIR }}
+          # The scheduled rebuild exists to refresh the runtime's apt packages,
+          # which a cached final stage would never do.
+          no-cache-filters: ${{ github.event_name == 'schedule' && 'final' || '' }}
 
       - name: Export digest
         run: |
@@ -148,6 +162,8 @@ jobs:
           images: ${{ env.IMAGE }}
           tags: |
             type=raw,value=beta
+            # main only: `update.sh --latest` must never pick a feature-branch build.
+            type=raw,value={{date 'YYYYMMDD-HHmm'}}-{{sha}},enable={{is_default_branch}}
             type=sha,format=short
 
       - name: Create multi-arch manifest

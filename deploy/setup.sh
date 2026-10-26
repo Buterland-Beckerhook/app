@@ -165,7 +165,7 @@ if [[ "$MODE" == "beta" ]]; then
   def_stack="bbh-beta"
   auth_default="y"
 else
-  def_image="ghcr.io/buterland-beckerhook/app:beta"   # prompt to pin a :sha-XXXX
+  def_image="ghcr.io/buterland-beckerhook/app:beta"   # ./update.sh --latest pins a build tag
   def_host="buterland-beckerhook.de"
   def_tname="bb"
   def_stack="bbh-prod"
@@ -181,7 +181,7 @@ fi
 # STACK_NAME is the Compose project name (and thus the named-volume prefix), so
 # Beta and Prod coexist on one host without sharing data. See compose.yml.
 resolve STACK_NAME "Compose stack/project name" "$def_stack"
-resolve IMAGE "Container image (pin :sha-XXXX for prod)" "$def_image"
+resolve IMAGE "Container image (prod: pin later with ./update.sh --latest)" "$def_image"
 resolve PHX_HOST "Public hostname (PHX_HOST)" "$def_host";      PHX_HOST="$RESOLVED"
 resolve TRAEFIK_NAME "Traefik router/service name" "$def_tname"; TRAEFIK_NAME="$RESOLVED"
 
