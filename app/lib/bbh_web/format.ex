@@ -41,6 +41,17 @@ defmodule BbhWeb.Format do
     "#{de_weekday_abbr(dt)}, #{two(dt.day)}.#{two(dt.month)}.#{dt.year} #{two(dt.hour)}:#{two(dt.minute)}"
   end
 
+  @doc """
+  The end an event shows on the site: `nil` when the editor turned "Ende anzeigen" off.
+  For events without a fixed end (a litter pick-up) — iCal still gets the real end, so a
+  calendar entry stays bounded, but a reader isn't told when they have to leave.
+  """
+  def public_end(%{show_end: false}), do: nil
+  def public_end(%{ends_at: ends_at}), do: ends_at
+
+  @doc "`de_range/3` for an event, honouring its \"Ende anzeigen\" switch."
+  def de_event_range(event), do: de_range(event.starts_at, public_end(event), event.all_day)
+
   @doc "German date/time range for an event, collapsing same-day ranges."
   def de_range(%DateTime{} = start, nil, all_day?), do: day_or_datetime(start, all_day?)
 

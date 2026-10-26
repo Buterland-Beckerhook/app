@@ -22,7 +22,7 @@
         </span>
       </div>
       <p class="mt-2 text-muted">
-        {de_range(@event.starts_at, @event.ends_at, @event.all_day)}
+        {de_event_range(@event)}
       </p>
       <p :if={@event.status == "canceled" && @event.cancel_reason} class="mt-1 text-sm text-error">
         {@event.cancel_reason}

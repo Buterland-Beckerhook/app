@@ -84,7 +84,7 @@
                 </span>
               </div>
               <div class="mt-0.5 text-sm text-muted">
-                {de_range(event.starts_at, event.ends_at, event.all_day)}<span :if={
+                {de_event_range(event)}<span :if={
                   event.location
                 }> · {event.location.name}</span>
               </div>

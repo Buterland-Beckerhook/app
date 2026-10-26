@@ -50,6 +50,8 @@ defmodule Bbh.Calendar.Event do
     field :revision, :integer
     field :enable_ical, :boolean, default: true
     field :show_countdown, :boolean, default: true
+    # Shown on the site only when true; iCal always gets the end (see Bbh.ICal).
+    field :show_end, :boolean, default: true
     field :countdown_lead_days, :integer, default: 60
     field :calendar, :string
     # Marker for the "Neuer Termin" push; set once sent (see EventPublishNotifier).
@@ -84,6 +86,7 @@ defmodule Bbh.Calendar.Event do
       :revision,
       :enable_ical,
       :show_countdown,
+      :show_end,
       :countdown_lead_days,
       :calendar,
       :location_id,

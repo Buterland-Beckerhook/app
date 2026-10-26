@@ -121,6 +121,9 @@ timed child event (`parent_id`, one level deep). Rules that constrain changes:
   `Bbh.Calendar.get_public_event_by_id/1`, so it renders nothing until the event is
   public. The programme markup is `BbhWeb.EventHTML.programme/1`, shared with the
   festival page — only the festival page sets the item anchors.
+- **"Ende anzeigen" (`show_end`) hides the end on the site only.** Public templates
+  render times through `BbhWeb.Format.de_event_range/1` / `public_end/1` (JSON-LD
+  `endDate` too); `Bbh.ICal` keeps the real `DTEND`, so calendar entries stay bounded.
 - The changeset (`Bbh.Calendar.Event`) keeps items inside the festival (overnight grace
   until 06:00 after the last day) and festivals around their items. `make seed-demo`
   adds a demo festival; walk through it with `/dev/zeitreise`.

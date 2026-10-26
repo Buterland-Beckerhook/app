@@ -359,6 +359,11 @@ defmodule BbhWeb.Admin.EventLive.Form do
           />
         </div>
         <.input
+          field={@form[:show_end]}
+          type="checkbox"
+          label="Ende auf der Website anzeigen (der Kalender-Export enthält es immer)"
+        />
+        <.input
           :if={!item_form?(@form)}
           field={@form[:all_day]}
           type="checkbox"

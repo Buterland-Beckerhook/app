@@ -240,7 +240,7 @@ defmodule BbhWeb.SiteComponents do
         </span>
       </div>
       <time class="mt-1 text-sm text-muted">
-        {de_range(@event.starts_at, @event.ends_at, @event.all_day)}
+        {de_event_range(@event)}
       </time>
       <p :if={@event.location} class="mt-1 text-sm text-muted">
         {@event.location.name}
@@ -844,7 +844,7 @@ defmodule BbhWeb.SiteComponents do
           <a href={BbhWeb.EventPaths.path(@event)} class="hover:underline">{@event.title}</a>
         </h3>
         <p class="mt-1 text-muted">
-          {de_range(@event.starts_at, @event.ends_at, @event.all_day)}
+          {de_event_range(@event)}
           <span :if={@event.location}>· {@event.location.name}</span>
         </p>
       </header>

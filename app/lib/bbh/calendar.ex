@@ -400,6 +400,7 @@ defmodule Bbh.Calendar do
           slug: item.slug,
           starts_at: DateTime.add(item.starts_at, shift, :day),
           ends_at: item.ends_at && DateTime.add(item.ends_at, shift, :day),
+          show_end: item.show_end,
           body: item.body,
           location_id: item.location_id,
           enable_ical: item.enable_ical
