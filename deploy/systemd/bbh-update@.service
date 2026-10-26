@@ -1,0 +1,12 @@
+# Runs deploy/update.sh for one stack. The instance is the stack's deploy/
+# directory, systemd-escaped — see bbh-update@.timer and deploy/README.md.
+# Meant for Beta (IMAGE=…:beta); Prod pins a build tag and is updated by hand.
+[Unit]
+Description=Update the bbh stack in %f
+Wants=network-online.target
+After=network-online.target docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=%f/update.sh

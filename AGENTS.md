@@ -366,7 +366,10 @@ Two GitHub Actions workflows (`.github/workflows/`):
   `mix test` against a Postgres service. This is the required check that gates
   Renovate's auto-merge.
 - **`build.yml`** — builds the Phoenix release image and pushes it to GHCR (see
-  the deploy notes). Actions are pinned to commit SHAs; Renovate keeps them current.
+  the deploy notes), on every push to `main` and weekly without cache for the
+  runtime's Debian security updates. Prod pins the immutable `YYYYMMDD-HHMM-<sha>`
+  tag through `deploy/update.sh --latest`; Beta follows `:beta` via a systemd timer.
+  Actions are pinned to commit SHAs; Renovate keeps them current.
 
 **Renovate** (`renovate.json`) opens dependency-update PRs weekly (Elixir/mix,
 GitHub Actions, Docker base images, docker-compose). Patch/minor/digest updates
