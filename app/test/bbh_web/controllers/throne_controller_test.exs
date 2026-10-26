@@ -72,9 +72,65 @@ defmodule BbhWeb.ThroneControllerTest do
     html = conn |> get(~p"/thron") |> html_response(200)
 
     assert html =~ "data-nav-select"
-    # Newest throne is shown first; the older one is reachable via the next link.
+    # Newest throne is shown first; the older one is reachable via the next link,
+    # addressed by its year rather than its (shifting) position.
     assert html =~ "2023–2024 – Jan-Bernd Droste"
-    assert html =~ "/thron?seite=2"
+    assert html =~ "/thron?jahr=2018"
+    refute html =~ "seite="
+  end
+
+  describe "stable year URLs" do
+    setup do
+      throne_fixture(begin_year: 1995, end_year: 1996, king: "Ludger Bußjan")
+      throne_fixture(begin_year: 2018, end_year: 2019, king: "Gerd Lübbers")
+      throne_fixture(begin_year: 2023, end_year: 2024, king: "Jan-Bernd Droste")
+      :ok
+    end
+
+    test "?jahr= shows the throne of that year with a year-specific title", %{conn: conn} do
+      html = conn |> get(~p"/thron?jahr=1995") |> html_response(200)
+
+      assert html =~ "Ludger Bußjan"
+      assert html =~ ~s(<meta property="og:title" content="Throne 1995–1996">)
+      # Neighbours and the select point at year URLs; the shown throne is selected.
+      assert html =~ ~s(href="/thron?jahr=2018")
+      assert html =~ ~s(value="/thron?jahr=1995" selected)
+    end
+
+    test "the bare list URL shows the newest throne under the section title", %{conn: conn} do
+      html = conn |> get(~p"/thron") |> html_response(200)
+
+      assert html =~ "Jan-Bernd Droste"
+      assert html =~ ~s(<meta property="og:title" content="Throne">)
+    end
+
+    test "legacy ?seite=N permanently redirects to the throne now at that position",
+         %{conn: conn} do
+      conn = get(conn, ~p"/thron?seite=3")
+      assert conn.status == 301
+      assert redirected_to(conn, 301) == "/thron?jahr=1995"
+    end
+
+    test "?seite= past the end redirects to the list", %{conn: conn} do
+      assert conn |> get(~p"/thron?seite=99") |> redirected_to(301) == "/thron"
+    end
+
+    test "an unknown or malformed year is a 404", %{conn: conn} do
+      assert conn |> get(~p"/thron?jahr=1990") |> response(404)
+      assert conn |> get(~p"/thron?jahr=abc") |> response(404)
+    end
+
+    test "?jahr= is scoped to the list's throne type", %{conn: conn} do
+      throne_fixture(type: "stadtkaiser", begin_year: 2000, end_year: nil, king: "Ludger")
+
+      assert conn |> get(~p"/thron/stadtkaiser?jahr=2000") |> html_response(200) =~
+               "Ludger"
+
+      # 1995 is a König, not a Stadtkaiser.
+      assert conn |> get(~p"/thron/stadtkaiser?jahr=1995") |> response(404)
+      assert conn |> get(~p"/thron/stadtkaiser?seite=1") |> redirected_to(301) ==
+               "/thron/stadtkaiser?jahr=2000"
+    end
   end
 
   test "GET /thron only lists Könige, not other throne types", %{conn: conn} do
