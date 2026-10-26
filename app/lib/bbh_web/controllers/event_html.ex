@@ -110,8 +110,12 @@ defmodule BbhWeb.EventHTML do
   def programme_count(n), do: "#{n} Programmpunkte"
 
   @doc ~s(A programme item's time span, e.g. "20:00 – 02:00 Uhr".)
-  def item_time(%{starts_at: s, ends_at: %DateTime{} = e}), do: "#{hm(s)} – #{hm(e)} Uhr"
-  def item_time(%{starts_at: s}), do: "#{hm(s)} Uhr"
+  def item_time(%{starts_at: s} = item) do
+    case BbhWeb.Format.public_end(item) do
+      %DateTime{} = e -> "#{hm(s)} – #{hm(e)} Uhr"
+      nil -> "#{hm(s)} Uhr"
+    end
+  end
 
   @doc ~s(A programme item's day and span, e.g. "So., 09:30 – 10:30 Uhr".)
   def item_when(item), do: "#{BbhWeb.Format.de_weekday_abbr(item.starts_at)}, #{item_time(item)}"
@@ -192,9 +196,13 @@ defmodule BbhWeb.EventHTML do
           else: "https://schema.org/EventScheduled"
         )
     }
-    |> maybe_put("endDate", event.ends_at && DateTime.to_iso8601(event.ends_at))
+    # No fixed end shown on the page → none for search engines either.
+    |> maybe_put("endDate", iso8601(BbhWeb.Format.public_end(event)))
     |> maybe_put("location", event.location && place_jsonld(event.location))
   end
+
+  defp iso8601(nil), do: nil
+  defp iso8601(%DateTime{} = dt), do: DateTime.to_iso8601(dt)
 
   defp place_jsonld(location) do
     %{"@type" => "Place", "name" => location.name}

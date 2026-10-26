@@ -3,6 +3,19 @@ defmodule BbhWeb.EventControllerTest do
 
   import Bbh.CalendarFixtures
 
+  defp cleanup_event(attrs) do
+    event_fixture(
+      Map.merge(
+        %{
+          title: "Müllsammelaktion",
+          starts_at: ~U[2030-03-16 10:00:00Z],
+          ends_at: ~U[2030-03-16 13:00:00Z]
+        },
+        attrs
+      )
+    )
+  end
+
   describe "GET /termine" do
     test "renders the events index", %{conn: conn} do
       event = event_fixture(title: "Schützenfest")
@@ -134,6 +147,35 @@ defmodule BbhWeb.EventControllerTest do
       event = event_fixture()
       html = conn |> get(~p"/termine/#{event.year}/#{event.slug}") |> html_response(200)
       refute html =~ "/bearbeiten"
+    end
+  end
+
+  describe "\"Ende anzeigen\"" do
+    test "is shown by default", %{conn: conn} do
+      event = cleanup_event(%{})
+      html = conn |> get(~p"/termine/#{event.year}/#{event.slug}") |> html_response(200)
+      assert html =~ "13:00 Uhr"
+      assert html =~ ~s{"endDate"}
+    end
+
+    test "switched off, the site leaves the end out but iCal keeps it", %{conn: conn} do
+      event = cleanup_event(%{show_end: false})
+
+      html = conn |> get(~p"/termine/#{event.year}/#{event.slug}") |> html_response(200)
+      assert html =~ "10:00"
+      refute html =~ "13:00"
+      refute html =~ ~s{"endDate"}
+
+      html = build_conn() |> get(~p"/termine?jahr=#{event.year}") |> html_response(200)
+      assert html =~ "Müllsammelaktion"
+      refute html =~ "13:00"
+
+      ics =
+        build_conn()
+        |> get(~p"/termine/#{event.year}/#{event.slug}/event.ics")
+        |> response(200)
+
+      assert ics =~ "DTEND;TZID=Europe/Berlin:20300316T130000"
     end
   end
 
