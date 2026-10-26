@@ -965,3 +965,20 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* This file is for your main application CSS */
+
+/* Sideways-scrolling box (Pokalsieger table): a shadow on the right edge while more
+   content lies beyond it. The card-coloured cover scrolls with the content
+   (`local`) and slides over the shadow (`scroll`) once the end is reached. The left
+   edge needs none — the pinned year column covers it. */
+.bbh-scroll-x {
+  background:
+    linear-gradient(to left, var(--bb-card-bg) 40%, transparent) right center / 2.5rem 100%
+      no-repeat local,
+    radial-gradient(
+        farthest-side at 100% 50%,
+        color-mix(in oklab, var(--bb-text-muted) 45%, transparent),
+        transparent
+      )
+      right center / 0.875rem 100% no-repeat scroll,
+    var(--bb-card-bg);
+}

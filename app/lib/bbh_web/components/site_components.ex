@@ -514,7 +514,7 @@ defmodule BbhWeb.SiteComponents do
 
   defp trophy_cell(assigns) do
     ~H"""
-    {@win.winner}<span :if={@win.rings} class="text-muted"> ({@win.rings})</span>
+    {@win.winner}<span :if={@win.rings} class="whitespace-nowrap text-muted"> ({@win.rings})</span>
     <span :if={@win.note} class="block text-xs text-muted">{@win.note}</span>
     """
   end
@@ -778,10 +778,12 @@ defmodule BbhWeb.SiteComponents do
     ~H"""
     <section :if={@rows != []} class="bbh-trophy-table">
       <h3 :if={@block.title} class="mb-2 text-lg font-semibold">{@block.title}</h3>
-      <%!-- Five trophies do not fit a phone: the table scrolls sideways inside its own
-            box, with the year column pinned so a row stays readable. --%>
-      <div class="overflow-x-auto rounded-[18px] border border-base-300">
-        <table class="w-full text-left text-sm">
+      <%!-- Names wrap, so on the content column all five trophies fit without scrolling
+            (one hidden column was easy to miss). Below the table's min width — a phone —
+            it scrolls sideways inside its own box: the year column stays pinned and a
+            shadow on the right edge shows there is more. --%>
+      <div class="bbh-scroll-x overflow-x-auto rounded-[18px] border border-base-300">
+        <table class="w-full min-w-[40rem] text-left text-sm">
           <thead class="bg-base-200">
             <tr>
               <th scope="col" class="sticky left-0 bg-base-200 px-3 py-2">Jahr</th>
@@ -792,10 +794,13 @@ defmodule BbhWeb.SiteComponents do
           </thead>
           <tbody class="divide-y divide-base-300">
             <tr :for={{year, wins} <- @rows}>
-              <th scope="row" class="sticky left-0 bg-card px-3 py-2 font-medium tabular-nums">
+              <th
+                scope="row"
+                class="sticky left-0 bg-card px-3 py-2 align-top font-medium tabular-nums"
+              >
                 {year}
               </th>
-              <td :for={t <- @trophies} class="whitespace-nowrap px-3 py-2">
+              <td :for={t <- @trophies} class="px-3 py-2 align-top">
                 <.trophy_cell win={wins[t.id]} />
               </td>
             </tr>
