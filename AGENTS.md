@@ -319,12 +319,20 @@ Deutsche Bundesbank "Bankleitzahlendatei" (`Bbh.Blz`, loaded into `:persistent_t
 at boot). Everything degrades gracefully — an unknown/outdated BLZ just leaves the
 fields blank.
 
-- Committed data: `app/priv/data/blz.tsv` (`BLZ<TAB>BIC<TAB>Name`, ~3.5k rows).
-- Refresh (~quarterly, the download URL is not stable so it's manual): download the
-  new `blz-aktuell-csv-data.csv` from bundesbank.de, then
-  `mix bbh.blz.strip path/to/blz-aktuell-csv-data.csv` and commit the regenerated TSV.
-- Override without a rebuild: drop a newer `blz.tsv` at `/data/blz.tsv` in the uploads
-  volume (or set `BLZ_DATA_FILE`); it wins over the shipped copy on next boot.
+- **Refresh (~quarterly) in the admin**: `/admin/bankleitzahlen` (admins only) links the
+  Bundesbank download page, takes the raw `blz-aktuell-csv-data.csv`, shows a diff
+  (neu / geändert / entfallen) against the active table and applies it only on
+  confirmation. `Bbh.Blz.import/1` writes `:upload_file` (`/data/blz.tsv` in the data
+  volume, `BLZ_DATA_FILE` overrides) atomically and reloads `:persistent_term` — no
+  restart, no release.
+- **An upload wins over the shipped copy until it is removed** ("Upload entfernen" on
+  the same page), even when a later release ships a newer one.
+- A file with fewer than 1,000 usable rows is refused, so a wrong upload can't
+  replace a working table. Parsing lives in `Bbh.Blz.parse_bundesbank/1` (Latin-1
+  original or a UTF-8 re-save); `mix bbh.blz.strip` uses the same code.
+- Shipped fallback: `app/priv/data/blz.tsv` (`BLZ<TAB>BIC<TAB>Name`, ~3.5k rows).
+  Refresh it now and then with `mix bbh.blz.strip path/to/blz-aktuell-csv-data.csv`
+  and commit the result.
 
 ## Performance checks (Lighthouse)
 

@@ -272,6 +272,7 @@ defmodule BbhWeb.Router do
       live "/benutzer", UserLive.Index, :index
       live "/website", SiteSettingsLive, :index
       live "/push", PushLive, :index
+      live "/bankleitzahlen", BlzLive, :index
 
       # Site-wide effect (a rule can send any old URL anywhere), hence admin-only.
       live "/weiterleitungen", RedirectLive.Index, :index

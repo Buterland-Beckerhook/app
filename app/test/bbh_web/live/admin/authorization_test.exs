@@ -20,6 +20,7 @@ defmodule BbhWeb.Admin.AuthorizationTest do
     "/admin/benutzer",
     "/admin/website",
     "/admin/push",
+    "/admin/bankleitzahlen",
     "/admin/weiterleitungen",
     "/admin/weiterleitungen/neu"
   ]

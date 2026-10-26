@@ -175,6 +175,9 @@ if config_env() == :prod do
   # Map archive inside the uploads volume (excluded from backups: regenerable).
   config :bbh, Bbh.Map, dir: System.get_env("MAP_DIR") || "/data/map"
 
+  # Uploaded BLZ table inside the data volume (see Bbh.Blz).
+  config :bbh, Bbh.Blz, upload_file: System.get_env("BLZ_DATA_FILE") || "/data/blz.tsv"
+
   # Contact form email via the club's own SMTP server.
   smtp_relay = System.get_env("SMTP_RELAY")
 
