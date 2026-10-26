@@ -164,6 +164,21 @@ defmodule Bbh.Content do
     paginate(base, page, per_page, preload: [:image, article: :image])
   end
 
+  @doc """
+  The throne of `type` that began in `begin_year`, with article + image, or nil. Backs
+  the stable `/thron?jahr=` URLs. Should a year ever hold two thrones of one type, the
+  first-entered one wins, so the result stays deterministic.
+  """
+  def get_throne_by_year(type, begin_year) do
+    Repo.one(
+      from t in Throne,
+        where: t.type == ^type and t.begin_year == ^begin_year,
+        order_by: [asc: t.inserted_at, asc: t.id],
+        limit: 1,
+        preload: [:image, article: :image]
+    )
+  end
+
   @doc "Schlanke Liste der Throne eines Typs (neueste zuerst) für den /thron-Pager."
   def list_throne_nav(type) do
     Repo.all(

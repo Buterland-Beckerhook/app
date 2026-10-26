@@ -1,11 +1,11 @@
 <Layouts.app flash={@flash} current_scope={@current_scope} current_path={@conn.request_path}>
   <h1 class="mb-6 text-3xl font-semibold">{@heading}</h1>
 
-  <p :if={@result.entries == []} class="text-muted">
+  <p :if={is_nil(@throne)} class="text-muted">
     Es sind noch keine Throne erfasst.
   </p>
 
-  <div :for={throne <- @result.entries} class="mx-auto max-w-3xl">
+  <div :for={throne <- List.wrap(@throne)} class="mx-auto max-w-3xl">
     <h2 class="mb-6 flex flex-wrap items-baseline justify-between gap-x-3 text-3xl font-semibold">
       <span>{throne_name(throne)}</span>
       <span class="text-xl font-normal text-muted">{throne_years(throne)}</span>
@@ -48,5 +48,5 @@
     </div>
   </div>
 
-  <.throne_pager page={@result.page} nav={@nav} base_path={@base_path} />
+  <.throne_pager current_year={@throne && @throne.begin_year} nav={@nav} base_path={@base_path} />
 </Layouts.app>

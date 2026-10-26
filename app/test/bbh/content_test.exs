@@ -98,6 +98,19 @@ defmodule Bbh.ContentTest do
     end
   end
 
+  describe "get_throne_by_year/2" do
+    test "finds the throne of a type by its begin year" do
+      %{id: id} = throne_fixture(begin_year: 1995, end_year: 1996)
+      throne_fixture(type: "stadtkaiser", begin_year: 2000, end_year: nil)
+
+      assert %{id: ^id, article: %Bbh.Content.Article{}} =
+               Content.get_throne_by_year("koenig", 1995)
+
+      assert Content.get_throne_by_year("koenig", 2000) == nil
+      assert Content.get_throne_by_year("stadtkaiser", 1995) == nil
+    end
+  end
+
   describe "current_throne/0 and list_thrones/2" do
     test "current_throne returns the throne with the highest begin year" do
       _older = throne_fixture(begin_year: 2018, end_year: 2019)
