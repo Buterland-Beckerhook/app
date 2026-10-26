@@ -1338,19 +1338,24 @@ defmodule BbhWeb.SiteComponents do
     |> Enum.reverse()
   end
 
-  @doc "Kompakter Jahr–König-Pager für /thron (nur ?seite= Navigation)."
-  attr :page, :integer, required: true
+  @doc """
+  Compact year-king pager for /thron. Linked via the starting year
+  (`?year=1995`), not via the position; this keeps the URL of a throne stable,
+  even as a new one takes its place each year.
+  """
+  attr :current_year, :integer, default: nil, doc: "begin year of the throne shown"
   attr :nav, :list, required: true
   attr :base_path, :string, required: true
 
   def throne_pager(assigns) do
-    total = length(assigns.nav)
+    idx = Enum.find_index(assigns.nav, &(&1.begin_year == assigns.current_year)) || 0
 
     assigns =
       assign(assigns,
-        total: total,
-        newer: assigns.page > 1 && Enum.at(assigns.nav, assigns.page - 2),
-        older: assigns.page < total && Enum.at(assigns.nav, assigns.page)
+        total: length(assigns.nav),
+        idx: idx,
+        newer: idx > 0 && Enum.at(assigns.nav, idx - 1),
+        older: Enum.at(assigns.nav, idx + 1)
       )
 
     ~H"""
@@ -1358,7 +1363,7 @@ defmodule BbhWeb.SiteComponents do
       <div class="hidden justify-self-start sm:block">
         <a
           :if={@newer}
-          href={"#{@base_path}?seite=#{@page - 1}"}
+          href={throne_href(@base_path, @newer)}
           class="text-sm hover:text-primary"
         >
           ‹ {throne_nav_label(@newer)}
@@ -1372,8 +1377,8 @@ defmodule BbhWeb.SiteComponents do
       >
         <option
           :for={{t, i} <- Enum.with_index(@nav)}
-          value={"#{@base_path}?seite=#{i + 1}"}
-          selected={i + 1 == @page}
+          value={throne_href(@base_path, t)}
+          selected={i == @idx}
         >
           {throne_nav_label(t)}
         </option>
@@ -1382,7 +1387,7 @@ defmodule BbhWeb.SiteComponents do
       <div class="hidden justify-self-end text-right sm:block">
         <a
           :if={@older}
-          href={"#{@base_path}?seite=#{@page + 1}"}
+          href={throne_href(@base_path, @older)}
           class="text-sm hover:text-primary"
         >
           {throne_nav_label(@older, :king_first)} ›
@@ -1476,6 +1481,8 @@ defmodule BbhWeb.SiteComponents do
     </select>
     """
   end
+
+  defp throne_href(base_path, %{begin_year: year}), do: "#{base_path}?jahr=#{year}"
 
   @doc ~S(Reign years for a throne, e.g. "2025–2026" or "2009".)
   def throne_years(t) do
