@@ -434,7 +434,7 @@ defmodule BbhWeb.PageContentControllerTest do
       refute text =~ "Nur Könige."
     end
 
-    test "shows the latest year's winners as cards, a dash card for an open trophy",
+    test "shows the latest year's winners as cards, none for a trophy not won that year",
          %{html: html} do
       s = trophy_fixture(name: "Schützenpokal", sort_order: 1)
       b = trophy_fixture(name: "Biwakpokal", sort_order: 2)
@@ -446,11 +446,23 @@ defmodule BbhWeb.PageContentControllerTest do
       cards = LazyHTML.query(section, ".bbh-trophy-card")
 
       assert LazyHTML.text(section) =~ "Die Sieger 2026"
-      assert Enum.count(cards) == 2
+      assert Enum.count(cards) == 1
       assert LazyHTML.text(cards) =~ "Simon Sell"
       assert LazyHTML.text(cards) =~ "29 Ringe"
-      assert LazyHTML.text(cards) =~ "noch kein Sieger"
+      refute LazyHTML.text(cards) =~ "Biwakpokal"
       refute LazyHTML.text(cards) =~ "Bernd Verst"
+    end
+
+    test "after years without a shooting, the cards show the last year that had one",
+         %{html: html} do
+      t = trophy_fixture(name: "Schützenpokal")
+      trophy_win_fixture(trophy: t, year: 2020, winner: "Heiko Oude Lansink")
+
+      # 2021/22 (Corona) would only exist as rows if a later year had winners.
+      section = html.(%{}) |> trophy_table()
+
+      assert LazyHTML.text(section) =~ "Die Sieger 2020"
+      assert section |> LazyHTML.query(".bbh-trophy-card") |> Enum.count() == 1
     end
 
     test "offers the table and one view per trophy, starting at its first winner",

@@ -865,7 +865,8 @@ defmodule BbhWeb.SiteComponents do
   end
 
   # The winners of the latest year with any entry — in January, before the Pokalschießen,
-  # that is still last year — one card per trophy.
+  # that is still last year; after years without a shooting (2021/22) the last one that
+  # had one. One card per trophy won that year: a trophy not (yet) shot gets none.
   attr :year, :integer, required: true
   attr :wins, :map, required: true
   attr :trophies, :list, required: true
@@ -875,7 +876,12 @@ defmodule BbhWeb.SiteComponents do
     <div class="mt-4">
       <h4 class="font-semibold">Die Sieger {@year}</h4>
       <ul class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fit,minmax(8.5rem,1fr))]">
-        <.trophy_card :for={t <- @trophies} trophy={t} win={@wins[t.id]} />
+        <.trophy_card
+          :for={t <- @trophies}
+          :if={@wins[t.id]}
+          trophy={t}
+          win={@wins[t.id]}
+        />
       </ul>
     </div>
     """
@@ -889,10 +895,9 @@ defmodule BbhWeb.SiteComponents do
     <li class="bbh-trophy-card rounded-[18px] border border-base-300 bg-card p-4">
       <.icon name="hero-trophy" class="size-5 text-primary" />
       <p class="mt-2 text-xs font-medium uppercase tracking-wide text-muted">{@trophy.name}</p>
-      <p :if={@win} class="mt-1 font-semibold leading-snug">{@win.winner}</p>
-      <p :if={@win && @win.rings} class="text-sm text-muted">{@win.rings} Ringe</p>
-      <p :if={@win && @win.note} class="text-xs text-muted">{@win.note}</p>
-      <p :if={!@win} class="mt-1 text-muted">noch kein Sieger</p>
+      <p class="mt-1 font-semibold leading-snug">{@win.winner}</p>
+      <p :if={@win.rings} class="text-sm text-muted">{@win.rings} Ringe</p>
+      <p :if={@win.note} class="text-xs text-muted">{@win.note}</p>
     </li>
     """
   end
