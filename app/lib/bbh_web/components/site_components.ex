@@ -1339,7 +1339,7 @@ defmodule BbhWeb.SiteComponents do
   end
 
   @doc """
-  Kompakter Jahr–König-Pager für /thron. Verlinkt über das Anfangsjahr
+  Compact year-king pager for /thron. Linked via the starting year
   (`?jahr=1995`), nicht über die Position — so bleibt die URL eines Throns stabil,
   auch wenn jedes Jahr ein neuer davor rückt.
   """
