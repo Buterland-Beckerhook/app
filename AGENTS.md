@@ -154,8 +154,10 @@ derived (`Bbh.Content.list_tags/0`), so a tag no article carries simply disappea
   (`Content.create_article/2` / `update_article/3` → `canonical_tags/2`, leaving out the
   article's own tags so a spelling fix on a tag's only article sticks). The form and the
   MCP tools both go through it.
-- The article form edits tags as chips (`TagInput` hook) with existing tags as
-  `<datalist>` suggestions; text still in the field on „Speichern“ is saved as a tag.
+- The article form edits tags as chips (`TagInput` hook). Existing tags are suggested
+  in the hook's own listbox (`data-suggestions`, filtered by `matchTags` in
+  `assets/js/tag_suggest.js`) — deliberately not a `<datalist>`, whose picks browsers
+  report inconsistently. Text still in the field on „Speichern“ is saved as a tag.
 - `/admin/schlagworte` renames (onto an existing tag = merge) and removes tags across all
   articles; removing is admin-only. Neither bumps „Geändert am“.
 - Tags link to `/suche?tag=…`, an exact (case-insensitive) listing of published articles.
