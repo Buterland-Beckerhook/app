@@ -86,10 +86,23 @@ defmodule Bbh.Media do
     |> Map.new(&{&1.storage_key, &1})
   end
 
+  @recent_limit 48
+
+  @doc """
+  How many files the virtual folder "Zuletzt hochgeladen" holds. A count rather than a
+  period: uploads come in bursts (a festival, an evening), so a window of days would be
+  crowded one week and empty the next, while the last few dozen are always the ones an
+  article is being written about. 48 fills whole rows at two, three and four columns.
+  """
+  def recent_limit, do: @recent_limit
+
   @doc """
   List uploads, optionally filtered by `:search` (filename/title), `:folder`
   (`:root` = unfiled, a folder id, a list of folder ids, or absent = all),
   `:images_only`, and `:sort`.
+
+  `recent: n` keeps only the `n` newest files that pass the other filters, *then* sorts —
+  so "Älteste zuerst" orders the recent files instead of digging up the oldest ones.
 
   Note the asymmetry at the edges of `:folder`: absent means every file, while `[]` means
   none. A caller building the list from a selection has to decide which of the two an
@@ -100,9 +113,17 @@ defmodule Bbh.Media do
     |> filter_search(opts[:search])
     |> filter_folder(Keyword.get(opts, :folder, :all))
     |> filter_images_only(opts[:images_only])
+    |> filter_recent(opts[:recent])
     |> sort_uploads(opts[:sort] || "newest")
     |> Repo.all()
   end
+
+  defp filter_recent(query, n) when is_integer(n) do
+    newest = from(u in query, order_by: [desc: u.inserted_at], limit: ^n, select: u.id)
+    from(u in Upload, where: u.id in subquery(newest))
+  end
+
+  defp filter_recent(query, _), do: query
 
   defp filter_search(query, search) when is_binary(search) and search != "" do
     like = "%#{String.replace(search, "%", "\\%")}%"

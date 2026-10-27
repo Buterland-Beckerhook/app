@@ -6,7 +6,9 @@ defmodule BbhWeb.Admin.MediaPicker do
 
   Browsing is folder-scoped, so a picture can be found by where it was filed instead of
   by remembering its name. Searching deliberately spans *all* folders, so an unfiled or
-  misfiled picture is still reachable.
+  misfiled picture is still reachable. "Zuletzt hochgeladen", offered beside the top-level
+  folders, is a virtual folder of the newest files wherever they were filed — the usual
+  case is a picture uploaded minutes ago for the article being written.
 
   Mount it once per form page:
 
@@ -65,7 +67,7 @@ defmodule BbhWeb.Admin.MediaPicker do
   def handle_event("browse", %{"folder_id" => folder_id}, socket) do
     {:noreply,
      socket
-     |> assign(folder: Media.get_folder(blank_to_nil(folder_id)), search: "")
+     |> assign(folder: folder_from(folder_id), search: "")
      |> load()}
   end
 
@@ -109,14 +111,22 @@ defmodule BbhWeb.Admin.MediaPicker do
     # A search reaches across folders on purpose; plain browsing stays in the folder.
     files =
       if search == "",
-        do: Media.list_uploads(opts ++ [folder: folder_scope(folder)]),
+        do: Media.list_uploads(opts ++ browse_opts(folder)),
         else: Media.list_uploads(opts ++ [search: search])
 
-    assign(socket, files: files, subfolders: Media.child_folders(folder))
+    assign(socket, files: files, subfolders: subfolders(folder))
   end
 
-  defp folder_scope(nil), do: :root
-  defp folder_scope(folder), do: folder.id
+  # `folder` is nil (the root), a %Folder{}, or :recent — the virtual folder.
+  defp folder_from("recent"), do: :recent
+  defp folder_from(folder_id), do: Media.get_folder(blank_to_nil(folder_id))
+
+  defp browse_opts(nil), do: [folder: :root]
+  defp browse_opts(:recent), do: [recent: Media.recent_limit()]
+  defp browse_opts(folder), do: [folder: folder.id]
+
+  defp subfolders(:recent), do: []
+  defp subfolders(folder), do: Media.child_folders(folder)
 
   defp blank_to_nil(""), do: nil
   defp blank_to_nil(value), do: value
@@ -196,7 +206,17 @@ defmodule BbhWeb.Admin.MediaPicker do
               </span>
             </nav>
 
-            <div :if={@subfolders != []} class="mb-3 flex flex-wrap gap-2">
+            <div :if={@subfolders != [] or @folder == nil} class="mb-3 flex flex-wrap gap-2">
+              <button
+                :if={@folder == nil}
+                type="button"
+                phx-click="browse"
+                phx-value-folder_id="recent"
+                phx-target={@myself}
+                class="flex items-center gap-2 rounded-box border border-base-300 px-3 py-2 text-sm hover:bg-base-200"
+              >
+                <.icon name="hero-clock" class="size-5 text-primary" /> Zuletzt hochgeladen
+              </button>
               <button
                 :for={sf <- @subfolders}
                 type="button"
@@ -270,9 +290,11 @@ defmodule BbhWeb.Admin.MediaPicker do
   # Folder path for the breadcrumb, root → current, off the parent chain
   # Media.get_folder/1 preloads.
   defp folder_crumbs(%Folder{} = folder), do: Folder.path(folder)
+  defp folder_crumbs(:recent), do: [%{id: "recent", name: "Zuletzt hochgeladen"}]
   defp folder_crumbs(_folder), do: []
 
   defp empty_label("", nil), do: "Noch keine Dateien außerhalb von Ordnern."
+  defp empty_label("", :recent), do: "Noch keine Dateien hochgeladen."
   defp empty_label("", _folder), do: "Dieser Ordner ist leer."
   defp empty_label(_search, _folder), do: "Keine Dateien gefunden."
 end

@@ -38,10 +38,11 @@ defmodule BbhWeb.Admin.MediaLive.Index do
      |> load_items()}
   end
 
-  # Three states the old single `folder` assign could not carry: the whole library,
-  # the files nobody filed, and one folder. Absent means "Alle Medien" — an unknown or
-  # deleted id falls back to it rather than 404ing on a link someone kept.
+  # States the old single `folder` assign could not carry: the whole library, the newest
+  # files, the files nobody filed, and one folder. Absent means "Alle Medien" — an unknown
+  # or deleted id falls back to it rather than 404ing on a link someone kept.
   defp scope_from(nil), do: :all
+  defp scope_from("recent"), do: :recent
   defp scope_from("none"), do: :unfiled
   defp scope_from(id), do: Media.get_folder(id) || :all
 
@@ -68,7 +69,8 @@ defmodule BbhWeb.Admin.MediaLive.Index do
       Media.list_uploads(
         search: socket.assigns.search,
         sort: socket.assigns.sort,
-        folder: folder_scope(socket.assigns)
+        folder: folder_scope(socket.assigns),
+        recent: socket.assigns.scope == :recent && Media.recent_limit()
       )
 
     stream(socket, :items, items, reset: true)
@@ -77,7 +79,7 @@ defmodule BbhWeb.Admin.MediaLive.Index do
   # What `Media.list_uploads(folder:)` expects for each scope. A folder lists its own files
   # by default: while filing pictures into sub-folders, the ones already filed would
   # otherwise stay in the parent's grid and bury what is left to sort.
-  defp folder_scope(%{scope: :all}), do: :all
+  defp folder_scope(%{scope: scope}) when scope in [:all, :recent], do: :all
   defp folder_scope(%{scope: :unfiled}), do: :root
 
   defp folder_scope(%{scope: %Folder{} = folder, include_subfolders: true, tree: tree}),
@@ -348,8 +350,9 @@ defmodule BbhWeb.Admin.MediaLive.Index do
   # sub-folder of the open folder is still listed there, so dropping it from the stream
   # would make it look deleted; without, dropping it is the point — the grid shrinks to
   # what is left to sort. No catch-all, like folder_scope/1 — `scope` is closed over
-  # three shapes, and a fourth should fail loudly rather than quietly list nothing.
-  defp in_scope?(%{scope: :all}, _upload), do: true
+  # four shapes, and a fifth should fail loudly rather than quietly list nothing.
+  # A file moved between folders is still one of the newest, so :recent keeps it too.
+  defp in_scope?(%{scope: scope}, _upload) when scope in [:all, :recent], do: true
   defp in_scope?(%{scope: :unfiled}, %{folder_id: folder_id}), do: is_nil(folder_id)
 
   defp in_scope?(%{scope: %Folder{}} = assigns, %{folder_id: folder_id}) do
@@ -414,6 +417,7 @@ defmodule BbhWeb.Admin.MediaLive.Index do
   end
 
   defp scope_title(:all), do: "Alle Medien"
+  defp scope_title(:recent), do: "Zuletzt hochgeladen"
   defp scope_title(:unfiled), do: "Ohne Ordner"
 
   defp scope_title(%Folder{} = folder),
@@ -562,6 +566,15 @@ defmodule BbhWeb.Admin.MediaLive.Index do
               label="Alle Medien"
               count={@tree.total}
               selected={@scope == :all}
+            />
+          </li>
+          <li>
+            <.tree_row
+              patch={~p"/admin/medien?#{[folder: "recent"]}"}
+              icon="hero-clock"
+              label="Zuletzt hochgeladen"
+              count={min(@tree.total, Media.recent_limit())}
+              selected={@scope == :recent}
             />
           </li>
           <li>

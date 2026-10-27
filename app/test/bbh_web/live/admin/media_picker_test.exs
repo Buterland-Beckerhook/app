@@ -102,6 +102,21 @@ defmodule BbhWeb.Admin.MediaPickerTest do
       refute html =~ "umzug.webp"
     end
 
+    test "Zuletzt hochgeladen lists the newest files from every folder", ctx do
+      {lv, html} = open_picker(ctx.conn, ctx.article)
+      assert has_element?(lv, ~s(#media-picker button[phx-value-folder_id="recent"]))
+      refute html =~ "zapfenstreich.webp"
+
+      html = browse(lv, "recent")
+
+      assert html =~ "unsortiert.webp"
+      assert html =~ "umzug.webp"
+      assert html =~ "zapfenstreich.webp"
+      # A virtual folder has no sub-folders, and offers itself only at the root.
+      refute has_element?(lv, ~s(#media-picker button[phx-value-folder_id="#{ctx.folder.id}"]))
+      refute has_element?(lv, ~s(#media-picker button[phx-value-folder_id="recent"]))
+    end
+
     test "searching reaches across folders", ctx do
       {lv, _html} = open_picker(ctx.conn, ctx.article)
 

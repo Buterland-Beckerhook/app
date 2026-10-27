@@ -433,6 +433,25 @@ defmodule BbhWeb.Admin.MediaLiveTest do
       assert html =~ ctx.unfiled.filename
     end
 
+    test "Zuletzt hochgeladen lists the newest files from every folder", ctx do
+      {:ok, child} = Media.create_folder(%{"name" => "2026", "parent_id" => ctx.folder.id})
+      upload_fixture(folder_id: child.id, filename: "im-unterordner.webp")
+
+      {:ok, lv, html} = live(ctx.conn, ~p"/admin/medien?folder=recent")
+
+      assert html =~ "Zuletzt hochgeladen"
+      assert html =~ ctx.filed.filename
+      assert html =~ ctx.unfiled.filename
+      assert html =~ "im-unterordner.webp"
+
+      assert has_element?(
+               lv,
+               ~s(#media-tree a[href="/admin/medien?folder=recent"][aria-current="page"])
+             )
+
+      refute has_element?(lv, ~s(#media-filter input[name="subfolders"]))
+    end
+
     test "Ohne Ordner lists only what is not in a folder", ctx do
       {:ok, _lv, html} = live(ctx.conn, ~p"/admin/medien?folder=none")
 
