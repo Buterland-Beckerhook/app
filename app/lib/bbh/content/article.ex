@@ -48,6 +48,7 @@ defmodule Bbh.Content.Article do
       :image_id
     ])
     |> validate_required([:status, :title, :slug, :date_published])
+    |> update_change(:tags, &normalize_tags/1)
     |> Bbh.Slug.validate()
     |> validate_inclusion(:status, @statuses)
     |> put_year()
@@ -59,6 +60,19 @@ defmodule Bbh.Content.Article do
       name: :articles_year_range,
       message: "muss ab 1900 liegen"
     )
+  end
+
+  @doc """
+  Tags as they are stored: trimmed, blanks dropped, one entry per tag regardless of case
+  (the first spelling wins). A comma is the separator everywhere tags are typed, so a tag
+  never contains one — `"Biwak, Corona"` becomes two tags.
+  """
+  def normalize_tags(tags) when is_list(tags) do
+    tags
+    |> Enum.flat_map(&String.split(&1, ","))
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.uniq_by(&String.downcase/1)
   end
 
   defp put_year(changeset) do

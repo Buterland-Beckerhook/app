@@ -154,6 +154,49 @@ const Hooks = {
       if (this.slug) this.slug.removeEventListener("input", this._onSlug)
     },
   },
+  // Tag chips in the article form. Enter or a comma turns the typed text into a tag,
+  // and so does picking a suggestion; Backspace in the empty field drops the last tag.
+  // The server adds it (in the spelling already in use), so the chip list stays
+  // LiveView-rendered. Enter must not submit the form, and these clicks fire no
+  // `input`, so the form is marked dirty here.
+  TagInput: {
+    mounted() {
+      this.input = this.el.querySelector("input[type=text]")
+      this.commit = () => {
+        const tag = this.input.value.trim()
+        this.input.value = ""
+        if (tag === "") return
+        this.pushEvent("add_tag", {tag})
+        dirtyForms.add(this.el.closest("form"))
+      }
+
+      this.input.addEventListener("keydown", e => {
+        if (e.key === "Enter" || e.key === ",") {
+          e.preventDefault()
+          this.commit()
+        } else if (e.key === "Backspace" && this.input.value === "") {
+          this.pushEvent("remove_last_tag", {})
+          dirtyForms.add(this.el.closest("form"))
+        }
+      })
+      // A picked suggestion arrives as an `input` without a keystroke (a plain Event in
+      // Chrome, `insertReplacementText` in Safari); pasted text may carry commas.
+      this.input.addEventListener("input", e => {
+        if (!(e instanceof InputEvent) || e.inputType === "insertReplacementText") this.commit()
+        else if (this.input.value.includes(",")) this.commit()
+      })
+
+      this.el.addEventListener("click", e => {
+        const button = e.target.closest("[data-remove-tag]")
+        if (button) {
+          this.pushEvent("remove_tag", {tag: button.dataset.removeTag})
+          dirtyForms.add(this.el.closest("form"))
+        } else if (e.target === this.el) {
+          this.input.focus()
+        }
+      })
+    },
+  },
   // WebAuthn passkeys: runs the credential ceremony synchronously inside the
   // user's gesture. Safari only delegates WebAuthn to a browser-extension
   // credential provider (Bitwarden/1Password) while transient user activation is

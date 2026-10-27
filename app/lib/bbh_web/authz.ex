@@ -15,7 +15,7 @@ defmodule BbhWeb.Authz do
   alias Bbh.Accounts.User
   alias Bbh.Calendar.Event
 
-  @content_sections ~w(articles locations people trophies pages media)a
+  @content_sections ~w(articles tags locations people trophies pages media)a
 
   @doc "Whether the user may open a given admin section."
   def can_access_section?(%User{} = user, section) do

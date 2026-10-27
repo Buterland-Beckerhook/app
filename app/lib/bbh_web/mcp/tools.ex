@@ -150,6 +150,18 @@ defmodule BbhWeb.MCP.Tools do
           })
       },
       %{
+        name: "list_tags",
+        description: """
+        Every tag in use on articles, with the number of articles carrying it. Pick tags
+        from here for create_article / update_article; invent a new one only when none
+        fits.
+        """,
+        section: :articles,
+        write?: false,
+        handler: {Articles, :list_tags},
+        input_schema: object(%{})
+      },
+      %{
         name: "create_article",
         description: """
         Create an article. It is a draft unless status says otherwise — publishing puts it
@@ -176,7 +188,12 @@ defmodule BbhWeb.MCP.Tools do
                 description: "ISO 8601, e.g. 2026-08-28T18:00:00Z. Defaults to now."
               },
               "author" => %{type: "string"},
-              "tags" => %{type: "array", items: %{type: "string"}},
+              "tags" => %{
+                type: "array",
+                items: %{type: "string"},
+                description:
+                  "Prefer existing tags (list_tags); a known tag's spelling is applied regardless of case."
+              },
               "image_media_id" => %{
                 type: "string",
                 description: "Media id for the hero image; find one with search_media."
@@ -205,7 +222,11 @@ defmodule BbhWeb.MCP.Tools do
               "status" => %{type: "string", enum: @statuses},
               "date_published" => %{type: "string", description: "ISO 8601."},
               "author" => %{type: "string"},
-              "tags" => %{type: "array", items: %{type: "string"}},
+              "tags" => %{
+                type: "array",
+                items: %{type: "string"},
+                description: "Replaces the whole list. Prefer existing tags (list_tags)."
+              },
               "image_media_id" => %{type: "string"}
             },
             ["article_id"]
