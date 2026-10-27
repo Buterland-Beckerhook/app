@@ -131,7 +131,7 @@ Beim Euregio-Schützenfest den Vogel abgeschossen.
 ## Partnervereine / Umfeld
 
 - Freundschaft zu den Schützen aus **Büderich** (laut Euregio-Bericht 2003).
-- Musikalische Begleitung: **Stadtkapelle Gronau** **[Spielmannszug KAB Epe](https://spielmannszug-kab-epe.de)**;
+- Musikalische Begleitung: **Stadtkapelle Gronau** und **[Spielmannszug KAB Epe](https://spielmannszug-kab-epe.de)**;
 - bei Treffen auch schon mal die „[Alten Kameraden](https://www.musikverein-alstaette.de/layout.php?file=inhalt&option=verein&option2=altekameraden)" aus Alstätte.
 - Biwak seit 2022 auf dem **Hof der Familie Tenberge**; Theke: die „Buterländer Kornküken".
 - Luftgewehre für das Biwak 2025 gesponsert von Hubert Subgang.
