@@ -27,6 +27,7 @@ import topbar from "../vendor/topbar"
 // Quill (rich-text editor), flatpickr (date picker) and Altcha (spam protection) are
 // bundles of their own, fetched only by pages that use them — see js/lazy/.
 import {loadLazy} from "./lazy.js"
+import {matchTags} from "./tag_suggest.js"
 // Homepage "Nächster Termin" live countdown (progressive enhancement, no LiveView).
 import "./countdown.js"
 // Flash toast auto-hide countdown (plain JS so it works on dead pages too).
@@ -154,47 +155,116 @@ const Hooks = {
       if (this.slug) this.slug.removeEventListener("input", this._onSlug)
     },
   },
-  // Tag chips in the article form. Enter or a comma turns the typed text into a tag,
-  // and so does picking a suggestion; Backspace in the empty field drops the last tag.
-  // The server adds it (in the spelling already in use), so the chip list stays
-  // LiveView-rendered. Enter must not submit the form, and these clicks fire no
-  // `input`, so the form is marked dirty here.
+  // Tag chips in the article form. Typing opens a suggestion list of the tags in use
+  // (`data-suggestions`); arrows move through it, Enter or a click picks one. Enter or a
+  // comma with nothing highlighted takes the typed text as a new tag; Backspace in the
+  // empty field drops the last tag. The server adds it (in the spelling already in use),
+  // so the chips stay LiveView-rendered. Our own list rather than a <datalist>: browsers
+  // report a datalist pick inconsistently, and Enter can't tell a pick from typed text.
+  // These keys and clicks fire no form `input`, so the form is marked dirty here.
   TagInput: {
     mounted() {
       this.input = this.el.querySelector("input[type=text]")
-      this.commit = () => {
-        const tag = this.input.value.trim()
+      this.list = this.el.querySelector("[role=listbox]")
+      this.matches = []
+      this.active = -1
+
+      const dirty = () => dirtyForms.add(this.el.closest("form"))
+      this.add = text => {
         this.input.value = ""
-        if (tag === "") return
-        this.pushEvent("add_tag", {tag})
-        dirtyForms.add(this.el.closest("form"))
+        this.close()
+        if (text.trim() === "") return
+        this.pushEvent("add_tag", {tag: text})
+        dirty()
       }
 
       this.input.addEventListener("keydown", e => {
-        if (e.key === "Enter" || e.key === ",") {
+        const open = this.matches.length > 0
+        if (open && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
           e.preventDefault()
-          this.commit()
+          const step = e.key === "ArrowDown" ? 1 : -1
+          const n = this.matches.length
+          this.highlight(this.active === -1 && step < 0 ? n - 1 : (this.active + step + n) % n)
+        } else if (e.key === "Enter" || e.key === ",") {
+          e.preventDefault()
+          this.add(this.active >= 0 ? this.matches[this.active] : this.input.value)
+        } else if (e.key === "Escape" && open) {
+          e.preventDefault()
+          this.close()
         } else if (e.key === "Backspace" && this.input.value === "") {
           this.pushEvent("remove_last_tag", {})
-          dirtyForms.add(this.el.closest("form"))
+          dirty()
         }
       })
-      // A picked suggestion arrives as an `input` without a keystroke (a plain Event in
-      // Chrome, `insertReplacementText` in Safari); pasted text may carry commas.
-      this.input.addEventListener("input", e => {
-        if (!(e instanceof InputEvent) || e.inputType === "insertReplacementText") this.commit()
-        else if (this.input.value.includes(",")) this.commit()
+      // Pasted text may carry commas; the server splits it.
+      this.input.addEventListener("input", () => {
+        if (this.input.value.includes(",")) this.add(this.input.value)
+        else this.open()
+      })
+      this.input.addEventListener("focus", () => this.open())
+      this.input.addEventListener("blur", () => this.close())
+
+      // mousedown, not click: it comes before the input's blur, which would close the
+      // list; preventDefault keeps the focus in the field for the next tag.
+      this.list.addEventListener("mousedown", e => {
+        const option = e.target.closest("[role=option]")
+        if (!option) return
+        e.preventDefault()
+        this.add(this.matches[Number(option.dataset.index)])
+      })
+      this.list.addEventListener("mousemove", e => {
+        const option = e.target.closest("[role=option]")
+        if (option) this.highlight(Number(option.dataset.index))
       })
 
       this.el.addEventListener("click", e => {
         const button = e.target.closest("[data-remove-tag]")
         if (button) {
           this.pushEvent("remove_tag", {tag: button.dataset.removeTag})
-          dirtyForms.add(this.el.closest("form"))
-        } else if (e.target === this.el) {
+          dirty()
+        } else if (e.target.closest("[data-tag-box]") && e.target.tagName !== "INPUT") {
           this.input.focus()
         }
       })
+    },
+
+    open() {
+      const all = JSON.parse(this.el.dataset.suggestions || "[]")
+      this.matches = matchTags(all, this.input.value)
+      this.active = -1
+      this.list.replaceChildren(
+        ...this.matches.map((tag, i) => {
+          const li = document.createElement("li")
+          li.id = `${this.list.id}-${i}`
+          li.setAttribute("role", "option")
+          li.dataset.index = i
+          li.className = "cursor-pointer rounded px-3 py-1.5 text-sm"
+          li.textContent = tag
+          return li
+        }),
+      )
+      this.list.hidden = this.matches.length === 0
+      this.input.setAttribute("aria-expanded", String(!this.list.hidden))
+      this.input.removeAttribute("aria-activedescendant")
+    },
+
+    close() {
+      this.matches = []
+      this.active = -1
+      this.list.hidden = true
+      this.list.replaceChildren()
+      this.input.setAttribute("aria-expanded", "false")
+      this.input.removeAttribute("aria-activedescendant")
+    },
+
+    highlight(index) {
+      this.active = index
+      this.list.querySelectorAll("[role=option]").forEach((li, i) => {
+        li.classList.toggle("bg-primary/15", i === index)
+        li.setAttribute("aria-selected", String(i === index))
+        if (i === index) li.scrollIntoView({block: "nearest"})
+      })
+      this.input.setAttribute("aria-activedescendant", `${this.list.id}-${index}`)
     },
   },
   // WebAuthn passkeys: runs the credential ceremony synchronously inside the

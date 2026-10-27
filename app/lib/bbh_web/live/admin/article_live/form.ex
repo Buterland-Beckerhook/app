@@ -686,7 +686,8 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
 
   defp article_live?(_), do: false
 
-  # Chips plus a text field with the tags already in use as suggestions (`<datalist>`).
+  # Chips plus a text field; the `TagInput` hook suggests the tags already in use
+  # (`data-suggestions`, minus the ones on the article) in a list of its own.
   # The chips' hidden inputs carry the value (the empty one lets the last chip be
   # removed). The text field sits outside `article[…]`; whatever is still typed in it on
   # „Speichern“ is added then (`add_tag_draft/2`).
@@ -708,34 +709,49 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
       <div
         id="article-tags"
         phx-hook="TagInput"
-        class="input flex h-auto min-h-10 w-full flex-wrap items-center gap-1.5 py-1.5"
+        data-suggestions={Jason.encode!(@open)}
+        class="relative"
       >
-        <input type="hidden" name={@field.name <> "[]"} value="" />
-        <span :for={tag <- @tags} class="badge badge-primary badge-soft gap-1">
-          {tag}
-          <input type="hidden" name={@field.name <> "[]"} value={tag} />
-          <button
-            type="button"
-            data-remove-tag={tag}
-            class="cursor-pointer opacity-60 hover:opacity-100"
-            aria-label={"Tag „#{tag}“ entfernen"}
-          >
-            <.icon name="hero-x-mark" class="size-3.5" />
-          </button>
-        </span>
-        <input
-          id="article-tag-input"
-          name="tag_draft"
-          type="text"
-          list="article-tag-suggestions"
-          autocomplete="off"
-          placeholder={if @tags == [], do: "Tag eingeben…", else: ""}
-          class="min-w-32 flex-1 border-0 bg-transparent p-0 outline-none focus:ring-0"
-        />
+        <div
+          data-tag-box
+          class="input flex h-auto min-h-10 w-full flex-wrap items-center gap-1.5 py-1.5"
+        >
+          <input type="hidden" name={@field.name <> "[]"} value="" />
+          <span :for={tag <- @tags} class="badge badge-primary badge-soft gap-1">
+            {tag}
+            <input type="hidden" name={@field.name <> "[]"} value={tag} />
+            <button
+              type="button"
+              data-remove-tag={tag}
+              class="cursor-pointer opacity-60 hover:opacity-100"
+              aria-label={"Tag „#{tag}“ entfernen"}
+            >
+              <.icon name="hero-x-mark" class="size-3.5" />
+            </button>
+          </span>
+          <input
+            id="article-tag-input"
+            name="tag_draft"
+            type="text"
+            role="combobox"
+            aria-autocomplete="list"
+            aria-controls="article-tag-suggestions"
+            aria-expanded="false"
+            autocomplete="off"
+            placeholder={if @tags == [], do: "Tag eingeben…", else: ""}
+            class="min-w-32 flex-1 border-0 bg-transparent p-0 outline-none focus:ring-0"
+          />
+        </div>
+        <ul
+          id="article-tag-suggestions"
+          phx-update="ignore"
+          role="listbox"
+          aria-label="Vorhandene Tags"
+          hidden
+          class="absolute top-full left-0 z-20 mt-1 max-h-60 w-full overflow-y-auto rounded-box border border-base-300 bg-base-100 p-1 shadow-lg"
+        >
+        </ul>
       </div>
-      <datalist id="article-tag-suggestions">
-        <option :for={tag <- @open} value={tag} />
-      </datalist>
       <p class="label text-xs">
         Enter oder Komma übernimmt ein Tag. Vorhandene Tags werden vorgeschlagen –
         verwalten unter <.link navigate={~p"/admin/schlagworte"} class="link">Schlagworte</.link>.

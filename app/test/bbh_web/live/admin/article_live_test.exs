@@ -15,7 +15,7 @@ defmodule BbhWeb.Admin.ArticleLiveTest do
       {:ok, lv, html} = live(conn, ~p"/admin/artikel/#{article.id}/bearbeiten")
 
       # Existing tags are offered as suggestions.
-      assert html =~ ~s(<option value="Thron">)
+      assert html =~ ~s(data-suggestions="[&quot;Thron&quot;]")
 
       lv |> element("#article-tags") |> render_hook("add_tag", %{"tag" => "thron"})
       lv |> element("#article-tags") |> render_hook("add_tag", %{"tag" => "Biwak, Corona"})
