@@ -28,6 +28,21 @@ defmodule BbhWeb.SearchControllerTest do
       refute html =~ "@@M@@"
     end
 
+    test "?tag= lists the articles carrying that tag, case-insensitively", %{conn: conn} do
+      article_fixture(%{title: "Mit Schlagwort", tags: ["Jugend", "Kinder"]})
+      article_fixture(%{title: "Ohne Schlagwort", tags: ["Vorstand"]})
+      article_fixture(%{title: "Entwurf mit Schlagwort", tags: ["Jugend"], status: "draft"})
+
+      html = conn |> get(~p"/suche?#{[tag: "jugend"]}") |> html_response(200)
+
+      assert html =~ "Mit Schlagwort"
+      refute html =~ "Ohne Schlagwort"
+      refute html =~ "Entwurf mit Schlagwort"
+      assert html =~ "1 Artikel mit dem Schlagwort"
+      # The card's own tags link on to their listings.
+      assert html =~ ~s(href="/suche?tag=Kinder")
+    end
+
     test "reports no results for a non-matching query", %{conn: conn} do
       html = conn |> get(~p"/suche?#{[q: "zzzznichtvorhanden"]}") |> html_response(200)
       assert html =~ "Keine Ergebnisse"

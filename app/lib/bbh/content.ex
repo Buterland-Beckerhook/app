@@ -10,6 +10,9 @@ defmodule Bbh.Content do
   With `include_unpublished: true` (logged-in editor preview) the publish-status and
   future-date filters are dropped, so drafts / scheduled / archived articles are listed
   too; throne-only entries stay excluded.
+
+  With `tag: "…"` only articles carrying that tag are listed (the tag links on the site
+  lead to `/suche?tag=…`). Compared case-insensitively — tags are typed by hand.
   """
   def list_published_articles(page \\ 1, per_page \\ 10, opts \\ []) do
     now = Bbh.Time.now()
@@ -23,7 +26,19 @@ defmodule Bbh.Content do
           order_by: [desc: a.date_published]
       end
 
-    paginate(base, page, per_page, preload: :image)
+    base
+    |> filter_tag(Keyword.get(opts, :tag))
+    |> paginate(page, per_page, preload: :image)
+  end
+
+  defp filter_tag(query, tag) when tag in [nil, ""], do: query
+
+  defp filter_tag(query, tag) do
+    where(
+      query,
+      [a],
+      fragment("EXISTS (SELECT 1 FROM unnest(?) t WHERE lower(t) = lower(?))", a.tags, ^tag)
+    )
   end
 
   @doc "The N most recent published articles (for the homepage)."
