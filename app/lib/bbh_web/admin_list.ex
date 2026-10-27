@@ -37,17 +37,31 @@ defmodule BbhWeb.AdminList do
           sort: String.t() | nil,
           dir: :asc | :desc,
           page: pos_integer(),
-          cat: String.t() | nil
+          cat: String.t() | nil,
+          status: String.t() | nil
         }
 
   @doc """
-  Initial list state. Options: `:sort` (default column key), `:dir` (`:asc`/`:desc`)
-  and `:cat` (initial category-filter value, default `nil`).
+  Initial list state. Options: `:sort` (default column key), `:dir` (`:asc`/`:desc`),
+  `:cat` (initial category-filter value) and `:status` (initial status filter, e.g. from
+  a `?status=` link on the dashboard); both default to `nil`.
   """
   @spec init(keyword()) :: state()
   def init(opts \\ []) do
-    %{q: "", sort: opts[:sort], dir: opts[:dir] || :asc, page: 1, cat: opts[:cat]}
+    %{
+      q: "",
+      sort: opts[:sort],
+      dir: opts[:dir] || :asc,
+      page: 1,
+      cat: opts[:cat],
+      status: blank_to_nil(opts[:status])
+    }
   end
+
+  @doc """
+  `value` if it is one of `allowed`, else `nil` — for filter values taken from the URL.
+  """
+  def known(value, allowed), do: if(value in allowed, do: value)
 
   @doc """
   Handle a `"list-<action>"` event, update `:list_state`, and reload via `loader`.
@@ -65,6 +79,9 @@ defmodule BbhWeb.AdminList do
 
   defp update_state(state, "filter-cat", params),
     do: %{state | cat: blank_to_nil(params["cat"]), page: 1}
+
+  defp update_state(state, "filter-status", params),
+    do: %{state | status: blank_to_nil(params["status"]), page: 1}
 
   defp update_state(state, "sort", %{"key" => key}), do: toggle_sort(state, key)
 
@@ -93,9 +110,11 @@ defmodule BbhWeb.AdminList do
     * `:category` — `{accessor_fun, selected}`; keeps only rows where `accessor.(row)`
       equals the non-blank `selected` value (from `state.cat`). No-op when `selected`
       is `nil`/`""`.
+    * `:status` — accessor fun; keeps only rows whose value equals `state.status`.
+      No-op when the option is absent or no status is selected.
     * `:per_page` — page size (default #{@per_page}).
 
-  Returns `%{entries:, page:, per_page:, total:, total_pages:, sort:, dir:, q:, cat:}`.
+  Returns `%{entries:, page:, per_page:, total:, total_pages:, sort:, dir:, q:, cat:, status:}`.
   """
   def process(list, state, opts) do
     per_page = opts[:per_page] || @per_page
@@ -103,6 +122,7 @@ defmodule BbhWeb.AdminList do
     sorted =
       list
       |> category(opts[:category])
+      |> category(opts[:status] && {opts[:status], state.status})
       |> filter(state.q, opts[:search] || [])
       |> sort(state.sort, state.dir, opts[:sort] || %{})
 
@@ -120,7 +140,8 @@ defmodule BbhWeb.AdminList do
       sort: state.sort,
       dir: state.dir,
       q: state.q,
-      cat: state.cat
+      cat: state.cat,
+      status: state.status
     }
   end
 

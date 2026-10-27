@@ -287,25 +287,39 @@ defmodule BbhWeb.Admin.ShareLive.Index do
           <div class="flex w-full flex-col gap-3">
             <div>
               <label class="mb-1 block text-sm font-medium">Apple Kalender / Outlook (ein Tipp)</label>
-              <input
-                type="text"
-                readonly
-                value={@new_share.webcal_url}
-                data-select-on-click
-                class="input input-bordered w-full font-mono text-sm"
-                aria-label="Abo-Link (webcal)"
-              />
+              <div class="flex gap-2">
+                <input
+                  id="share-webcal"
+                  type="text"
+                  readonly
+                  value={@new_share.webcal_url}
+                  data-select-on-click
+                  class="input input-bordered min-w-0 flex-1 font-mono text-sm"
+                  aria-label="Abo-Link (webcal)"
+                />
+                <button type="button" class="btn" data-copy-target="share-webcal">
+                  <.icon name="hero-clipboard-document" class="size-4" />
+                  <span data-copy-label>Kopieren</span>
+                </button>
+              </div>
             </div>
             <div>
               <label class="mb-1 block text-sm font-medium">Google Kalender / Android</label>
-              <input
-                type="text"
-                readonly
-                value={@new_share.https_url}
-                data-select-on-click
-                class="input input-bordered w-full font-mono text-sm"
-                aria-label="Abo-Adresse (https)"
-              />
+              <div class="flex gap-2">
+                <input
+                  id="share-https"
+                  type="text"
+                  readonly
+                  value={@new_share.https_url}
+                  data-select-on-click
+                  class="input input-bordered min-w-0 flex-1 font-mono text-sm"
+                  aria-label="Abo-Adresse (https)"
+                />
+                <button type="button" class="btn" data-copy-target="share-https">
+                  <.icon name="hero-clipboard-document" class="size-4" />
+                  <span data-copy-label>Kopieren</span>
+                </button>
+              </div>
               <p class="mt-1 text-xs text-base-content/60">
                 Google Kalender (Web): „Weitere Kalender“ (+) → „Per URL“ → Adresse einfügen.
               </p>

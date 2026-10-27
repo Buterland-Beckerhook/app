@@ -29,6 +29,24 @@ defmodule BbhWeb.Admin.DashboardLiveTest do
     assert html =~ ~p"/admin/seiten"
   end
 
+  test "breaks the article and event counts down by status", %{conn: conn} do
+    article_fixture(%{status: "published"})
+    article_fixture(%{status: "draft"})
+    article_fixture(%{status: "draft"})
+    event_fixture(%{status: "canceled"})
+
+    {:ok, lv, _html} = live(conn, ~p"/admin")
+    html = render_async(lv, 2000)
+
+    assert html =~ ~r/>1<\/span> veröffentlicht/
+    assert html =~ ~r/>2<\/span> Entwürfe/
+    assert html =~ ~r/>1<\/span> abgesagt/
+
+    # Each count opens its list filtered to that status.
+    assert html =~ ~s(href="/admin/artikel?status=draft")
+    assert html =~ ~s(href="/admin/termine?status=canceled")
+  end
+
   test "shows the analytics section with recorded page views", %{conn: conn} do
     today = Date.utc_today()
     Bbh.Analytics.record(%{path: "/aktuell", referrer_host: "google.com", day: today})

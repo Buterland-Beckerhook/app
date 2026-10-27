@@ -45,6 +45,26 @@ defmodule BbhWeb.AdminListTest do
     assert meta.total == 1
   end
 
+  test "status filter keeps matching rows only when the option and a status are set" do
+    rows = [%{name: "a", status: "draft"}, %{name: "b", status: "published"}]
+    opts = [status: & &1.status]
+
+    assert AdminList.process(rows, AdminList.init(), opts).total == 2
+
+    meta = AdminList.process(rows, AdminList.init(status: "draft"), opts)
+    assert Enum.map(meta.entries, & &1.name) == ["a"]
+    assert meta.status == "draft"
+
+    # A list that doesn't opt in ignores a stray status.
+    assert AdminList.process(rows, AdminList.init(status: "draft"), []).total == 2
+  end
+
+  test "known/2 drops values outside the allowed set" do
+    assert AdminList.known("draft", ~w(draft published)) == "draft"
+    assert AdminList.known("bogus", ~w(draft published)) == nil
+    assert AdminList.known(nil, ~w(draft published)) == nil
+  end
+
   test "toggle_sort flips direction on same key and resets on a new key" do
     state = AdminList.init(sort: "name", dir: :asc)
     assert %{sort: "name", dir: :desc} = AdminList.toggle_sort(state, "name")
