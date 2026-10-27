@@ -26,7 +26,25 @@
     </button>
   </form>
 
-  <p :if={@q == ""} class="text-muted">
+  <div :if={@tag}>
+    <p class="mb-4 text-sm text-muted">
+      {@result.total} Artikel mit dem Schlagwort
+      <span class="rounded-full bg-tag px-2.5 py-0.5 text-xs font-semibold text-primary">{@tag}</span>
+    </p>
+
+    <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      <.article_card :for={article <- @result.entries} article={article} />
+    </div>
+
+    <.pagination
+      page={@result.page}
+      total_pages={@result.total_pages}
+      base_path={~p"/suche"}
+      query={%{"tag" => @tag}}
+    />
+  </div>
+
+  <p :if={!@tag and @q == ""} class="text-muted">
     Geben Sie einen Suchbegriff ein, um Artikel, Termine und Vereinsseiten zu durchsuchen.
   </p>
 
@@ -34,7 +52,7 @@
     Keine Ergebnisse für <strong>{@q}</strong> gefunden.
   </p>
 
-  <div :if={@result.entries != []}>
+  <div :if={!@tag and @result.entries != []}>
     <p class="mb-4 text-sm text-muted">
       {@result.total} {if @result.total == 1, do: "Ergebnis", else: "Ergebnisse"} für
       <strong>{@q}</strong>

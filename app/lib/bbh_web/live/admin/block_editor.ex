@@ -251,7 +251,7 @@ defmodule BbhWeb.Admin.BlockEditor do
     <.input
       field={@f[:only_active]}
       type="checkbox"
-      label="Nur aktive Personen (ohne „Amt bis“)"
+      label="Nur aktive Personen (ohne „Amt bis“, nicht verstorben)"
     />
     <.input field={@f[:show_address]} type="checkbox" label="Adresse anzeigen (nur Tabelle)" />
     <fieldset class="fieldset">

@@ -176,10 +176,9 @@ defmodule BbhWeb.SiteComponents do
     assigns = assign(assigns, :status_label, article_status_label(assigns.article))
 
     ~H"""
-    <a
-      href={~p"/aktuell/#{@article.year}/#{@article.slug}"}
-      class="group flex flex-col overflow-hidden rounded-[18px] border border-base-300 bg-card transition-shadow hover:shadow-md"
-    >
+    <%!-- Not one big <a>: the tags are links of their own, and links don't nest. The title
+          link stretches over the whole card (`after:inset-0`); the tags sit above it. --%>
+    <article class="group relative flex flex-col overflow-hidden rounded-[18px] border border-base-300 bg-card transition-shadow focus-within:shadow-md hover:shadow-md">
       <div class="h-[190px] overflow-hidden bg-tag">
         <%!-- 2× the 190px box for retina displays. `sizes`: one column, two from `sm`,
               three or four from `lg` — at most ~22rem there, and never under the 320px
@@ -203,21 +202,27 @@ defmodule BbhWeb.SiteComponents do
           </span>
         </div>
         <h3 class="font-logo mt-1.5 text-[22px] leading-snug group-hover:text-primary">
-          {@article.title}
+          <a
+            href={~p"/aktuell/#{@article.year}/#{@article.slug}"}
+            class="outline-none after:absolute after:inset-0 after:rounded-[18px] focus-visible:after:outline-2 focus-visible:after:outline-primary"
+          >
+            {@article.title}
+          </a>
         </h3>
         <p :if={@article.subtitle} class="mt-1.5 text-[15px] leading-relaxed text-muted">
           {@article.subtitle}
         </p>
-        <div :if={@article.tags != []} class="mt-4 flex flex-wrap gap-2">
-          <span
+        <div :if={@article.tags != []} class="relative z-10 mt-4 flex flex-wrap gap-2">
+          <a
             :for={tag <- @article.tags}
-            class="rounded-full bg-tag px-2.75 py-1 text-xs font-semibold text-primary"
+            href={~p"/suche?#{[tag: tag]}"}
+            class="rounded-full bg-tag px-2.75 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary hover:text-primary-content"
           >
             {tag}
-          </span>
+          </a>
         </div>
       </div>
-    </a>
+    </article>
     """
   end
 

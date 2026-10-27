@@ -18,7 +18,7 @@ defmodule BbhWeb.Admin.PersonLive.Index do
   def handle_event("list-" <> action, params, socket),
     do: {:noreply, AdminList.handle(action, params, socket, &load_list/1)}
 
-  # Two fixed sections instead of a sortable, paginated table: „Aktiv" (no „Amt bis")
+  # Two fixed sections instead of a sortable, paginated table: „Aktiv" (`Person.active?/1`)
   # on top, „Nicht mehr aktiv" below. `Club.list_all_people/0` already orders by
   # `sort_order` then `name`, and `AdminList.process` with `sort: nil` leaves that order
   # untouched — so each section is correctly sorted. Search still filters both; a large
@@ -30,7 +30,7 @@ defmodule BbhWeb.Admin.PersonLive.Index do
         per_page: 10_000
       )
 
-    {active, inactive} = Enum.split_with(meta.entries, &is_nil(&1.year_end))
+    {active, inactive} = Enum.split_with(meta.entries, &Person.active?/1)
 
     socket
     |> assign(:active_people, active)
@@ -101,6 +101,10 @@ defmodule BbhWeb.Admin.PersonLive.Index do
   end
 
   defp amtszeit(%{year_start: nil, year_end: nil}), do: "–"
+  # Died in office without an „Amt bis": the office ended with the death, not „heute".
+  defp amtszeit(%{year_start: from, year_end: nil, death_date: %Date{year: died}}),
+    do: "#{from} – #{died}"
+
   defp amtszeit(%{year_start: from, year_end: nil}), do: "#{from} – heute"
   defp amtszeit(%{year_start: nil, year_end: to}), do: "bis #{to}"
   defp amtszeit(%{year_start: from, year_end: to}), do: "#{from} – #{to}"

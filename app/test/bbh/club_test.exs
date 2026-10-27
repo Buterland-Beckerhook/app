@@ -54,6 +54,31 @@ defmodule Bbh.ClubTest do
       assert Club.list_people(["vorstand"]) |> length() == 2
     end
 
+    test "only_active drops the deceased even without an „Amt bis\"" do
+      serving = person_fixture(role: "vorstand", name: "Amtierend", year_end: nil)
+
+      _died_in_office =
+        person_fixture(role: "vorstand", name: "Verstorben", death_date: ~D[2024-03-01])
+
+      assert Club.list_people(["vorstand"], only_active: true) |> Enum.map(& &1.id) == [
+               serving.id
+             ]
+    end
+
+    test "role_holder/1 passes over a holder who died in office" do
+      _died =
+        person_fixture(
+          role: "praesident",
+          name: "A",
+          year_start: 2000,
+          death_date: ~D[2024-03-01]
+        )
+
+      successor = person_fixture(role: "praesident", name: "B", year_start: 2024)
+
+      assert Club.role_holder("praesident").id == successor.id
+    end
+
     test "only_active composes with the role and honorary filters" do
       serving = person_fixture(role: "vorstand", name: "A", year_end: nil, honorary_since: nil)
       _serving_honorary = person_fixture(role: "vorstand", name: "B", honorary_since: 2021)

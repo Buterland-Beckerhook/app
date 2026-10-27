@@ -31,6 +31,12 @@ defmodule BbhWeb.ArticleControllerTest do
       assert html =~ "Jubiläum"
     end
 
+    test "links each tag to its listing in the search", %{conn: conn} do
+      article = article_fixture(tags: ["Schützenfest 2026"])
+      html = conn |> get(~p"/aktuell/#{article.year}/#{article.slug}") |> html_response(200)
+      assert html =~ ~s(href="/suche?tag=Sch%C3%BCtzenfest+2026")
+    end
+
     test "returns 404 for an unknown article", %{conn: conn} do
       conn = get(conn, ~p"/aktuell/2026/gibt-es-nicht")
       assert response(conn, 404)
