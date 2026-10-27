@@ -86,10 +86,23 @@ defmodule Bbh.Media do
     |> Map.new(&{&1.storage_key, &1})
   end
 
+  @recent_limit 48
+
+  @doc """
+  How many files the virtual folder "Zuletzt hochgeladen" holds. A count rather than a
+  period: uploads come in bursts (a festival, an evening), so a window of days would be
+  crowded one week and empty the next, while the last few dozen are always the ones an
+  article is being written about. 48 fills whole rows at two, three and four columns.
+  """
+  def recent_limit, do: @recent_limit
+
   @doc """
   List uploads, optionally filtered by `:search` (filename/title), `:folder`
   (`:root` = unfiled, a folder id, a list of folder ids, or absent = all),
   `:images_only`, and `:sort`.
+
+  `recent: n` keeps only the `n` newest files that pass the other filters, *then* sorts —
+  so "Älteste zuerst" orders the recent files instead of digging up the oldest ones.
 
   Note the asymmetry at the edges of `:folder`: absent means every file, while `[]` means
   none. A caller building the list from a selection has to decide which of the two an
@@ -100,9 +113,17 @@ defmodule Bbh.Media do
     |> filter_search(opts[:search])
     |> filter_folder(Keyword.get(opts, :folder, :all))
     |> filter_images_only(opts[:images_only])
+    |> filter_recent(opts[:recent])
     |> sort_uploads(opts[:sort] || "newest")
     |> Repo.all()
   end
+
+  defp filter_recent(query, n) when is_integer(n) do
+    newest = from(u in query, order_by: [desc: u.inserted_at], limit: ^n, select: u.id)
+    from(u in Upload, where: u.id in subquery(newest))
+  end
+
+  defp filter_recent(query, _), do: query
 
   defp filter_search(query, search) when is_binary(search) and search != "" do
     like = "%#{String.replace(search, "%", "\\%")}%"
@@ -356,10 +377,11 @@ defmodule Bbh.Media do
   root folders with their children (both in editor order) plus the file counts
   shown on every node.
 
-  A count is the number the node actually lists when clicked, which since the branch
-  scope means a folder counts the files of every folder below it too. `counts` holds every folder,
-  `unfiled` the files in none. One grouped query covers the lot; per-node counting
-  would be N+1.
+  A count is the number the node actually lists when clicked, and the library lists a
+  folder either alone or with its whole branch ("Unterordner einbeziehen"). So there are
+  two: `counts` holds every folder's branch total, `direct` the files filed in each folder
+  itself (only folders that have any). `unfiled` is the files in none. One grouped query
+  covers the lot; per-node counting would be N+1.
   """
   def list_folder_tree do
     direct =
@@ -371,6 +393,7 @@ defmodule Bbh.Media do
     %{
       roots: roots,
       counts: branch_counts(roots, direct),
+      direct: Map.delete(direct, nil),
       # From the direct counts, so folding the branches cannot count a parent twice.
       total: direct |> Map.values() |> Enum.sum(),
       unfiled: Map.get(direct, nil, 0)

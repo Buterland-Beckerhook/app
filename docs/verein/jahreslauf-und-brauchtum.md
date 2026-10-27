@@ -92,7 +92,7 @@ noch stattfindet: ?
 | 2000 | **Ludger Bußjan** | Birgit Theissing | Buterland-Beckerhook (König 1995/96) |
 | 2005 | Karsten Stienemann | Karin Bosch | Bürgerschützengilde Gronau |
 | 2011 | **Andreas Lösing** | Renate Büscher | Buterland-Beckerhook (König 1992/93) |
-| ? (ca. 2015/16) | ? | ? | anderer Verein – 4. Stadtschützenfest, Daten fehlen |
+| 2015 | Bernhard Ströing | Astrid Benning-Meyer |  Georgi-Schützen Epe |
 | 2022 | **Martin Schreiber** | Maria Oude Lansink | Buterland-Beckerhook (im selben Jahr König des Vereins) |
 | 2025 | **Gerd Lübbers** | Silvia Daldrup | Buterland-Beckerhook |
 
@@ -120,7 +120,8 @@ Westfälischen Nachrichten suchen.
 Euregio-Schützenfest 2003 auf dem LAGA-Gelände (Landesgartenschau Gronau 2003):
 Gerrit Vormeer (Concordia Glane, NL) wurde Euregio-König. Die alte Seite titelt
 „Gerrit Vormeer löst Georg Doetkotte ab", der Text nennt es aber die „Premiere" – ob
-Georg Doetkotte einen Vorgänger-Titel trug, ist ungeklärt.
+Georg Doetkotte einen Vorgänger-Titel trug, ist ungeklärt. -> Ja, Georg Doetkotte hat 2000?
+Beim Euregio-Schützenfest den Vogel abgeschossen.
 
 ### Kaiser des Vereins
 
@@ -130,11 +131,21 @@ Georg Doetkotte einen Vorgänger-Titel trug, ist ungeklärt.
 ## Partnervereine / Umfeld
 
 - Freundschaft zu den Schützen aus **Büderich** (laut Euregio-Bericht 2003).
-- Musikalische Begleitung: **Spielmannszug KAB Epe**; bei Treffen die „Alten Kameraden"
-  aus Alstätte.
+- Musikalische Begleitung: **Stadtkapelle Gronau** und **[Spielmannszug KAB Epe](https://spielmannszug-kab-epe.de)**;
+- bei Treffen auch schon mal die „[Alten Kameraden](https://www.musikverein-alstaette.de/layout.php?file=inhalt&option=verein&option2=altekameraden)" aus Alstätte.
 - Biwak seit 2022 auf dem **Hof der Familie Tenberge**; Theke: die „Buterländer Kornküken".
 - Luftgewehre für das Biwak 2025 gesponsert von Hubert Subgang.
 
+## Andere Vereine Gronau/Epe
+- [Schützenverein Schöttelkotterhook-Tiekerhook-Eßseite 1925 e.V.](https://www.schuetzenverein-gronau.de)
+- [Bürgerschützengilde Gronau e.V.](https://buerger.chayns.site/ticker)
+- [Berger Schützenverein Epe e.V.](https://berger-schuetzenverein-epe-ev.chayns.site)
+- [Schützenverein Rentenburg e.V.](https://rentenburg.chayns.site)
+- [Schützengesellschaft Brook Spechtholtshook](https://www.brookerschuetzen.de)
+- [Schützengilde St. Katharina (Epe)](https://www.schuetzengildestkatharina.de)
+- [Schützenverein Kloster Epe 1878 e.V.](http://www.kloster-epe.de)
+- [Schützenverein Hubertus Epe](https://schuetzenverein-hubertus-epe.chayns.site)
+- [Bürgerschützengilde St. Georgi Epe](https://www.facebook.com/p/Bürgerschützengilde-St-Georgi-61567950826377/)
 ## Quellen
 
 Alte iframe-Seite (`buterland-beckerhook-old/content/`): `verein/wir.html`,

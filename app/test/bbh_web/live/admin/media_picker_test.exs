@@ -72,12 +72,27 @@ defmodule BbhWeb.Admin.MediaPickerTest do
       render(lv)
     end
 
-    test "opens at the root: unfiled files plus the top-level folders", ctx do
-      {_lv, html} = open_picker(ctx.conn, ctx.article)
+    test "opens on Zuletzt hochgeladen, with the top-level folders at hand", ctx do
+      {lv, html} = open_picker(ctx.conn, ctx.article)
 
       assert html =~ "Aus Mediathek wählen"
+      # The newest files, wherever they were filed.
       assert html =~ "unsortiert.webp"
-      assert html =~ "Schützenfest"
+      assert html =~ "umzug.webp"
+      assert html =~ "zapfenstreich.webp"
+      assert has_element?(lv, ~s(#media-picker button[phx-value-folder_id="#{ctx.folder.id}"]))
+      # It is where we are, so it is not offered as a place to go.
+      refute has_element?(lv, ~s(#media-picker button[phx-value-folder_id="recent"]))
+    end
+
+    test "Alle Medien is the root: unfiled files plus the top-level folders", ctx do
+      {lv, _html} = open_picker(ctx.conn, ctx.article)
+
+      html = browse(lv, "")
+
+      assert html =~ "unsortiert.webp"
+      assert has_element?(lv, ~s(#media-picker button[phx-value-folder_id="#{ctx.folder.id}"]))
+      assert has_element?(lv, ~s(#media-picker button[phx-value-folder_id="recent"]))
       # Files inside a folder are not dumped into the root listing.
       refute html =~ "umzug.webp"
     end

@@ -760,6 +760,8 @@ defmodule Bbh.MediaTest do
 
       assert tree.counts[presse.id] == 2
       assert tree.counts[y2026.id] == 2
+      # The library's default lists a folder alone, so it counts what is filed right there.
+      assert tree.direct == %{y2026.id => 2}
       assert tree.total == 2
       assert tree.unfiled == 0
     end
@@ -767,7 +769,27 @@ defmodule Bbh.MediaTest do
     test "counts are zero on an empty library" do
       # Equality, not a pattern: `%{} = %{a: 1}` matches in Elixir, so `counts: %{}` in a
       # pattern would accept any counts at all.
-      assert Media.list_folder_tree() == %{roots: [], counts: %{}, total: 0, unfiled: 0}
+      assert Media.list_folder_tree() ==
+               %{roots: [], counts: %{}, direct: %{}, total: 0, unfiled: 0}
+    end
+  end
+
+  describe "list_uploads/1 recent:" do
+    test "keeps the newest n that pass the filters, then sorts them" do
+      [oldest, middle, newest] =
+        for {name, days} <- [{"c.webp", -3}, {"a.webp", -2}, {"b.webp", -1}] do
+          upload = upload_fixture(filename: name)
+          at = DateTime.utc_now() |> DateTime.add(days, :day) |> DateTime.truncate(:second)
+          Repo.update!(Ecto.Changeset.change(upload, inserted_at: at))
+        end
+
+      assert [newest.id, middle.id] == Media.list_uploads(recent: 2) |> Enum.map(& &1.id)
+
+      # Sorting orders the recent set; it does not reach back to the oldest file.
+      assert [middle.id, newest.id] ==
+               Media.list_uploads(recent: 2, sort: "name") |> Enum.map(& &1.id)
+
+      refute oldest.id in (Media.list_uploads(recent: 2, sort: "oldest") |> Enum.map(& &1.id))
     end
   end
 
