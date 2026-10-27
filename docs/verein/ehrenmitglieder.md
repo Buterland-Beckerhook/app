@@ -72,7 +72,7 @@ heißt nur, dass er 2020 noch auf der Liste der aktiven Ehrenmitglieder stand.
 | Joachim (Jochen) Diekmann | 09.10.2021 | lebt | König 1991 |
 | Bernhard Schmeing | 09.10.2021 | lebt | König 2006 |
 | Alois Verst | 09.10.2021 | lebt | König 1982, Oberstleutnant (2015) |
-| Hermann Thebelt | 09.10.2021 | lebt | ? – **nicht** der Jubiläumskaiser 1984 (es gab zwei Hermann Thebelts, siehe archivartikel.md); Königsjahre 1977/1993 unklar |
+| Hermann Thebelt | 09.10.2021 | lebt | ? – **nicht** der Jubiläumskaiser 1984 (es gab zwei Hermann Thebelts, siehe archivartikel.md); Königsjahr 1993 |
 | Josef Lütke-Glanemann | 09.10.2021 | lebt | ? |
 | Norbert Wülker | JHV 2022 | lebt | 31 Jahre Offizier, zuletzt Major/Oberstleutnant |
 | Andreas Lösing | JHV 2023 | lebt | König 1992/93, Stadtkaiser 2011 (WN: 2010) |
