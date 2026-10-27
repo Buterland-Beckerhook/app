@@ -40,6 +40,13 @@ defmodule Bbh.Club.Person do
   def honorary_year(%{honorary_since: @unknown_honorary_year}), do: nil
   def honorary_year(%{honorary_since: year}), do: year
 
+  @doc """
+  Still in office: no „Amt bis" and not deceased. Nobody enters an end year for someone
+  who died in office, so the death date ends it too.
+  """
+  def active?(%{year_end: nil, death_date: nil}), do: true
+  def active?(_person), do: false
+
   schema "people" do
     field :name, :string
     field :role, :string

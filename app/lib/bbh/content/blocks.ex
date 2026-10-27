@@ -240,7 +240,7 @@ defmodule Bbh.Content.Blocks do
       field :filter_alive, :string, default: "all"
       field :display_style, :string, default: "table"
       field :show_address, :boolean, default: false
-      # „Amt bis" (Person.year_end) empty means still serving.
+      # Only people still serving: no „Amt bis", not deceased (`Person.active?/1`).
       field :only_active, :boolean, default: false
       field :sort_by, :string, default: "sort_order"
       timestamps()

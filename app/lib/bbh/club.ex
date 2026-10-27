@@ -13,7 +13,8 @@ defmodule Bbh.Club do
 
     * `:honorary` — `"all"` (default), `"only"` or `"exclude"`
     * `:alive` — `"all"` (default), `"living"` or `"deceased"` (by `death_date`)
-    * `:only_active` — when true, drop everyone whose „Amt bis" is set
+    * `:only_active` — when true, drop everyone who is no longer active: „Amt bis" set
+      or deceased (see `Bbh.Club.Person.active?/1`)
     * `:sort` — `"sort_order"` (default), `"year_start"` (Amtsantritt, oldest first) or
       `"honorary_since"` (Ernennung zum Ehrenmitglied, oldest first)
   """
@@ -44,15 +45,20 @@ defmodule Bbh.Club do
   @doc """
   The current holder of a role — the last/currently serving person.
 
-  Ordered by "Amt bis" (`year_end`) descending with NULLs first, so a still-serving
-  person (no end year) wins, then the most recent end year; ties broken by `sort_order`
-  then `name`. Returns `nil` if no one holds the role.
+  An active person (no „Amt bis", not deceased) wins; otherwise the most recent
+  „Amt bis" — a deceased holder without one counts as the latest. Ties broken by
+  `sort_order` then `name`. Returns `nil` if no one holds the role.
   """
   def role_holder(role) when is_binary(role) do
     Repo.one(
       from p in Person,
         where: p.role == ^role,
-        order_by: [desc_nulls_first: p.year_end, asc: p.sort_order, asc: p.name],
+        order_by: [
+          desc: is_nil(p.year_end) and is_nil(p.death_date),
+          desc_nulls_first: p.year_end,
+          asc: p.sort_order,
+          asc: p.name
+        ],
         limit: 1
     )
   end
@@ -76,14 +82,16 @@ defmodule Bbh.Club do
   defp filter_alive(query, "deceased"), do: where(query, [p], not is_nil(p.death_date))
   defp filter_alive(query, _all), do: query
 
-  # An empty „Amt bis" is the only signal the data carries for "still serving" — the same
-  # one `role_holder/1` orders by. A `death_date` says nothing about the office: the
-  # Präsidenten list shows the dead next to the serving one.
+  # Active = no „Amt bis" and not deceased (`Person.active?/1`, the same rule
+  # `role_holder/1` orders by). Nobody enters an „Amt bis" for someone who died in office,
+  # so the death date has to end the office too.
   #
   # No catch-all clause on purpose, unlike `filter_honorary/2` above: that one degrades to
   # its documented widest default, while silently ignoring a truthy-but-not-`true` flag here
   # would quietly publish people a page asked to hide. Better to raise at the call site.
-  defp filter_active(query, true), do: where(query, [p], is_nil(p.year_end))
+  defp filter_active(query, true),
+    do: where(query, [p], is_nil(p.year_end) and is_nil(p.death_date))
+
   defp filter_active(query, flag) when flag in [nil, false], do: query
 
   ## Admin CRUD
