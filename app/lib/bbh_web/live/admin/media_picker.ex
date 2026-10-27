@@ -6,9 +6,11 @@ defmodule BbhWeb.Admin.MediaPicker do
 
   Browsing is folder-scoped, so a picture can be found by where it was filed instead of
   by remembering its name. Searching deliberately spans *all* folders, so an unfiled or
-  misfiled picture is still reachable. "Zuletzt hochgeladen", offered beside the top-level
-  folders, is a virtual folder of the newest files wherever they were filed — the usual
-  case is a picture uploaded minutes ago for the article being written.
+  misfiled picture is still reachable. The modal opens on "Zuletzt hochgeladen", a virtual
+  folder of the newest files wherever they were filed — the usual pick is a picture
+  uploaded minutes ago for the article being written. The top-level folders are offered
+  right there too, so starting in it costs no click on the way into the folders; the
+  unfiled files are one click away under "Alle Medien".
 
   Mount it once per form page:
 
@@ -58,7 +60,7 @@ defmodule BbhWeb.Admin.MediaPicker do
   def handle_event("open", params, socket) do
     {:noreply,
      socket
-     |> assign(open: true, params: params, folder: nil, search: "")
+     |> assign(open: true, params: params, folder: :recent, search: "")
      |> load()}
   end
 
@@ -125,7 +127,9 @@ defmodule BbhWeb.Admin.MediaPicker do
   defp browse_opts(:recent), do: [recent: Media.recent_limit()]
   defp browse_opts(folder), do: [folder: folder.id]
 
-  defp subfolders(:recent), do: []
+  # A virtual folder has no sub-folders of its own; it offers the top level instead, being
+  # where the modal opens.
+  defp subfolders(:recent), do: Media.child_folders(nil)
   defp subfolders(folder), do: Media.child_folders(folder)
 
   defp blank_to_nil(""), do: nil
@@ -206,7 +210,7 @@ defmodule BbhWeb.Admin.MediaPicker do
               </span>
             </nav>
 
-            <div :if={@subfolders != [] or @folder == nil} class="mb-3 flex flex-wrap gap-2">
+            <div :if={@subfolders != [] or is_nil(@folder)} class="mb-3 flex flex-wrap gap-2">
               <button
                 :if={@folder == nil}
                 type="button"
