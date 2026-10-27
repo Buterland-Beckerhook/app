@@ -1,6 +1,8 @@
 defmodule BbhWeb.Admin.DashboardLive do
   use BbhWeb, :live_view
 
+  import Ecto.Query
+
   @ranges [7, 30, 90]
 
   @impl true
@@ -26,12 +28,21 @@ defmodule BbhWeb.Admin.DashboardLive do
     {:ok,
      %{
        stats: %{
-         articles: Bbh.Content.count_articles(),
-         events: Bbh.Repo.aggregate(Bbh.Calendar.Event, :count, :id),
+         articles: count_by_status(Bbh.Content.Article),
+         # Top-level only: programme items show under their festival in the list, so
+         # counting them here would promise drafts the filtered list doesn't show.
+         events: count_by_status(from(e in Bbh.Calendar.Event, where: is_nil(e.parent_id))),
          people: Bbh.Repo.aggregate(Bbh.Club.Person, :count, :id),
-         pages: Bbh.Repo.aggregate(Bbh.Content.Page, :count, :id)
+         pages: count_by_status(Bbh.Content.Page)
        }
      }}
+  end
+
+  # %{"published" => 12, "draft" => 3} — a status with no rows is simply absent.
+  defp count_by_status(queryable) do
+    from(r in queryable, group_by: r.status, select: {r.status, count(r.id)})
+    |> Bbh.Repo.all()
+    |> Map.new()
   end
 
   defp load_analytics(socket) do
@@ -80,10 +91,16 @@ defmodule BbhWeb.Admin.DashboardLive do
           <.stat_card
             :if={BbhWeb.Authz.can_access_section?(user, :articles)}
             label="Artikel"
-            value={stats.articles}
+            value={total(stats.articles)}
+            breakdown={status_breakdown(stats.articles)}
             navigate={~p"/admin/artikel"}
           />
-          <.stat_card label="Termine" value={stats.events} navigate={~p"/admin/termine"} />
+          <.stat_card
+            label="Termine"
+            value={total(stats.events)}
+            breakdown={status_breakdown(stats.events)}
+            navigate={~p"/admin/termine"}
+          />
           <.stat_card
             :if={BbhWeb.Authz.can_access_section?(user, :people)}
             label="Personen"
@@ -93,7 +110,8 @@ defmodule BbhWeb.Admin.DashboardLive do
           <.stat_card
             :if={BbhWeb.Authz.can_access_section?(user, :pages)}
             label="Seiten"
-            value={stats.pages}
+            value={total(stats.pages)}
+            breakdown={status_breakdown(stats.pages)}
             navigate={~p"/admin/seiten"}
           />
         </div>
@@ -206,18 +224,50 @@ defmodule BbhWeb.Admin.DashboardLive do
   attr :label, :string, required: true
   attr :value, :integer, required: true
   attr :navigate, :string, required: true
+  attr :breakdown, :list, default: [], doc: "`{status, label, count, class}` tuples"
 
+  # A card, not one big link: each status count links to the list filtered by it, and
+  # links can't nest.
   defp stat_card(assigns) do
     ~H"""
-    <.link
-      navigate={@navigate}
-      class="rounded-box border border-base-300 bg-base-200 p-4 hover:border-primary"
-    >
-      <div class="text-3xl font-semibold text-primary">{@value}</div>
-      <div class="text-sm text-base-content/70">{@label}</div>
-    </.link>
+    <div class="rounded-box border border-base-300 bg-base-200 p-4 hover:border-primary">
+      <.link navigate={@navigate} class="block">
+        <div class="text-3xl font-semibold text-primary">{@value}</div>
+        <div class="text-sm text-base-content/70">{@label}</div>
+      </.link>
+      <div :if={@breakdown != []} class="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs">
+        <.link
+          :for={{status, label, count, class} <- @breakdown}
+          navigate={"#{@navigate}?#{URI.encode_query(status: status)}"}
+          class={["hover:underline", class]}
+        >
+          <span class="font-semibold tabular-nums">{count}</span> {label}
+        </.link>
+      </div>
+    </div>
     """
   end
+
+  defp total(by_status), do: by_status |> Map.values() |> Enum.sum()
+
+  # Drafts are what an editor still has to finish, so they get the warning colour;
+  # "Abgesagt" only shows up once something is canceled.
+  defp status_breakdown(by_status) do
+    drafts = Map.get(by_status, "draft", 0)
+    canceled = Map.get(by_status, "canceled", 0)
+
+    [
+      {"published", "veröffentlicht", Map.get(by_status, "published", 0), "text-success"},
+      {"draft", draft_label(drafts), drafts, "text-warning"}
+    ] ++
+      if(canceled > 0,
+        do: [{"canceled", "abgesagt", canceled, "text-base-content/60"}],
+        else: []
+      )
+  end
+
+  defp draft_label(1), do: "Entwurf"
+  defp draft_label(_), do: "Entwürfe"
 
   attr :title, :string, required: true
   attr :rows, :list, required: true

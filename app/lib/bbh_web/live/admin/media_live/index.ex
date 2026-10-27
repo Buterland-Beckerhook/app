@@ -517,6 +517,8 @@ defmodule BbhWeb.Admin.MediaLive.Index do
         :if={@new_folder}
         id="new-folder-form"
         phx-submit="create_folder"
+        phx-window-keydown="toggle_new_folder"
+        phx-key="Escape"
         class="mt-2 flex flex-wrap items-end gap-2"
       >
         <input
@@ -525,10 +527,10 @@ defmodule BbhWeb.Admin.MediaLive.Index do
           placeholder="Ordnername"
           required
           maxlength="120"
-          autofocus
+          phx-mounted={JS.focus()}
           class="input input-bordered"
         />
-        <.button variant="primary">Anlegen</.button>
+        <.button variant="primary" phx-disable-with="Lege an…">Anlegen</.button>
         <span class="text-sm text-base-content/60">{new_folder_hint(@scope)}</span>
       </form>
 

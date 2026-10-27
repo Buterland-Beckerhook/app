@@ -125,7 +125,13 @@ defmodule BbhWeb.Admin.BlockEditor do
           <.media_card_image :if={pb.block_type == "media_card"} pb={pb} block={block} />
           <.gallery_files :if={pb.block_type == "image_gallery"} pb={pb} block={block} />
 
-          <.form :let={f} for={block_form(pb, block)} id={"block-#{pb.id}"} phx-submit="save_block">
+          <.form
+            :let={f}
+            for={block_form(pb, block)}
+            id={"block-#{pb.id}"}
+            phx-submit="save_block"
+            phx-hook="UnsavedChanges"
+          >
             <input type="hidden" name="pb_id" value={pb.id} />
             <.block_fields type={pb.block_type} f={f} block={block} />
             <.button variant="primary" class="btn btn-primary btn-sm mt-2" phx-disable-with="…">
@@ -144,7 +150,7 @@ defmodule BbhWeb.Admin.BlockEditor do
             <option :for={{label, value} <- @block_types} value={value}>{label}</option>
           </select>
         </label>
-        <.button variant="primary">Hinzufügen</.button>
+        <.button variant="primary" phx-disable-with="Füge hinzu…">Hinzufügen</.button>
       </form>
     </section>
     """

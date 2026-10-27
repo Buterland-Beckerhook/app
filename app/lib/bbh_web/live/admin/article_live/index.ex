@@ -5,11 +5,18 @@ defmodule BbhWeb.Admin.ArticleLive.Index do
   alias BbhWeb.AdminList
 
   @impl true
-  def mount(_params, _session, socket) do
+  def mount(params, _session, socket) do
     {:ok,
      socket
      |> assign(:page_title, "Artikel")
-     |> assign(:list_state, AdminList.init(sort: "date_published", dir: :desc))
+     |> assign(
+       :list_state,
+       AdminList.init(
+         sort: "date_published",
+         dir: :desc,
+         status: AdminList.known(params["status"], Content.Article.statuses())
+       )
+     )
      |> load_list()}
   end
 
@@ -21,6 +28,7 @@ defmodule BbhWeb.Admin.ArticleLive.Index do
     meta =
       AdminList.process(Content.list_articles(), socket.assigns.list_state,
         search: [& &1.title],
+        status: & &1.status,
         sort: %{
           "title" => & &1.title,
           "date_published" => & &1.date_published,
@@ -42,7 +50,10 @@ defmodule BbhWeb.Admin.ArticleLive.Index do
         </:actions>
       </.header>
 
-      <.list_search q={@list_meta.q} placeholder="Nach Titel suchen…" />
+      <div class="flex flex-wrap items-center gap-2">
+        <.list_search q={@list_meta.q} placeholder="Nach Titel suchen…" />
+        <.list_status_filter status={@list_meta.status} statuses={Content.Article.statuses()} />
+      </div>
 
       <.table id="articles" rows={@articles} sort={@list_meta.sort} dir={@list_meta.dir}>
         <:col :let={a} label="Titel" sort_key="title">

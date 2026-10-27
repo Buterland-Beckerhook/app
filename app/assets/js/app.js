@@ -59,8 +59,66 @@ function bufToB64url(buffer) {
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
 }
 
+// --- Unsaved changes: forms with the UnsavedChanges hook count as dirty from the first
+// user edit until they are submitted. While any is dirty, leaving the page asks first —
+// closing the tab or a full load via `beforeunload`, a LiveView navigation via a
+// capture-phase click on the link (LiveView offers no cancellable navigation event).
+// Patches stay unguarded: they keep the LiveView and with it the form.
+const dirtyForms = new Set()
+const DISCARD_PROMPT = "Es gibt ungespeicherte Änderungen. Seite trotzdem verlassen?"
+
+window.addEventListener("beforeunload", (e) => {
+  if (dirtyForms.size === 0) return
+  e.preventDefault()
+  e.returnValue = ""
+})
+
+document.addEventListener(
+  "click",
+  (e) => {
+    if (dirtyForms.size === 0) return
+    const link = e.target.closest("a[href]")
+    if (!link || link.target === "_blank" || link.dataset.phxLink === "patch") return
+    if (link.getAttribute("href").startsWith("#")) return
+    // A plain link triggers `beforeunload`, which asks on its own.
+    if (!link.dataset.phxLink) return
+    if (window.confirm(DISCARD_PROMPT)) {
+      dirtyForms.clear()
+    } else {
+      e.preventDefault()
+      e.stopImmediatePropagation()
+    }
+  },
+  true,
+)
+
 const Hooks = {
   PushThisDevice,
+
+  // Bound to an editing <form>; see "Unsaved changes" above. A submit marks it clean,
+  // and the re-render answering it marks it dirty again if it shows field errors —
+  // the edits are still only in the browser then.
+  UnsavedChanges: {
+    mounted() {
+      this._onInput = () => dirtyForms.add(this.el)
+      this._onSubmit = () => {
+        dirtyForms.delete(this.el)
+        this.submitted = true
+      }
+      this.el.addEventListener("input", this._onInput)
+      this.el.addEventListener("submit", this._onSubmit)
+    },
+    updated() {
+      if (!this.submitted) return
+      this.submitted = false
+      if (this.el.querySelector("[data-field-error]")) dirtyForms.add(this.el)
+    },
+    destroyed() {
+      dirtyForms.delete(this.el)
+      this.el.removeEventListener("input", this._onInput)
+      this.el.removeEventListener("submit", this._onSubmit)
+    },
+  },
 
   // Auto-fill the slug field from the title while creating content. Bound to the
   // title input; it finds the sibling `[slug]` input in the same form. Generation
@@ -939,6 +997,25 @@ document.addEventListener("click", (e) => {
 document.addEventListener("click", (e) => {
   const el = e.target.closest("input[data-select-on-click]")
   if (el) el.select()
+})
+
+// --- "Kopieren" buttons: copy the value of the input named by data-copy-target. The
+// clipboard API needs a secure context, which every stage (dev included) is; where it
+// still fails the input is left selected, so Ctrl/Cmd+C does the rest. ---
+document.addEventListener("click", async (e) => {
+  const btn = e.target.closest("button[data-copy-target]")
+  const input = btn && document.getElementById(btn.dataset.copyTarget)
+  if (!input) return
+  input.select()
+  try {
+    await navigator.clipboard.writeText(input.value)
+  } catch {
+    return
+  }
+  const label = btn.querySelector("[data-copy-label]")
+  if (!label) return
+  label.textContent = "Kopiert"
+  setTimeout(() => (label.textContent = "Kopieren"), 2000)
 })
 
 // The lines below enable quality of life phoenix_live_reload

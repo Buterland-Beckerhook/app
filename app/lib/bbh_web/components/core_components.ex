@@ -431,7 +431,7 @@ defmodule BbhWeb.CoreComponents do
   # Helper used by inputs to generate form errors
   defp error(assigns) do
     ~H"""
-    <p class="mt-1.5 flex gap-2 items-center text-sm text-error">
+    <p class="mt-1.5 flex gap-2 items-center text-sm text-error" data-field-error>
       <.icon name="hero-exclamation-circle" class="size-5" />
       {render_slot(@inner_block)}
     </p>
@@ -542,6 +542,27 @@ defmodule BbhWeb.CoreComponents do
         </tr>
       </tbody>
     </table>
+    """
+  end
+
+  @doc """
+  A status filter for the admin listings. Emits `phx-change` `"list-filter-status"` with
+  `status`; an empty value means all. Labels come from `status_badge/1`'s vocabulary.
+  """
+  attr :id, :string, default: "list-status"
+  attr :status, :string, default: nil
+  attr :statuses, :list, required: true
+
+  def list_status_filter(assigns) do
+    ~H"""
+    <form id={@id} phx-change="list-filter-status">
+      <select name="status" class="select select-sm select-bordered" aria-label="Status filtern">
+        <option value="" selected={is_nil(@status)}>Alle Status</option>
+        <option :for={s <- @statuses} value={s} selected={@status == s}>
+          {status_badge_label(:publish, s)}
+        </option>
+      </select>
+    </form>
     """
   end
 

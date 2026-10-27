@@ -324,6 +324,7 @@ defmodule BbhWeb.Admin.EventLive.Form do
       <.form
         for={@form}
         id="event-form"
+        phx-hook="UnsavedChanges"
         phx-change="validate"
         phx-submit="save"
         class="mt-6 space-y-4"
@@ -521,7 +522,9 @@ defmodule BbhWeb.Admin.EventLive.Form do
             <input type="hidden" name="source" value={@copy_warning.source_id} />
             <input type="hidden" name="confirm_weekday" value="true" />
             <div class="flex gap-2">
-              <.button variant="primary">Trotzdem übernehmen</.button>
+              <.button variant="primary" phx-disable-with="Übernehme…">
+                Trotzdem übernehmen
+              </.button>
               <button type="button" class="btn" phx-click="copy-programme-cancel">
                 Abbrechen
               </button>

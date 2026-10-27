@@ -17,6 +17,24 @@ defmodule BbhWeb.Admin.ArticleLiveTest do
       assert html =~ article.title
     end
 
+    test "filters by status, from the URL and from the select", %{conn: conn} do
+      article_fixture(title: "Sommerfest 2026", status: "published")
+      article_fixture(title: "Winterball 2026", status: "draft")
+
+      {:ok, lv, html} = live(conn, ~p"/admin/artikel?status=draft")
+      assert html =~ "Winterball"
+      refute html =~ "Sommerfest"
+
+      html = lv |> form("#list-status", %{status: "published"}) |> render_change()
+      assert html =~ "Sommerfest"
+      refute html =~ "Winterball"
+
+      # An unknown status from the URL shows everything instead of nothing.
+      {:ok, _lv, html} = live(conn, ~p"/admin/artikel?status=bogus")
+      assert html =~ "Sommerfest"
+      assert html =~ "Winterball"
+    end
+
     test "filters the list by title", %{conn: conn} do
       article_fixture(title: "Sommerfest 2026")
       article_fixture(title: "Winterball 2026")

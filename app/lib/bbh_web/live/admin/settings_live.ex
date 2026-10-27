@@ -590,13 +590,21 @@ defmodule BbhWeb.Admin.SettingsLive do
 
       <div :if={@new_token} class="alert alert-success mt-6 flex-col items-start gap-2">
         <p class="font-medium">Token erstellt – jetzt kopieren!</p>
-        <input
-          type="text"
-          readonly
-          value={@new_token}
-          aria-label="Neues Zugriffstoken"
-          class="input input-sm w-full bg-base-100 font-mono text-xs"
-        />
+        <div class="flex w-full gap-2">
+          <input
+            id="new-token"
+            type="text"
+            readonly
+            value={@new_token}
+            data-select-on-click
+            aria-label="Neues Zugriffstoken"
+            class="input input-sm min-w-0 flex-1 bg-base-100 font-mono text-xs"
+          />
+          <button type="button" class="btn btn-sm" data-copy-target="new-token">
+            <.icon name="hero-clipboard-document" class="size-4" />
+            <span data-copy-label>Kopieren</span>
+          </button>
+        </div>
         <p class="text-xs">
           Er wird nur dieses eine Mal angezeigt. Danach ist er nicht mehr auslesbar.
         </p>

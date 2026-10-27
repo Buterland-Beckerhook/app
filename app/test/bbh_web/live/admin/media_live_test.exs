@@ -135,6 +135,17 @@ defmodule BbhWeb.Admin.MediaLiveTest do
                index_of(html, ~s(data-folder-id="#{aktuelles.id}"))
     end
 
+    test "the new-folder field takes focus and Escape closes the form", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, ~p"/admin/medien")
+      render_click(lv, "toggle_new_folder", %{})
+
+      # `autofocus` only works on a full page load, not on an element LiveView patches in.
+      assert lv |> element("#new-folder-form input[name=name]") |> render() =~ "phx-mounted"
+
+      lv |> element("#new-folder-form") |> render_keydown(%{"key" => "Escape"})
+      refute has_element?(lv, "#new-folder-form")
+    end
+
     test "creating from inside a deepest-level folder does what the hint promises", %{conn: conn} do
       {:ok, presse} = Media.create_folder(%{"name" => "Presse"})
       {:ok, year} = Media.create_folder(%{"name" => "2026", "parent_id" => presse.id})

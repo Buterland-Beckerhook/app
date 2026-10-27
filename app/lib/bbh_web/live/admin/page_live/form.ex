@@ -287,6 +287,7 @@ defmodule BbhWeb.Admin.PageLive.Form do
       <.form
         for={@form}
         id="page-form"
+        phx-hook="UnsavedChanges"
         phx-change="validate_page"
         phx-submit="save_page"
         class="mt-6 space-y-4"

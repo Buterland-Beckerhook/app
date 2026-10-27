@@ -6,11 +6,18 @@ defmodule BbhWeb.Admin.EventLive.Index do
   alias BbhWeb.AdminList
 
   @impl true
-  def mount(_params, _session, socket) do
+  def mount(params, _session, socket) do
     {:ok,
      socket
      |> assign(:page_title, "Termine")
-     |> assign(:list_state, AdminList.init(sort: "starts_at", dir: :desc))
+     |> assign(
+       :list_state,
+       AdminList.init(
+         sort: "starts_at",
+         dir: :desc,
+         status: AdminList.known(params["status"], Event.statuses())
+       )
+     )
      |> assign(:expanded, MapSet.new())
      |> load_list()}
   end
@@ -51,6 +58,7 @@ defmodule BbhWeb.Admin.EventLive.Index do
           &(programmes |> Map.get(&1.id, []) |> Enum.map_join(" ", fn item -> item.title end))
         ],
         category: {&(&1.calendar || "public"), socket.assigns.list_state.cat},
+        status: & &1.status,
         sort: %{
           "title" => & &1.title,
           "starts_at" => & &1.starts_at,
@@ -102,6 +110,7 @@ defmodule BbhWeb.Admin.EventLive.Index do
             </option>
           </select>
         </form>
+        <.list_status_filter status={@list_meta.status} statuses={Event.statuses()} />
       </div>
 
       <.table id="events" rows={@events} sort={@list_meta.sort} dir={@list_meta.dir}>

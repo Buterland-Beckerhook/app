@@ -400,6 +400,7 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
       <.form
         for={@form}
         id="article-form"
+        phx-hook="UnsavedChanges"
         phx-change="validate"
         phx-submit="save"
         class="mt-6 space-y-4"
@@ -492,6 +493,7 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
           :if={@show_throne}
           for={@throne_form}
           id="throne-form"
+          phx-hook="UnsavedChanges"
           phx-submit="save_throne"
           class="mt-4 space-y-3"
         >
