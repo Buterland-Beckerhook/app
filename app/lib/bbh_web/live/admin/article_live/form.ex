@@ -24,6 +24,7 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
 
     socket
     |> assign(page_title: "Neuer Artikel", article: article, throne: nil)
+    |> assign(tag_suggestions: Content.tag_names())
     |> assign(blocks: [], show_throne: false)
     |> assign_form(Content.change_article(article))
   end
@@ -33,6 +34,7 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
 
     socket
     |> assign(page_title: "Artikel bearbeiten", article: article, throne: article.throne)
+    |> assign(tag_suggestions: Content.tag_names(article.id))
     |> assign(show_throne: not is_nil(article.throne))
     |> assign(blocks: Content.load_blocks(article))
     |> assign_throne_form(Content.change_throne(throne_or_new(article)))
@@ -49,8 +51,8 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
     {:noreply, assign_form(socket, changeset)}
   end
 
-  def handle_event("save", %{"article" => params}, socket) do
-    params = normalize(params)
+  def handle_event("save", %{"article" => params} = form_params, socket) do
+    params = params |> normalize() |> add_tag_draft(form_params["tag_draft"])
 
     case backdated_publish(socket.assigns.article, params) do
       %DateTime{} = date ->
@@ -68,6 +70,23 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
 
     save(socket, socket.assigns.live_action, params, silent: push != "true")
   end
+
+  # Tag chips (the `TagInput` hook). The tags live in the form's changeset like every
+  # other field and are only stored on „Speichern“.
+  def handle_event("add_tag", %{"tag" => text}, socket) do
+    added =
+      [text]
+      |> Article.normalize_tags()
+      |> Content.canonical_tags(socket.assigns.tag_suggestions)
+
+    {:noreply, put_tags(socket, current_tags(socket) ++ added)}
+  end
+
+  def handle_event("remove_tag", %{"tag" => tag}, socket),
+    do: {:noreply, put_tags(socket, List.delete(current_tags(socket), tag))}
+
+  def handle_event("remove_last_tag", _params, socket),
+    do: {:noreply, put_tags(socket, Enum.drop(current_tags(socket), -1))}
 
   def handle_event("cancel_publish", _params, socket) do
     {:noreply, assign(socket, :push_prompt, nil)}
@@ -344,6 +363,20 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
 
   defp backdate_days, do: @backdate_days
 
+  defp current_tags(socket), do: Ecto.Changeset.get_field(socket.assigns.form.source, :tags) || []
+
+  # Re-run the changeset with the edited tags on top of what the form already holds, so a
+  # tag change keeps unsaved edits in the other fields.
+  defp put_tags(socket, tags) do
+    %{source: changeset} = socket.assigns.form
+    params = Map.put(changeset.params || %{}, "tags", tags)
+
+    socket.assigns.article
+    |> Content.change_article(params)
+    |> Map.put(:action, changeset.action)
+    |> then(&assign_form(socket, &1))
+  end
+
   defp assign_form(socket, changeset),
     do: assign(socket, :form, to_form(changeset, as: "article"))
 
@@ -372,6 +405,12 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
       true -> v
     end
   end
+
+  # Text left in the tag field when saving is a tag too — dropping it would lose input.
+  defp add_tag_draft(params, draft) when is_binary(draft) and draft != "",
+    do: Map.update(params, "tags", [draft], &(List.wrap(&1) ++ [draft]))
+
+  defp add_tag_draft(params, _draft), do: params
 
   defp parse_tags(list) when is_list(list), do: list
 
@@ -414,12 +453,7 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
           Zuletzt geändert: {de_datetime(@article.date_modified)}
         </p>
         <.input field={@form[:author]} label="Autor" />
-        <.input
-          name="article[tags]"
-          id="article_tags"
-          value={tags_value(@form[:tags].value)}
-          label="Tags (kommagetrennt)"
-        />
+        <.tag_field field={@form[:tags]} suggestions={@tag_suggestions} />
         <.input field={@form[:no_article]} type="checkbox" label="Nur Thron-Anzeige (kein Artikel)" />
 
         <div class="flex gap-2">
@@ -652,9 +686,63 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
 
   defp article_live?(_), do: false
 
-  defp tags_value(tags) when is_list(tags), do: Enum.join(tags, ", ")
-  defp tags_value(str) when is_binary(str), do: str
-  defp tags_value(_), do: ""
+  # Chips plus a text field with the tags already in use as suggestions (`<datalist>`).
+  # The chips' hidden inputs carry the value (the empty one lets the last chip be
+  # removed). The text field sits outside `article[…]`; whatever is still typed in it on
+  # „Speichern“ is added then (`add_tag_draft/2`).
+  attr :field, Phoenix.HTML.FormField, required: true
+  attr :suggestions, :list, required: true
+
+  defp tag_field(assigns) do
+    tags = List.wrap(assigns.field.value) |> Enum.reject(&(&1 == ""))
+    taken = MapSet.new(tags, &String.downcase/1)
+
+    assigns =
+      assigns
+      |> assign(:tags, tags)
+      |> assign(:open, Enum.reject(assigns.suggestions, &(String.downcase(&1) in taken)))
+
+    ~H"""
+    <fieldset class="fieldset">
+      <label for="article-tag-input" class="label mb-1">Tags</label>
+      <div
+        id="article-tags"
+        phx-hook="TagInput"
+        class="input flex h-auto min-h-10 w-full flex-wrap items-center gap-1.5 py-1.5"
+      >
+        <input type="hidden" name={@field.name <> "[]"} value="" />
+        <span :for={tag <- @tags} class="badge badge-primary badge-soft gap-1">
+          {tag}
+          <input type="hidden" name={@field.name <> "[]"} value={tag} />
+          <button
+            type="button"
+            data-remove-tag={tag}
+            class="cursor-pointer opacity-60 hover:opacity-100"
+            aria-label={"Tag „#{tag}“ entfernen"}
+          >
+            <.icon name="hero-x-mark" class="size-3.5" />
+          </button>
+        </span>
+        <input
+          id="article-tag-input"
+          name="tag_draft"
+          type="text"
+          list="article-tag-suggestions"
+          autocomplete="off"
+          placeholder={if @tags == [], do: "Tag eingeben…", else: ""}
+          class="min-w-32 flex-1 border-0 bg-transparent p-0 outline-none focus:ring-0"
+        />
+      </div>
+      <datalist id="article-tag-suggestions">
+        <option :for={tag <- @open} value={tag} />
+      </datalist>
+      <p class="label text-xs">
+        Enter oder Komma übernimmt ein Tag. Vorhandene Tags werden vorgeschlagen –
+        verwalten unter <.link navigate={~p"/admin/schlagworte"} class="link">Schlagworte</.link>.
+      </p>
+    </fieldset>
+    """
+  end
 
   defp statuses, do: @statuses
 end

@@ -144,6 +144,22 @@ Every year's winners of the club's trophies live in `trophies` / `trophy_wins`
   (`20261025150100_import_trophy_winners`); the source with gaps and caveats is
   `docs/verein/pokalschiessen.md`.
 
+## Article tags
+
+Tags stay a plain string list on `articles` — there is no tag table; the tag list is
+derived (`Bbh.Content.list_tags/0`), so a tag no article carries simply disappears.
+
+- **Every write normalizes** (`Article.normalize_tags/1`: split on commas, trim, one
+  entry per tag regardless of case) **and takes the spelling already in use**
+  (`Content.create_article/2` / `update_article/3` → `canonical_tags/2`, leaving out the
+  article's own tags so a spelling fix on a tag's only article sticks). The form and the
+  MCP tools both go through it.
+- The article form edits tags as chips (`TagInput` hook) with existing tags as
+  `<datalist>` suggestions; text still in the field on „Speichern“ is saved as a tag.
+- `/admin/schlagworte` renames (onto an existing tag = merge) and removes tags across all
+  articles; removing is admin-only. Neither bumps „Geändert am“.
+- Tags link to `/suche?tag=…`, an exact (case-insensitive) listing of published articles.
+
 ## E-mail addresses
 
 Addresses are stored in the clear and obfuscated **at render time** — never write one

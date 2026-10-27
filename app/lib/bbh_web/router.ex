@@ -245,6 +245,7 @@ defmodule BbhWeb.Router do
       live "/artikel", ArticleLive.Index, :index
       live "/artikel/neu", ArticleLive.Form, :new
       live "/artikel/:id/bearbeiten", ArticleLive.Form, :edit
+      live "/schlagworte", TagLive.Index, :index
 
       live "/orte", LocationLive.Index, :index
       live "/orte/neu", LocationLive.Form, :new

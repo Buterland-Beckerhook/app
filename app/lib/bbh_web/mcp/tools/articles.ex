@@ -49,6 +49,8 @@ defmodule BbhWeb.MCP.Tools.Articles do
     |> Enum.any?(&(is_binary(&1) and String.contains?(String.downcase(&1), needle)))
   end
 
+  def list_tags(_args, _scope), do: {:ok, %{tags: Content.list_tags()}}
+
   def get_article(args, _scope) do
     with {:ok, article} <- lookup_article(args) do
       {:ok, View.article(article, Content.load_blocks(article))}

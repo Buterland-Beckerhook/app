@@ -399,6 +399,7 @@ defmodule BbhWeb.Layouts do
   @admin_nav [
     {:dashboard, "/admin", "Übersicht"},
     {:articles, "/admin/artikel", "Artikel"},
+    {:tags, "/admin/schlagworte", "Schlagworte"},
     {:events, "/admin/termine", "Termine"},
     {:shares, "/admin/termine/teilen", "Kalender teilen"},
     {:locations, "/admin/orte", "Orte"},

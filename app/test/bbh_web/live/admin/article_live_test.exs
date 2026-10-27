@@ -8,6 +8,26 @@ defmodule BbhWeb.Admin.ArticleLiveTest do
 
   setup :register_and_log_in_admin
 
+  describe "Tags" do
+    test "adds tags in the spelling in use, removes them, and saves a typed one", %{conn: conn} do
+      article_fixture(tags: ["Thron"])
+      article = article_fixture(tags: [])
+      {:ok, lv, html} = live(conn, ~p"/admin/artikel/#{article.id}/bearbeiten")
+
+      # Existing tags are offered as suggestions.
+      assert html =~ ~s(<option value="Thron">)
+
+      lv |> element("#article-tags") |> render_hook("add_tag", %{"tag" => "thron"})
+      lv |> element("#article-tags") |> render_hook("add_tag", %{"tag" => "Biwak, Corona"})
+      lv |> element("#article-tags") |> render_hook("remove_tag", %{"tag" => "Biwak"})
+
+      # „Kaiser“ is still in the text field when saving — it counts too.
+      lv |> form("#article-form", %{tag_draft: "Kaiser"}) |> render_submit()
+
+      assert Content.get_article!(article.id).tags == ["Thron", "Corona", "Kaiser"]
+    end
+  end
+
   describe "Index" do
     test "lists existing articles", %{conn: conn} do
       article = article_fixture(title: "Sommerfest 2026")
