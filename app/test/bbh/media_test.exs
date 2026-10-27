@@ -760,6 +760,8 @@ defmodule Bbh.MediaTest do
 
       assert tree.counts[presse.id] == 2
       assert tree.counts[y2026.id] == 2
+      # The library's default lists a folder alone, so it counts what is filed right there.
+      assert tree.direct == %{y2026.id => 2}
       assert tree.total == 2
       assert tree.unfiled == 0
     end
@@ -767,7 +769,8 @@ defmodule Bbh.MediaTest do
     test "counts are zero on an empty library" do
       # Equality, not a pattern: `%{} = %{a: 1}` matches in Elixir, so `counts: %{}` in a
       # pattern would accept any counts at all.
-      assert Media.list_folder_tree() == %{roots: [], counts: %{}, total: 0, unfiled: 0}
+      assert Media.list_folder_tree() ==
+               %{roots: [], counts: %{}, direct: %{}, total: 0, unfiled: 0}
     end
   end
 

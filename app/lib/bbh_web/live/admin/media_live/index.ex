@@ -16,8 +16,9 @@ defmodule BbhWeb.Admin.MediaLive.Index do
       |> assign(scope: :all, editing: nil, new_folder: false)
       # Assigned here and nowhere else: picking a folder is a patch, so anything set in
       # handle_params/3 is set again on every click in the tree — which would throw the
-      # sorting mode away mid-drag and fold the branch the editor just opened.
-      |> assign(edit_mode: false, expanded: MapSet.new())
+      # sorting mode away mid-drag and fold the branch the editor just opened. The same goes
+      # for `include_subfolders`: it is a way of working, kept while moving between folders.
+      |> assign(edit_mode: false, expanded: MapSet.new(), include_subfolders: false)
       |> allow_upload(:files,
         accept: ~w(.jpg .jpeg .png .webp .gif .pdf),
         max_entries: 10,
@@ -67,19 +68,25 @@ defmodule BbhWeb.Admin.MediaLive.Index do
       Media.list_uploads(
         search: socket.assigns.search,
         sort: socket.assigns.sort,
-        folder: folder_scope(socket.assigns.scope, socket.assigns.tree)
+        folder: folder_scope(socket.assigns)
       )
 
     stream(socket, :items, items, reset: true)
   end
 
-  # What `Media.list_uploads(folder:)` expects for each scope.
-  defp folder_scope(:all, _tree), do: :all
-  defp folder_scope(:unfiled, _tree), do: :root
-  defp folder_scope(%Folder{} = folder, tree), do: branch_ids(tree, folder)
+  # What `Media.list_uploads(folder:)` expects for each scope. A folder lists its own files
+  # by default: while filing pictures into sub-folders, the ones already filed would
+  # otherwise stay in the parent's grid and bury what is left to sort.
+  defp folder_scope(%{scope: :all}), do: :all
+  defp folder_scope(%{scope: :unfiled}), do: :root
 
-  # The folders a scope lists: the chosen one plus everything below it, so a folded
-  # branch hides nothing. Read off the already-loaded tree for the same reason
+  defp folder_scope(%{scope: %Folder{} = folder, include_subfolders: true, tree: tree}),
+    do: branch_ids(tree, folder)
+
+  defp folder_scope(%{scope: %Folder{id: id}}), do: id
+
+  # The folders a folder lists with "Unterordner einbeziehen": the chosen one plus everything
+  # below it, so a folded branch hides nothing. Read off the already-loaded tree for the same reason
   # `Media.folder_options/1` takes loaded roots — re-querying would double the work on
   # every folder change, upload, edit and drop.
   #
@@ -108,8 +115,12 @@ defmodule BbhWeb.Admin.MediaLive.Index do
   @impl true
   def handle_event("validate", _params, socket), do: {:noreply, socket}
 
-  def handle_event("filter", %{"search" => search, "sort" => sort}, socket) do
-    {:noreply, socket |> assign(search: search, sort: sort) |> load_items()}
+  def handle_event("filter", %{"search" => search, "sort" => sort} = params, socket) do
+    {:noreply,
+     socket
+     |> assign(search: search, sort: sort)
+     |> assign_include_subfolders(params)
+     |> load_items()}
   end
 
   def handle_event("cancel", %{"ref" => ref}, socket) do
@@ -287,6 +298,16 @@ defmodule BbhWeb.Admin.MediaLive.Index do
     end
   end
 
+  # The box is only rendered inside a folder, and an unchecked box is absent from the
+  # payload rather than false. So outside a folder an absent key means "no box", not
+  # "unticked" — a search in "Alle Medien" must not switch it off behind the editor's back.
+  defp assign_include_subfolders(socket, params) do
+    case socket.assigns.scope do
+      %Folder{} -> assign(socket, :include_subfolders, Map.has_key?(params, "subfolders"))
+      _ -> socket
+    end
+  end
+
   # The branch scope gave a folder move reach into the grid, which it never had while a
   # scope was one folder: nesting a folder into the open one pulls its files in and
   # un-nesting takes them away, so the count would claim the new branch while the grid
@@ -300,7 +321,7 @@ defmodule BbhWeb.Admin.MediaLive.Index do
   # Which folders the grid is drawing from, order-insensitive: reordering a folder's
   # children rewrites the list without changing a single file in it.
   defp listed_folders(socket) do
-    case folder_scope(socket.assigns.scope, socket.assigns.tree) do
+    case folder_scope(socket.assigns) do
       ids when is_list(ids) -> Enum.sort(ids)
       scope -> scope
     end
@@ -318,20 +339,25 @@ defmodule BbhWeb.Admin.MediaLive.Index do
   # Keep the grid in step: drop the item if it no longer belongs in the current scope,
   # otherwise re-render it in place. Nothing ever falls out of "Alle Medien".
   defp refresh(socket, updated) do
-    if in_scope?(socket.assigns.scope, socket.assigns.tree, updated),
+    if in_scope?(socket.assigns, updated),
       do: stream_insert(socket, :items, updated),
       else: stream_delete(socket, :items, updated)
   end
 
-  # The predicate half of folder_scope/2, over the same branch_ids/2: a file filed into a
+  # The predicate half of folder_scope/1. With the branch included, a file filed into a
   # sub-folder of the open folder is still listed there, so dropping it from the stream
-  # would make it look deleted. No catch-all, like folder_scope/2 — `scope` is closed over
+  # would make it look deleted; without, dropping it is the point — the grid shrinks to
+  # what is left to sort. No catch-all, like folder_scope/1 — `scope` is closed over
   # three shapes, and a fourth should fail loudly rather than quietly list nothing.
-  defp in_scope?(:all, _tree, _upload), do: true
-  defp in_scope?(:unfiled, _tree, %{folder_id: folder_id}), do: is_nil(folder_id)
+  defp in_scope?(%{scope: :all}, _upload), do: true
+  defp in_scope?(%{scope: :unfiled}, %{folder_id: folder_id}), do: is_nil(folder_id)
 
-  defp in_scope?(%Folder{} = folder, tree, %{folder_id: folder_id}),
-    do: folder_id in branch_ids(tree, folder)
+  defp in_scope?(%{scope: %Folder{}} = assigns, %{folder_id: folder_id}) do
+    case folder_scope(assigns) do
+      ids when is_list(ids) -> folder_id in ids
+      id -> folder_id == id
+    end
+  end
 
   defp moved_message(%{folder_id: nil}), do: "Datei aus dem Ordner entfernt."
 
@@ -552,7 +578,7 @@ defmodule BbhWeb.Admin.MediaLive.Index do
             :for={root <- @tree.roots}
             folder={root}
             depth={1}
-            counts={@tree.counts}
+            counts={if @include_subfolders, do: @tree.counts, else: @tree.direct}
             scope={@scope}
             edit_mode={@edit_mode}
             expanded={@expanded}
@@ -595,6 +621,17 @@ defmodule BbhWeb.Admin.MediaLive.Index do
             <option value="oldest" selected={@sort == "oldest"}>Älteste zuerst</option>
             <option value="name" selected={@sort == "name"}>Name (A–Z)</option>
           </select>
+        </label>
+        <label
+          :if={match?(%Folder{}, @scope)}
+          class="flex cursor-pointer items-center gap-2 pb-2 text-sm"
+        >
+          <input
+            type="checkbox"
+            name="subfolders"
+            checked={@include_subfolders}
+            class="checkbox checkbox-sm"
+          /> Unterordner einbeziehen
         </label>
       </form>
 

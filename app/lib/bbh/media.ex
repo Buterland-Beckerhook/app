@@ -356,10 +356,11 @@ defmodule Bbh.Media do
   root folders with their children (both in editor order) plus the file counts
   shown on every node.
 
-  A count is the number the node actually lists when clicked, which since the branch
-  scope means a folder counts the files of every folder below it too. `counts` holds every folder,
-  `unfiled` the files in none. One grouped query covers the lot; per-node counting
-  would be N+1.
+  A count is the number the node actually lists when clicked, and the library lists a
+  folder either alone or with its whole branch ("Unterordner einbeziehen"). So there are
+  two: `counts` holds every folder's branch total, `direct` the files filed in each folder
+  itself (only folders that have any). `unfiled` is the files in none. One grouped query
+  covers the lot; per-node counting would be N+1.
   """
   def list_folder_tree do
     direct =
@@ -371,6 +372,7 @@ defmodule Bbh.Media do
     %{
       roots: roots,
       counts: branch_counts(roots, direct),
+      direct: Map.delete(direct, nil),
       # From the direct counts, so folding the branches cannot count a parent twice.
       total: direct |> Map.values() |> Enum.sum(),
       unfiled: Map.get(direct, nil, 0)

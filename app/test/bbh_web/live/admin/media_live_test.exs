@@ -440,11 +440,25 @@ defmodule BbhWeb.Admin.MediaLiveTest do
       refute html =~ ctx.filed.filename
     end
 
-    test "a folder lists its own files and those of its sub-folders", ctx do
+    test "a folder lists only its own files by default", ctx do
       {:ok, child} = Media.create_folder(%{"name" => "2026", "parent_id" => ctx.folder.id})
       nested = upload_fixture(folder_id: child.id, filename: "im-unterordner.webp")
 
       {:ok, _lv, html} = live(ctx.conn, ~p"/admin/medien?#{[folder: ctx.folder.id]}")
+
+      # Filing into sub-folders is the common job, and the ones already filed would bury
+      # what is left to sort.
+      assert html =~ ctx.filed.filename
+      refute html =~ nested.filename
+      refute html =~ ctx.unfiled.filename
+    end
+
+    test "Unterordner einbeziehen lists the sub-folders' files too", ctx do
+      {:ok, child} = Media.create_folder(%{"name" => "2026", "parent_id" => ctx.folder.id})
+      nested = upload_fixture(folder_id: child.id, filename: "im-unterordner.webp")
+
+      {:ok, lv, _html} = live(ctx.conn, ~p"/admin/medien?#{[folder: ctx.folder.id]}")
+      html = include_subfolders(lv)
 
       # This is what makes folding the branch lossless: everything inside is one click in.
       assert html =~ ctx.filed.filename
@@ -473,25 +487,59 @@ defmodule BbhWeb.Admin.MediaLiveTest do
       assert has_element?(lv, ~s(#media-tree > ul > li:first-child [data-count="2"]))
     end
 
-    test "a folder's count covers its sub-folders, like the grid does", ctx do
+    test "a folder's count follows the grid, with or without its sub-folders", ctx do
       {:ok, child} = Media.create_folder(%{"name" => "2026", "parent_id" => ctx.folder.id})
       upload_fixture(folder_id: child.id, filename: "im-unterordner.webp")
 
-      {:ok, lv, _html} = live(ctx.conn, ~p"/admin/medien")
+      {:ok, lv, _html} = live(ctx.conn, ~p"/admin/medien?#{[folder: ctx.folder.id]}")
+
+      assert has_element?(lv, ~s([data-node][data-folder-id="#{ctx.folder.id}"] [data-count="1"]))
+
+      include_subfolders(lv)
 
       assert has_element?(lv, ~s([data-node][data-folder-id="#{ctx.folder.id}"] [data-count="2"]))
       assert has_element?(lv, ~s([data-node][data-folder-id="#{child.id}"] [data-count="1"]))
     end
 
-    test "filing a tile into a sub-folder keeps it in the open parent's grid", ctx do
+    test "filing a tile into a sub-folder takes it out of the open parent's grid", ctx do
       {:ok, child} = Media.create_folder(%{"name" => "2026", "parent_id" => ctx.folder.id})
 
       {:ok, lv, _html} = live(ctx.conn, ~p"/admin/medien?#{[folder: ctx.folder.id]}")
       html = render_hook(lv, "move_media", %{"id" => ctx.filed.id, "folder_id" => child.id})
 
+      # The sorting feedback: what is filed leaves, what is left to sort stays.
+      refute html =~ ctx.filed.filename
+      assert Media.get_upload!(ctx.filed.id).folder_id == child.id
+    end
+
+    test "with sub-folders included, filing a tile into one keeps it in the grid", ctx do
+      {:ok, child} = Media.create_folder(%{"name" => "2026", "parent_id" => ctx.folder.id})
+
+      {:ok, lv, _html} = live(ctx.conn, ~p"/admin/medien?#{[folder: ctx.folder.id]}")
+      include_subfolders(lv)
+      html = render_hook(lv, "move_media", %{"id" => ctx.filed.id, "folder_id" => child.id})
+
       # The scope still lists it, so dropping it from the stream would make it look gone.
       assert html =~ ctx.filed.filename
       assert Media.get_upload!(ctx.filed.id).folder_id == child.id
+    end
+
+    test "Unterordner einbeziehen stays on while moving between folders", ctx do
+      {:ok, child} = Media.create_folder(%{"name" => "2026", "parent_id" => ctx.folder.id})
+      upload_fixture(folder_id: child.id, filename: "im-unterordner.webp")
+
+      {:ok, lv, _html} = live(ctx.conn, ~p"/admin/medien?#{[folder: child.id]}")
+      include_subfolders(lv)
+
+      # A search in "Alle Medien", where the box is not rendered, must not reset it either.
+      render_patch(lv, ~p"/admin/medien")
+      refute has_element?(lv, ~s(#media-filter input[name="subfolders"]))
+      lv |> element("#media-filter") |> render_change(%{"search" => "", "sort" => "newest"})
+
+      html = render_patch(lv, ~p"/admin/medien?#{[folder: ctx.folder.id]}")
+
+      assert has_element?(lv, ~s(#media-filter input[name="subfolders"][checked]))
+      assert html =~ "im-unterordner.webp"
     end
   end
 
@@ -669,8 +717,8 @@ defmodule BbhWeb.Admin.MediaLiveTest do
       {:ok, satzung} = Media.create_folder(%{"name" => "Satzungen"})
       nested = upload_fixture(folder_id: satzung.id, filename: "wird-eingehaengt.webp")
 
-      {:ok, lv, html} = live(conn, ~p"/admin/medien?#{[folder: presse.id]}")
-      refute html =~ nested.filename
+      {:ok, lv, _html} = live(conn, ~p"/admin/medien?#{[folder: presse.id]}")
+      refute include_subfolders(lv) =~ nested.filename
 
       html =
         render_hook(lv, "move_folder", %{
@@ -690,8 +738,8 @@ defmodule BbhWeb.Admin.MediaLiveTest do
       {:ok, child} = Media.create_folder(%{"name" => "2026", "parent_id" => presse.id})
       nested = upload_fixture(folder_id: child.id, filename: "verlaesst-den-ordner.webp")
 
-      {:ok, lv, html} = live(conn, ~p"/admin/medien?#{[folder: presse.id]}")
-      assert html =~ nested.filename
+      {:ok, lv, _html} = live(conn, ~p"/admin/medien?#{[folder: presse.id]}")
+      assert include_subfolders(lv) =~ nested.filename
 
       html =
         render_hook(lv, "move_folder", %{"id" => child.id, "parent_id" => "", "position" => 1})
@@ -888,6 +936,13 @@ defmodule BbhWeb.Admin.MediaLiveTest do
 
   # Where a fragment first appears in the rendered page — used to assert the order of
   # whole sections, which is what the layout change is actually about.
+  # Ticks "Unterordner einbeziehen" the way the browser does: the whole filter form changes.
+  defp include_subfolders(lv) do
+    lv
+    |> element("#media-filter")
+    |> render_change(%{"search" => "", "sort" => "newest", "subfolders" => "on"})
+  end
+
   defp index_of(html, fragment) do
     case :binary.match(html, fragment) do
       {position, _length} -> position
