@@ -53,7 +53,8 @@ Ehrenmitglied“, die Angaben zum Bezug zum Verein sind dort entnommen.
 | Wilhelm Appels | ? (vor 1984) | † ? | Foto 1984; König 1970 (dieselbe Person?) |
 | Heinrich Lütke-Glanemann | ? (vor 1984) | † ? | Foto 1984; im Thron 1951 und 1959 |
 | Bernhard Albers | ? (vor 1984) | † ? | Foto 1984; König 1965 (dieselbe Person?) |
-| Josef Verst | 1983 (Ende der Dienstzeit) | * 19.10.1920, † 20.01.2013 (92) | Foto 1984; Jubiläumskönig 1959 (ältester lebender König 2010); Offizierskorps 1951–1983, ab 1962 Major |
+| Josef Verst (zweiter) | ? (vor 1984) | † ? | Foto 1984 – die Bildunterschrift nennt zwei Josef Verst und passt zur Zahl der Personen. Der Josef Verst auf dem Thronfoto 1956 ist laut Familie nicht der Jubiläumskönig, also vielleicht dieser |
+| Josef Verst | 1983 (Ende der Dienstzeit) | * 19.10.1920, † 20.01.2013 (92) | Foto 1984; Jubiläumskönig 1959 (ältester lebender König 2010); Offizierskorps 1951–1983, Major ab 1962 (Nachruf; Familie: 1963), genannt „Fischmajor“ |
 | Josef Tönjann | 1990 (Ende der Dienstzeit) | * 29.08.1927, † 16.03.2016 (88) | Oberst 1978–1990, König 1961; 40 Jahre Offizierskorps |
 | Franz Nacke | ? (vermutlich 1993) | * 27.06.1925, † 03.07.2023 (98) | 24 Jahre im Vorstand: Geschäftsführer 1981–1991, Vizepräsident bis 1993; erstellte die Festschrift 1984 „beinahe in Alleinarbeit“; Seniorenausschuss |
 | Theodor (Theo) Gründken | 1996 | * 25.05.1931, † 01.02.2021 (89) | König 1979; 32 Jahre Offizierskorps, „viele Jahrzehnte“ Schießmeister |
@@ -102,17 +103,16 @@ sowie `ErichSkoda1.jpg` (Erich Zgodda).
    Kein Eintrag dort für Bernhard Niehoff – lebt er noch? Namensvettern auf trauer.ms, die
    **nicht** unsere Ehrenmitglieder sind: Josef Blömer (Heek, † 2021 – unser Josef Blömer
    lebt) und Bernhard Schmeing (Ochtrup, † 2018). Die Ehrenmitglieder vor 1984 (Sundag,
-   Appels, Heinrich Lütke-Glanemann, Albers) sind wohl vor ~2009 gestorben, also vor dem
+   Appels, Heinrich Lütke-Glanemann, Albers, der zweite Josef Verst) sind wohl vor ~2009 gestorben, also vor dem
    Beginn des Portals – dafür Protokollbuch/Zeitungsarchiv.
-2. Ernennungsdaten noch offen: die vier Ehrenmitglieder vor 1984, Franz Nacke (vermutlich
+2. Ernennungsdaten noch offen: die fünf Ehrenmitglieder vor 1984, Franz Nacke (vermutlich
    1993), Gerd Dornhege, Alfons Kühlkamp, Karl-Heinz Hork, Gerd Duesmann, Josef Blömer.
    Bei Lammers, Josef Verst und Tönjann ist nur das Jahr bekannt (Ende der Dienstzeit).
 3. Die vollständige Liste vor 1984 – Festschrift 1984 / 2009 prüfen.
 4. Josef Blömer: Was hat er für den Verein getan, wann wurde er ernannt?
 5. Einverständnis der lebenden Ehrenmitglieder bzw. Angehörigen für Foto und Lebensdaten
    auf der Website (DSGVO; bei Verstorbenen Pietät).
-6. Die Bildunterschrift des Fotos 1984 nennt „Josef Verst" zweimal – vermutlich ein Fehler,
-   einen zweiten Josef Verst gab es nach Auskunft des Vorstands wohl nicht.
+6. Der zweite Josef Verst: Wer war er? Die Festschrift 2009 hat bessere Fotos (Thron 1956).
 
 ## Quellen
 
