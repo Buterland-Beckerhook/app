@@ -34,45 +34,48 @@ Achtung, Begriffsverwechslung: **„Ehrenherr"** und **„Ehrendame"** sind Thro
 |---|---|---|---|
 | Theodor Eimann | * 09.05.1862 Warendorf, † 24.02.1930 Gronau | 1921 | Vorsitzender 1909–1921 |
 | Friedrich Dropmann | * 20.10.1882 Münster, † 05.04.1962 Gronau | 05.11.1955 | Vorsitzender 1921–1955, König 1933/34; in der Festschrift 1959 als „Ehrenpräsident" gewürdigt |
+| Gerhard Gleis-Preister | * 19.02.1929, † 07.01.2007 | 21.11.1998 | Präsident 1958–1998, König 1964/65; zum Ehrenpräsidenten ernannt, als er das Amt an Heinz Verst übergab |
 | Heinz Verst | * 04.09.1954 Gronau | 24.11.2018 | Präsident 1998–2018, König 2010/11 |
-
-Unklar: Wurde Gerhard Gleis-Preister (Präsident 1958–1998, † 07.01.2007) Ehrenpräsident?
 
 ## Ehrenmitglieder
 
-Sortiert nach Ernennung. **Status** = was die Quellen hergeben; „lebt (Stand 2020)"
-heißt nur, dass er 2020 noch auf der Liste der aktiven Ehrenmitglieder stand.
+Sortiert nach Ernennung. Ernennungsdaten ab 1983 laut Vorstand (Oktober 2026). **Status** = was die Quellen hergeben; „lebt (Stand 2020)"
+heißt nur, dass er 2020 noch auf der Liste der aktiven Ehrenmitglieder stand. Lebens- und
+Sterbedaten seit 2013 stammen aus den Traueranzeigen auf trauer.ms (siehe Quellen); wo der
+Verein einen Nachruf geschaltet hat, nennt er den Verstorbenen ausdrücklich „unser
+Ehrenmitglied“, die Angaben zum Bezug zum Verein sind dort entnommen.
 
 | Name | ernannt | Status | Bezug zum Verein |
 |---|---|---|---|
 | Heinrich Pieper | 1966 | † 26.03.1979 | Oberst 1950–1952, König 1928/29 |
-| Heinrich Lammers | 1978 | † 25.10.2019 | Oberst 1955–1978, Offizier seit 1949 |
-| Anton Sundag | ? (vor 1984) | † ? | auf dem Foto der Ehrenmitglieder zum Jubiläum 1984 (nicht der Oberst 1909–1926, † 1929) |
+| Heinrich Lammers | 1978 (Ende der Dienstzeit) | * 12.08.1922, † 25.10.2019 (97) | Oberst 1955–1978, Offizier seit 1949 (Nachruf: „fast 30 Jahre“ im Offizierskorps) |
+| Anton Sundag | ? (vor 1984) | † ? | auf dem Foto der Ehrenmitglieder zum Jubiläum 1984 (nicht der Oberst 1909–1926, † 1929); im Thron 1950 und 1956 |
 | Wilhelm Appels | ? (vor 1984) | † ? | Foto 1984; König 1970 (dieselbe Person?) |
-| Heinrich Lütke-Glanemann | ? (vor 1984) | † ? | Foto 1984 |
-| Josef Verst | ? (vor 1984) | † ? (lebte 2010, 90 J.) | Foto 1984; König 1959 (ältester lebender König 2010) |
-| Josef Verst (zweiter) | ? (vor 1984) | † ? | Foto 1984 nennt zweimal „Josef Verst" – zwei Personen? |
+| Heinrich Lütke-Glanemann | ? (vor 1984) | † ? | Foto 1984; im Thron 1951 und 1959 |
 | Bernhard Albers | ? (vor 1984) | † ? | Foto 1984; König 1965 (dieselbe Person?) |
-| Josef Tönjann | ? | † 16.03.2016 | Oberst 1978–1990, König 1961 |
-| Hermann Hackfort | ? | † ? (2014 noch gelistet, 2016 nicht mehr) | Seniorenausschuss; Seniorenpokal 1989, 1997, 1998 |
-| Alfons Diekmann | ? | † ? (2016 gelistet, 2019 nicht mehr) | über 40 Jahre Vogelbauer, Offizier 1962–1987 |
-| Franz Doetkotte | ? | † ? (2019 gelistet, 2020 nicht mehr) | ? |
-| Otto Storost | ? | † 29.07.2020 | Seniorenausschuss; Seniorenpokal 1983, 1993 |
-| Franz Nacke | ? | lebt (Stand 2020) | Seniorenausschuss; Text zum Vereinslokal in der Festschrift 1984 |
-| Theodor Gründken | ? | lebt (Stand 2020) | König 1979 |
-| Bernhard Niehoff | ? | lebt (Stand 2020) | 2023 für 75 Jahre Mitgliedschaft geehrt |
-| Wilhelm (Willi) Hoff | ? | lebt (Stand 2020) | Oberst 1990–2002, König 2000 |
-| Alfons Gründken | ? | lebt (Stand 2020) | Seniorenausschuss; 70 Jahre Mitglied (Ehrenorden) |
-| Gerd Dornhege | ? | lebt (Stand 2020) | König 1986, Oberstleutnant (2008) |
-| Alfons Kühlkamp | ? | lebt (Stand 2020) | Seniorenausschuss |
-| Karl-Heinz Hork | ? (2014–2016) | lebt (Stand 2020) | König 1987 |
-| Gerd (Gerhard) Duesmann | ? (2014–2016) | lebt (Stand 2020) | König 1984, Vizepräsident (2010), Seniorenausschuss |
-| Josef Blömer | ? (2016–2019) | lebt (Stand 2020) | ? |
+| Josef Verst | 1983 (Ende der Dienstzeit) | * 19.10.1920, † 20.01.2013 (92) | Foto 1984; Jubiläumskönig 1959 (ältester lebender König 2010); Offizierskorps 1951–1983, ab 1962 Major |
+| Josef Tönjann | 1990 (Ende der Dienstzeit) | * 29.08.1927, † 16.03.2016 (88) | Oberst 1978–1990, König 1961; 40 Jahre Offizierskorps |
+| Franz Nacke | ? (vermutlich 1993) | * 27.06.1925, † 03.07.2023 (98) | 24 Jahre im Vorstand: Geschäftsführer 1981–1991, Vizepräsident bis 1993; erstellte die Festschrift 1984 „beinahe in Alleinarbeit“; Seniorenausschuss |
+| Theodor (Theo) Gründken | 1996 | * 25.05.1931, † 01.02.2021 (89) | König 1979; 32 Jahre Offizierskorps, „viele Jahrzehnte“ Schießmeister |
+| Hermann Thebelt (Kaiser) | 1996 | * 06.08.1919, † 04.01.2009 (89) | König 1977/78, Jubiläumskaiser 1984; stiftete 1996 den Königspokal |
+| Franz Doetkotte | 13.12.1997 | * 28.07.1933, † 13.11.2019 (86) | fast 30 Jahre Offizierskorps; außerdem 25 Jahre Vorsitzender (später Ehrenvorsitzender) des Ländlichen Zucht-, Reit- und Fahrvereins Gronau |
+| Otto Storost | 13.12.1997 | * 17.12.1924, † 29.07.2020 (95) | 67 Jahre Mitglied (also seit ~1953); Seniorenausschuss; Seniorenpokal 1983, 1993 |
+| Alfons Diekmann | 19.07.1998 | * 21.05.1932, † 28.10.2016 (84) | Vogelbauer (Nachruf: „über 50 Jahre“, alte Seite: über 40), Offizier 1962–1987 (25 Jahre) |
+| Bernhard Niehoff | 19.07.1998 | lebt (Stand 2020) | 2023 für 75 Jahre Mitgliedschaft geehrt |
+| Erich Zgodda | 15.07.2001 | * 24.03.1929, † 13.01.2012 (82) | Gründete 1990 den Kinderfestausschuss (erstes Kinderfest 1991) und setzte sich als dessen langjähriger Leiter (bis 2000) ein vereinsinternes Denkmal; gestaltete 1990 das Thronbild |
+| Wilhelm (Willi) Hoff | 20.07.2003 | * 21.07.1942, † 06.07.2024 (81) | Oberst 1990–2002, König 2000/01; 35 Jahre Offizierskorps |
+| Hermann Hackfort | 16.07.2006 | * 04.03.1933, † 06.03.2015 (82) | 30 Jahre im Vorstand (bis 2005), kümmerte sich um den Schützenplatz; Seniorenausschuss; Seniorenpokal 1989, 1997, 1998 |
+| Alfons Gründken | 16.07.2006 | lebt (bestätigt 24.07.2026) | Seniorenausschuss; 2026 für 70 Jahre Vereinstreue geehrt (Ehrenorden) |
+| Gerd Dornhege | ? | * 30.07.1950, † 12.02.2021 (70) | König 1986/87; 35 Jahre Offizierskorps, davon 12 als Major und 7 als Oberstleutnant |
+| Alfons Kühlkamp | ? | * 20.04.1940, † 29.10.2020 (80) | 36 Jahre im Vorstand, davon 20 als Kassierer; Seniorenausschuss |
+| Karl-Heinz Hork | ? (2014–2016) | * 19.09.1940, † 03.10.2022 (82) | König 1987/88; 30 Jahre im Vorstand |
+| Gerd (Gerhard) Duesmann | ? (2014–2016) | * 09.03.1945, † 06.11.2023 (78) | König 1984/85; 38 Jahre im Vorstand, davon 21 als Vizepräsident; kümmerte sich um die Senioren (Hausbesuche, Seniorenfahrten) |
+| Josef Blömer | ? (2016–2018) | lebt (bestätigt 10/2026) | ? – Quelle ist die alte Vereinsseite (Liste und Foto ab dem ersten Commit vom 10.07.2018, nicht in den Fassungen 2014/2016) |
 | Michael Terhalle | 24.11.2018 | lebt | Oberst 2002–2018, König 2003/04 |
 | Joachim (Jochen) Diekmann | 09.10.2021 | lebt | König 1991 |
 | Bernhard Schmeing | 09.10.2021 | lebt | König 2006 |
 | Alois Verst | 09.10.2021 | lebt | König 1982, Oberstleutnant (2015) |
-| Hermann Thebelt | 09.10.2021 | lebt | ? – **nicht** der Jubiläumskaiser 1984 (es gab zwei Hermann Thebelts, siehe archivartikel.md); Königsjahr 1993 |
+| Hermann Thebelt | 09.10.2021 | lebt | König 1993/94, lange im Vorstand – **nicht** der Jubiläumskaiser 1984 (siehe oben) |
 | Josef Lütke-Glanemann | 09.10.2021 | lebt | ? |
 | Norbert Wülker | JHV 2022 | lebt | 31 Jahre Offizier, zuletzt Major/Oberstleutnant |
 | Andreas Lösing | JHV 2023 | lebt | König 1992/93, Stadtkaiser 2011 (WN: 2010) |
@@ -84,7 +87,7 @@ Fotos aus der alten Seite liegen unter
 Alfons Gründken, Alfons Kühlkamp, Bernhard Niehoff, Franz Doetkotte, Franz Nacke,
 Gerd Dornhege, Gerd Duesmann, Heinrich Lammers, Hermann Hackfort, Josef Blömer,
 Josef Tönjann, Josef Verst, Karl-Heinz Hork, Otto Storost, Theo Gründken, Willy Hoff –
-sowie `ErichSkoda1.jpg` (Erich Zgodda? Gründer des Kinderfests – war er Ehrenmitglied?).
+sowie `ErichSkoda1.jpg` (Erich Zgodda).
 
 ## Korrekturen gegenüber der alten Tabelle in vereinsgeschichte.md
 
@@ -95,13 +98,21 @@ sowie `ErichSkoda1.jpg` (Erich Zgodda? Gründer des Kinderfests – war er Ehren
 
 ## Offene Punkte (an den Vorstand)
 
-1. Wer ist seit 2020 verstorben? Sterbedaten der Ehrenmitglieder vor 2020 – ggf. über
-   Traueranzeigen/Berichte der Lokalzeitung (WN Gronau) recherchieren.
-2. Ernennungsjahre der Ehrenmitglieder vor 2018 (Protokollbuch).
+1. Sterbedaten: Für die Verstorbenen ab 2009 über trauer.ms geklärt (Stand 28.10.2026).
+   Kein Eintrag dort für Bernhard Niehoff – lebt er noch? Namensvettern auf trauer.ms, die
+   **nicht** unsere Ehrenmitglieder sind: Josef Blömer (Heek, † 2021 – unser Josef Blömer
+   lebt) und Bernhard Schmeing (Ochtrup, † 2018). Die Ehrenmitglieder vor 1984 (Sundag,
+   Appels, Heinrich Lütke-Glanemann, Albers) sind wohl vor ~2009 gestorben, also vor dem
+   Beginn des Portals – dafür Protokollbuch/Zeitungsarchiv.
+2. Ernennungsdaten noch offen: die vier Ehrenmitglieder vor 1984, Franz Nacke (vermutlich
+   1993), Gerd Dornhege, Alfons Kühlkamp, Karl-Heinz Hork, Gerd Duesmann, Josef Blömer.
+   Bei Lammers, Josef Verst und Tönjann ist nur das Jahr bekannt (Ende der Dienstzeit).
 3. Die vollständige Liste vor 1984 – Festschrift 1984 / 2009 prüfen.
-4. Die beiden „Josef Verst" auf dem Foto 1984.
+4. Josef Blömer: Was hat er für den Verein getan, wann wurde er ernannt?
 5. Einverständnis der lebenden Ehrenmitglieder bzw. Angehörigen für Foto und Lebensdaten
    auf der Website (DSGVO; bei Verstorbenen Pietät).
+6. Die Bildunterschrift des Fotos 1984 nennt „Josef Verst" zweimal – vermutlich ein Fehler,
+   einen zweiten Josef Verst gab es nach Auskunft des Vorstands wohl nicht.
 
 ## Quellen
 
@@ -112,3 +123,9 @@ sowie `ErichSkoda1.jpg` (Erich Zgodda? Gründer des Kinderfests – war er Ehren
 - Artikel: JHV 2018 (Führungswechsel), JHV 2021, JHV 2022, JHV 2023,
   Mitgliederversammlung 2024, JHV 2024, „70 Jahre Vereinstreue – Alfons Gründken".
 - Datenbank `people` (Biografien der Präsidenten und Obersten).
+- Traueranzeigen der Westfälischen Nachrichten auf trauer.ms, abgerufen 28.10.2026, z. B.
+  `https://www.trauer.ms/traueranzeigen-suche/wilhelm-hoff,-gronau`. Die Anzeigen sind Bilder;
+  der Nachruf des Vereins (Präsident / Oberst / Geschäftsführer) steht unter „Anzeigen“ des
+  Trauerfalls. In der Such-URL Umlaute als einfachen Vokal schreiben (`tonjann`, nicht
+  `toenjann`). Das Portal reicht etwa bis 2009 zurück. Bei Franz Doetkotte nennt das Portal
+  den 28.06.1933 als Geburtstag, die Familienanzeigen den 28.07.1933.

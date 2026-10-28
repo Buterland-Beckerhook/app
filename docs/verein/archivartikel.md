@@ -65,9 +65,10 @@ Stadtkaiser 2000 (01.06.). Alle anderen Daten stehen im Bericht.
 
 - **Zwei Hermann Thebelts**: Das Königstreffen 2001 nennt „Kaiser Hermann Thebelt und
   Hermann Thebelt“ als Organisatoren; der Kaiser war 2006 bereits 86. Der Kaiser 1984 und
-  Stifter des Königspokals ist also nicht das Ehrenmitglied von 2021 – welche
-  Königsjahre (1977, 1993) zu wem gehören, ist offen. -> Kaiser Hermann Thebelt war 1977 König.
-  Hermann Thebelt 1993 und lange Im Vorstand, Ehrenmitglied seit 2021
+  Stifter des Königspokals ist also nicht das Ehrenmitglied von 2021. Laut Vorstand
+  (Oktober 2026): Der Kaiser (1919–2009) war 1977/78 König und ist seit 1996 Ehrenmitglied;
+  der andere Hermann Thebelt war 1993/94 König, lange im Vorstand und ist seit 2021
+  Ehrenmitglied. Siehe [ehrenmitglieder.md](ehrenmitglieder.md).
 - **König 1958**: dritte Schreibweise „Bernhard **Hesseling**“ (Königstreffen 2006) –
   neben „Heßling“ (Festschrift 1959) und „Hesselink“ (Website).
 - **Juniorenpokal 2011**: Winterfest-Bericht „Thomas Blöhmer“, Pokaltabelle „Stefan
