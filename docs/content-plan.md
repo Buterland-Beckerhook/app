@@ -141,7 +141,8 @@ has 589 items. A full import is not sensible on the small shared host; a curated
 1. Pokalsieger 2021/2022, Biwakpokal 2018 and 2022–2026, Juniorenpokal 2026, early years
    (engravings on the trophies?).
 2. Ehrenmitglieder: deaths since 2020, appointment years before 2018, consent for photos.
-3. Was Gerhard Gleis-Preister Ehrenpräsident? Was Erich Zgodda Ehrenmitglied?
+3. Was Gerhard Gleis-Preister Ehrenpräsident? (Erich Zgodda was an Ehrenmitglied — the
+   club's obituary, 2012, says so.)
 4. Current members of the Ausschüsse; does the Jugendbiwak still exist?
 
 ## Suggested order

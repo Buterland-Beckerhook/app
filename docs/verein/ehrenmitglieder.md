@@ -56,6 +56,7 @@ Ehrenmitglied“, die Angaben zum Bezug zum Verein sind dort entnommen.
 | Josef Verst | ? (vor 1984) | * 19.10.1920, † 20.01.2013 (92) | Foto 1984; Jubiläumskönig 1959 (ältester lebender König 2010); Offizierskorps 1951–1983, ab 1962 Major |
 | Josef Verst (zweiter) | ? (vor 1984) | † ? | Foto 1984 nennt zweimal „Josef Verst" – zwei Personen? |
 | Bernhard Albers | ? (vor 1984) | † ? | Foto 1984; König 1965 (dieselbe Person?) |
+| Erich Zgodda | ? | * 24.03.1929, † 13.01.2012 (82) | Gründete 1990 den Kinderfestausschuss (erstes Kinderfest 1991) und leitete ihn bis 2000; gestaltete 1990 das Thronbild |
 | Josef Tönjann | ? | * 29.08.1927, † 16.03.2016 (88) | Oberst 1978–1990, König 1961; 40 Jahre Offizierskorps |
 | Hermann Hackfort | ? | * 04.03.1933, † 06.03.2015 (82) | 30 Jahre im Vorstand (bis 2005), kümmerte sich um den Schützenplatz; Seniorenausschuss; Seniorenpokal 1989, 1997, 1998 |
 | Alfons Diekmann | ? | * 21.05.1932, † 28.10.2016 (84) | Vogelbauer (Nachruf: „über 50 Jahre“, alte Seite: über 40), Offizier 1962–1987 (25 Jahre) |
@@ -87,7 +88,7 @@ Fotos aus der alten Seite liegen unter
 Alfons Gründken, Alfons Kühlkamp, Bernhard Niehoff, Franz Doetkotte, Franz Nacke,
 Gerd Dornhege, Gerd Duesmann, Heinrich Lammers, Hermann Hackfort, Josef Blömer,
 Josef Tönjann, Josef Verst, Karl-Heinz Hork, Otto Storost, Theo Gründken, Willy Hoff –
-sowie `ErichSkoda1.jpg` (Erich Zgodda? Gründer des Kinderfests – war er Ehrenmitglied?).
+sowie `ErichSkoda1.jpg` (Erich Zgodda).
 
 ## Korrekturen gegenüber der alten Tabelle in vereinsgeschichte.md
 

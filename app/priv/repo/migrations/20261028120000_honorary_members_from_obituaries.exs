@@ -7,6 +7,13 @@ defmodule Bbh.Repo.Migrations.HonoraryMembersFromObituaries do
   # Dates only fill empty fields. A biography is only replaced while it still reads as
   # 20261025140200_add_honorary_members wrote it, so an edit made in the admin since wins.
   # Rows are matched by name among honorary members; a name that isn't there is skipped.
+  #
+  # Erich Zgodda is new: the doc had him as a maybe, the club's obituary (2012) calls him
+  # „unser Ehrenmitglied". Inserted like 20261025140200 did, only on the club's database.
+
+  @zgodda_bio "Gründete 1990 den Kinderfestausschuss, der 1991 das erste Kinderfest " <>
+                "ausrichtete, und leitete ihn bis 2000. Ebenfalls 1990 gestaltete er das " <>
+                "Thronbild, das im Festzelt über dem Thron hängt."
 
   # {name, birth_date, death_date, biography as written before (nil = none), new biography}
   @members [
@@ -44,6 +51,11 @@ defmodule Bbh.Repo.Migrations.HonoraryMembersFromObituaries do
   def up do
     for member <- @members, do: update_member(member)
 
+    %{rows: [[club_db?]]} =
+      repo().query!("SELECT EXISTS (SELECT 1 FROM articles WHERE slug = 'thron' AND year = 1909)")
+
+    if club_db?, do: insert_zgodda()
+
     # Wilhelm Hoff was König 2000/01 (throne list and the club's obituary), not 1999/2000.
     execute """
     UPDATE people
@@ -55,6 +67,21 @@ defmodule Bbh.Repo.Migrations.HonoraryMembersFromObituaries do
   end
 
   def down, do: :ok
+
+  defp insert_zgodda do
+    repo().query!(
+      """
+      INSERT INTO people (id, name, role, honorary_since, birth_date, death_date, biography,
+                          sort_order, inserted_at, updated_at)
+      SELECT gen_random_uuid(), 'Erich Zgodda', 'mitglied', 1900, '1929-03-24', '2012-01-13',
+             $1::text, (SELECT coalesce(max(sort_order), -1) + 1 FROM people
+                        WHERE role = 'mitglied' AND honorary_since IS NOT NULL),
+             now(), now()
+      WHERE NOT EXISTS (SELECT 1 FROM people WHERE name = 'Erich Zgodda')
+      """,
+      ["<p>#{@zgodda_bio}</p>"]
+    )
+  end
 
   defp update_member({name, birth, death, old_bio, new_bio}) do
     repo().query!(
