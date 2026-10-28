@@ -12,6 +12,33 @@ defmodule Bbh.Repo.Migrations.HonoraryMembersFromObituaries do
   # „unser Ehrenmitglied"; appointed 15.07.2001 (per the board). Inserted like
   # 20261025140200 did, only on the club's database.
 
+  #
+  # Appointment years from the board (October 2026) replace the 1900 placeholder, and
+  # Gerhard Gleis-Preister becomes Ehrenpräsident (1998, when he handed over to Heinz
+  # Verst). Franz Nacke stays at 1900: 1993 is only a guess.
+  #
+  # The club had two Hermann Thebelts. The existing row is the one still alive (König
+  # 1993/94, Ehrenmitglied 2021); the Jubiläumskaiser 1984 (König 1977/78, Ehrenmitglied
+  # 1996, † 2009) gets a row of his own.
+
+  @appointments %{
+    "Josef Verst" => 1983,
+    "Wilhelm Hoff" => 2003,
+    "Josef Tönjann" => 1990,
+    "Theodor Gründken" => 1996,
+    "Franz Doetkotte" => 1997,
+    "Otto Storost" => 1997,
+    "Alfons Diekmann" => 1998,
+    "Bernhard Niehoff" => 1998,
+    "Hermann Hackfort" => 2006,
+    "Alfons Gründken" => 2006
+  }
+
+  @kaiser_thebelt_bio "König 1977/78 und Jubiläumskaiser 1984. Stiftete 1996 den " <>
+                        "Königspokal, um den nur die Könige und Kaiser des Vereins schießen."
+  @thebelt_bio "König 1993/94 und lange im Vorstand. Nicht zu verwechseln mit dem " <>
+                 "Jubiläumskaiser 1984 Hermann Thebelt (1919–2009)."
+
   @zgodda_bio "Gründete 1990 den Kinderfestausschuss, der 1991 das erste Kinderfest " <>
                 "ausrichtete, und setzte sich als dessen langjähriger Leiter (bis 2000) ein " <>
                 "vereinsinternes Denkmal. Ebenfalls 1990 gestaltete er das Thronbild, das " <>
@@ -56,7 +83,33 @@ defmodule Bbh.Repo.Migrations.HonoraryMembersFromObituaries do
     %{rows: [[club_db?]]} =
       repo().query!("SELECT EXISTS (SELECT 1 FROM articles WHERE slug = 'thron' AND year = 1909)")
 
-    if club_db?, do: insert_zgodda()
+    if club_db? do
+      insert_zgodda()
+      insert_kaiser_thebelt()
+    end
+
+    for {name, year} <- @appointments do
+      repo().query!(
+        """
+        UPDATE people SET honorary_since = $2::int, updated_at = now()
+        WHERE name = $1::varchar AND honorary_since = 1900
+        """,
+        [name, year]
+      )
+    end
+
+    execute """
+    UPDATE people SET honorary_since = 1998, updated_at = now()
+    WHERE name = 'Gerhard Gleis-Preister' AND honorary_since IS NULL
+    """
+
+    repo().query!(
+      """
+      UPDATE people SET biography = $1::text, updated_at = now()
+      WHERE name = 'Hermann Thebelt' AND honorary_since = 2021 AND biography IS NULL
+      """,
+      ["<p>#{@thebelt_bio}</p>"]
+    )
 
     # Wilhelm Hoff was König 2000/01 (throne list and the club's obituary), not 1999/2000.
     execute """
@@ -82,6 +135,24 @@ defmodule Bbh.Repo.Migrations.HonoraryMembersFromObituaries do
       WHERE NOT EXISTS (SELECT 1 FROM people WHERE name = 'Erich Zgodda')
       """,
       ["<p>#{@zgodda_bio}</p>"]
+    )
+  end
+
+  defp insert_kaiser_thebelt do
+    repo().query!(
+      """
+      INSERT INTO people (id, name, role, honorary_since, birth_date, death_date, biography,
+                          sort_order, inserted_at, updated_at)
+      SELECT gen_random_uuid(), 'Hermann Thebelt', 'mitglied', 1996, '1919-08-06',
+             '2009-01-04', $1::text,
+             (SELECT coalesce(max(sort_order), -1) + 1 FROM people
+              WHERE role = 'mitglied' AND honorary_since IS NOT NULL),
+             now(), now()
+      WHERE NOT EXISTS (
+        SELECT 1 FROM people WHERE name = 'Hermann Thebelt' AND birth_date = '1919-08-06'
+      )
+      """,
+      ["<p>#{@kaiser_thebelt_bio}</p>"]
     )
   end
 
