@@ -56,7 +56,6 @@ Ehrenmitglied“, die Angaben zum Bezug zum Verein sind dort entnommen.
 | Josef Verst | ? (vor 1984) | * 19.10.1920, † 20.01.2013 (92) | Foto 1984; Jubiläumskönig 1959 (ältester lebender König 2010); Offizierskorps 1951–1983, ab 1962 Major |
 | Josef Verst (zweiter) | ? (vor 1984) | † ? | Foto 1984 nennt zweimal „Josef Verst" – zwei Personen? |
 | Bernhard Albers | ? (vor 1984) | † ? | Foto 1984; König 1965 (dieselbe Person?) |
-| Erich Zgodda | ? | * 24.03.1929, † 13.01.2012 (82) | Gründete 1990 den Kinderfestausschuss (erstes Kinderfest 1991) und leitete ihn bis 2000; gestaltete 1990 das Thronbild |
 | Josef Tönjann | ? | * 29.08.1927, † 16.03.2016 (88) | Oberst 1978–1990, König 1961; 40 Jahre Offizierskorps |
 | Hermann Hackfort | ? | * 04.03.1933, † 06.03.2015 (82) | 30 Jahre im Vorstand (bis 2005), kümmerte sich um den Schützenplatz; Seniorenausschuss; Seniorenpokal 1989, 1997, 1998 |
 | Alfons Diekmann | ? | * 21.05.1932, † 28.10.2016 (84) | Vogelbauer (Nachruf: „über 50 Jahre“, alte Seite: über 40), Offizier 1962–1987 (25 Jahre) |
@@ -72,6 +71,7 @@ Ehrenmitglied“, die Angaben zum Bezug zum Verein sind dort entnommen.
 | Karl-Heinz Hork | ? (2014–2016) | * 19.09.1940, † 03.10.2022 (82) | König 1987/88; 30 Jahre im Vorstand |
 | Gerd (Gerhard) Duesmann | ? (2014–2016) | * 09.03.1945, † 06.11.2023 (78) | König 1984/85; 38 Jahre im Vorstand, davon 21 als Vizepräsident; kümmerte sich um die Senioren (Hausbesuche, Seniorenfahrten) |
 | Josef Blömer | ? (2016–2019) | lebt (bestätigt 10/2026) | ? |
+| Erich Zgodda | 15.07.2001 | * 24.03.1929, † 13.01.2012 (82) | Gründete 1990 den Kinderfestausschuss (erstes Kinderfest 1991) und setzte sich als dessen langjähriger Leiter (bis 2000) ein vereinsinternes Denkmal; gestaltete 1990 das Thronbild |
 | Michael Terhalle | 24.11.2018 | lebt | Oberst 2002–2018, König 2003/04 |
 | Joachim (Jochen) Diekmann | 09.10.2021 | lebt | König 1991 |
 | Bernhard Schmeing | 09.10.2021 | lebt | König 2006 |

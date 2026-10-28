@@ -9,11 +9,13 @@ defmodule Bbh.Repo.Migrations.HonoraryMembersFromObituaries do
   # Rows are matched by name among honorary members; a name that isn't there is skipped.
   #
   # Erich Zgodda is new: the doc had him as a maybe, the club's obituary (2012) calls him
-  # „unser Ehrenmitglied". Inserted like 20261025140200 did, only on the club's database.
+  # „unser Ehrenmitglied"; appointed 15.07.2001 (per the board). Inserted like
+  # 20261025140200 did, only on the club's database.
 
   @zgodda_bio "Gründete 1990 den Kinderfestausschuss, der 1991 das erste Kinderfest " <>
-                "ausrichtete, und leitete ihn bis 2000. Ebenfalls 1990 gestaltete er das " <>
-                "Thronbild, das im Festzelt über dem Thron hängt."
+                "ausrichtete, und setzte sich als dessen langjähriger Leiter (bis 2000) ein " <>
+                "vereinsinternes Denkmal. Ebenfalls 1990 gestaltete er das Thronbild, das " <>
+                "im Festzelt über dem Thron hängt."
 
   # {name, birth_date, death_date, biography as written before (nil = none), new biography}
   @members [
@@ -73,7 +75,7 @@ defmodule Bbh.Repo.Migrations.HonoraryMembersFromObituaries do
       """
       INSERT INTO people (id, name, role, honorary_since, birth_date, death_date, biography,
                           sort_order, inserted_at, updated_at)
-      SELECT gen_random_uuid(), 'Erich Zgodda', 'mitglied', 1900, '1929-03-24', '2012-01-13',
+      SELECT gen_random_uuid(), 'Erich Zgodda', 'mitglied', 2001, '1929-03-24', '2012-01-13',
              $1::text, (SELECT coalesce(max(sort_order), -1) + 1 FROM people
                         WHERE role = 'mitglied' AND honorary_since IS NOT NULL),
              now(), now()
