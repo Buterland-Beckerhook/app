@@ -157,6 +157,7 @@ services:
       TICKET_IMAP_USERNAME: ${TICKET_IMAP_USERNAME:-}
       TICKET_IMAP_PASSWORD: ${TICKET_IMAP_PASSWORD:-}
       TICKET_SPAM_SCORE: ${TICKET_SPAM_SCORE:-6.0}
+      TICKET_IMPORT_JUNK: ${TICKET_IMPORT_JUNK:-false}
       TICKET_MAX_ATTACHMENT_MB: ${TICKET_MAX_ATTACHMENT_MB:-10}
       TICKET_MAX_MAIL_MB: ${TICKET_MAX_MAIL_MB:-25}
       # Retention — stated in the Datenschutzerklärung; change both together.

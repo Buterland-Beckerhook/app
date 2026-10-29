@@ -54,6 +54,21 @@ defmodule Bbh.Settings do
     count > 0
   end
 
+  @doc "How far the Junk import has read: `{uidvalidity, last_uid}` or `{nil, nil}`."
+  def ticket_junk_position do
+    s = get()
+    {s.ticket_junk_uidvalidity, s.ticket_junk_last_uid}
+  end
+
+  @doc "Remembers how far the Junk import has read."
+  def put_ticket_junk_position(uidvalidity, last_uid) do
+    Repo.update_all(SiteSettings,
+      set: [ticket_junk_uidvalidity: uidvalidity, ticket_junk_last_uid: last_uid]
+    )
+
+    :ok
+  end
+
   @doc """
   Whether push notifications should currently be held back for quiet hours.
 

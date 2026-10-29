@@ -8,6 +8,10 @@ defmodule Bbh.Workers.ImapPoller do
     * spam → `Junk`
     * ignored, bounced, oversized → `Tickets/Ignoriert`
 
+  With `TICKET_IMPORT_JUNK=true` it then reads what is new in `Junk` and files it as
+  spam tickets, leaving the mail there; it remembers the last UID it saw, so the
+  folder is never read twice.
+
   Reads only `INBOX`; mailcow's rspamd has already moved high-score mail to `Junk`.
   `BODY.PEEK[]` leaves the read flag alone. Idempotent: a mail imported but not moved
   (connection lost in between) is found as a duplicate next time and just moved.
@@ -51,7 +55,34 @@ defmodule Bbh.Workers.ImapPoller do
     |> Enum.take(@batch)
     |> Enum.each(&process(conn, &1, uidvalidity))
 
+    if Mailbox.import_junk?(), do: poll_junk(conn)
     :ok
+  end
+
+  defp poll_junk(conn) do
+    {:ok, %{uidvalidity: uidvalidity}} = Imap.select(conn, Mailbox.junk())
+
+    last =
+      case Bbh.Settings.ticket_junk_position() do
+        {^uidvalidity, last} when is_integer(last) -> last
+        _ -> 0
+      end
+
+    # "n:*" always names the last message, even below n — filter here.
+    {:ok, uids} = Imap.uid_search(conn, "UID #{last + 1}:*")
+    uids = uids |> Enum.filter(&(&1 > last)) |> Enum.take(@batch)
+
+    Enum.each(uids, fn uid ->
+      with {:ok, size} when is_integer(size) <- Imap.uid_size(conn, uid),
+           true <- size <= Mailbox.max_mail_bytes(),
+           {:ok, raw} when is_binary(raw) <- Imap.uid_fetch(conn, uid) do
+        location = %{imap_mailbox: Mailbox.junk(), imap_uidvalidity: uidvalidity, imap_uid: uid}
+        result = Importer.import(raw, location, spam: true)
+        Logger.info("Postfach import: Junk UID #{uid} → #{outcome(result)}")
+      end
+    end)
+
+    if uids != [], do: Bbh.Settings.put_ticket_junk_position(uidvalidity, Enum.max(uids))
   end
 
   defp process(conn, uid, uidvalidity) do

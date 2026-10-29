@@ -20,6 +20,13 @@ defmodule Bbh.Tickets.Mailbox do
   @doc "Spam; mailcow's rspamd learns from mail moved here."
   def junk, do: @junk
 
+  @doc """
+  Whether the poller also reads `Junk` (`TICKET_IMPORT_JUNK`, off by default): mail
+  rspamd filtered at delivery then shows up as spam tickets, so a false positive can be
+  rescued. Off, it never reaches the Postfach.
+  """
+  def import_junk?, do: Application.get_env(:bbh, :ticket_import_junk, false) == true
+
   @doc "Whether the import is configured."
   def enabled?, do: config()[:host] not in [nil, ""]
 

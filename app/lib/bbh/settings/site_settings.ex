@@ -27,6 +27,9 @@ defmodule Bbh.Settings.SiteSettings do
     field :ticket_admin_digest_enabled, :boolean, default: true
     # The local day the reminders last went out — set by the worker, not the form.
     field :ticket_reminders_sent_on, :date
+    # How far the optional Junk import has read (Bbh.Workers.ImapPoller).
+    field :ticket_junk_uidvalidity, :integer
+    field :ticket_junk_last_uid, :integer
 
     timestamps()
   end

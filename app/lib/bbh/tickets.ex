@@ -616,6 +616,19 @@ defmodule Bbh.Tickets do
   end
 
   @doc false
+  def server_copy_moved(%Message{} = message, folder, uidvalidity, uid, action) do
+    message
+    |> Ecto.Changeset.change(imap_mailbox: folder, imap_uidvalidity: uidvalidity, imap_uid: uid)
+    |> Repo.update!()
+
+    with %Ticket{} = ticket <- Repo.get(Ticket, message.ticket_id) do
+      log_event(ticket, nil, "server_copy_moved", %{action: action})
+    end
+
+    :ok
+  end
+
+  @doc false
   def server_copy_removed(%Message{} = message, action) do
     message
     |> Ecto.Changeset.change(server_copy_removed_at: DateTime.utc_now(:second))
@@ -684,6 +697,7 @@ defmodule Bbh.Tickets do
       ticket
       |> Ecto.Changeset.change(status: status, last_activity_at: DateTime.utc_now(:second))
       |> update_and_log(scope, "unmarked_spam", %{to: status})
+      |> tap_ok(&release_from_junk/1)
     end
   end
 
@@ -867,6 +881,13 @@ defmodule Bbh.Tickets do
           m.ticket_id == ^id and m.direction == "in" and not is_nil(m.imap_uid) and
             is_nil(m.server_copy_removed_at)
     )
+  end
+
+  # Taken back from spam: its mail leaves Junk again (rspamd learns "not spam").
+  defp release_from_junk(ticket) do
+    if server_copy?(ticket) do
+      %{ticket_id: ticket.id, action: "unjunk"} |> Bbh.Workers.ImapCleanup.new() |> Oban.insert!()
+    end
   end
 
   # A deleted ticket's mail has no reason to stay on the server.

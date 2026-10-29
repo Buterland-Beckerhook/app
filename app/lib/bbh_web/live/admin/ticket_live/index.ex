@@ -6,7 +6,7 @@ defmodule BbhWeb.Admin.TicketLive.Index do
   use BbhWeb, :live_view
 
   alias Bbh.Tickets
-  alias Bbh.Tickets.{Queue, Ticket}
+  alias Bbh.Tickets.{Queue, Retention, Ticket}
   alias BbhWeb.Authz
 
   # "Offen" is the work nobody has taken yet; "Alle" everything still in work.
@@ -135,6 +135,11 @@ defmodule BbhWeb.Admin.TicketLive.Index do
         </form>
       </div>
 
+      <div :if={view_hint(@view)} class="alert alert-soft mt-4 text-sm" id="view-hint">
+        <.icon name="hero-information-circle" class="size-5 shrink-0" />
+        <span>{view_hint(@view)}</span>
+      </div>
+
       <p :if={@result.entries == []} class="mt-8 text-base-content/60">Keine Anfragen.</p>
 
       <.table
@@ -183,6 +188,28 @@ defmodule BbhWeb.Admin.TicketLive.Index do
     </Layouts.admin>
     """
   end
+
+  # When things go for good — the periods are the configured ones (Bbh.Tickets.Retention).
+  defp view_hint("closed") do
+    "Erledigte Anfragen werden #{months(Retention.retention_months())} nach dem Abschluss " <>
+      "gelöscht und sind danach noch #{Retention.purge_days()} Tage wiederherstellbar."
+  end
+
+  defp view_hint("spam") do
+    "Spam wird #{Retention.purge_days()} Tage nach der letzten Aktivität endgültig gelöscht. " <>
+      "Als Spam markierte E-Mails trainieren den Spamfilter des Mailservers – bitte nur " <>
+      "echten Spam markieren. Eine Anfrage, die sich erledigt hat, lieber „Erledigt“ setzen."
+  end
+
+  defp view_hint("deleted") do
+    "Gelöschte Anfragen werden #{Retention.purge_days()} Tage nach dem Löschen endgültig " <>
+      "entfernt – samt Nachrichten und Anhängen. Bis dahin lassen sie sich wiederherstellen."
+  end
+
+  defp view_hint(_view), do: nil
+
+  defp months(1), do: "1 Monat"
+  defp months(n), do: "#{n} Monate"
 
   @doc false
   def age(%DateTime{} = dt) do

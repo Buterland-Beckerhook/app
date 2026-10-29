@@ -2,8 +2,10 @@ defmodule Bbh.Workers.ImapCleanup do
   @moduledoc """
   Removes a ticket's mail from the server once work on it started (plan §6.2): the
   database holds it now, encrypted; the copy in `Tickets/Importiert` only duplicates it
-  in clear text. `"delete"` expunges it, `"junk"` moves it to `Junk` (marked as spam, so
-  rspamd learns).
+  in clear text. `"delete"` expunges it. `"junk"` moves it to `Junk` (marked as spam,
+  so rspamd learns) and remembers it there; `"unjunk"` (spam marking taken back) moves
+  it from `Junk` to `INBOX`, so rspamd learns the opposite and the poller files it
+  again like any new mail.
 
   Retried on an IMAP error. Never touches a message the ticket does not reference by
   mailbox + UIDVALIDITY + UID: with a changed UIDVALIDITY the UID means another mail.
@@ -57,8 +59,7 @@ defmodule Bbh.Workers.ImapCleanup do
 
     for message <- messages do
       if message.imap_uidvalidity == validity do
-        :ok = remove(conn, message.imap_uid, action)
-        Tickets.server_copy_removed(message, action)
+        apply_action(conn, mailbox, message, action)
       else
         # The UID belongs to another mail now; leave it, forget ours.
         Logger.warning("Postfach cleanup: UIDVALIDITY of #{mailbox} changed, copy left alone")
@@ -67,9 +68,27 @@ defmodule Bbh.Workers.ImapCleanup do
     end
   end
 
-  defp remove(conn, uid, "junk") do
-    with {:ok, _} <- Imap.uid_move(conn, uid, Mailbox.junk()), do: :ok
+  defp apply_action(conn, mailbox, message, "junk") do
+    if mailbox != Mailbox.junk(), do: move(conn, message, Mailbox.junk(), "junk")
   end
 
-  defp remove(conn, uid, _delete), do: Imap.uid_delete(conn, uid)
+  defp apply_action(conn, mailbox, message, "unjunk") do
+    if mailbox == Mailbox.junk(), do: move(conn, message, Mailbox.inbox(), "unjunk")
+  end
+
+  defp apply_action(conn, _mailbox, message, _delete) do
+    :ok = Imap.uid_delete(conn, message.imap_uid)
+    Tickets.server_copy_removed(message, "delete")
+  end
+
+  defp move(conn, message, folder, action) do
+    case Imap.uid_move(conn, message.imap_uid, folder) do
+      {:ok, %{uidvalidity: validity, uid: uid}} ->
+        Tickets.server_copy_moved(message, folder, validity, uid, action)
+
+      {:ok, nil} ->
+        # Moved, but the server did not say where: we can no longer find it.
+        Tickets.server_copy_removed(message, action)
+    end
+  end
 end

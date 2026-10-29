@@ -27,22 +27,23 @@ defmodule Bbh.Tickets.Importer do
 
   @doc """
   Imports `raw`. `location`: `%{imap_mailbox:, imap_uidvalidity:, imap_uid:}` of the
-  mail on the server, stored with the message (optional).
+  mail on the server, stored with the message (optional). `spam: true` files a new
+  ticket as spam whatever its score (mail from the Junk folder).
   """
-  def import(raw, location \\ %{}) do
+  def import(raw, location \\ %{}, opts \\ []) do
     case InboundMail.parse(raw) do
-      {:ok, mail} -> import_mail(mail, raw, location)
+      {:ok, mail} -> import_mail(mail, raw, location, opts)
       {:error, :unparseable} -> :ignored
     end
   end
 
-  defp import_mail(mail, raw, location) do
+  defp import_mail(mail, raw, location, opts) do
     cond do
       duplicate?(mail) -> :duplicate
       loop?(mail) -> :ignored
       bounce?(mail) -> bounce(raw)
       automatic?(mail) -> :ignored
-      true -> file(mail, location)
+      true -> file(mail, location, opts)
     end
   end
 
@@ -96,7 +97,7 @@ defmodule Bbh.Tickets.Importer do
     end
   end
 
-  defp file(mail, location) do
+  defp file(mail, location, opts) do
     {attachments, dropped} = split_attachments(mail.attachments)
 
     message =
@@ -122,7 +123,10 @@ defmodule Bbh.Tickets.Importer do
 
       :none ->
         queue = Queue.for_address(mail.original_to) || Queue.default()
-        spam? = is_float(mail.spam_score) and mail.spam_score >= spam_threshold()
+
+        spam? =
+          opts[:spam] == true or
+            (is_float(mail.spam_score) and mail.spam_score >= spam_threshold())
 
         attrs = %{
           queue: queue,

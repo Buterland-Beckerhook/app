@@ -126,4 +126,109 @@ defmodule Bbh.Workers.ImapWorkersTest do
     {:ok, _} = Tickets.take(scope, ticket)
     refute_enqueued(worker: ImapCleanup)
   end
+
+  describe "Junk" do
+    @spam "X-Original-To: info@buterland-beckerhook.de\r\nFrom: Win <win@spam.example>\r\n" <>
+            "Subject: Gewinn\r\nMessage-ID: <junk1@spam.example>\r\nContent-Type: text/plain\r\n\r\nKlick\r\n"
+
+    test "with TICKET_IMPORT_JUNK the poller files new Junk mail as spam and remembers where it stopped" do
+      Application.put_env(:bbh, :ticket_import_junk, true)
+      on_exit(fn -> Application.delete_env(:bbh, :ticket_import_junk) end)
+      Bbh.Settings.put_ticket_junk_position(77, 4)
+      size = byte_size(@spam)
+
+      {port, _} =
+        FakeImap.start(
+          FakeImap.login_steps() ++
+            [
+              {~r/^CREATE "Tickets\/Importiert"$/, ["TAG OK"]},
+              {~r/^CREATE "Tickets\/Ignoriert"$/, ["TAG OK"]},
+              {~r/^SELECT "INBOX"$/, ["* OK [UIDVALIDITY 11] ok", "TAG OK"]},
+              {~r/^UID SEARCH ALL$/, ["* SEARCH", "TAG OK"]},
+              {~r/^SELECT "Junk"$/, ["* OK [UIDVALIDITY 77] ok", "TAG OK"]},
+              # "5:*" also names the last message (4) — it must be skipped.
+              {~r/^UID SEARCH UID 5:\*$/, ["* SEARCH 4 6", "TAG OK"]},
+              {~r/^UID FETCH 6 \(RFC822.SIZE\)$/,
+               ["* 1 FETCH (UID 6 RFC822.SIZE #{size})", "TAG OK"]},
+              {~r/^UID FETCH 6 \(BODY.PEEK\[\]\)$/,
+               ["* 1 FETCH (UID 6 BODY[] {#{size}}", @spam <> ")", "TAG OK"]},
+              {~r/^LOGOUT$/, ["* BYE", "TAG OK"]}
+            ]
+        )
+
+      configure(port)
+      assert :ok = perform_job(ImapPoller, %{})
+      assert_receive {:fake_imap_done, :ok}
+
+      [ticket] = Repo.all(Ticket)
+      assert ticket.status == "spam"
+      assert %{imap_mailbox: "Junk", imap_uid: 6} = Repo.get_by!(Message, direction: "in")
+      assert Bbh.Settings.ticket_junk_position() == {77, 6}
+    end
+
+    test "without it, Junk is never read (the default)" do
+      {port, _} =
+        FakeImap.start(
+          FakeImap.login_steps() ++
+            [
+              {~r/^CREATE/, ["TAG OK"]},
+              {~r/^CREATE/, ["TAG OK"]},
+              {~r/^SELECT "INBOX"$/, ["* OK [UIDVALIDITY 11] ok", "TAG OK"]},
+              {~r/^UID SEARCH ALL$/, ["* SEARCH", "TAG OK"]},
+              {~r/^LOGOUT$/, ["* BYE", "TAG OK"]}
+            ]
+        )
+
+      configure(port)
+      assert :ok = perform_job(ImapPoller, %{})
+      assert_receive {:fake_imap_done, :ok}
+    end
+
+    test "spam goes to Junk and is remembered there; Kein Spam moves it back to INBOX" do
+      {:created, ticket} =
+        Tickets.Importer.import(@mail, %{
+          imap_mailbox: "Tickets/Importiert",
+          imap_uidvalidity: 22,
+          imap_uid: 99
+        })
+
+      scope = Bbh.TicketsFixtures.granted_scope(user_fixture(), ["info"])
+      {:ok, spam} = Tickets.mark_spam(scope, ticket)
+
+      {port, _} =
+        FakeImap.start(
+          FakeImap.login_steps() ++
+            [
+              {~r/^SELECT "Tickets\/Importiert"$/, ["* OK [UIDVALIDITY 22] ok", "TAG OK"]},
+              {~r/^UID MOVE 99 "Junk"$/, ["* OK [COPYUID 77 99 12] Moved", "TAG OK"]},
+              {~r/^LOGOUT$/, ["* BYE", "TAG OK"]}
+            ]
+        )
+
+      configure(port)
+      assert :ok = perform_job(ImapCleanup, %{ticket_id: ticket.id, action: "junk"})
+      assert_receive {:fake_imap_done, :ok}
+
+      assert %{imap_mailbox: "Junk", imap_uid: 12, server_copy_removed_at: nil} =
+               Repo.get_by!(Message, direction: "in")
+
+      {:ok, _} = Tickets.unmark_spam(scope, spam)
+      assert_enqueued(worker: ImapCleanup, args: %{ticket_id: ticket.id, action: "unjunk"})
+
+      {port, _} =
+        FakeImap.start(
+          FakeImap.login_steps() ++
+            [
+              {~r/^SELECT "Junk"$/, ["* OK [UIDVALIDITY 77] ok", "TAG OK"]},
+              {~r/^UID MOVE 12 "INBOX"$/, ["* OK [COPYUID 11 12 50] Moved", "TAG OK"]},
+              {~r/^LOGOUT$/, ["* BYE", "TAG OK"]}
+            ]
+        )
+
+      configure(port)
+      assert :ok = perform_job(ImapCleanup, %{ticket_id: ticket.id, action: "unjunk"})
+      assert_receive {:fake_imap_done, :ok}
+      assert %{imap_mailbox: "INBOX", imap_uid: 50} = Repo.get_by!(Message, direction: "in")
+    end
+  end
 end

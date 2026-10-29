@@ -63,9 +63,7 @@ defmodule Bbh.Tickets.Retention do
   end
 
   defp purge_ticket(ticket) do
-    action = if ticket.status == "spam", do: "junk", else: "delete"
-
-    case ImapCleanup.clean_ticket(ticket, action) do
+    case ImapCleanup.clean_ticket(ticket, "delete") do
       :ok ->
         delete!(ticket)
 

@@ -72,6 +72,17 @@ defmodule BbhWeb.Admin.TicketLiveTest do
       assert html =~ "Fremde Frage"
     end
 
+    test "the closed, spam and deleted tabs say when things go for good", %{conn: conn} do
+      {:ok, _lv, html} = live(conn, ~p"/admin/postfach?ansicht=closed")
+      assert html =~ "12 Monate nach dem Abschluss"
+
+      {:ok, _lv, html} = live(conn, ~p"/admin/postfach?ansicht=spam")
+      assert html =~ "trainieren den Spamfilter"
+
+      {:ok, _lv, html} = live(conn, ~p"/admin/postfach")
+      refute html =~ ~s(id="view-hint")
+    end
+
     test "filters by view", %{conn: conn, user: user} do
       ticket = ticket_fixture(subject: "Erledigte Frage")
       {:ok, _} = Tickets.set_status(Bbh.Accounts.Scope.for_user(user), ticket, "closed")

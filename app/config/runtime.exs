@@ -51,6 +51,11 @@ if imap_host = System.get_env("TICKET_IMAP_HOST") do
     tls: true
 end
 
+# Also file the collector mailbox's Junk folder as spam tickets (Bbh.Tickets.Mailbox).
+if junk = System.get_env("TICKET_IMPORT_JUNK") do
+  config :bbh, :ticket_import_junk, junk in ~w(true 1)
+end
+
 for {env, key, parse} <- [
       {"TICKET_SPAM_SCORE", :ticket_spam_score, &(&1 |> Float.parse() |> elem(0))},
       {"TICKET_MAX_ATTACHMENT_MB", :ticket_max_attachment_mb, &String.to_integer/1},

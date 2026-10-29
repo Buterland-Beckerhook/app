@@ -228,6 +228,9 @@ defmodule BbhWeb.Admin.TicketLive.Show do
         <:subtitle>
           {Queue.label(@ticket.queue)} · eingegangen {local(@ticket.inserted_at)}
           <span :if={@deleted} class="badge badge-error ml-2">Gelöscht</span>
+          <span :if={@deleted} class="block text-sm">
+            Wird am {purge_date(@ticket.deleted_at)} endgültig entfernt; bis dahin wiederherstellbar.
+          </span>
         </:subtitle>
         <:actions>
           <.button navigate={~p"/admin/postfach"}>Zur Liste</.button>
@@ -451,7 +454,7 @@ defmodule BbhWeb.Admin.TicketLive.Show do
               <.button
                 :if={not @deleted and @ticket.status != "spam"}
                 phx-click="spam"
-                data-confirm="Als Spam markieren?"
+                data-confirm="Als Spam markieren? Die E-Mail trainiert den Spamfilter des Mailservers – nur echten Spam markieren, keine erledigten oder unerwünschten Anfragen."
                 class="btn btn-sm btn-ghost"
               >
                 Spam
@@ -636,6 +639,13 @@ defmodule BbhWeb.Admin.TicketLive.Show do
   end
 
   defp reply_statuses, do: @reply_statuses
+
+  defp purge_date(deleted_at) do
+    deleted_at
+    |> DateTime.add(Bbh.Tickets.Retention.purge_days(), :day)
+    |> DateTime.shift_zone!(Bbh.Time.time_zone())
+    |> Calendar.strftime("%d.%m.%Y")
+  end
 
   defp can_reply?(ticket, deleted, enabled),
     do:
