@@ -21,18 +21,30 @@ defmodule Bbh.Membership do
   @mandate_reference "gleich Mitgliedsnummer"
 
   # The declarations shown on the form. Rendered from here, so `form_version/0` names
-  # exactly the wording an applicant accepted, and the PDF prints the same text.
-  @mandate_text "Ich ermächtige den Schützenverein Buterland-Beckerhook e.V., den jeweils " <>
-                  "gültigen Jahresbeitrag jährlich mittels SEPA-Lastschrift von meinem oben " <>
-                  "genannten Konto einzuziehen (SEPA-Lastschriftmandat)."
+  # exactly the wording an applicant accepted, and the PDF and the applicant's copy
+  # print the same text. The wording of the paper form: a SEPA Core mandate needs both
+  # the authorisation and the instruction to the bank, plus the refund notice.
+  @mandate_text "Ich ermächtige den Schützenverein Buterland-Beckerhook e.V., den " <>
+                  "Jahresbeitrag von meinem Konto mittels Lastschrift einzuziehen. Zugleich " <>
+                  "weise ich mein Kreditinstitut an, die vom Schützenverein " <>
+                  "Buterland-Beckerhook e.V. auf mein Konto gezogenen Lastschriften einzulösen."
+  @mandate_note "Hinweis: Ich kann innerhalb von acht Wochen, beginnend mit dem " <>
+                  "Belastungsdatum, die Erstattung des belasteten Betrages verlangen. Es " <>
+                  "gelten dabei die mit meinem Kreditinstitut vereinbarten Bedingungen."
   @privacy_note "Informationen zur Verarbeitung Ihrer Daten finden Sie in unserer " <>
                   "Datenschutzerklärung."
-  @form_version :crypto.hash(:sha256, @mandate_text <> "\n" <> @privacy_note)
+  @form_version :crypto.hash(
+                  :sha256,
+                  Enum.join([@mandate_text, @mandate_note, @privacy_note], "\n")
+                )
                 |> Base.encode16(case: :lower)
                 |> binary_part(0, 12)
 
   @doc "The SEPA mandate the applicant gives by ticking the box."
   def mandate_text, do: @mandate_text
+
+  @doc "The refund notice that belongs to the mandate."
+  def mandate_note, do: @mandate_note
 
   @doc "The privacy notice below the form (the link target is the template's)."
   def privacy_note, do: @privacy_note
@@ -254,6 +266,9 @@ defmodule Bbh.Membership do
     Gläubiger-ID:  #{@creditor_id}
     Mandatsreferenz: #{@mandate_reference}
     SEPA-Mandat erteilt: #{yes_no(data.sepa)}
+
+    #{@mandate_text}
+    #{@mandate_note}
     """
   end
 

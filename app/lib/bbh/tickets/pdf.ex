@@ -103,6 +103,7 @@ defmodule Bbh.Tickets.Pdf do
           else: p["member_number"]
         ),
       mandate_text: Membership.mandate_text(),
+      mandate_note: Membership.mandate_note(),
       privacy_note: Membership.privacy_note(),
       fee_note: Membership.fee_note(),
       flags: p["flags"] || [],
