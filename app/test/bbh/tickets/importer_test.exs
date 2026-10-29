@@ -75,6 +75,11 @@ defmodule Bbh.Tickets.ImporterTest do
              Importer.import(mail(headers: [{"X-Rspamd-Score", "9.5"}]))
   end
 
+  test "mailcow's spam flag files it as spam whatever the threshold" do
+    assert {:created, %{status: "spam"}} =
+             Importer.import(mail(headers: [{"X-Spam-Flag", "YES"}, {"X-Rspamd-Score", "3.1"}]))
+  end
+
   test "auto-replies, bulk mail, our own addresses and loops are ignored" do
     assert :ignored = Importer.import(mail(headers: [{"Auto-Submitted", "auto-replied"}]))
     assert :ignored = Importer.import(mail(headers: [{"Precedence", "bulk"}]))

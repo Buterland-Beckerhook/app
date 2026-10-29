@@ -153,4 +153,24 @@ defmodule Bbh.Tickets.InboundMailTest do
     assert {:ok, %{from_name: "Jürgen Müller", subject: "Grüße vom Schützenfest"}} =
              InboundMail.parse(raw)
   end
+
+  test "mailcow's folded X-Spamd-Result and X-Spam-Flag" do
+    raw =
+      crlf("""
+      From: "Fuugu" <azyodzw@coust-wels.baby>
+      To: <fiesel@bussenstueble.de>
+      Subject: *** SPAM *** Schluss mit dem Schrubben!
+      X-Rspamd-Queue-Id: 5B9E9140B4D
+      X-Spamd-Result: default: False [10.72 / 15.00];
+          IP_REPUTATION_SPAM(4.17)[asn: 60781(0.39), country: NL(0.01)];
+          FORGED_RECIPIENTS(3.00)[m:fiesel@bussenstueble.de,s:offiziere@buterland-beckerhook.de];
+          FROM_HAS_DN(0.00)[]
+      X-Spam-Flag: YES
+      Content-Type: text/plain; charset=utf-8
+
+      Kaufen!
+      """)
+
+    assert {:ok, %{spam_score: 10.72, spam_flag?: true}} = InboundMail.parse(raw)
+  end
 end

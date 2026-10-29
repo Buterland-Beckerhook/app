@@ -18,6 +18,7 @@ defmodule Bbh.Tickets.InboundMail do
     :auto_submitted,
     :precedence,
     :spam_score,
+    :spam_flag?,
     :report?,
     text: "",
     to: [],
@@ -45,6 +46,8 @@ defmodule Bbh.Tickets.InboundMail do
       auto_submitted: header.("Auto-Submitted") |> downcase(),
       precedence: header.("Precedence") |> downcase(),
       spam_score: spam_score(headers),
+      # mailcow sets it once rspamd's own spam threshold is passed.
+      spam_flag?: downcase(header.("X-Spam-Flag")) == "yes",
       report?: String.downcase("#{type}/#{subtype}") == "multipart/report",
       to: header.("To") |> addresses() |> Enum.map(&elem(&1, 1)),
       cc: header.("Cc") |> addresses() |> Enum.map(&elem(&1, 1)),

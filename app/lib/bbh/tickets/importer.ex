@@ -14,7 +14,8 @@ defmodule Bbh.Tickets.Importer do
        own addresses → `:ignored`. Never an automatic answer: no backscatter.
     4. A reply to an existing ticket (`Bbh.Tickets.Threading`) → `{:appended, ticket}`.
     5. Otherwise a new ticket in the queue of the top-most `X-Original-To` (`info` if
-       none matches), `spam` above `TICKET_SPAM_SCORE` → `{:created, ticket}`.
+       none matches), `spam` with mailcow's `X-Spam-Flag: YES` or a score above
+       `TICKET_SPAM_SCORE` → `{:created, ticket}`.
 
   Attachments above `TICKET_MAX_ATTACHMENT_MB` are dropped with a system note.
   """
@@ -125,7 +126,7 @@ defmodule Bbh.Tickets.Importer do
         queue = Queue.for_address(mail.original_to) || Queue.default()
 
         spam? =
-          opts[:spam] == true or
+          opts[:spam] == true or mail.spam_flag? or
             (is_float(mail.spam_score) and mail.spam_score >= spam_threshold())
 
         attrs = %{
