@@ -118,4 +118,55 @@ defmodule BbhWeb.MembershipControllerTest do
       assert_no_email_sent()
     end
   end
+
+  describe "with the Postfach (TICKETS_ENABLED)" do
+    setup do
+      Application.put_env(:bbh, :tickets_enabled, true)
+      on_exit(fn -> Application.delete_env(:bbh, :tickets_enabled) end)
+    end
+
+    test "creates a membership ticket with the submission record", %{conn: conn} do
+      conn =
+        conn
+        |> Map.put(:remote_ip, {172, 18, 0, 2})
+        |> put_req_header("x-forwarded-for", "6.6.6.6, 203.0.113.7")
+        |> post(~p"/verein/mitglied-werden", human_params())
+
+      assert redirected_to(conn) == ~p"/verein/mitglied-werden"
+      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "eingegangen"
+
+      [ticket] = Bbh.Repo.all(Bbh.Tickets.Ticket)
+      assert %{queue: "mitgliedschaft", kind: "membership"} = ticket
+
+      admin = Bbh.Accounts.Scope.for_user(Bbh.AccountsFixtures.admin_user_fixture())
+      {:ok, loaded} = Bbh.Tickets.get_ticket(admin, ticket.number)
+      payload = loaded.payload
+
+      assert payload["iban"] == "DE89370400440532013000"
+      assert payload["client_ip"] == "203.0.113.7"
+      assert payload["form_version"] == Bbh.Membership.form_version()
+      assert payload["sepa_mandate"] == true
+      assert {:ok, _, _} = DateTime.from_iso8601(payload["submitted_at"])
+      assert loaded.subject == "Aufnahmeantrag Erika Musterfrau"
+    end
+
+    test "sends only the applicant's copy, IBAN masked; no club mail", %{conn: conn} do
+      post(conn, ~p"/verein/mitglied-werden", human_params())
+
+      assert_email_sent(fn email ->
+        refute email.text_body =~ "DE89370400440532013000"
+        # Last: assert_email_sent checks the callback's value, and a passing refute is false.
+        assert email.to == [{"Erika Musterfrau", "erika@example.com"}]
+      end)
+
+      assert_no_email_sent()
+    end
+
+    test "keeps personal data out of Oban job args", %{conn: conn} do
+      post(conn, ~p"/verein/mitglied-werden", human_params())
+      args = Bbh.Repo.all(Oban.Job) |> Enum.map(&inspect(&1.args)) |> Enum.join()
+      refute args =~ "erika"
+      refute args =~ "DE89"
+    end
+  end
 end

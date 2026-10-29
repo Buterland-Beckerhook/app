@@ -20,6 +20,33 @@ defmodule Bbh.Membership do
   @creditor_id "DE39SVB00000430432"
   @mandate_reference "gleich Mitgliedsnummer"
 
+  # The declarations shown on the form. Rendered from here, so `form_version/0` names
+  # exactly the wording an applicant accepted, and the PDF prints the same text.
+  @mandate_text "Ich ermächtige den Schützenverein Buterland-Beckerhook e.V., den jeweils " <>
+                  "gültigen Jahresbeitrag jährlich mittels SEPA-Lastschrift von meinem oben " <>
+                  "genannten Konto einzuziehen (SEPA-Lastschriftmandat)."
+  @privacy_note "Informationen zur Verarbeitung Ihrer Daten finden Sie in unserer " <>
+                  "Datenschutzerklärung."
+  @form_version :crypto.hash(:sha256, @mandate_text <> "\n" <> @privacy_note)
+                |> Base.encode16(case: :lower)
+                |> binary_part(0, 12)
+
+  @doc "The SEPA mandate the applicant gives by ticking the box."
+  def mandate_text, do: @mandate_text
+
+  @doc "The privacy notice below the form (the link target is the template's)."
+  def privacy_note, do: @privacy_note
+
+  @doc """
+  First 12 hex digits of the SHA-256 of mandate and privacy text — stored with each
+  application so the record states which wording was accepted. Changes by itself when
+  the text does.
+  """
+  def form_version, do: @form_version
+
+  @doc "Gläubiger-Identifikationsnummer of the club."
+  def creditor_id, do: @creditor_id
+
   @doc "Minimum age for a membership (Satzung). Soft: only hinted/flagged, never rejected."
   def min_age, do: Application.get_env(:bbh, :membership_min_age, 16)
 
@@ -152,13 +179,19 @@ defmodule Bbh.Membership do
     |> Mailer.deliver_logged("membership")
   end
 
+  @doc """
+  The confirmation copy to the applicant — also their copy of the SEPA mandate. The IBAN
+  is masked; the address is kept out of the log.
+  """
+  def deliver_applicant_copy(data), do: deliver_to_applicant(data)
+
   defp deliver_to_applicant(%{email: email} = data) do
     new()
     |> to({full_name(data), email})
     |> from({Mailer.sender_name(), Mailer.sender()})
     |> subject("Ihr Aufnahmeantrag beim Schützenverein Buterland-Beckerhook e.V.")
     |> text_body(applicant_body(data))
-    |> Mailer.deliver_logged("membership-copy")
+    |> Mailer.deliver_logged("membership-copy", redact: true)
   end
 
   defp club_body(data) do

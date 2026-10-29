@@ -33,7 +33,9 @@ defmodule BbhWeb.MembershipController do
       {:ok, data} ->
         case check_spam(conn, params) do
           :ok ->
-            deliver(conn, data, params)
+            if Bbh.Tickets.enabled?(),
+              do: create_ticket(conn, data, params),
+              else: deliver(conn, data, params)
 
           {:spam, reason} ->
             Logger.warning("Membership form rejected as spam (#{reason})")
@@ -42,6 +44,39 @@ defmodule BbhWeb.MembershipController do
             |> put_flash(:error, "Spam-Schutz fehlgeschlagen. Bitte versuchen Sie es erneut.")
             |> render_form(params, %{})
         end
+    end
+  end
+
+  # Postfach: the application becomes a ticket (with the submission record standing in
+  # for date and signature); the applicant still gets their copy of the SEPA mandate.
+  defp create_ticket(conn, data, params) do
+    record = %{
+      submitted_at: DateTime.utc_now(:second),
+      client_ip: BbhWeb.ClientIp.get(conn),
+      altcha_verified: Bbh.Altcha.enabled?()
+    }
+
+    case Bbh.Tickets.create_from_membership(data, record) do
+      {:ok, _ticket} ->
+        # The application is in; a failed copy is logged, not shown as a failure.
+        Bbh.Membership.deliver_applicant_copy(data)
+
+        conn
+        |> put_flash(
+          :info,
+          "Vielen Dank! Ihr Aufnahmeantrag ist bei uns eingegangen. Eine Kopie geht an Ihre E-Mail-Adresse."
+        )
+        |> redirect(to: ~p"/verein/mitglied-werden")
+
+      {:error, reason} ->
+        Logger.error("Membership form ticket failed: #{inspect(reason)}")
+
+        conn
+        |> put_flash(
+          :error,
+          "Ihr Antrag konnte nicht gesendet werden. Bitte versuchen Sie es später erneut."
+        )
+        |> render_form(params, %{})
     end
   end
 

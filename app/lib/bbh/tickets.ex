@@ -67,6 +67,67 @@ defmodule Bbh.Tickets do
     |> tap_ok(&broadcast/1)
   end
 
+  @doc """
+  A contact-form request as a ticket in `queue` (one the form offers, else the default).
+  The subject is the message's first line, shortened — the form has no subject field.
+  Contact tickets store no IP address.
+  """
+  def create_from_contact(%{name: name, email: email, message: message}, queue) do
+    queue = if Queue.in_contact_form?(queue), do: queue, else: Queue.default()
+
+    create_ticket(
+      %{
+        queue: queue,
+        kind: "contact",
+        subject: contact_subject(message),
+        requester_name: name,
+        requester_email: email
+      },
+      %{body: message, from: email}
+    )
+  end
+
+  defp contact_subject(message) do
+    line = message |> String.split("\n", parts: 2) |> hd() |> String.trim()
+    if String.length(line) > 80, do: String.slice(line, 0, 79) <> "…", else: line
+  end
+
+  @doc """
+  A membership application as a ticket in `mitgliedschaft`. `data` is the validated
+  form (`Bbh.Membership.validate/1`); `record` the submission record that stands in for
+  date and signature: `:submitted_at`, `:client_ip`, `:altcha_verified`. Everything goes
+  into the encrypted payload, together with the form version and the age flags.
+  """
+  def create_from_membership(data, record) do
+    name = Bbh.Membership.full_name(data)
+
+    payload =
+      data
+      |> Map.merge(%{
+        flags: Bbh.Membership.flags(data),
+        submitted_at: record.submitted_at,
+        client_ip: record.client_ip,
+        altcha_verified: record.altcha_verified,
+        form_version: Bbh.Membership.form_version(),
+        sepa_mandate: data.sepa
+      })
+      # Through JSON once, so the struct in hand looks like one loaded later.
+      |> Jason.encode!()
+      |> Jason.decode!()
+
+    create_ticket(
+      %{
+        queue: "mitgliedschaft",
+        kind: "membership",
+        subject: "Aufnahmeantrag #{name}",
+        requester_name: name,
+        requester_email: data.email,
+        payload: payload
+      },
+      %{body: "Aufnahmeantrag über die Website.", from: data.email}
+    )
+  end
+
   defp insert_message(%Ticket{id: ticket_id}, attrs) do
     %Message{}
     |> Message.changeset(Map.put(attrs, :ticket_id, ticket_id))
