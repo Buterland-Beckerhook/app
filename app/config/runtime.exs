@@ -28,6 +28,18 @@ if tz = System.get_env("TIME_ZONE") do
   config :bbh, :time_zone, tz
 end
 
+# Postfach (ticket system). Off until the switch-over; the old mail path stays meanwhile.
+config :bbh, :tickets_enabled, System.get_env("TICKETS_ENABLED") in ~w(true 1)
+
+# Field encryption keys for the Postfach (Bbh.Vault). Set together; Beta gets its own,
+# never Prod's. Checked at boot when TICKETS_ENABLED is on.
+if keys = System.get_env("TICKET_KEYS") do
+  config :bbh, Bbh.Vault,
+    keys: keys,
+    current_key: System.get_env("TICKET_KEY_CURRENT"),
+    hmac_key: System.get_env("TICKET_HMAC_KEY")
+end
+
 # Login log retention (Bbh.Accounts.AuthLog), stated in the Datenschutzerklärung.
 if days = System.get_env("AUTH_LOG_RETENTION_DAYS") do
   config :bbh, :auth_log_retention_days, String.to_integer(days)

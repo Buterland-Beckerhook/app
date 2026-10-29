@@ -11,6 +11,9 @@ defmodule Bbh.Application do
   def start(_type, _args) do
     log_mail_config()
 
+    # Refuse to start rather than store Postfach data unencrypted.
+    if Application.get_env(:bbh, :tickets_enabled), do: Bbh.Vault.check!()
+
     children = [
       BbhWeb.Telemetry,
       Bbh.Repo,

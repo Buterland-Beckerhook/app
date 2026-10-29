@@ -220,7 +220,7 @@ against a compromised running app (key and data are on the same host).
   - `TICKET_KEYS="1:<base64 32 bytes>,2:<base64 32 bytes>"`
   - `TICKET_KEY_CURRENT=2` (new writes); old ids stay readable
   - `TICKET_HMAC_KEY=<base64 32 bytes>`
-  - `mix bbh.tickets.gen_key` prints a key; `Bbh.Release.rekey_tickets/0` re-encrypts
+  - `mix bbh.vault.gen_key` prints a key; `Bbh.Release.rekey_tickets/0` (built on `Bbh.Vault.rekey/2`, added with the ticket tables) re-encrypts
     everything with the current key (rotation), callable via `bin/bbh eval`.
 - Boot check: if `TICKETS_ENABLED=true` and keys are missing/invalid → refuse to start
   (better than silently storing clear text).

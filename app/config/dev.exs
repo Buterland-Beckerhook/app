@@ -97,3 +97,10 @@ config :web_push_elixir,
     "BArwAvEF2mI2sWmQ7W3fCY3uhudtn2kjkKYgEVS4athcH2b2eAp3FnDYEDMia6mwOxAdEEt-7B9Na30CgG4FiEM",
   vapid_private_key: "1WFfXtnl0TTqYBhzfTW3FogSgHsjz5uagutBR2AlPck",
   vapid_subject: "mailto:admin@buterland-beckerhook.de"
+
+# Postfach field encryption (Bbh.Vault). Fixed dev-only keys — never use them anywhere
+# else; production and beta read their own from TICKET_* (config/runtime.exs).
+config :bbh, Bbh.Vault,
+  keys: "1:j4gVg1enGHLYBzPlxTArMkxRogO0+KPLAoTzXLHTmEA=",
+  current_key: "1",
+  hmac_key: "eF+UYuKVOgBT1mZ1kuZOLXWU93HHaKFg8pGumAve2aY="

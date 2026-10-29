@@ -69,3 +69,10 @@ config :phoenix_live_view,
 # Sort query params output of verified routes for robust url comparisons
 config :phoenix,
   sort_verified_routes_query_params: true
+
+# Postfach field encryption (Bbh.Vault): two keys, so rotation is testable.
+config :bbh, Bbh.Vault,
+  keys:
+    "1:u9RC15scmJMvWayszFhjPQtglQTWmHeO3aOnZh4UDv4=,2:OY9GKth7niWJ7Ypg+qyWEqoFown+XJyH7s8F7HgXimk=",
+  current_key: "2",
+  hmac_key: "eF+UYuKVOgBT1mZ1kuZOLXWU93HHaKFg8pGumAve2aY="
