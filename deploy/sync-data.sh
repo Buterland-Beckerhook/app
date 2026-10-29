@@ -18,7 +18,8 @@
 #   4. Stops the target's phoenix, drops + recreates its DB, restores the dump
 #      in a single transaction.
 #   5. Sanitizes the target DB (see SANITIZE_SQL below): no push subscriptions,
-#      sessions, MCP/API tokens or queued jobs are carried over.
+#      sessions, MCP/API tokens, queued jobs, Postfach tickets or login log are
+#      carried over.
 #   6. Copies the uploads volume (originals + variant cache) source -> target.
 #   7. Starts the target stack; Phoenix runs bin/migrate on top, so a target
 #      image with newer migrations than the source just applies them.
@@ -138,13 +139,20 @@ echo "==> Sanitizing target database"
 #   users_tokens        — sessions + magic links of the source
 #   api_tokens, oauth_* — MCP/API credentials of the source
 #   oban_*              — queued/scheduled jobs (pushes, reminders) of the source
+#   tickets, ticket_*   — the Postfach: personal data (requests, membership
+#                         applications with IBAN). Encrypted with the source's keys,
+#                         unreadable on a target with its own — but it does not
+#                         belong there at all.
+#   auth_events         — the source's login log (IP addresses)
 # Tables are truncated in ONE statement so FKs between them are fine; a table
 # missing in an older schema is skipped.
 dst exec -T postgres psql -U "$DST_DB_USER" -d bbh -v ON_ERROR_STOP=1 -q <<'SQL'
 DO $$
 DECLARE
   wanted text[] := ARRAY['push_subscriptions','users_tokens','api_tokens',
-                         'oauth_codes','oauth_clients','oban_jobs','oban_peers'];
+                         'oauth_codes','oauth_clients','oban_jobs','oban_peers',
+                         'ticket_attachments','ticket_messages','ticket_events',
+                         'tickets','auth_events'];
   present text;
 BEGIN
   SELECT string_agg(format('%I', t), ', ') INTO present

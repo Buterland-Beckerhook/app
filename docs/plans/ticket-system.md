@@ -1,6 +1,26 @@
 # Ticket system ("Postfach") — implementation plan
 
-Status: plan, not yet implemented · 2026-10-29
+Status: implemented on `feat/ticket-system` (2026-10-29), not yet deployed. The
+decision record is `docs/adr/0016-ticket-system.md`; the rules for changes are in
+AGENTS.md („Postfach"). Where the implementation differs from this plan:
+
+- The login method is stored on the session **token** (`users_tokens.auth_method`), not
+  in the cookie session, so it survives remember-me and reissue (§2.3).
+- The login log is a page per user (`/admin/benutzer/:id/anmeldungen`), not a modal (§2.2).
+- No count badge in the navigation (it would query on every render); counts sit on the
+  Postfach tabs (Offen, Mir zugewiesen, Überfällig) and the dashboard widget (§9).
+- „Offen" lists tickets nobody has taken; „Alle" everything in work. The status applies
+  on selection; „Kein Spam" takes a spam marking back.
+- A queue nobody is granted announces and reminds the admins (§8).
+- The mandate text is the paper form's full wording, shown online and in the PDF (§6.1,
+  §9.1); `Bbh.Membership.form_version/0` hashes it. The PDF uses Barlow (TTF, OFL),
+  not Avenir Next.
+- Replies from `info` are signed as the club, membership replies as the Vorstand (§7.1).
+- MIME parsing is gen_smtp's `:mimemail` plus an own `:iconv` module; raw UTF-8 headers
+  are RFC 2047-encoded before decoding (§6.2). Mail moves to `Tickets/Importiert`,
+  `Tickets/Ignoriert` or `Junk`.
+- `mix bbh.vault.gen_key` (not `bbh.tickets.gen_key`).
+- Spam is purged after `TICKET_PURGE_DAYS` of inactivity without a soft delete first (§10).
 Target repo: `Buterland-Beckerhook/app` · implementation locally with Claude Code
 Later condensed into
 `docs/adr/0016-ticket-system.md` + an AGENTS.md section.
