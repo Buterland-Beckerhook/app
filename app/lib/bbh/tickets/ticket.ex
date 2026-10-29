@@ -56,6 +56,8 @@ defmodule Bbh.Tickets.Ticket do
     field :closed_at, :utc_datetime
     field :deleted_at, :utc_datetime
     field :spam_score, :float
+    # When the queue was told about it (Bbh.Workers.TicketNewNotifier); nil = not yet.
+    field :notified_at, :utc_datetime
 
     field :subject, :string, virtual: true, redact: true
     field :requester_name, :string, virtual: true, redact: true

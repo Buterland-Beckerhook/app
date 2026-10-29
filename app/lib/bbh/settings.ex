@@ -26,6 +26,34 @@ defmodule Bbh.Settings do
     |> Repo.insert_or_update()
   end
 
+  @doc "A changeset for the Postfach tab."
+  def change_tickets(%SiteSettings{} = settings, attrs \\ %{}),
+    do: SiteSettings.tickets_changeset(settings, attrs)
+
+  @doc "Update the Postfach reminder settings."
+  def update_tickets(attrs) do
+    (Repo.one(from s in SiteSettings, limit: 1) || %SiteSettings{})
+    |> SiteSettings.tickets_changeset(attrs)
+    |> Repo.insert_or_update()
+  end
+
+  @doc """
+  Claims today's Postfach reminder run: sets `ticket_reminders_sent_on` to `today` and
+  returns `true` — unless it already was, then `false`. One conditional UPDATE, so two
+  overlapping runs cannot both send.
+  """
+  def claim_ticket_reminders(%Date{} = today) do
+    {count, _} =
+      Repo.update_all(
+        from(s in SiteSettings,
+          where: is_nil(s.ticket_reminders_sent_on) or s.ticket_reminders_sent_on < ^today
+        ),
+        set: [ticket_reminders_sent_on: today]
+      )
+
+    count > 0
+  end
+
   @doc """
   Whether push notifications should currently be held back for quiet hours.
 

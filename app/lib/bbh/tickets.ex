@@ -25,9 +25,6 @@ defmodule Bbh.Tickets do
   @page_size 50
   # A ticket opened again within this window is not logged as a second view.
   @view_throttle_minutes 10
-  # "Überfällig" until the reminder settings exist: a due follow-up, or a new ticket
-  # nobody has taken for a day.
-  @overdue_unassigned_hours 24
 
   @doc "Whether the Postfach replaces the old mail path (`TICKETS_ENABLED`)."
   def enabled?, do: Application.get_env(:bbh, :tickets_enabled, false) == true
@@ -199,7 +196,7 @@ defmodule Bbh.Tickets do
         )
 
       "overdue" ->
-        overdue(query)
+        Bbh.Tickets.Reminders.overdue(query, Bbh.Settings.get())
 
       "closed" ->
         where(query, [t], t.status == "closed")
@@ -210,19 +207,6 @@ defmodule Bbh.Tickets do
       _all ->
         where(query, [t], t.status in ^Ticket.active_statuses())
     end
-  end
-
-  defp overdue(query) do
-    # The club's calendar day, not UTC's.
-    today = Bbh.Time.real_now() |> DateTime.to_date()
-    cutoff = DateTime.utc_now(:second) |> DateTime.add(-@overdue_unassigned_hours, :hour)
-
-    where(
-      query,
-      [t],
-      (t.status == "follow_up" and t.follow_up_on <= ^today) or
-        (t.status == "new" and is_nil(t.assignee_id) and t.inserted_at < ^cutoff)
-    )
   end
 
   @doc """
@@ -372,6 +356,7 @@ defmodule Bbh.Tickets do
         last_activity_at: DateTime.utc_now(:second)
       )
       |> update_and_log(scope, "assigned", %{assignee_id: assignee_id})
+      |> tap_ok(&notify_assignee(&1, scope.user))
     end
   end
 
@@ -429,8 +414,16 @@ defmodule Bbh.Tickets do
     with :ok <- authorize(scope, ticket),
          true <- Queue.valid?(queue) || {:error, :invalid_queue} do
       # The assignee may not see the new queue; whoever works it there takes it anew.
+      # A ticket still in work is news to the new queue (Bbh.Workers.TicketNewNotifier).
+      in_work? = ticket.status in Ticket.active_statuses()
+
       ticket
-      |> Ecto.Changeset.change(queue: queue, assignee_id: nil)
+      |> Ecto.Changeset.change(
+        queue: queue,
+        assignee_id: nil,
+        status: if(in_work?, do: "new", else: ticket.status),
+        notified_at: if(in_work?, do: nil, else: ticket.notified_at)
+      )
       |> update_and_log(scope, "queue_changed", %{from: ticket.queue, to: queue})
     end
   end
@@ -562,6 +555,16 @@ defmodule Bbh.Tickets do
       broadcast(updated)
       {:ok, updated}
     end
+  end
+
+  # Someone else assigned it: tell the assignee (ids only in the job).
+  defp notify_assignee(%Ticket{assignee_id: nil}, _by), do: :ok
+  defp notify_assignee(%Ticket{assignee_id: id}, %User{id: id}), do: :ok
+
+  defp notify_assignee(%Ticket{} = ticket, %User{} = by) do
+    %{ticket_id: ticket.id, assignee_id: ticket.assignee_id, by_id: by.id}
+    |> Bbh.Workers.TicketAssignedNotifier.new()
+    |> Oban.insert!()
   end
 
   defp tap_ok({:ok, value} = result, fun) do

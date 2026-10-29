@@ -284,6 +284,7 @@ defmodule BbhWeb.Router do
       live "/benutzer", UserLive.Index, :index
       live "/benutzer/:id/anmeldungen", UserLive.AuthLog, :show
       live "/website", SiteSettingsLive, :index
+      live "/website/postfach", SiteSettingsLive, :tickets
       live "/push", PushLive, :index
       live "/bankleitzahlen", BlzLive, :index
 

@@ -1,5 +1,8 @@
 defmodule BbhWeb.Admin.SiteSettingsLive do
-  @moduledoc "Admin-only site settings: homepage notice banner and push quiet hours."
+  @moduledoc """
+  Admin-only site settings, in two tabs: the homepage notice banner and push quiet hours,
+  and the Postfach's reminders (hour, thresholds, admin digest).
+  """
   use BbhWeb, :live_view
 
   alias Bbh.Settings
@@ -13,8 +16,12 @@ defmodule BbhWeb.Admin.SiteSettingsLive do
     {:ok,
      socket
      |> assign(page_title: "Website", hours: @hours)
-     |> assign_form(Settings.change(settings))}
+     |> assign_form(Settings.change(settings))
+     |> assign_tickets_form(Settings.change_tickets(settings))}
   end
+
+  @impl true
+  def handle_params(_params, _uri, socket), do: {:noreply, socket}
 
   @impl true
   def handle_event("validate", %{"site_settings" => params}, socket) do
@@ -39,8 +46,33 @@ defmodule BbhWeb.Admin.SiteSettingsLive do
     end
   end
 
+  def handle_event("validate_tickets", %{"tickets" => params}, socket) do
+    changeset =
+      Settings.get()
+      |> Settings.change_tickets(params)
+      |> Map.put(:action, :validate)
+
+    {:noreply, assign_tickets_form(socket, changeset)}
+  end
+
+  def handle_event("save_tickets", %{"tickets" => params}, socket) do
+    case Settings.update_tickets(params) do
+      {:ok, settings} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Einstellungen gespeichert.")
+         |> assign_tickets_form(Settings.change_tickets(settings))}
+
+      {:error, changeset} ->
+        {:noreply, assign_tickets_form(socket, changeset)}
+    end
+  end
+
   defp assign_form(socket, changeset),
     do: assign(socket, :form, to_form(changeset, as: "site_settings"))
+
+  defp assign_tickets_form(socket, changeset),
+    do: assign(socket, :tickets_form, to_form(changeset, as: "tickets"))
 
   @impl true
   def render(assigns) do
@@ -48,10 +80,102 @@ defmodule BbhWeb.Admin.SiteSettingsLive do
     <Layouts.admin flash={@flash} current_scope={@current_scope} active={:site_settings}>
       <.header>
         Website
-        <:subtitle>Hinweis auf der Startseite und Ruhezeiten für Push-Nachrichten.</:subtitle>
+        <:subtitle>Einstellungen für die ganze Website.</:subtitle>
       </.header>
 
+      <div role="tablist" class="tabs tabs-box mt-6">
+        <.link
+          patch={~p"/admin/website"}
+          role="tab"
+          class={["tab", @live_action == :index && "tab-active"]}
+        >
+          Startseite & Push
+        </.link>
+        <.link
+          patch={~p"/admin/website/postfach"}
+          role="tab"
+          class={["tab", @live_action == :tickets && "tab-active"]}
+        >
+          Postfach
+        </.link>
+      </div>
+
       <.form
+        :if={@live_action == :tickets}
+        for={@tickets_form}
+        id="tickets-settings-form"
+        phx-change="validate_tickets"
+        phx-submit="save_tickets"
+        class="mt-6 space-y-8"
+      >
+        <fieldset class="rounded-box border border-base-300 p-4">
+          <legend class="px-1 text-sm font-medium">Erinnerungen</legend>
+          <.input
+            field={@tickets_form[:ticket_reminder_hour]}
+            type="select"
+            label="Erinnerungen versenden um"
+            options={@hours}
+          />
+          <p class="mt-1 text-sm text-base-content/60">
+            Höchstens eine Erinnerungsmail pro Person und Tag, mit allen Anfragen, die warten.
+            Zeiten in {Bbh.Time.time_zone()}.
+          </p>
+          <div class="mt-4 grid gap-4 sm:grid-cols-2">
+            <.input
+              field={@tickets_form[:ticket_remind_unassigned_hours]}
+              type="number"
+              min="1"
+              max="168"
+              label="Neu und niemandem zugewiesen nach (Stunden)"
+            />
+            <.input
+              field={@tickets_form[:ticket_remind_idle_days]}
+              type="number"
+              min="1"
+              max="90"
+              label="In Bearbeitung ohne Aktivität nach (Tagen)"
+            />
+            <.input
+              field={@tickets_form[:ticket_remind_waiting_days]}
+              type="number"
+              min="1"
+              max="90"
+              label="Wartet auf Antwort nach (Tagen)"
+            />
+          </div>
+          <p class="mt-1 text-sm text-base-content/60">
+            Diese Werte bestimmen auch, was im Postfach als „Überfällig“ gilt. Eine fällige
+            Wiedervorlage erinnert immer.
+          </p>
+        </fieldset>
+
+        <fieldset class="rounded-box border border-base-300 p-4">
+          <legend class="px-1 text-sm font-medium">Tagesübersicht für Administratoren</legend>
+          <.input
+            field={@tickets_form[:ticket_admin_digest_enabled]}
+            type="checkbox"
+            label="Tagesübersicht an Administratoren senden"
+          />
+          <.input
+            field={@tickets_form[:ticket_escalate_days]}
+            type="number"
+            min="1"
+            max="90"
+            label="Hervorheben, wenn seit (Tagen) niemandem zugewiesen"
+          />
+          <p class="mt-1 text-sm text-base-content/60">
+            Anzahl je Postfach und Status, überfällige Anfragen und lange unbearbeitete.
+            Entfällt an Tagen, an denen nichts überfällig ist.
+          </p>
+        </fieldset>
+
+        <div class="flex gap-2">
+          <.button variant="primary" phx-disable-with="Speichern…">Speichern</.button>
+        </div>
+      </.form>
+
+      <.form
+        :if={@live_action == :index}
         for={@form}
         id="site-settings-form"
         phx-change="validate"

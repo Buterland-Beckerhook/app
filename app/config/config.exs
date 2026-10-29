@@ -157,6 +157,10 @@ config :bbh, Oban,
        {"*/5 * * * *", Bbh.Workers.ArticlePublishNotifier},
        {"*/5 * * * *", Bbh.Workers.EventPublishNotifier},
        {"*/5 * * * *", Bbh.Workers.EventReminderNotifier},
+       # Postfach: announce new tickets (bundled, two minutes after they came in) and the
+       # daily reminders + admin digest (the hour is a site setting, checked hourly).
+       {"*/2 * * * *", Bbh.Workers.TicketNewNotifier},
+       {"5 * * * *", Bbh.Workers.TicketReminder},
        # Rebuild the full-text search index; self-healing, so a coarse cadence is fine.
        {"*/15 * * * *", Bbh.Workers.SearchReindexer},
        # Reclaim dead MCP tokens and spent OAuth codes. Nightly is plenty — neither still
