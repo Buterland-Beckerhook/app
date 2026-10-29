@@ -34,11 +34,15 @@ defmodule Bbh.FakeImap do
 
   defp run(_socket, []), do: :ok
 
-  # `:hang`: read the command, answer nothing, keep the connection open.
+  # `:hang`: read the command, answer nothing, keep the connection open until the test
+  # ends (the server is linked to it) — a fixed sleep made the client see :closed
+  # instead of :timeout when the suite ran under load.
   defp run(socket, [{_pattern, :hang} | _]) do
     {:ok, _} = :gen_tcp.recv(socket, 0, 5_000)
-    Process.sleep(2_000)
-    :ok
+
+    receive do
+      :never -> :ok
+    end
   end
 
   defp run(socket, [{pattern, lines} | rest]) do
