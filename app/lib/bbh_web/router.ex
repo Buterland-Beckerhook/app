@@ -273,6 +273,7 @@ defmodule BbhWeb.Router do
 
     # The Postfach: a queue grant (or admin) and a passkey/TOTP session.
     get "/postfach/:ref/antrag.pdf", TicketPdfController, :show
+    get "/postfach/:ref/anhang/:id", TicketAttachmentController, :show
 
     live_session :admin_tickets, on_mount: [{BbhWeb.UserAuth, :require_tickets}] do
       live "/postfach", TicketLive.Index, :index

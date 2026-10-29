@@ -746,6 +746,30 @@ defmodule Bbh.Tickets do
     if Authz.can_view_ticket?(scope, ticket), do: :ok, else: {:error, :unauthorized}
   end
 
+  @doc """
+  An attachment of a ticket the scope may see, decrypted, for download — logged as
+  `attachment_downloaded`. `{:error, :not_found}` otherwise.
+  """
+  def get_attachment(%Scope{user: user} = scope, %Ticket{id: ticket_id} = ticket, attachment_id) do
+    query =
+      from a in Attachment,
+        join: m in Message,
+        on: m.id == a.ticket_message_id,
+        where: a.id == ^attachment_id and m.ticket_id == ^ticket_id
+
+    with {:ok, _} <- Ecto.UUID.cast(attachment_id),
+         :ok <- authorize_view(scope, ticket),
+         %Attachment{} = attachment <- Repo.one(query) do
+      attachment =
+        Vault.decrypt_fields(attachment, "ticket_attachments", Attachment.encrypted_fields())
+
+      log_event(ticket, user, "attachment_downloaded", %{attachment_id: attachment.id})
+      {:ok, attachment}
+    else
+      _ -> {:error, :not_found}
+    end
+  end
+
   @doc "Logs that the scope's user opened the ticket — once per 10 minutes."
   def record_view(%Scope{user: user}, %Ticket{} = ticket) do
     since = DateTime.utc_now(:second) |> DateTime.add(-@view_throttle_minutes, :minute)

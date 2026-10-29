@@ -29,8 +29,7 @@ defmodule Bbh.Tickets.InboundMail do
 
   @doc "Parses a raw mail. `{:ok, %InboundMail{}}` or `{:error, :unparseable}`."
   def parse(raw) when is_binary(raw) do
-    {type, subtype, headers, params, body} = :mimemail.decode(raw)
-    headers = with_raw_utf8(headers, raw)
+    {type, subtype, headers, params, body} = raw |> encode_raw_utf8() |> :mimemail.decode()
     header = &header(headers, &1)
 
     message_id = header.("Message-ID")
@@ -79,41 +78,51 @@ defmodule Bbh.Tickets.InboundMail do
 
   ## Headers
 
-  # mimemail turns raw (unencoded) UTF-8 in a header into "?" — SMTPUTF8 senders do
-  # write headers that way. Take those values from the raw header block instead.
-  defp with_raw_utf8(headers, raw) do
-    raw_values =
+  # mimemail turns raw (unencoded) UTF-8 in any header — SMTPUTF8 senders write them
+  # that way — into "?". Before decoding, wrap such text in RFC 2047 encoded words; only
+  # in header blocks (the top one and those after a MIME boundary), never in a body.
+  @doc false
+  def encode_raw_utf8(raw) do
+    if raw =~ ~r/[\x80-\xff]/ do
+      boundaries =
+        Regex.scan(~r/boundary\s*=\s*"?([^";\r\n]+)"?/i, raw)
+        |> Enum.map(fn [_, b] -> "--" <> String.trim(b) end)
+        |> MapSet.new()
+
       raw
-      |> String.split(~r/\r?\n\r?\n/, parts: 2)
-      |> hd()
-      |> String.replace(~r/\r?\n[ \t]+/, " ")
-      |> String.split(~r/\r?\n/)
-      |> Enum.flat_map(fn line ->
-        case String.split(line, ":", parts: 2) do
-          [name, value] -> [{String.downcase(name), String.trim(value)}]
-          _ -> []
+      |> String.split("\n")
+      |> Enum.map_reduce(true, fn line, in_header ->
+        bare = String.trim_trailing(line, "\r")
+
+        cond do
+          in_header and bare == "" -> {line, false}
+          in_header -> {encode_header_line(line), true}
+          MapSet.member?(boundaries, bare) -> {line, true}
+          true -> {line, false}
         end
       end)
+      |> elem(0)
+      |> Enum.join("\n")
+    else
+      raw
+    end
+  end
 
-    {result, _} =
-      Enum.map_reduce(headers, raw_values, fn {key, value}, remaining ->
-        name = String.downcase(key)
-
-        case Enum.split_while(remaining, fn {n, _} -> n != name end) do
-          {before, [{^name, raw_value} | rest]} ->
-            value =
-              if raw_value =~ ~r/[\x80-\xff]/ and String.valid?(raw_value),
-                do: decode_words(raw_value),
-                else: value
-
-            {{key, value}, before ++ rest}
-
-          _ ->
-            {{key, value}, remaining}
+  # Encodes the stretch from the first to the last non-ASCII word, without crossing the
+  # characters that structure a header (<> " , ; =), so addresses and parameters keep
+  # their shape: `Jürgen Müller <j@x>` → `=?UTF-8?B?…?= <j@x>`.
+  defp encode_header_line(line) do
+    if line =~ ~r/[\x80-\xff]/ and String.valid?(line) do
+      Regex.replace(
+        ~r/[^\s<>",;=:]*[\x80-\xff](?:[^<>",;=\r]*[\x80-\xff])?[^\s<>",;=\r]*/,
+        line,
+        fn text ->
+          "=?UTF-8?B?" <> Base.encode64(text) <> "?="
         end
-      end)
-
-    result
+      )
+    else
+      line
+    end
   end
 
   defp header(headers, name) do

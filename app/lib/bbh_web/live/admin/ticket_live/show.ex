@@ -220,7 +220,14 @@ defmodule BbhWeb.Admin.TicketLive.Show do
               <ul :if={m.attachments != []} class="mt-3 space-y-1 text-sm">
                 <li :for={a <- m.attachments} class="flex items-center gap-2">
                   <.icon name="hero-paper-clip" class="size-4" />
-                  {a.filename} <span class="text-base-content/60">({kb(a.size)})</span>
+                  <a
+                    href={~p"/admin/postfach/#{Ticket.reference(@ticket)}/anhang/#{a.id}"}
+                    class="link"
+                    download
+                  >
+                    {a.filename}
+                  </a>
+                  <span class="text-base-content/60">({kb(a.size)})</span>
                 </li>
               </ul>
             </article>
