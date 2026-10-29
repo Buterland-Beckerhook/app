@@ -97,7 +97,7 @@ defmodule BbhWeb.UserLive.Login do
         passkey_options: nil,
         passkey_token: nil,
         trigger_passkey: false,
-        client_ip: connect_client_ip(socket)
+        client_ip: BbhWeb.ClientIp.from_socket(socket)
       )
 
     # The passkey challenge is minted only on the connected mount and rendered
@@ -210,30 +210,5 @@ defmodule BbhWeb.UserLive.Login do
 
   defp local_mail_adapter? do
     Application.get_env(:bbh, Bbh.Mailer)[:adapter] == Swoosh.Adapters.Local
-  end
-
-  # Best-effort client IP from the socket connect info (trusted proxy sets
-  # x-forwarded-for). Falls back to the peer address, then "unknown" on the
-  # disconnected mount.
-  defp connect_client_ip(socket) do
-    forwarded =
-      socket
-      |> get_connect_info(:x_headers)
-      |> List.wrap()
-      |> Enum.find_value(fn
-        {"x-forwarded-for", value} -> value |> String.split(",") |> List.first() |> String.trim()
-        _ -> nil
-      end)
-
-    cond do
-      is_binary(forwarded) ->
-        forwarded
-
-      true ->
-        case get_connect_info(socket, :peer_data) do
-          %{address: address} -> address |> :inet.ntoa() |> to_string()
-          _ -> "unknown"
-        end
-    end
   end
 end

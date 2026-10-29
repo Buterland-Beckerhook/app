@@ -28,7 +28,10 @@ defmodule BbhWeb.Plugs.ApiAuthTest do
 
     # A distinct client IP per test, so the shared per-IP bucket from one test cannot
     # spill into the next within the same one-minute window.
-    %{token: token, bearer: plaintext, ip: "198.51.100.#{System.unique_integer([:positive])}"}
+    n = System.unique_integer([:positive])
+    # A valid address: `BbhWeb.ClientIp` ignores an unparseable forwarded entry.
+    ip = "10.#{rem(div(n, 65_536), 256)}.#{rem(div(n, 256), 256)}.#{rem(n, 256)}"
+    %{token: token, bearer: plaintext, ip: ip}
   end
 
   defp ping(conn, bearer, ip) do
