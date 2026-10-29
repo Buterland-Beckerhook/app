@@ -9,10 +9,12 @@ defmodule BbhWeb.Admin.TicketLive.Index do
   alias Bbh.Tickets.{Queue, Ticket}
   alias BbhWeb.Authz
 
+  # "Offen" is the work nobody has taken yet; "Alle" everything still in work.
   @views [
-    {"active", "Offen"},
+    {"open", "Offen"},
     {"mine", "Mir zugewiesen"},
     {"overdue", "Überfällig"},
+    {"all", "Alle"},
     {"closed", "Erledigt"},
     {"spam", "Spam"}
   ]
@@ -38,7 +40,7 @@ defmodule BbhWeb.Admin.TicketLive.Index do
     view =
       if List.keymember?(socket.assigns.views, params["ansicht"], 0),
         do: params["ansicht"],
-        else: "active"
+        else: "open"
 
     queue =
       if Enum.any?(socket.assigns.queue_options, &(elem(&1, 1) == params["queue"])),
@@ -61,7 +63,7 @@ defmodule BbhWeb.Admin.TicketLive.Index do
   defp load(socket) do
     %{view: view, queue: queue, page: page, current_scope: scope} = socket.assigns
     result = Tickets.list_tickets(scope, view: view, queue: queue, page: page)
-    assign(socket, result: result, new_count: Tickets.count_new(scope))
+    assign(socket, result: result, counts: Tickets.count_views(scope, queue))
   end
 
   defp parse_page(value) do
@@ -82,7 +84,7 @@ defmodule BbhWeb.Admin.TicketLive.Index do
         "seite" => Keyword.get(overrides, :page, assigns.page)
       }
       |> Enum.reject(fn {k, v} ->
-        is_nil(v) or {k, v} in [{"ansicht", "active"}, {"seite", 1}]
+        is_nil(v) or {k, v} in [{"ansicht", "open"}, {"seite", 1}]
       end)
 
     ~p"/admin/postfach?#{params}"
@@ -96,7 +98,6 @@ defmodule BbhWeb.Admin.TicketLive.Index do
         Postfach
         <:subtitle>
           Anfragen aus Kontakt- und Mitgliedsformular.
-          <span :if={@new_count > 0} class="font-semibold">{@new_count} neu.</span>
         </:subtitle>
       </.header>
 
@@ -106,9 +107,18 @@ defmodule BbhWeb.Admin.TicketLive.Index do
             :for={{key, label} <- @views}
             patch={list_path(assigns, view: key, page: 1)}
             role="tab"
-            class={["tab", @view == key && "tab-active"]}
+            class={["tab gap-2", @view == key && "tab-active"]}
           >
             {label}
+            <span
+              :if={(@counts[key] || 0) > 0}
+              class={[
+                "badge badge-sm",
+                if(key == "overdue", do: "badge-warning", else: "badge-neutral")
+              ]}
+            >
+              {@counts[key]}
+            </span>
           </.link>
         </div>
 

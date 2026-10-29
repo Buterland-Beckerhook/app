@@ -50,11 +50,26 @@ defmodule BbhWeb.Admin.TicketLiveTest do
       assert html =~ "Vereinsheim mieten"
       assert html =~ Ticket.reference(mine)
       refute html =~ "Vorstandssache"
-      assert html =~ "1 neu."
 
       # A new ticket shows up without a reload.
       ticket_fixture(subject: "Noch eine Frage")
       assert render(lv) =~ "Noch eine Frage"
+    end
+
+    test "a taken ticket leaves Offen; the tabs count", %{conn: conn, user: user} do
+      ticket = ticket_fixture(subject: "Meine Frage")
+      ticket_fixture(subject: "Fremde Frage")
+      {:ok, _} = Tickets.take(Bbh.Accounts.Scope.for_user(user), ticket)
+
+      {:ok, lv, html} = live(conn, ~p"/admin/postfach")
+      refute html =~ "Meine Frage"
+      assert html =~ "Fremde Frage"
+      assert has_element?(lv, ~s|a[href="/admin/postfach?ansicht=mine"] .badge|, "1")
+      assert has_element?(lv, ~s|a[href="/admin/postfach"] .badge|, "1")
+
+      {:ok, _lv, html} = live(conn, ~p"/admin/postfach?ansicht=all")
+      assert html =~ "Meine Frage"
+      assert html =~ "Fremde Frage"
     end
 
     test "filters by view", %{conn: conn, user: user} do
@@ -96,19 +111,29 @@ defmodule BbhWeb.Admin.TicketLiveTest do
       html = lv |> form("#note-form", note: %{body: "Rückruf erledigt"}) |> render_submit()
       assert html =~ "Rückruf erledigt"
 
-      html =
-        lv
-        |> form("#status-form", status: %{status: "follow_up", follow_up_on: ""})
-        |> render_submit()
+      # Applies on selection.
+      lv |> form("#status-form") |> render_change(%{"status" => "waiting"})
+      assert Bbh.Repo.get!(Ticket, ticket.id).status == "waiting"
 
-      assert html =~ "Bitte ein Datum"
+      # A follow-up asks for its date first, then saves.
+      lv |> form("#status-form") |> render_change(%{"status" => "follow_up"})
+      assert has_element?(lv, "#follow_up_on")
+      assert Bbh.Repo.get!(Ticket, ticket.id).status == "waiting"
 
       lv
-      |> form("#status-form", status: %{status: "follow_up", follow_up_on: "2026-12-01"})
-      |> render_submit()
+      |> form("#status-form")
+      |> render_change(%{"status" => "follow_up", "follow_up_on" => "2026-12-01"})
 
       assert %{status: "follow_up", follow_up_on: ~D[2026-12-01]} =
                Bbh.Repo.get!(Ticket, ticket.id)
+    end
+
+    test "Kein Spam brings a ticket back", %{conn: conn, user: user} do
+      {:ok, ticket} = Tickets.mark_spam(Bbh.Accounts.Scope.for_user(user), ticket_fixture())
+      {:ok, lv, _html} = live(conn, ~p"/admin/postfach/#{Ticket.reference(ticket)}")
+
+      lv |> element("button", "Kein Spam") |> render_click()
+      assert Bbh.Repo.get!(Ticket, ticket.id).status == "new"
     end
 
     test "shows a membership application in structure", %{user: user} do

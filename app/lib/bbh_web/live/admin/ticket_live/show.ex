@@ -41,7 +41,9 @@ defmodule BbhWeb.Admin.TicketLive.Show do
 
     assign(socket,
       ticket: ticket,
-      status_form: status_form(ticket),
+      # What the status select shows; differs from the ticket's status only while a
+      # follow-up waits for its date.
+      status_choice: ticket.status,
       assignees: Tickets.assignable_users(ticket),
       related: Tickets.related_tickets(scope, ticket),
       events: Tickets.list_events(ticket),
@@ -64,16 +66,6 @@ defmodule BbhWeb.Admin.TicketLive.Show do
 
   defp note_form, do: to_form(%{"body" => ""}, as: "note")
 
-  defp status_form(ticket),
-    do:
-      to_form(
-        %{
-          "status" => ticket.status,
-          "follow_up_on" => ticket.follow_up_on && Date.to_iso8601(ticket.follow_up_on)
-        },
-        as: "status"
-      )
-
   @impl true
   def handle_event("take", _params, socket),
     do: socket |> run(&Tickets.take(&1, &2), "Übernommen.") |> noreply()
@@ -81,11 +73,29 @@ defmodule BbhWeb.Admin.TicketLive.Show do
   def handle_event("assign", %{"assignee_id" => id}, socket),
     do: socket |> run(&Tickets.assign(&1, &2, id), "Zugewiesen.") |> noreply()
 
-  def handle_event("set_status", %{"status" => %{"status" => status} = params}, socket) do
-    socket
-    |> run(&Tickets.set_status(&1, &2, status, params["follow_up_on"]), "Status geändert.")
-    |> noreply()
+  # Applies on selection, like assignee and queue. A follow-up first needs its date: the
+  # date field appears, and the change is saved once a date is picked.
+  def handle_event("status", %{"status" => status} = params, socket) do
+    date = params["follow_up_on"]
+    ticket = socket.assigns.ticket
+
+    cond do
+      status == "follow_up" and date in [nil, ""] ->
+        {:noreply, assign(socket, status_choice: "follow_up")}
+
+      status == ticket.status and status != "follow_up" ->
+        {:noreply, socket}
+
+      true ->
+        socket
+        |> run(&Tickets.set_status(&1, &2, status, date), "Status geändert.")
+        |> noreply()
+    end
   end
+
+  def handle_event("unspam", _params, socket),
+    do:
+      socket |> run(&Tickets.unmark_spam(&1, &2), "Kein Spam – zurück im Postfach.") |> noreply()
 
   def handle_event("note", %{"note" => %{"body" => body}}, socket) do
     case Tickets.add_note(socket.assigns.current_scope, socket.assigns.ticket, body) do
@@ -233,16 +243,41 @@ defmodule BbhWeb.Admin.TicketLive.Show do
             <div :if={not @deleted}>
               <h2 class="text-sm font-semibold">Status</h2>
               <p class="mb-2"><.status_badge kind={:ticket} status={@ticket.status} /></p>
-              <.form for={@status_form} id="status-form" phx-submit="set_status" class="space-y-2">
-                <.input
-                  field={@status_form[:status]}
-                  type="select"
-                  options={Ticket.status_options()}
-                  label="Neuer Status"
-                />
-                <.input field={@status_form[:follow_up_on]} type="date" label="Wiedervorlage am" />
-                <.button class="btn btn-sm w-full">Status setzen</.button>
-              </.form>
+              <form phx-change="status" id="status-form" class="space-y-2">
+                <label class="sr-only" for="status-select">Status ändern</label>
+                <select
+                  id="status-select"
+                  name="status"
+                  class="select select-bordered select-sm w-full"
+                >
+                  <%!-- "Neu" and "Spam" are never set by hand, but the select shows them. --%>
+                  <option
+                    :if={@status_choice not in Enum.map(Ticket.status_options(), &elem(&1, 1))}
+                    value={@status_choice}
+                    selected
+                    disabled
+                  >
+                    {Ticket.status_label(@status_choice)}
+                  </option>
+                  <option
+                    :for={{label, value} <- Ticket.status_options()}
+                    value={value}
+                    selected={value == @status_choice}
+                  >
+                    {label}
+                  </option>
+                </select>
+                <div :if={@status_choice == "follow_up"}>
+                  <label class="text-sm" for="follow_up_on">Wiedervorlage am</label>
+                  <input
+                    type="date"
+                    id="follow_up_on"
+                    name="follow_up_on"
+                    value={@ticket.follow_up_on && Date.to_iso8601(@ticket.follow_up_on)}
+                    class="input input-bordered input-sm w-full"
+                  />
+                </div>
+              </form>
             </div>
 
             <form :if={not @deleted} phx-change="move" id="move-form">
@@ -259,6 +294,13 @@ defmodule BbhWeb.Admin.TicketLive.Show do
             </form>
 
             <div class="flex flex-wrap gap-2 pt-2">
+              <.button
+                :if={not @deleted and @ticket.status == "spam"}
+                phx-click="unspam"
+                class="btn btn-sm"
+              >
+                Kein Spam
+              </.button>
               <.button
                 :if={not @deleted and @ticket.status != "spam"}
                 phx-click="spam"
@@ -401,6 +443,7 @@ defmodule BbhWeb.Admin.TicketLive.Show do
     "attachment_downloaded" => "Anhang heruntergeladen",
     "pdf_exported" => "PDF heruntergeladen",
     "marked_spam" => "als Spam markiert",
+    "unmarked_spam" => "Spam-Markierung aufgehoben",
     "deleted" => "gelöscht",
     "restored" => "wiederhergestellt",
     "server_copy_removed" => "Serverkopie entfernt",

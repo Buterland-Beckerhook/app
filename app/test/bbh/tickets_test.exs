@@ -96,7 +96,15 @@ defmodule Bbh.TicketsTest do
       assert ids.("closed") == [closed.id]
       assert ids.("spam") == [spam.id]
       assert Enum.sort(ids.("overdue")) == Enum.sort([due.id, stale.id])
-      refute closed.id in ids.("active")
+      refute closed.id in ids.("all")
+      assert taken.id in ids.("all")
+      # "Offen" is what nobody has taken yet.
+      refute taken.id in ids.("open")
+      assert stale.id in ids.("open")
+
+      assert Tickets.count_views(scope) == %{"open" => 2, "mine" => 1, "overdue" => 2}
+      # A queue filter the scope may not see is ignored, not an empty result.
+      assert Tickets.count_views(scope, "vorstand") == Tickets.count_views(scope, "info")
     end
   end
 
@@ -187,6 +195,17 @@ defmodule Bbh.TicketsTest do
       {:ok, loaded} = Tickets.get_ticket(scope, ticket.number)
       assert loaded.payload == %{"vorname" => "Max", "member_number" => "1234"}
       assert Tickets.set_member_number(scope, ticket_fixture(), "1") == {:error, :not_membership}
+    end
+
+    test "a spam marking can be taken back", %{scope: scope} do
+      {:ok, spam} = Tickets.mark_spam(scope, ticket_fixture())
+      assert {:ok, %{status: "new"}} = Tickets.unmark_spam(scope, spam)
+
+      {:ok, taken} = Tickets.take(scope, ticket_fixture())
+      {:ok, spam} = Tickets.mark_spam(scope, taken)
+      assert {:ok, %{status: "open"}} = Tickets.unmark_spam(scope, spam)
+      assert Tickets.unmark_spam(scope, ticket_fixture()) == {:error, :not_spam}
+      assert "unmarked_spam" in Enum.map(Tickets.list_events(spam), & &1.action)
     end
 
     test "views are logged at most once per ten minutes", %{scope: scope} do

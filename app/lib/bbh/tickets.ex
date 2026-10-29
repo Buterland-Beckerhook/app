@@ -140,8 +140,9 @@ defmodule Bbh.Tickets do
   @doc """
   One page of the tickets the scope may see. Filters work on plain columns only.
 
-  Options: `:queue` (nil: all visible), `:view` — `"active"` (default), `"mine"`,
-  `"overdue"`, `"closed"`, `"spam"`, `"deleted"` (admins) — and `:page` (1-based).
+  Options: `:queue` (nil: all visible), `:view` — `"open"` (in work, nobody assigned;
+  the default), `"mine"`, `"overdue"`, `"all"` (everything in work), `"closed"`,
+  `"spam"`, `"deleted"` (admins) — and `:page` (1-based).
   Returns `%{entries:, page:, total_pages:, total:}` with subjects decrypted.
   """
   def list_tickets(%Scope{} = scope, opts \\ []) do
@@ -150,7 +151,7 @@ defmodule Bbh.Tickets do
     query =
       scope
       |> visible_query(opts[:queue])
-      |> filter_view(opts[:view] || "active", scope)
+      |> filter_view(opts[:view] || "open", scope)
 
     total = Repo.aggregate(query, :count)
 
@@ -187,6 +188,9 @@ defmodule Bbh.Tickets do
     query = where(query, [t], is_nil(t.deleted_at))
 
     case view do
+      "open" ->
+        where(query, [t], t.status in ^Ticket.active_statuses() and is_nil(t.assignee_id))
+
       "mine" ->
         where(
           query,
@@ -203,7 +207,7 @@ defmodule Bbh.Tickets do
       "spam" ->
         where(query, [t], t.status == "spam")
 
-      _active ->
+      _all ->
         where(query, [t], t.status in ^Ticket.active_statuses())
     end
   end
@@ -221,7 +225,23 @@ defmodule Bbh.Tickets do
     )
   end
 
-  @doc "Count of `new` tickets in the scope's queues — the badge in the navigation."
+  @doc """
+  Counts for the list's tabs that carry a number: `%{"open" => n, "mine" => n,
+  "overdue" => n}`, within `queue` (nil: all visible).
+  """
+  def count_views(%Scope{} = scope, queue \\ nil) do
+    for view <- ~w(open mine overdue), into: %{} do
+      count =
+        scope
+        |> visible_query(queue)
+        |> filter_view(view, scope)
+        |> Repo.aggregate(:count)
+
+      {view, count}
+    end
+  end
+
+  @doc "Count of `new` tickets in the scope's queues — the dashboard widget."
   def count_new(%Scope{} = scope) do
     scope
     |> visible_query(nil)
@@ -423,6 +443,22 @@ defmodule Bbh.Tickets do
       |> update_and_log(scope, "marked_spam", %{from: ticket.status})
     end
   end
+
+  @doc """
+  Takes back a spam marking: the ticket returns to `new` when nobody has it, else to
+  `open`.
+  """
+  def unmark_spam(%Scope{} = scope, %Ticket{status: "spam"} = ticket) do
+    with :ok <- authorize(scope, ticket) do
+      status = if ticket.assignee_id, do: "open", else: "new"
+
+      ticket
+      |> Ecto.Changeset.change(status: status, last_activity_at: DateTime.utc_now(:second))
+      |> update_and_log(scope, "unmarked_spam", %{to: status})
+    end
+  end
+
+  def unmark_spam(_scope, _ticket), do: {:error, :not_spam}
 
   @doc "Soft-deletes the ticket (admins). Purged later with everything in it."
   def delete_ticket(%Scope{} = scope, %Ticket{} = ticket) do
