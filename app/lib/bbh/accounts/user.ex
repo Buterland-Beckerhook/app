@@ -2,7 +2,7 @@ defmodule Bbh.Accounts.User do
   use Ecto.Schema
   import Ecto.Changeset
 
-  @roles ~w(admin editor calendar_editor)
+  @roles ~w(admin editor calendar_editor tickets)
   def roles, do: @roles
 
   @primary_key {:id, :binary_id, autogenerate: true}

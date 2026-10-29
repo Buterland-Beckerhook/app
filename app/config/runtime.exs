@@ -31,6 +31,12 @@ end
 # Postfach (ticket system). Off until the switch-over; the old mail path stays meanwhile.
 config :bbh, :tickets_enabled, System.get_env("TICKETS_ENABLED") in ~w(true 1)
 
+# Per-queue addresses (Bbh.Tickets.Queue), e.g. test aliases on Beta:
+# "info=info-beta@…,vorstand=vorstand-beta@…". Unlisted queues keep the club address.
+if addresses = System.get_env("TICKET_QUEUE_ADDRESSES") do
+  config :bbh, :ticket_queue_addresses, addresses
+end
+
 # Field encryption keys for the Postfach (Bbh.Vault). Set together; Beta gets its own,
 # never Prod's. Checked at boot when TICKETS_ENABLED is on.
 if keys = System.get_env("TICKET_KEYS") do

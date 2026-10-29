@@ -127,4 +127,23 @@ defmodule BbhWeb.Admin.UserLiveTest do
                live(conn, ~p"/admin/benutzer/#{editor.id}/anmeldungen")
     end
   end
+
+  test "grants Postfach queues per user", %{conn: conn, user: admin} do
+    other = user_fixture()
+    {:ok, lv, _html} = live(conn, ~p"/admin/benutzer")
+
+    lv
+    |> element("#queues-#{other.id}")
+    |> render_change(%{"user_id" => other.id, "queues" => ["", "info", "vorstand"]})
+
+    assert Bbh.Tickets.Grants.list_queue_keys(other) == ["info", "vorstand"]
+
+    assert Bbh.Repo.get_by!(Bbh.Tickets.Grant, user_id: other.id, queue_key: "info").granted_by_id ==
+             admin.id
+  end
+
+  test "offers the role Nur Postfach", %{conn: conn} do
+    {:ok, _lv, html} = live(conn, ~p"/admin/benutzer")
+    assert html =~ "Nur Postfach"
+  end
 end

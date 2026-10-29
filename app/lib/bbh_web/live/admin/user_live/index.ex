@@ -1,16 +1,18 @@
 defmodule BbhWeb.Admin.UserLive.Index do
-  @moduledoc "Admin-only user management: invite, change role, delete, login log."
+  @moduledoc "Admin-only user management: invite, change role, Postfach queues, delete, login log."
   use BbhWeb, :live_view
 
   alias Bbh.Accounts
   alias Bbh.Accounts.Passkeys
   alias Bbh.Accounts.User
   alias Bbh.Calendar.Event
+  alias Bbh.Tickets.{Grants, Queue}
   alias BbhWeb.AdminList
 
   @roles [
     {"Redakteur", "editor"},
     {"Kalender", "calendar_editor"},
+    {"Nur Postfach", "tickets"},
     {"Administrator", "admin"}
   ]
 
@@ -70,6 +72,13 @@ defmodule BbhWeb.Admin.UserLive.Index do
     {:noreply, load_users(socket)}
   end
 
+  def handle_event("set_queues", %{"user_id" => id} = params, socket) do
+    queues = Map.get(params, "queues", [])
+    user = Accounts.get_user!(id)
+    {:ok, _} = Grants.set_grants(socket.assigns.current_scope.user, user, queues)
+    {:noreply, load_users(socket)}
+  end
+
   def handle_event("delete", %{"id" => id}, socket) do
     if id == socket.assigns.current_scope.user.id do
       {:noreply, put_flash(socket, :error, "Das eigene Konto kann nicht gelöscht werden.")}
@@ -104,7 +113,8 @@ defmodule BbhWeb.Admin.UserLive.Index do
     assign(socket,
       users: meta.entries,
       list_meta: meta,
-      passkey_user_ids: Passkeys.user_ids_with_passkeys()
+      passkey_user_ids: Passkeys.user_ids_with_passkeys(),
+      queue_grants: Grants.grants_by_user()
     )
   end
 
@@ -169,6 +179,22 @@ defmodule BbhWeb.Admin.UserLive.Index do
           <span :if={u.role not in ["editor", "calendar_editor"]} class="text-base-content/40">
             –
           </span>
+        </:col>
+        <:col :let={u} label="Postfach">
+          <form phx-change="set_queues" id={"queues-#{u.id}"} class="flex flex-wrap gap-x-3 gap-y-1">
+            <input type="hidden" name="user_id" value={u.id} />
+            <input type="hidden" name="queues[]" value="" />
+            <label :for={{label, key} <- Queue.options()} class="flex items-center gap-1 text-sm">
+              <input
+                type="checkbox"
+                name="queues[]"
+                value={key}
+                checked={key in Map.get(@queue_grants, u.id, [])}
+                class="checkbox checkbox-xs"
+              />
+              {label}
+            </label>
+          </form>
         </:col>
         <:col :let={u} label="Passkey">
           {if MapSet.member?(@passkey_user_ids, u.id), do: "ja", else: "–"}

@@ -312,7 +312,7 @@ defmodule BbhWeb.UserAuth do
     end
   end
 
-  # Any authenticated staff member (admin, editor, calendar_editor).
+  # Any authenticated staff member (admin, editor, calendar_editor, tickets).
   def on_mount(:require_staff, params, session, socket),
     do: on_mount(:require_authenticated, params, session, socket)
 
@@ -327,6 +327,46 @@ defmodule BbhWeb.UserAuth do
             socket
             |> Phoenix.LiveView.put_flash(:error, "Kein Zugriff auf diesen Bereich.")
             |> Phoenix.LiveView.redirect(to: ~p"/admin/termine")
+
+          {:halt, socket}
+        end
+
+      halted ->
+        halted
+    end
+  end
+
+  # Termine and Kalender teilen: every role but "Nur Postfach".
+  def on_mount(:require_events, params, session, socket) do
+    case on_mount(:require_authenticated, params, session, socket) do
+      {:cont, socket} ->
+        if BbhWeb.Authz.can_access_section?(socket.assigns.current_scope.user, :events) do
+          {:cont, socket}
+        else
+          socket =
+            socket
+            |> Phoenix.LiveView.put_flash(:error, "Kein Zugriff auf diesen Bereich.")
+            |> Phoenix.LiveView.redirect(to: ~p"/admin")
+
+          {:halt, socket}
+        end
+
+      halted ->
+        halted
+    end
+  end
+
+  # The Postfach: a queue grant (or admin) and a strongly authenticated session.
+  def on_mount(:require_tickets, params, session, socket) do
+    case on_mount(:require_strong_auth, params, session, socket) do
+      {:cont, socket} ->
+        if BbhWeb.Authz.can_access_tickets?(socket.assigns.current_scope) do
+          {:cont, socket}
+        else
+          socket =
+            socket
+            |> Phoenix.LiveView.put_flash(:error, "Kein Zugriff auf das Postfach.")
+            |> Phoenix.LiveView.redirect(to: ~p"/admin")
 
           {:halt, socket}
         end

@@ -8,12 +8,19 @@ defmodule BbhWeb.Authz do
       calendars explicitly granted via `user.calendars`.
     * `calendar_editor` — only the Termine section, limited to the calendars granted via
       `user.calendars`.
+    * `tickets` ("Nur Postfach") — no content, no Termine; only the Postfach queues
+      granted to them.
+
+  The Postfach is independent of the role: anyone with a queue grant
+  (`Bbh.Tickets.Grants`, carried on the scope as `ticket_queues`) works those queues,
+  admins read all of them. Its checks therefore take the scope, not the user.
 
   Deletes are admin-only everywhere, except events on a non-public calendar, which the
   users granted that calendar may also delete.
   """
-  alias Bbh.Accounts.User
+  alias Bbh.Accounts.{Scope, User}
   alias Bbh.Calendar.Event
+  alias Bbh.Tickets.Queue
 
   @content_sections ~w(articles tags locations people trophies pages media)a
 
@@ -21,7 +28,8 @@ defmodule BbhWeb.Authz do
   def can_access_section?(%User{} = user, section) do
     cond do
       User.admin?(user) -> true
-      section in [:dashboard, :events, :shares] -> true
+      section == :dashboard -> true
+      section in [:events, :shares] -> user.role != "tickets"
       section in @content_sections -> user.role == "editor"
       true -> false
     end
@@ -59,6 +67,35 @@ defmodule BbhWeb.Authz do
   @doc "Whether the user may delete a non-event resource (Artikel/Orte/Personen/Seiten)."
   def can_delete?(%User{} = user, _resource), do: User.admin?(user)
   def can_delete?(_, _), do: false
+
+  ## Postfach
+
+  @doc "Whether the scope may open the Postfach: admins, and anyone with a queue grant."
+  def can_access_tickets?(%Scope{user: user, ticket_queues: queues}),
+    do: User.admin?(user) or queues != []
+
+  def can_access_tickets?(_), do: false
+
+  @doc "The queues the scope sees: all for admins, else the granted ones."
+  def visible_queues(%Scope{user: user, ticket_queues: queues}) do
+    if User.admin?(user), do: Queue.keys(), else: queues
+  end
+
+  def visible_queues(_), do: []
+
+  @doc """
+  Whether the scope may read and work a ticket (take it, reply, note, change its status).
+  Admins may always — they are the shadow reader and can step in.
+  """
+  def can_view_ticket?(scope, %{queue: queue}), do: queue in visible_queues(scope)
+  def can_view_ticket?(_, _), do: false
+
+  @doc "Same as `can_view_ticket?/2`; separate so the two can diverge later."
+  def can_handle_ticket?(scope, ticket), do: can_view_ticket?(scope, ticket)
+
+  @doc "Deleting and restoring tickets is admin-only."
+  def can_delete_ticket?(%Scope{user: user}), do: User.admin?(user)
+  def can_delete_ticket?(_), do: false
 
   @doc "`{label, value}` calendar options the user may assign in the event form."
   def assignable_calendar_options(%User{} = user) do

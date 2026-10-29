@@ -78,4 +78,22 @@ defmodule BbhWeb.Admin.AuthorizationTest do
       end
     end
   end
+
+  describe "role Nur Postfach" do
+    setup %{conn: conn} do
+      user = user_fixture()
+      {:ok, user} = Bbh.Accounts.update_user_role(user, "tickets")
+      %{conn: log_in_user(conn, user)}
+    end
+
+    test "opens the dashboard but no content or Termine", %{conn: conn} do
+      assert {:ok, _lv, html} = live(conn, ~p"/admin")
+      refute html =~ ~s|href="/admin/termine"|
+      refute html =~ ~s|href="/admin/artikel"|
+
+      for route <- ["/admin/termine", "/admin/termine/teilen", "/admin/artikel"] do
+        assert {:error, {:redirect, _}} = live(conn, route)
+      end
+    end
+  end
 end

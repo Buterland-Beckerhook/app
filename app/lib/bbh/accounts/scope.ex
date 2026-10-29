@@ -18,7 +18,9 @@ defmodule Bbh.Accounts.Scope do
 
   alias Bbh.Accounts.User
 
-  defstruct user: nil
+  # `ticket_queues`: the Postfach queues the user is granted (`Bbh.Tickets.Grants`),
+  # loaded once here so ticket authorization (`BbhWeb.Authz`) stays in memory.
+  defstruct user: nil, ticket_queues: []
 
   @doc """
   Creates a scope for the given user.
@@ -26,7 +28,7 @@ defmodule Bbh.Accounts.Scope do
   Returns nil if no user is given.
   """
   def for_user(%User{} = user) do
-    %__MODULE__{user: user}
+    %__MODULE__{user: user, ticket_queues: Bbh.Tickets.Grants.list_queue_keys(user)}
   end
 
   def for_user(nil), do: nil

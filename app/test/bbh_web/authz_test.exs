@@ -90,4 +90,45 @@ defmodule BbhWeb.AuthzTest do
       assert values == ["vorstand"]
     end
   end
+
+  describe "role tickets (Nur Postfach)" do
+    test "reaches the dashboard only" do
+      user = %User{role: "tickets", calendars: []}
+      assert Authz.can_access_section?(user, :dashboard)
+
+      for s <- [:events, :shares, :articles, :media, :users] do
+        refute Authz.can_access_section?(user, s)
+      end
+
+      refute Authz.can_manage_calendar?(user, nil)
+    end
+  end
+
+  describe "Postfach" do
+    alias Bbh.Accounts.Scope
+
+    defp scope(user, queues), do: %Scope{user: user, ticket_queues: queues}
+
+    test "access needs a grant, admins always" do
+      assert Authz.can_access_tickets?(scope(admin(), []))
+      assert Authz.can_access_tickets?(scope(editor(), ["info"]))
+      refute Authz.can_access_tickets?(scope(editor(), []))
+      refute Authz.can_access_tickets?(nil)
+    end
+
+    test "tickets are visible in granted queues only, admins see all" do
+      granted = scope(%User{role: "tickets"}, ["vorstand"])
+
+      assert Authz.can_view_ticket?(granted, %{queue: "vorstand"})
+      refute Authz.can_view_ticket?(granted, %{queue: "mitgliedschaft"})
+      assert Authz.can_handle_ticket?(granted, %{queue: "vorstand"})
+      assert Authz.can_view_ticket?(scope(admin(), []), %{queue: "mitgliedschaft"})
+      assert Authz.visible_queues(scope(admin(), [])) == Bbh.Tickets.Queue.keys()
+    end
+
+    test "deleting is admin-only" do
+      assert Authz.can_delete_ticket?(scope(admin(), []))
+      refute Authz.can_delete_ticket?(scope(editor(), Bbh.Tickets.Queue.keys()))
+    end
+  end
 end

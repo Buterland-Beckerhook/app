@@ -230,10 +230,13 @@ defmodule BbhWeb.Router do
   scope "/admin", BbhWeb.Admin do
     pipe_through [:browser, :require_authenticated_user]
 
-    # Dashboard + Termine: open to any staff (admin, editor, calendar_editor).
+    # Dashboard: open to any staff.
     live_session :admin_staff, on_mount: [{BbhWeb.UserAuth, :require_staff}] do
       live "/", DashboardLive, :index
+    end
 
+    # Termine: every role but "Nur Postfach".
+    live_session :admin_events, on_mount: [{BbhWeb.UserAuth, :require_events}] do
       live "/termine", EventLive.Index, :index
       live "/termine/teilen", ShareLive.Index, :index
       live "/termine/neu", EventLive.Form, :new

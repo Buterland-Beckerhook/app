@@ -149,6 +149,7 @@ services:
       TICKET_KEYS: ${TICKET_KEYS:-}
       TICKET_KEY_CURRENT: ${TICKET_KEY_CURRENT:-}
       TICKET_HMAC_KEY: ${TICKET_HMAC_KEY:-}
+      TICKET_QUEUE_ADDRESSES: ${TICKET_QUEUE_ADDRESSES:-}
       # Days the admin login log is kept (Datenschutzerklärung). Defaults to 90.
       AUTH_LOG_RETENTION_DAYS: ${AUTH_LOG_RETENTION_DAYS:-90}
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
