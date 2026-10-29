@@ -695,6 +695,7 @@ defmodule Bbh.Tickets do
       ticket
       |> Ecto.Changeset.change(deleted_at: DateTime.utc_now(:second))
       |> update_and_log(scope, "deleted", %{})
+      |> tap_ok(&release_deleted_server_copy/1)
     else
       {:error, :unauthorized}
     end
@@ -845,6 +846,13 @@ defmodule Bbh.Tickets do
           m.ticket_id == ^id and m.direction == "in" and not is_nil(m.imap_uid) and
             is_nil(m.server_copy_removed_at)
     )
+  end
+
+  # A deleted ticket's mail has no reason to stay on the server.
+  defp release_deleted_server_copy(ticket) do
+    if server_copy?(ticket) do
+      %{ticket_id: ticket.id, action: "delete"} |> Bbh.Workers.ImapCleanup.new() |> Oban.insert!()
+    end
   end
 
   @doc false

@@ -22,8 +22,19 @@ defmodule Bbh.Workers.ImapCleanup do
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"ticket_id" => ticket_id, "action" => action}}) do
-    with %Ticket{} = ticket <- Repo.get(Ticket, ticket_id),
-         [_ | _] = messages <- Tickets.server_copies(ticket),
+    case Repo.get(Ticket, ticket_id) do
+      %Ticket{} = ticket -> clean_ticket(ticket, action)
+      nil -> :ok
+    end
+  end
+
+  @doc """
+  Removes all server copies of a ticket now (`"delete"` or `"junk"`). `:ok` when none
+  are left, `{:error, :imap_disabled}` when copies exist but there is no mailbox
+  configured to remove them from, `{:error, reason}` on an IMAP error.
+  """
+  def clean_ticket(%Ticket{} = ticket, action) do
+    with [_ | _] = messages <- Tickets.server_copies(ticket),
          {:ok, conn} <- Mailbox.connect() do
       try do
         messages
@@ -35,8 +46,9 @@ defmodule Bbh.Workers.ImapCleanup do
 
       :ok
     else
+      [] -> :ok
+      :disabled -> {:error, :imap_disabled}
       {:error, reason} -> {:error, reason}
-      _nothing_to_do -> :ok
     end
   end
 

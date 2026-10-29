@@ -159,6 +159,10 @@ services:
       TICKET_SPAM_SCORE: ${TICKET_SPAM_SCORE:-6.0}
       TICKET_MAX_ATTACHMENT_MB: ${TICKET_MAX_ATTACHMENT_MB:-10}
       TICKET_MAX_MAIL_MB: ${TICKET_MAX_MAIL_MB:-25}
+      # Retention — stated in the Datenschutzerklärung; change both together.
+      TICKET_RETENTION_MONTHS: ${TICKET_RETENTION_MONTHS:-12}
+      TICKET_PURGE_DAYS: ${TICKET_PURGE_DAYS:-30}
+      TICKET_EVENT_RETENTION_MONTHS: ${TICKET_EVENT_RETENTION_MONTHS:-12}
       # Days the admin login log is kept (Datenschutzerklärung). Defaults to 90.
       AUTH_LOG_RETENTION_DAYS: ${AUTH_LOG_RETENTION_DAYS:-90}
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}

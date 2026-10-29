@@ -54,7 +54,10 @@ end
 for {env, key, parse} <- [
       {"TICKET_SPAM_SCORE", :ticket_spam_score, &(&1 |> Float.parse() |> elem(0))},
       {"TICKET_MAX_ATTACHMENT_MB", :ticket_max_attachment_mb, &String.to_integer/1},
-      {"TICKET_MAX_MAIL_MB", :ticket_max_mail_mb, &String.to_integer/1}
+      {"TICKET_MAX_MAIL_MB", :ticket_max_mail_mb, &String.to_integer/1},
+      {"TICKET_RETENTION_MONTHS", :ticket_retention_months, &String.to_integer/1},
+      {"TICKET_PURGE_DAYS", :ticket_purge_days, &String.to_integer/1},
+      {"TICKET_EVENT_RETENTION_MONTHS", :ticket_event_retention_months, &String.to_integer/1}
     ],
     value = System.get_env(env) do
   config :bbh, key, parse.(value)
