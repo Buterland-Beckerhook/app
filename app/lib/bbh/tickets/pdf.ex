@@ -60,15 +60,23 @@ defmodule Bbh.Tickets.Pdf do
       out
     ]
 
-    task = Task.async(fn -> System.cmd(typst(), args, stderr_to_stdout: true) end)
+    # A missing binary raises inside the task; catch it there, or it takes the caller
+    # down with it.
+    task =
+      Task.async(fn ->
+        try do
+          System.cmd(typst(), args, stderr_to_stdout: true)
+        rescue
+          e in ErlangError -> {:missing, e.original}
+        end
+      end)
 
     case Task.yield(task, @timeout) || Task.shutdown(task, :brutal_kill) do
+      {:ok, {:missing, reason}} -> {:error, {:typst_missing, reason}}
       {:ok, {_output, 0}} -> File.read(out)
       {:ok, {output, status}} -> {:error, {:typst, status, output}}
       nil -> {:error, :timeout}
     end
-  rescue
-    e in ErlangError -> {:error, {:typst_missing, e.original}}
   end
 
   @doc false

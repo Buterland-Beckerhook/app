@@ -1,5 +1,6 @@
 defmodule BbhWeb.Admin.TicketPdfControllerTest do
-  use BbhWeb.ConnCase, async: true
+  # Not async: one test points :typst_bin at a missing binary.
+  use BbhWeb.ConnCase, async: false
 
   import Bbh.AccountsFixtures
   import Bbh.TicketsFixtures
@@ -82,6 +83,21 @@ defmodule BbhWeb.Admin.TicketPdfControllerTest do
 
     {:ok, numbered} = Tickets.set_member_number(admin, loaded, "4711")
     assert Bbh.Tickets.Pdf.data(numbered, user).mandate_reference == "4711"
+  end
+
+  test "a missing typst binary is an error, not a crash", %{user: user, ticket: ticket} do
+    Application.put_env(:bbh, :typst_bin, "/nonexistent/typst")
+    on_exit(fn -> Application.delete_env(:bbh, :typst_bin) end)
+
+    admin = Bbh.Accounts.Scope.for_user(admin_user_fixture())
+    {:ok, loaded} = Tickets.get_ticket(admin, ticket.number)
+
+    assert {:error, {:typst_missing, :enoent}} =
+             Bbh.Tickets.Pdf.membership_application(loaded, user)
+
+    conn = build_conn() |> log_in_user(user, auth_method: "passkey") |> get(pdf_path(ticket))
+    assert redirected_to(conn) =~ "/admin/postfach/"
+    assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "PDF konnte nicht erzeugt werden"
   end
 
   test "leaves no temp files behind", %{user: user, ticket: ticket} do
