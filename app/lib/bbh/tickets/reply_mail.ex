@@ -17,7 +17,7 @@ defmodule Bbh.Tickets.ReplyMail do
   request is quoted below the answer so the requester sees what it answers.
   """
   def build(%Ticket{} = ticket, message, inbound) do
-    sender = {"#{@club} – #{Queue.label(ticket.queue)}", Queue.reply_address(ticket.queue)}
+    sender = {sender_name(ticket.queue), Queue.reply_address(ticket.queue)}
 
     new()
     |> from(sender)
@@ -29,6 +29,29 @@ defmodule Bbh.Tickets.ReplyMail do
     |> header("Auto-Submitted", "no")
     |> thread_headers(inbound)
   end
+
+  @doc """
+  The display name replies go out with: the club, plus the queue — except for the
+  general queue, which simply speaks for the club. Membership applications are
+  answered by the Vorstand, from its address, so they are signed as the Vorstand.
+  """
+  def sender_name(queue) do
+    case signer(queue) do
+      nil -> @club
+      label -> "#{@club} – #{label}"
+    end
+  end
+
+  defp signature_line(queue) do
+    case signer(queue) do
+      nil -> ""
+      label -> label <> "\n"
+    end
+  end
+
+  defp signer("info"), do: nil
+  defp signer("mitgliedschaft"), do: Queue.label("vorstand")
+  defp signer(queue), do: Queue.label(queue)
 
   @doc ~s(The subject: "Re: …" for mail, a fixed one for forms — always with the reference.)
   def subject(%Ticket{kind: "email", subject: subject} = ticket) do
@@ -54,8 +77,7 @@ defmodule Bbh.Tickets.ReplyMail do
 
     --
     #{@club} e.V.
-    #{Queue.label(ticket.queue)}
-    https://buterland-beckerhook.de
+    #{signature_line(ticket.queue)}https://buterland-beckerhook.de
     #{quote_inbound(ticket, inbound)}\
     """
   end

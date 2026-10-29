@@ -99,8 +99,9 @@ defmodule Bbh.Tickets.RepliesTest do
       assert :ok = perform_job(TicketReplySender, job.args)
       [email] = sent_emails()
 
-      assert email.from ==
-               {"Schützenverein Buterland-Beckerhook – Allgemein", "info@buterland-beckerhook.de"}
+      # The general queue speaks for the club; no "Allgemein".
+      assert email.from == {"Schützenverein Buterland-Beckerhook", "info@buterland-beckerhook.de"}
+      refute email.text_body =~ "Allgemein"
 
       assert email.reply_to == email.from
       assert email.to == [{"Erika Musterfrau", "erika@example.com"}]
@@ -132,7 +133,12 @@ defmodule Bbh.Tickets.RepliesTest do
       :ok = perform_job(TicketReplySender, job.args)
       [email] = sent_emails()
 
-      assert {_, "vorstand@buterland-beckerhook.de"} = email.from
+      # Sent as the Vorstand, so named as the Vorstand.
+      assert email.from ==
+               {"Schützenverein Buterland-Beckerhook – Vorstand",
+                "vorstand@buterland-beckerhook.de"}
+
+      assert email.text_body =~ "\nVorstand\n"
       assert email.subject =~ "Ihr Aufnahmeantrag"
       refute email.text_body =~ "IBAN"
     end
