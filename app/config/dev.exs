@@ -101,6 +101,15 @@ config :web_push_elixir,
 # The Postfach is on in dev, so the forms file tickets (TICKETS_ENABLED=false turns it off).
 config :bbh, :tickets_enabled, true
 
+# The Postfach's mailbox: the Dovecot of the dev stack (compose.yml), plain IMAP inside
+# the compose network. Production uses IMAPS against mailcow (config/runtime.exs).
+config :bbh, :ticket_imap,
+  host: "dovecot",
+  port: 31143,
+  tls: false,
+  username: "tickets@buterland-beckerhook.de",
+  password: "postfach"
+
 # Postfach field encryption (Bbh.Vault). Fixed dev-only keys — never use them anywhere
 # else; production and beta read their own from TICKET_* (config/runtime.exs).
 config :bbh, Bbh.Vault,

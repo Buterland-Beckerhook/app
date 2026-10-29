@@ -38,6 +38,12 @@ migrate: ## Run pending Ecto migrations (in the phoenix container)
 reset-db: ## Drop, recreate and migrate the dev DB (in the phoenix container)
 	$(MIX) ecto.reset
 
+mail-samples: ## Drop the sample mails (dev/dovecot/samples) into the dev Postfach mailbox
+	for f in dev/dovecot/samples/*.eml; do \
+	  docker compose exec -T dovecot doveadm save -u tickets@buterland-beckerhook.de < $$f || exit 1; \
+	done
+	@echo "In INBOX now; the import picks them up within two minutes."
+
 test: ## Run the test suite (in the phoenix container)
 	# Same forcing as `precommit` below: the container sets MIX_ENV=dev, which wins over
 	# mix's own default for `mix test`, and the suite then dies on the missing SQL sandbox.
