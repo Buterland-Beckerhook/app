@@ -402,6 +402,7 @@ defmodule BbhWeb.CoreComponents do
 
     * `:publish` — for `draft`/`published`/`archived`/`canceled` (articles, events, pages)
     * `:user` — for account state: pass `"confirmed"` or `"pending"`
+    * `:ticket` — for Postfach tickets (`Bbh.Tickets.Ticket.statuses/0`)
   """
   attr :status, :string, required: true
   attr :kind, :atom, default: :publish
@@ -420,6 +421,7 @@ defmodule BbhWeb.CoreComponents do
   defp status_badge_label(:publish, _), do: "Entwurf"
   defp status_badge_label(:user, "confirmed"), do: "Bestätigt"
   defp status_badge_label(:user, _), do: "Ausstehend"
+  defp status_badge_label(:ticket, status), do: Bbh.Tickets.Ticket.status_label(status)
 
   defp status_badge_class(:publish, "published"), do: "badge-success"
   defp status_badge_class(:publish, "archived"), do: "badge-neutral"
@@ -427,6 +429,11 @@ defmodule BbhWeb.CoreComponents do
   defp status_badge_class(:publish, _), do: "badge-ghost"
   defp status_badge_class(:user, "confirmed"), do: "badge-success"
   defp status_badge_class(:user, _), do: "badge-ghost"
+  defp status_badge_class(:ticket, "new"), do: "badge-info"
+  defp status_badge_class(:ticket, "open"), do: "badge-primary"
+  defp status_badge_class(:ticket, "follow_up"), do: "badge-warning"
+  defp status_badge_class(:ticket, "spam"), do: "badge-error"
+  defp status_badge_class(:ticket, _), do: "badge-ghost"
 
   # Helper used by inputs to generate form errors
   defp error(assigns) do

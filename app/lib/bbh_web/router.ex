@@ -271,6 +271,12 @@ defmodule BbhWeb.Router do
       live "/seiten/:id/bearbeiten", PageLive.Form, :edit
     end
 
+    # The Postfach: a queue grant (or admin) and a passkey/TOTP session.
+    live_session :admin_tickets, on_mount: [{BbhWeb.UserAuth, :require_tickets}] do
+      live "/postfach", TicketLive.Index, :index
+      live "/postfach/:ref", TicketLive.Show, :show
+    end
+
     # Admin-only sections.
     live_session :admin_only, on_mount: [{BbhWeb.UserAuth, :require_admin}] do
       live "/benutzer", UserLive.Index, :index

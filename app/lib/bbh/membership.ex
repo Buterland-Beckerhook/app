@@ -215,14 +215,18 @@ defmodule Bbh.Membership do
     "\nKinder unter #{max_child_age()} Jahren:\n" <> lines <> "\n"
   end
 
-  # Non-blocking notes for the club: applicant below min age, or a listed child not
-  # actually below the child age. Appended only when something is off.
-  defp age_flags(data) do
-    flags =
-      [applicant_age_flag(data) | Enum.map(data.children, &child_age_flag/1)]
-      |> Enum.reject(&is_nil/1)
+  @doc """
+  Non-blocking notes for the club: applicant below the minimum age, or a listed child
+  not actually below the child age. Empty when nothing is off.
+  """
+  def flags(data) do
+    [applicant_age_flag(data) | Enum.map(data.children, &child_age_flag/1)]
+    |> Enum.reject(&is_nil/1)
+  end
 
-    case flags do
+  # Appended to the club mail only when something is off.
+  defp age_flags(data) do
+    case flags(data) do
       [] ->
         ""
 
