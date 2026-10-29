@@ -98,6 +98,9 @@ config :web_push_elixir,
   vapid_private_key: "1WFfXtnl0TTqYBhzfTW3FogSgHsjz5uagutBR2AlPck",
   vapid_subject: "mailto:admin@buterland-beckerhook.de"
 
+# The Postfach is on in dev, so the forms file tickets (TICKETS_ENABLED=false turns it off).
+config :bbh, :tickets_enabled, true
+
 # Postfach field encryption (Bbh.Vault). Fixed dev-only keys — never use them anywhere
 # else; production and beta read their own from TICKET_* (config/runtime.exs).
 config :bbh, Bbh.Vault,

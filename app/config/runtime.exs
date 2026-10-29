@@ -28,8 +28,11 @@ if tz = System.get_env("TIME_ZONE") do
   config :bbh, :time_zone, tz
 end
 
-# Postfach (ticket system). Off until the switch-over; the old mail path stays meanwhile.
-config :bbh, :tickets_enabled, System.get_env("TICKETS_ENABLED") in ~w(true 1)
+# Postfach (ticket system). Off until the switch-over (on in dev, see dev.exs); the old
+# mail path stays meanwhile. Only an explicitly set variable overrides the default.
+if enabled = System.get_env("TICKETS_ENABLED") do
+  config :bbh, :tickets_enabled, enabled in ~w(true 1)
+end
 
 # Per-queue addresses (Bbh.Tickets.Queue), e.g. test aliases on Beta:
 # "info=info-beta@…,vorstand=vorstand-beta@…". Unlisted queues keep the club address.
