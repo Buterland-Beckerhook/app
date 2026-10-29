@@ -22,7 +22,7 @@ defmodule BbhWeb.TotpController do
       |> delete_session(:totp_pending_remember)
       |> put_flash(:info, "Willkommen zurück!")
       |> UserAuth.maybe_put_enrollment_return_to(user)
-      |> UserAuth.log_in_user(user, %{"remember_me" => to_string(remember)})
+      |> UserAuth.log_in_user(user, %{"remember_me" => to_string(remember)}, "magic_link_totp")
     else
       {:error, _retry_after} ->
         render(conn, :new, error: "Zu viele Versuche. Bitte später erneut versuchen.")

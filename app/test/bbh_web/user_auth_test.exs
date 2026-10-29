@@ -285,6 +285,124 @@ defmodule BbhWeb.UserAuthTest do
     end
   end
 
+  describe "auth method on the session token" do
+    test "log_in_user/4 stores the method on the token", %{conn: conn, user: user} do
+      conn = UserAuth.log_in_user(conn, user, %{}, "passkey")
+      {loaded, _} = Accounts.get_user_by_session_token(get_session(conn, :user_token))
+      assert loaded.auth_method == "passkey"
+    end
+
+    test "survives a restore from the remember-me cookie", %{conn: conn, user: user} do
+      logged_in_conn =
+        conn
+        |> fetch_cookies()
+        |> UserAuth.log_in_user(user, %{"remember_me" => "true"}, "magic_link_totp")
+
+      %{value: signed_token} = logged_in_conn.resp_cookies[@remember_me_cookie]
+
+      conn =
+        conn
+        |> put_req_cookie(@remember_me_cookie, signed_token)
+        |> UserAuth.fetch_current_scope_for_user([])
+
+      assert conn.assigns.current_scope.user.auth_method == "magic_link_totp"
+    end
+
+    test "is carried over when the token is reissued", %{conn: conn, user: user} do
+      logged_in_conn = conn |> fetch_cookies() |> UserAuth.log_in_user(user, %{}, "passkey")
+      token = get_session(logged_in_conn, :user_token)
+      offset_user_token(token, -10, :day)
+
+      conn = conn |> put_session(:user_token, token) |> UserAuth.fetch_current_scope_for_user([])
+
+      assert new_token = get_session(conn, :user_token)
+      assert new_token != token
+      {loaded, _} = Accounts.get_user_by_session_token(new_token)
+      assert loaded.auth_method == "passkey"
+    end
+
+    test "a re-auth of the same user replaces the method", %{conn: conn, user: user} do
+      # Signed in through a magic link; the re-auth page then takes a passkey.
+      conn =
+        conn
+        |> assign(:current_scope, Scope.for_user(%{user | auth_method: "magic_link"}))
+        |> UserAuth.log_in_user(user, %{}, "passkey")
+
+      {loaded, _} = Accounts.get_user_by_session_token(get_session(conn, :user_token))
+      assert loaded.auth_method == "passkey"
+    end
+  end
+
+  describe "on_mount :require_strong_auth" do
+    defp strong_auth_mount(conn, user, method) do
+      token = Accounts.generate_user_session_token(%{user | auth_method: method})
+      session = conn |> put_session(:user_token, token) |> get_session()
+
+      socket = %LiveView.Socket{
+        endpoint: BbhWeb.Endpoint,
+        assigns: %{__changed__: %{}, flash: %{}}
+      }
+
+      UserAuth.on_mount(:require_strong_auth, %{}, session, socket)
+    end
+
+    test "passes passkey and magic link + TOTP sessions", %{conn: conn, user: user} do
+      assert {:cont, _} = strong_auth_mount(conn, user, "passkey")
+      assert {:cont, _} = strong_auth_mount(conn, user, "magic_link_totp")
+    end
+
+    test "sends a magic-link-only session to the security setup", %{conn: conn, user: user} do
+      assert {:halt, socket} = strong_auth_mount(conn, user, "magic_link")
+      assert {:redirect, %{to: "/users/security"}} = socket.redirected
+      assert socket.assigns.flash["error"] =~ "Passkey oder Zwei-Faktor-Code"
+    end
+
+    test "treats a token without a method as weak", %{conn: conn, user: user} do
+      assert {:halt, _} = strong_auth_mount(conn, user, nil)
+    end
+
+    test "sends a user who has a passkey back to the login", %{conn: conn, user: user} do
+      passkey_fixture(user)
+      assert {:halt, socket} = strong_auth_mount(conn, user, "magic_link")
+      assert {:redirect, %{to: "/users/log-in"}} = socket.redirected
+    end
+
+    test "redirects an anonymous visitor to the login", %{conn: conn} do
+      socket = %LiveView.Socket{
+        endpoint: BbhWeb.Endpoint,
+        assigns: %{__changed__: %{}, flash: %{}}
+      }
+
+      assert {:halt, socket} =
+               UserAuth.on_mount(:require_strong_auth, %{}, get_session(conn), socket)
+
+      assert {:redirect, %{to: "/users/log-in"}} = socket.redirected
+    end
+  end
+
+  describe "require_strong_auth/2" do
+    test "lets a strong session through", %{conn: conn, user: user} do
+      conn =
+        conn
+        |> assign(:current_scope, Scope.for_user(%{user | auth_method: "passkey"}))
+        |> UserAuth.require_strong_auth([])
+
+      refute conn.halted
+    end
+
+    test "halts a weak session and remembers the path", %{conn: conn, user: user} do
+      halted_conn =
+        %{conn | path_info: ["admin", "postfach"], query_string: ""}
+        |> assign(:current_scope, Scope.for_user(%{user | auth_method: "magic_link"}))
+        |> fetch_flash()
+        |> UserAuth.require_strong_auth([])
+
+      assert halted_conn.halted
+      assert redirected_to(halted_conn) == ~p"/users/security"
+      assert get_session(halted_conn, :user_return_to) == "/admin/postfach"
+    end
+  end
+
   describe "on_mount :require_sudo_mode" do
     test "allows users that have authenticated in the last 10 minutes", %{conn: conn, user: user} do
       user_token = Accounts.generate_user_session_token(user)

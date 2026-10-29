@@ -34,6 +34,7 @@ defmodule BbhWeb.TotpControllerTest do
       # TOTP is set but this user has no passkey yet → nudged to enrollment.
       assert redirected_to(conn) == ~p"/users/security"
       assert get_session(conn, :user_token)
+      assert session_auth_method(conn) == "magic_link_totp"
     end
 
     test "sends a user who already has a passkey to the admin area", %{
@@ -53,5 +54,10 @@ defmodule BbhWeb.TotpControllerTest do
       conn = conn |> pending(user) |> post(~p"/users/totp", %{"totp" => %{"code" => "000000"}})
       assert html_response(conn, 200) =~ "Ungültiger Code"
     end
+  end
+
+  defp session_auth_method(conn) do
+    {user, _} = Bbh.Accounts.get_user_by_session_token(get_session(conn, :user_token))
+    user.auth_method
   end
 end

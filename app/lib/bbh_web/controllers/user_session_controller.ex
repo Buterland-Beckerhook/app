@@ -22,7 +22,7 @@ defmodule BbhWeb.UserSessionController do
     case Phoenix.Token.verify(BbhWeb.Endpoint, "passkey_session", token, max_age: 60) do
       {:ok, user_id} ->
         user = Accounts.get_user!(user_id)
-        conn |> put_flash(:info, info) |> UserAuth.log_in_user(user, user_params)
+        conn |> put_flash(:info, info) |> UserAuth.log_in_user(user, user_params, "passkey")
 
       _ ->
         conn
@@ -92,7 +92,7 @@ defmodule BbhWeb.UserSessionController do
       conn
       |> put_flash(:info, info)
       |> UserAuth.maybe_put_enrollment_return_to(user)
-      |> UserAuth.log_in_user(user, params)
+      |> UserAuth.log_in_user(user, params, "magic_link")
     end
   end
 end

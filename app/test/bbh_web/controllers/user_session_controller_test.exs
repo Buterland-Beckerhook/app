@@ -18,6 +18,7 @@ defmodule BbhWeb.UserSessionControllerTest do
         })
 
       assert get_session(conn, :user_token)
+      assert session_auth_method(conn) == "magic_link"
       # No passkey/2FA yet → nudged to the enrollment page (skippable).
       assert redirected_to(conn) == ~p"/users/security"
 
@@ -91,6 +92,7 @@ defmodule BbhWeb.UserSessionControllerTest do
       conn = post(conn, ~p"/users/log-in", %{"user" => %{"passkey_token" => token}})
 
       assert get_session(conn, :user_token)
+      assert session_auth_method(conn) == "passkey"
       assert redirected_to(conn) == ~p"/admin"
     end
 
@@ -160,5 +162,10 @@ defmodule BbhWeb.UserSessionControllerTest do
       assert redirected_to(conn) == ~p"/"
       refute get_session(conn, :user_token)
     end
+  end
+
+  defp session_auth_method(conn) do
+    {user, _} = Bbh.Accounts.get_user_by_session_token(get_session(conn, :user_token))
+    user.auth_method
   end
 end
