@@ -144,4 +144,13 @@ defmodule Bbh.Tickets.InboundMailTest do
     assert text =~ "kaputt"
     assert text =~ "ende"
   end
+
+  test "raw UTF-8 in headers (SMTPUTF8) survives" do
+    raw =
+      "From: Jürgen Müller <juergen@example.com>\r\nSubject: Grüße vom Schützenfest\r\n" <>
+        "Content-Type: text/plain; charset=utf-8\r\n\r\nHallo\r\n"
+
+    assert {:ok, %{from_name: "Jürgen Müller", subject: "Grüße vom Schützenfest"}} =
+             InboundMail.parse(raw)
+  end
 end

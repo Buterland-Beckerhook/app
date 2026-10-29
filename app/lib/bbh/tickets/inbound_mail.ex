@@ -30,6 +30,7 @@ defmodule Bbh.Tickets.InboundMail do
   @doc "Parses a raw mail. `{:ok, %InboundMail{}}` or `{:error, :unparseable}`."
   def parse(raw) when is_binary(raw) do
     {type, subtype, headers, params, body} = :mimemail.decode(raw)
+    headers = with_raw_utf8(headers, raw)
     header = &header(headers, &1)
 
     message_id = header.("Message-ID")
@@ -77,6 +78,43 @@ defmodule Bbh.Tickets.InboundMail do
   def sha256(value), do: :crypto.hash(:sha256, String.trim(value)) |> Base.encode16(case: :lower)
 
   ## Headers
+
+  # mimemail turns raw (unencoded) UTF-8 in a header into "?" — SMTPUTF8 senders do
+  # write headers that way. Take those values from the raw header block instead.
+  defp with_raw_utf8(headers, raw) do
+    raw_values =
+      raw
+      |> String.split(~r/\r?\n\r?\n/, parts: 2)
+      |> hd()
+      |> String.replace(~r/\r?\n[ \t]+/, " ")
+      |> String.split(~r/\r?\n/)
+      |> Enum.flat_map(fn line ->
+        case String.split(line, ":", parts: 2) do
+          [name, value] -> [{String.downcase(name), String.trim(value)}]
+          _ -> []
+        end
+      end)
+
+    {result, _} =
+      Enum.map_reduce(headers, raw_values, fn {key, value}, remaining ->
+        name = String.downcase(key)
+
+        case Enum.split_while(remaining, fn {n, _} -> n != name end) do
+          {before, [{^name, raw_value} | rest]} ->
+            value =
+              if raw_value =~ ~r/[\x80-\xff]/ and String.valid?(raw_value),
+                do: decode_words(raw_value),
+                else: value
+
+            {{key, value}, before ++ rest}
+
+          _ ->
+            {{key, value}, remaining}
+        end
+      end)
+
+    result
+  end
 
   defp header(headers, name) do
     Enum.find_value(headers, fn {key, value} ->

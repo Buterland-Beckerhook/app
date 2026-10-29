@@ -44,7 +44,7 @@ defmodule Bbh.Tickets do
   `:payload` (map), optional `:status` (`new` or `spam`) and `:spam_score`.
   `message`: `:body`, optional `:from`, `:to` and the mail/IMAP identifiers.
   """
-  def create_ticket(attrs, message) do
+  def create_ticket(attrs, message, opts \\ []) do
     Repo.transact(fn ->
       changeset =
         %Ticket{}
@@ -56,12 +56,36 @@ defmodule Bbh.Tickets do
         |> Vault.encrypt_changes("tickets", Ticket.encrypted_fields())
 
       with {:ok, ticket} <- Repo.insert(changeset),
-           {:ok, _message} <- insert_message(ticket, Map.put(message, :direction, "in")) do
+           {:ok, message} <- insert_message(ticket, Map.put(message, :direction, "in")),
+           :ok <- insert_extras(ticket, message, opts) do
         log_event(ticket, nil, "created", %{kind: ticket.kind, queue: ticket.queue})
         {:ok, ticket}
       end
     end)
     |> tap_ok(&broadcast/1)
+  end
+
+  # Attachments of an inbound message (`opts[:attachments]`: `[%{filename, content_type,
+  # data}]`) and system notes about it (`opts[:notes]`).
+  defp insert_extras(ticket, message, opts) do
+    for attachment <- opts[:attachments] || [] do
+      %Attachment{}
+      |> Ecto.Changeset.change(
+        ticket_message_id: message.id,
+        filename: attachment.filename,
+        data: attachment.data,
+        content_type: String.slice(attachment.content_type || "", 0, 255),
+        size: byte_size(attachment.data)
+      )
+      |> Vault.encrypt_changes("ticket_attachments", Attachment.encrypted_fields())
+      |> Repo.insert!()
+    end
+
+    for note <- opts[:notes] || [] do
+      {:ok, _} = insert_message(ticket, %{direction: "system", body: note})
+    end
+
+    :ok
   end
 
   @doc """
@@ -429,6 +453,7 @@ defmodule Bbh.Tickets do
                |> Ecto.Changeset.put_change(:assignee_id, ticket.assignee_id || user.id)
                |> Repo.update() do
           log_event(updated, user, "replied", %{status: status})
+          release_server_copy(ticket, updated)
           %{message_id: message.id} |> Bbh.Workers.TicketReplySender.new() |> Oban.insert!()
           {:ok, updated}
         end
@@ -507,9 +532,10 @@ defmodule Bbh.Tickets do
   `Bbh.Tickets.Threading`). A ticket that was waiting, on follow-up or closed is opened
   again; the assignee — or the queue, while nobody has it — is told.
   """
-  def add_inbound(%Ticket{} = ticket, message_attrs) do
+  def add_inbound(%Ticket{} = ticket, message_attrs, opts \\ []) do
     Repo.transact(fn ->
-      with {:ok, message} <- insert_message(ticket, Map.put(message_attrs, :direction, "in")) do
+      with {:ok, message} <- insert_message(ticket, Map.put(message_attrs, :direction, "in")),
+           :ok <- insert_extras(ticket, message, opts) do
         reopen? = ticket.status in ~w(waiting follow_up closed)
 
         changes =
@@ -542,6 +568,64 @@ defmodule Bbh.Tickets do
       nil -> notify_reply(%{ticket | assignee_id: nil})
       user -> Bbh.Tickets.Notifier.reply_received(user, ticket)
     end
+  end
+
+  @doc "Adds a note by the system (a bounce, a dropped attachment) to a ticket."
+  def add_system_note(%Ticket{} = ticket, body) do
+    {:ok, _} = insert_message(ticket, %{direction: "system", body: body})
+    broadcast(ticket)
+    :ok
+  end
+
+  @doc false
+  # Where the import filed an inbound mail on the server (`Bbh.Workers.ImapPoller`), so
+  # the copy can be deleted or moved later. Returns the message's ticket, or nil.
+  def record_server_copy(message_id_hash, mailbox, uidvalidity, uid) do
+    query =
+      from m in Message,
+        where:
+          m.direction == "in" and m.message_id == ^message_id_hash and
+            is_nil(m.server_copy_removed_at)
+
+    case Repo.one(query) do
+      nil ->
+        nil
+
+      message ->
+        message
+        |> Ecto.Changeset.change(
+          imap_mailbox: mailbox,
+          imap_uidvalidity: uidvalidity,
+          imap_uid: uid
+        )
+        |> Repo.update!()
+
+        Repo.get(Ticket, message.ticket_id)
+    end
+  end
+
+  @doc false
+  # The inbound messages of a ticket that still have a copy on the server.
+  def server_copies(%Ticket{id: id}) do
+    Repo.all(
+      from m in Message,
+        where:
+          m.ticket_id == ^id and m.direction == "in" and not is_nil(m.imap_uid) and
+            is_nil(m.server_copy_removed_at)
+    )
+  end
+
+  @doc false
+  def server_copy_removed(%Message{} = message, action) do
+    message
+    |> Ecto.Changeset.change(server_copy_removed_at: DateTime.utc_now(:second))
+    |> Repo.update!()
+
+    with %Ticket{} = ticket <- Repo.get(Ticket, message.ticket_id) do
+      log_event(ticket, nil, "server_copy_removed", %{action: action})
+    end
+
+    :ok
   end
 
   @doc "Adds an internal note. Notes never leave the system."
@@ -705,9 +789,49 @@ defmodule Bbh.Tickets do
     with {:ok, updated} <- Repo.update(changeset) do
       log_event(updated, user, action, meta)
       broadcast(updated)
+      release_server_copy(changeset.data, updated)
       {:ok, updated}
     end
   end
+
+  # The mail's copy on the IMAP server goes once work starts (plan §6.2): on the first
+  # change away from `new`. Marked as spam, it moves to Junk instead, so rspamd learns.
+  # Form tickets have no server copy; the job is only queued when there is one.
+  defp release_server_copy(%Ticket{status: old}, %Ticket{status: new} = ticket) do
+    action =
+      cond do
+        new == "spam" and old != "spam" -> "junk"
+        old == "new" and new != "new" -> "delete"
+        true -> nil
+      end
+
+    if action && server_copy?(ticket) do
+      %{ticket_id: ticket.id, action: action}
+      |> Bbh.Workers.ImapCleanup.new()
+      |> Oban.insert!()
+    end
+
+    :ok
+  end
+
+  defp server_copy?(%Ticket{id: id}) do
+    Repo.exists?(
+      from m in Message,
+        where:
+          m.ticket_id == ^id and m.direction == "in" and not is_nil(m.imap_uid) and
+            is_nil(m.server_copy_removed_at)
+    )
+  end
+
+  @doc false
+  # After an inbound mail of a ticket that is already in work was filed on the server:
+  # its copy can go right away.
+  def release_new_server_copy(%Ticket{status: status} = ticket)
+      when status not in ["new", "spam"] do
+    release_server_copy(%{ticket | status: "new"}, ticket)
+  end
+
+  def release_new_server_copy(_ticket), do: :ok
 
   # Someone else assigned it: tell the assignee (ids only in the job).
   defp notify_assignee(%Ticket{assignee_id: nil}, _by), do: :ok

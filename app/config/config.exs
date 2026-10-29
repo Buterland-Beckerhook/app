@@ -163,6 +163,8 @@ config :bbh, Oban,
        # daily reminders + admin digest (the hour is a site setting, checked hourly).
        {"*/2 * * * *", Bbh.Workers.TicketNewNotifier},
        {"5 * * * *", Bbh.Workers.TicketReminder},
+       # Fetch mail from the Postfach mailbox (a no-op without TICKET_IMAP_HOST).
+       {"*/2 * * * *", Bbh.Workers.ImapPoller},
        # Rebuild the full-text search index; self-healing, so a coarse cadence is fine.
        {"*/15 * * * *", Bbh.Workers.SearchReindexer},
        # Reclaim dead MCP tokens and spent OAuth codes. Nightly is plenty — neither still

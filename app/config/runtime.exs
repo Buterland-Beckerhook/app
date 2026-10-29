@@ -40,6 +40,26 @@ if addresses = System.get_env("TICKET_QUEUE_ADDRESSES") do
   config :bbh, :ticket_queue_addresses, addresses
 end
 
+# The Postfach's collector mailbox (Bbh.Tickets.Mailbox) — import only when set. Beta
+# uses its own mailbox: a poller with Prod's credentials would take Prod's mail.
+if imap_host = System.get_env("TICKET_IMAP_HOST") do
+  config :bbh, :ticket_imap,
+    host: imap_host,
+    port: String.to_integer(System.get_env("TICKET_IMAP_PORT") || "993"),
+    username: System.get_env("TICKET_IMAP_USERNAME"),
+    password: System.get_env("TICKET_IMAP_PASSWORD"),
+    tls: true
+end
+
+for {env, key, parse} <- [
+      {"TICKET_SPAM_SCORE", :ticket_spam_score, &(&1 |> Float.parse() |> elem(0))},
+      {"TICKET_MAX_ATTACHMENT_MB", :ticket_max_attachment_mb, &String.to_integer/1},
+      {"TICKET_MAX_MAIL_MB", :ticket_max_mail_mb, &String.to_integer/1}
+    ],
+    value = System.get_env(env) do
+  config :bbh, key, parse.(value)
+end
+
 # Field encryption keys for the Postfach (Bbh.Vault). Set together; Beta gets its own,
 # never Prod's. Checked at boot when TICKETS_ENABLED is on.
 if keys = System.get_env("TICKET_KEYS") do
