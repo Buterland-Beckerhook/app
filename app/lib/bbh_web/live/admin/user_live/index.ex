@@ -125,7 +125,9 @@ defmodule BbhWeb.Admin.UserLive.Index do
       >
         <.input field={@invite_form[:email]} type="email" label="E-Mail einladen" required />
         <.input field={@invite_form[:role]} type="select" label="Rolle" options={@roles} />
-        <.button variant="primary" phx-disable-with="Sende…">Einladen</.button>
+        <.button phx-disable-with="Sende…" class="btn btn-primary mb-2">
+          Einladen
+        </.button>
       </.form>
 
       <.list_search q={@list_meta.q} placeholder="Nach E-Mail suchen…" />
