@@ -7,9 +7,17 @@ defmodule Bbh.Application do
 
   require Logger
 
+  @doc false
+  def drop_gen_smtp_debug(%{level: :debug, meta: %{domain: [:gen_smtp | _]}}, _), do: :stop
+  def drop_gen_smtp_debug(_event, _), do: :ignore
+
   @impl true
   def start(_type, _args) do
     log_mail_config()
+
+    # gen_smtp's MIME decoder logs every header at debug level — sender and subject of
+    # every Postfach mail. Never, whatever LOG_LEVEL says.
+    :logger.add_primary_filter(:gen_smtp_debug, {&__MODULE__.drop_gen_smtp_debug/2, nil})
 
     # Refuse to start rather than store Postfach data unencrypted.
     if Application.get_env(:bbh, :tickets_enabled), do: Bbh.Vault.check!()
