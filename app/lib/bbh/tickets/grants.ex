@@ -8,8 +8,6 @@ defmodule Bbh.Tickets.Grants do
   """
   import Ecto.Query
 
-  require Logger
-
   alias Bbh.Accounts.User
   alias Bbh.Repo
   alias Bbh.Tickets.{Grant, Queue}
@@ -72,7 +70,7 @@ defmodule Bbh.Tickets.Grants do
         Repo.insert_all(Grant, rows)
 
         if Enum.sort(current) != Enum.sort(keys) do
-          Logger.info("Postfach grants of user #{user.id} set to #{inspect(keys)} by #{admin.id}")
+          Bbh.Tickets.log_event(nil, admin, "grants_changed", %{user_id: user.id, queues: keys})
         end
 
         {:ok, list_queue_keys(user)}
