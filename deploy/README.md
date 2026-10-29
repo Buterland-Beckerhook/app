@@ -33,6 +33,19 @@ Traefik knows the referenced file-provider building blocks `https-redirect@file`
 `secure-tls@file` and the certresolver `le`. (Both are already the case in the existing
 setup.)
 
+The `proxy` network **must have IPv6** (done 2026-10-29):
+
+```bash
+docker network create --ipv6 --subnet 172.18.0.0/16 --subnet fd42:abcd:1::/64 proxy
+```
+
+Without it, Docker has no IPv6 NAT rule for Traefik's ports and hands IPv6 clients to
+Traefik through `docker-proxy`, which replaces the client address with the network's
+gateway (`172.18.0.1`). The app then sees one address for every IPv6 visitor: the rate
+limit buckets them together, and the login log and the membership submission record
+store the gateway instead of the client (`BbhWeb.ClientIp`). mailcow's nginx sits on the
+same network, so its login protection is affected the same way.
+
 ## First-time setup on the server
 
 1. **DNS:** A record (`beta.buterland-beckerhook.de` for Beta) → server IP. Ports

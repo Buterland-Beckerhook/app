@@ -662,9 +662,14 @@ rules removed → check `Junk` and `Tickets/Importiert` during the first weeks.
 - Queue grants in their own table `queue_grants` (§4), prepared for admin-defined
   groups later.
 
-## 16. Still open
+## 16. Still open — resolved 2026-10-29
 
-1. Traefik: test with a forged `X-Forwarded-For` whether it is passed on or replaced
-   (§2.4) — together with the planned Traefik v3 upgrade on the host.
-2. mailcow: one copy or deduplication when a mail goes to two queue aliases at once;
-   confirm `tickets@` may send as its aliases.
+1. ~~Traefik and the client IP~~ — the real problem was IPv6: the `proxy` network had no
+   IPv6, so `docker-proxy` replaced every IPv6 client with the gateway `172.18.0.1`.
+   The network was recreated with IPv6 (`deploy/README.md`); real IPv4 and IPv6 client
+   addresses now reach the app. Taking the right-most `X-Forwarded-For` entry is
+   correct either way.
+2. ~~mailcow~~ — a mail to several queue aliases arrives **once** (the other queues are
+   noted on the ticket); `tickets@` may send as its aliases once allowed in mailcow.
+   mailcow writes `X-Spamd-Result` (folded) and `X-Spam-Flag`, not `X-Rspamd-Score`;
+   mail from authenticated senders carries no spam headers at all.
