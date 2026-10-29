@@ -5,7 +5,12 @@ defmodule Bbh.Tickets.Message do
   """
   use Ecto.Schema
 
-  @encrypted [{:from, :from_enc}, {:to, :to_enc}, {:body, :body_enc}]
+  @encrypted [
+    {:from, :from_enc},
+    {:to, :to_enc},
+    {:body, :body_enc},
+    {:header_message_id, :header_message_id_enc}
+  ]
 
   @doc false
   def encrypted_fields, do: @encrypted
@@ -23,6 +28,9 @@ defmodule Bbh.Tickets.Message do
     field :from_enc, :binary, redact: true
     field :to_enc, :binary, redact: true
     field :body_enc, :binary, redact: true
+    # Inbound mail: the raw Message-ID header, for In-Reply-To of a reply.
+    field :header_message_id, :string, virtual: true, redact: true
+    field :header_message_id_enc, :binary, redact: true
 
     field :message_id, :string
     field :in_reply_to, :string
@@ -30,6 +38,8 @@ defmodule Bbh.Tickets.Message do
     field :imap_uidvalidity, :integer
     field :imap_uid, :integer
     field :server_copy_removed_at, :utc_datetime
+    # Outbound: when the reply actually left (Bbh.Workers.TicketReplySender).
+    field :sent_at, :utc_datetime
 
     has_many :attachments, Bbh.Tickets.Attachment, foreign_key: :ticket_message_id
 
@@ -41,7 +51,7 @@ defmodule Bbh.Tickets.Message do
     message
     |> Ecto.Changeset.cast(
       attrs,
-      [:ticket_id, :author_id, :direction, :from, :to, :body] ++
+      [:ticket_id, :author_id, :direction, :from, :to, :body, :header_message_id] ++
         [:message_id, :in_reply_to, :imap_mailbox, :imap_uidvalidity, :imap_uid]
     )
     |> Ecto.Changeset.validate_required([:ticket_id, :direction])

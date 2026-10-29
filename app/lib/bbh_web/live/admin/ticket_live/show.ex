@@ -25,7 +25,12 @@ defmodule BbhWeb.Admin.TicketLive.Show do
 
         {:ok,
          socket
-         |> assign(page_title: Ticket.reference(ticket), note_form: note_form())
+         |> assign(
+           page_title: Ticket.reference(ticket),
+           note_form: note_form(),
+           reply_form: reply_form(),
+           replies_enabled: Tickets.replies_enabled?()
+         )
          |> assign_ticket(ticket)}
 
       {:error, :not_found} ->
@@ -65,6 +70,13 @@ defmodule BbhWeb.Admin.TicketLive.Show do
   end
 
   defp note_form, do: to_form(%{"body" => ""}, as: "note")
+  defp reply_form, do: to_form(%{"body" => "", "status" => "waiting"}, as: "reply")
+
+  @reply_statuses [
+    {"Danach: Wartet auf Antwort", "waiting"},
+    {"Danach: In Bearbeitung", "open"},
+    {"Danach: Erledigt", "closed"}
+  ]
 
   @impl true
   def handle_event("take", _params, socket),
@@ -96,6 +108,28 @@ defmodule BbhWeb.Admin.TicketLive.Show do
   def handle_event("unspam", _params, socket),
     do:
       socket |> run(&Tickets.unmark_spam(&1, &2), "Kein Spam – zurück im Postfach.") |> noreply()
+
+  def handle_event("reply", %{"reply" => %{"body" => body, "status" => status}}, socket) do
+    %{current_scope: scope, ticket: ticket} = socket.assigns
+
+    case Tickets.reply(scope, ticket, body, status) do
+      {:ok, _} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Antwort wird gesendet.")
+         |> assign(reply_form: reply_form())
+         |> reload()}
+
+      {:error, :empty} ->
+        {:noreply, put_flash(socket, :error, "Die Antwort ist leer.")}
+
+      {:error, :replies_disabled} ->
+        {:noreply, put_flash(socket, :error, "Antworten sind noch nicht eingerichtet.")}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Antwort nicht gesendet.")}
+    end
+  end
 
   def handle_event("note", %{"note" => %{"body" => body}}, socket) do
     case Tickets.add_note(socket.assigns.current_scope, socket.assigns.ticket, body) do
@@ -191,6 +225,42 @@ defmodule BbhWeb.Admin.TicketLive.Show do
               </ul>
             </article>
           </section>
+
+          <.form
+            :if={can_reply?(@ticket, @deleted, @replies_enabled)}
+            for={@reply_form}
+            id="reply-form"
+            phx-submit="reply"
+            class="rounded-box border border-primary/40 p-4"
+          >
+            <.input
+              field={@reply_form[:body]}
+              type="textarea"
+              label={"Antwort an #{@ticket.requester_email}"}
+              rows="8"
+            />
+            <p class="-mt-1 mb-3 text-xs text-base-content/60">
+              Geht als E-Mail von {Queue.reply_address(@ticket.queue)} mit dem Betreff
+              „{Bbh.Tickets.ReplyMail.subject(@ticket)}“. Gruß und Vereinsangaben werden
+              angehängt.
+            </p>
+            <div class="flex flex-wrap items-end gap-2">
+              <.input field={@reply_form[:status]} type="select" options={reply_statuses()} />
+              <.button
+                class="btn btn-primary mb-2"
+                phx-disable-with="Sende…"
+                data-confirm="Antwort jetzt an den Absender senden?"
+              >
+                Antwort senden
+              </.button>
+            </div>
+          </.form>
+          <p
+            :if={not @replies_enabled and not @deleted and @ticket.requester_email}
+            class="text-sm text-base-content/60"
+          >
+            Antworten aus dem Postfach sind noch nicht eingerichtet (TICKET_SMTP_USERNAME).
+          </p>
 
           <.form :if={not @deleted} for={@note_form} id="note-form" phx-submit="note">
             <.input
@@ -431,8 +501,8 @@ defmodule BbhWeb.Admin.TicketLive.Show do
   defp message_label(%{direction: "in"}, %{kind: "membership"}), do: "Mitgliedsantrag"
   defp message_label(%{direction: "in", from: from}, _), do: "E-Mail von #{from}"
 
-  defp message_label(%{direction: "out", author: author}, _),
-    do: "Antwort von #{author && author.email}"
+  defp message_label(%{direction: "out", author: author} = m, _),
+    do: "Antwort von #{author && author.email}#{if is_nil(m.sent_at), do: " · wird gesendet …"}"
 
   defp message_label(%{direction: "note", author: author}, _),
     do: "Notiz von #{author && author.email}"
@@ -447,6 +517,7 @@ defmodule BbhWeb.Admin.TicketLive.Show do
     "queue_changed" => "Postfach gewechselt",
     "replied" => "beantwortet",
     "noted" => "Notiz",
+    "received" => "Antwort des Absenders eingegangen",
     "attachment_downloaded" => "Anhang heruntergeladen",
     "pdf_exported" => "PDF heruntergeladen",
     "marked_spam" => "als Spam markiert",
@@ -474,6 +545,13 @@ defmodule BbhWeb.Admin.TicketLive.Show do
       _ -> iso
     end
   end
+
+  defp reply_statuses, do: @reply_statuses
+
+  defp can_reply?(ticket, deleted, enabled),
+    do:
+      enabled and not deleted and ticket.status != "spam" and
+        ticket.requester_email not in [nil, ""]
 
   defp kb(size) when size < 1024, do: "#{size} B"
   defp kb(size), do: "#{Float.round(size / 1024, 1)} KB"

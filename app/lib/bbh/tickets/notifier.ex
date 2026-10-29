@@ -36,6 +36,18 @@ defmodule Bbh.Tickets.Notifier do
     """)
   end
 
+  @doc "The requester answered on a ticket the user has (or whose queue they work)."
+  def reply_received(user, ticket) do
+    deliver(user, "Postfach: neue Antwort zu #{Ticket.reference(ticket)}", """
+    Hallo,
+
+    zur Anfrage #{Ticket.reference(ticket)} im Postfach „#{Queue.label(ticket.queue)}“ ist eine Antwort eingegangen.
+
+    Bearbeiten: #{url(ticket)}
+    #{footer()}
+    """)
+  end
+
   @doc "Someone else assigned the user a ticket."
   def assigned(user, ticket, by) do
     deliver(user, "Postfach: #{Ticket.reference(ticket)} wurde dir zugewiesen", """

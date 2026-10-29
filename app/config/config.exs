@@ -80,6 +80,8 @@ config :phoenix_live_view,
 # For production it's recommended to configure a different adapter
 # at the `config/runtime.exs`.
 config :bbh, Bbh.Mailer, adapter: Swoosh.Adapters.Local
+# Postfach replies (dev: the same local mailbox, /dev/mailbox).
+config :bbh, Bbh.TicketMailer, adapter: Swoosh.Adapters.Local
 
 # Configure esbuild (the version is required)
 config :esbuild,

@@ -392,6 +392,158 @@ defmodule Bbh.Tickets do
 
   defp parse_date(_), do: nil
 
+  ## Replies
+
+  @doc "Whether replies can be sent from the Postfach (`Bbh.TicketMailer` configured)."
+  def replies_enabled?, do: Bbh.TicketMailer.enabled?()
+
+  @doc """
+  Answers the requester from the queue's address (`Bbh.Tickets.ReplyMail`). The reply
+  is stored, the ticket set to `status` (`waiting` by default, or `open`/`closed`) and
+  taken by the replier if nobody had it; the mail itself goes out in a job
+  (`Bbh.Workers.TicketReplySender`).
+  """
+  def reply(%Scope{user: user} = scope, %Ticket{} = ticket, body, status \\ "waiting") do
+    body = String.trim(body || "")
+
+    with :ok <- authorize(scope, ticket),
+         true <- replies_enabled?() || {:error, :replies_disabled},
+         true <- ticket.requester_email not in [nil, ""] || {:error, :no_recipient},
+         true <- ticket.status != "spam" || {:error, :spam},
+         true <- body != "" || {:error, :empty},
+         true <- status in ~w(open waiting closed) || {:error, :invalid_status} do
+      Repo.transact(fn ->
+        message_attrs = %{
+          direction: "out",
+          author_id: user.id,
+          from: Queue.reply_address(ticket.queue),
+          to: ticket.requester_email,
+          body: body,
+          message_id: "<#{Ecto.UUID.generate()}@buterland-beckerhook.de>"
+        }
+
+        with {:ok, message} <- insert_message(ticket, message_attrs),
+             {:ok, updated} <-
+               ticket
+               |> Ticket.status_changeset(status, nil)
+               |> Ecto.Changeset.put_change(:assignee_id, ticket.assignee_id || user.id)
+               |> Repo.update() do
+          log_event(updated, user, "replied", %{status: status})
+          %{message_id: message.id} |> Bbh.Workers.TicketReplySender.new() |> Oban.insert!()
+          {:ok, updated}
+        end
+      end)
+      |> tap_ok(&broadcast/1)
+    end
+  end
+
+  @doc false
+  # Sends a stored reply (called by Bbh.Workers.TicketReplySender). `:ok` also when it
+  # already went out or is gone; `{:error, :delivery_failed}` to retry — the reason
+  # itself is logged by the mailer, not stored in the job (it may name the address).
+  def deliver_reply(message_id) do
+    with %Message{direction: "out", sent_at: nil} = message <- Repo.get(Message, message_id),
+         %Ticket{} = ticket <- Repo.get(Ticket, message.ticket_id) do
+      message = Vault.decrypt_fields(message, "ticket_messages", Message.encrypted_fields())
+      ticket = Vault.decrypt_fields(ticket, "tickets", Ticket.encrypted_fields())
+      email = Bbh.Tickets.ReplyMail.build(ticket, message, latest_inbound(ticket))
+
+      case Bbh.Mailer.deliver_logged(email, "ticket-reply",
+             redact: true,
+             mailer: Bbh.TicketMailer
+           ) do
+        {:ok, _} ->
+          message |> Ecto.Changeset.change(sent_at: DateTime.utc_now(:second)) |> Repo.update!()
+          broadcast(ticket)
+          :ok
+
+        {:error, _reason} ->
+          {:error, :delivery_failed}
+      end
+    else
+      _ -> :ok
+    end
+  end
+
+  @doc false
+  # The last attempt failed: say so on the ticket.
+  def reply_failed(message_id) do
+    with %Message{} = message <- Repo.get(Message, message_id),
+         %Ticket{} = ticket <- Repo.get(Ticket, message.ticket_id) do
+      date =
+        message.inserted_at
+        |> DateTime.shift_zone!(Bbh.Time.time_zone())
+        |> Calendar.strftime("%d.%m.%Y, %H:%M Uhr")
+
+      {:ok, _} =
+        insert_message(ticket, %{
+          direction: "system",
+          body:
+            "Die Antwort vom #{date} konnte nicht gesendet werden. Bitte die Adresse " <>
+              "prüfen und erneut antworten."
+        })
+
+      broadcast(ticket)
+    end
+
+    :ok
+  end
+
+  defp latest_inbound(%Ticket{id: id}) do
+    from(m in Message,
+      where: m.ticket_id == ^id and m.direction == "in",
+      order_by: [desc: m.inserted_at],
+      limit: 1
+    )
+    |> Repo.one()
+    |> case do
+      nil -> nil
+      message -> Vault.decrypt_fields(message, "ticket_messages", Message.encrypted_fields())
+    end
+  end
+
+  @doc """
+  Adds an inbound mail to an existing ticket (the requester answered, see
+  `Bbh.Tickets.Threading`). A ticket that was waiting, on follow-up or closed is opened
+  again; the assignee — or the queue, while nobody has it — is told.
+  """
+  def add_inbound(%Ticket{} = ticket, message_attrs) do
+    Repo.transact(fn ->
+      with {:ok, message} <- insert_message(ticket, Map.put(message_attrs, :direction, "in")) do
+        reopen? = ticket.status in ~w(waiting follow_up closed)
+
+        changes =
+          if reopen?,
+            do: [status: "open", closed_at: nil, follow_up_on: nil],
+            else: []
+
+        {:ok, updated} =
+          ticket
+          |> Ecto.Changeset.change([last_activity_at: DateTime.utc_now(:second)] ++ changes)
+          |> Repo.update()
+
+        log_event(updated, nil, "received", %{reopened: reopen?})
+        {:ok, {updated, message}}
+      end
+    end)
+    |> tap_ok(fn {updated, _message} ->
+      broadcast(updated)
+      notify_reply(updated)
+    end)
+  end
+
+  defp notify_reply(%Ticket{assignee_id: nil, queue: queue} = ticket) do
+    for user <- Bbh.Tickets.Grants.notify_users(queue),
+        do: Bbh.Tickets.Notifier.reply_received(user, ticket)
+  end
+
+  defp notify_reply(%Ticket{assignee_id: id} = ticket) do
+    case Repo.get(User, id) do
+      nil -> notify_reply(%{ticket | assignee_id: nil})
+      user -> Bbh.Tickets.Notifier.reply_received(user, ticket)
+    end
+  end
+
   @doc "Adds an internal note. Notes never leave the system."
   def add_note(%Scope{user: user} = scope, %Ticket{} = ticket, body) do
     body = String.trim(body || "")

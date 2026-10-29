@@ -37,7 +37,7 @@ defmodule Bbh.Release do
       Ecto.Migrator.with_repo(Bbh.Repo, fn _repo ->
         for {table, columns} <- [
               {"tickets", ~w(subject_enc requester_name_enc requester_email_enc payload_enc)},
-              {"ticket_messages", ~w(from_enc to_enc body_enc)},
+              {"ticket_messages", ~w(from_enc to_enc body_enc header_message_id_enc)},
               {"ticket_attachments", ~w(filename_enc data_enc)}
             ],
             into: %{} do

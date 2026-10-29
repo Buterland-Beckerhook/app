@@ -128,6 +128,23 @@ defmodule BbhWeb.Admin.TicketLiveTest do
                Bbh.Repo.get!(Ticket, ticket.id)
     end
 
+    test "replies to the requester from the ticket page", %{conn: conn, user: user} do
+      ticket = ticket_fixture()
+      {:ok, lv, html} = live(conn, ~p"/admin/postfach/#{Ticket.reference(ticket)}")
+      assert html =~ "Antwort an erika@example.com"
+      assert html =~ "info@buterland-beckerhook.de"
+
+      html =
+        lv
+        |> form("#reply-form", reply: %{body: "Gern, am 12. Juli.", status: "closed"})
+        |> render_submit()
+
+      assert html =~ "Gern, am 12. Juli."
+      assert html =~ "wird gesendet"
+      assert %{status: "closed", assignee_id: id} = Bbh.Repo.get!(Ticket, ticket.id)
+      assert id == user.id
+    end
+
     test "Kein Spam brings a ticket back", %{conn: conn, user: user} do
       {:ok, ticket} = Tickets.mark_spam(Bbh.Accounts.Scope.for_user(user), ticket_fixture())
       {:ok, lv, _html} = live(conn, ~p"/admin/postfach/#{Ticket.reference(ticket)}")

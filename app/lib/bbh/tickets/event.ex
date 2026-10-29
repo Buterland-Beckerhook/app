@@ -6,7 +6,7 @@ defmodule Bbh.Tickets.Event do
   use Ecto.Schema
 
   @actions ~w(created viewed assigned status_changed queue_changed replied noted
-              attachment_downloaded pdf_exported marked_spam unmarked_spam deleted restored
+              attachment_downloaded pdf_exported received marked_spam unmarked_spam deleted restored
               server_copy_removed grants_changed member_number_set)
 
   def actions, do: @actions

@@ -207,12 +207,10 @@ if config_env() == :prod do
   # Contact form email via the club's own SMTP server.
   smtp_relay = System.get_env("SMTP_RELAY")
 
-  config :bbh, Bbh.Mailer,
+  smtp = [
     adapter: Swoosh.Adapters.SMTP,
     relay: smtp_relay,
     port: String.to_integer(System.get_env("SMTP_PORT") || "587"),
-    username: System.get_env("SMTP_USERNAME"),
-    password: System.get_env("SMTP_PASSWORD"),
     tls: :always,
     auth: :always,
     # Submission relay: connect straight to SMTP_RELAY, don't chase its MX records
@@ -235,6 +233,22 @@ if config_env() == :prod do
         match_fun: :public_key.pkix_verify_hostname_match_fun(:https)
       ]
     ]
+  ]
+
+  config :bbh,
+         Bbh.Mailer,
+         smtp ++
+           [username: System.get_env("SMTP_USERNAME"), password: System.get_env("SMTP_PASSWORD")]
+
+  # Postfach replies through the tickets@ mailbox (Bbh.TicketMailer) — only when its
+  # credentials are set; no fallback to the noreply@ account. Beta uses its own mailbox.
+  if ticket_smtp_user = System.get_env("TICKET_SMTP_USERNAME") do
+    config :bbh,
+           Bbh.TicketMailer,
+           smtp ++ [username: ticket_smtp_user, password: System.get_env("TICKET_SMTP_PASSWORD")]
+  else
+    config :bbh, Bbh.TicketMailer, adapter: nil
+  end
 
   config :swoosh, :api_client, false
 
