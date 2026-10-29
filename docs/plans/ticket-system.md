@@ -267,7 +267,7 @@ Leak paths to close explicitly:
   IP.
 - The **confirmation copy to the applicant stays** (it is the SEPA mandate copy) and
   **masks the IBAN** (decided): country code + check digits and the last 4 characters,
-  e.g. `DE89 •••• •••• •••• •• 3000` (helper `Bbh.Membership.mask_iban/1`, tested with
+  e.g. `DE89 •••• •••• •••• ••30 00` (usual groups of four) (helper `Bbh.Membership.mask_iban/1`, tested with
   short/long IBANs). Name, address, date of birth
   stay (the applicant entered them). Today the full IBAN goes out in clear text.
 - The club mail (`deliver_to_club/1`, `Contact.deliver/1`) is removed once the flag is on.

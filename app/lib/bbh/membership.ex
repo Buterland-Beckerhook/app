@@ -26,6 +26,26 @@ defmodule Bbh.Membership do
   @doc "Children are listed only when younger than this age. Soft: only hinted/flagged."
   def max_child_age, do: Application.get_env(:bbh, :membership_max_child_age, 15)
 
+  @doc """
+  The IBAN as the applicant's confirmation copy shows it: country code, check digits and
+  the last four characters, the rest bulleted, in the usual groups of four — enough to
+  recognise the account, useless to anyone reading the mail on its way.
+
+      iex> Bbh.Membership.mask_iban("DE89370400440532013000")
+      "DE89 •••• •••• •••• ••30 00"
+  """
+  def mask_iban(iban) when is_binary(iban) do
+    iban = String.replace(iban, ~r/\s/, "")
+    len = String.length(iban)
+    hidden = max(len - 8, 0)
+
+    (String.slice(iban, 0, min(4, len)) <>
+       String.duplicate("•", hidden) <> String.slice(iban, max(len - 4, 4)..-1//1))
+    |> String.graphemes()
+    |> Enum.chunk_every(4)
+    |> Enum.map_join(" ", &Enum.join/1)
+  end
+
   @doc "Whether the honeypot field was filled (a bot tell)."
   def honeypot_filled?(params) do
     params |> Map.get("website", "") |> to_string() |> String.trim() != ""
@@ -154,13 +174,14 @@ defmodule Bbh.Membership do
 
     Zu Ihrer Übersicht sind Ihre übermittelten Angaben nachstehend aufgeführt.
 
-    #{summary(data)}
+    #{summary(data, iban: mask_iban(data.iban))}
     Mit freundlichen Grüßen
     Schützenverein Buterland-Beckerhook e.V.
     """
   end
 
-  defp summary(data) do
+  # The club copy carries the full IBAN; the applicant's copy passes a masked one.
+  defp summary(data, opts \\ []) do
     """
     Aufnahmeantrag
     --------------
@@ -174,7 +195,7 @@ defmodule Bbh.Membership do
     SEPA-Lastschriftmandat
     ----------------------
     Kontoinhaber:  #{data.kontoinhaber}
-    IBAN:          #{data.iban}
+    IBAN:          #{Keyword.get(opts, :iban, data.iban)}
     BIC:           #{data.bic}
     Kreditinstitut: #{data.kreditinstitut}
     Gläubiger-ID:  #{@creditor_id}
