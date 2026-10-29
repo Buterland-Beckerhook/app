@@ -13,6 +13,12 @@
 #                   originals are written to the volume (prod) instead of the
 #                   host bind dir app/priv/uploads (dev).
 #   COMPOSE_FILE    which compose file to resolve the postgres container from.
+#   KEEP_TICKETS=1  keep the Postfach tickets and the login log (see below).
+#
+# Postfach tickets are encrypted with the source stack's TICKET_KEYS and cannot be
+# read anywhere else, and the login log holds IP addresses — so both are emptied
+# after the restore. Set KEEP_TICKETS=1 only to restore a stack's own snapshot with
+# the same keys.
 #
 # Dev:   make seed            (or ./scripts/seed.sh)
 # Prod:  COMPOSE_FILE=deploy/compose.yml DB_NAME=bbh DB_USER=bbh \
@@ -45,6 +51,26 @@ echo "Recreating database '$DB_NAME' (user '$DB_USER') and restoring $SEED/bbh.d
 docker exec "$PG" dropdb -U "$DB_USER" --if-exists --force "$DB_NAME"
 docker exec "$PG" createdb -U "$DB_USER" "$DB_NAME"
 docker exec -i "$PG" pg_restore -U "$DB_USER" -d "$DB_NAME" --no-owner --no-privileges < "$SEED/bbh.dump"
+
+if [ "${KEEP_TICKETS:-}" != "1" ]; then
+  echo "Emptying Postfach tickets and the login log (bound to the source's keys / personal data)"
+  # One statement, so FKs between the tables are fine; tables missing in an older
+  # snapshot are skipped.
+  docker exec -i "$PG" psql -U "$DB_USER" -d "$DB_NAME" -v ON_ERROR_STOP=1 -q <<'SQL'
+DO $$
+DECLARE
+  present text;
+BEGIN
+  SELECT string_agg(format('%I', t), ', ') INTO present
+    FROM unnest(ARRAY['ticket_attachments','ticket_messages','ticket_events',
+                      'tickets','auth_events']) AS t
+   WHERE to_regclass(t) IS NOT NULL;
+  IF present IS NOT NULL THEN
+    EXECUTE 'TRUNCATE ' || present;
+  END IF;
+END $$;
+SQL
+fi
 
 if [ -f "$SEED/uploads.tar.gz" ]; then
   echo "Restoring uploads from $SEED/uploads.tar.gz"

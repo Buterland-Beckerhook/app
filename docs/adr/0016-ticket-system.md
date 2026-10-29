@@ -64,5 +64,5 @@ admins read everything. Replies go out from the system, as the club address.
   gets Prod's queue list with every sync) and no ticket rows
   (`deploy/sync-data.sh` truncates them): a Beta poller with Prod's credentials would
   take and delete real mail.
-- A dev database restored from a Prod snapshot carries tickets the dev keys cannot
-  read; truncate the ticket tables after such a restore.
+- A database restored from another stack's snapshot carries tickets its keys cannot
+  read; `scripts/seed.sh` therefore empties the ticket tables after a restore.

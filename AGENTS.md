@@ -179,8 +179,8 @@ Rules that constrain changes:
 - **Beta never sees Prod's mail or tickets:** own `TICKET_KEYS`, own mailbox
   (`beta.tickets@`, and `TICKET_ADDRESS_PREFIX=beta.` so every queue address becomes
   its `beta.` test alias), and
-  `deploy/sync-data.sh` truncates the ticket tables. A dev DB seeded from a Prod
-  snapshot holds tickets the dev keys cannot decrypt — truncate them.
+  `deploy/sync-data.sh` truncates the ticket tables. `scripts/seed.sh` empties them
+  (and the login log) after a restore, too — unless `KEEP_TICKETS=1`.
 - **Queues are data** (`ticket_queues`, admin at `/admin/postfaecher`), cached in
   `:persistent_term` — write them through `Bbh.Tickets.Queue` only. `info` (fallback for
   unknown recipients) and `mitgliedschaft` (membership form) are fixed: editable, never
