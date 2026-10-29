@@ -250,7 +250,10 @@ defmodule BbhWeb.UserAuth do
     else
       socket =
         socket
-        |> Phoenix.LiveView.put_flash(:error, "You must log in to access this page.")
+        |> Phoenix.LiveView.put_flash(
+          :error,
+          "Bitte melden Sie sich an, um diese Seite zu öffnen."
+        )
         |> Phoenix.LiveView.redirect(to: ~p"/users/log-in")
 
       {:halt, socket}
@@ -308,7 +311,10 @@ defmodule BbhWeb.UserAuth do
     else
       socket =
         socket
-        |> Phoenix.LiveView.put_flash(:error, "You must re-authenticate to access this page.")
+        |> Phoenix.LiveView.put_flash(
+          :error,
+          "Bitte melden Sie sich erneut an, um diese Seite zu öffnen."
+        )
         |> Phoenix.LiveView.redirect(to: ~p"/users/log-in")
 
       {:halt, socket}
@@ -337,7 +343,7 @@ defmodule BbhWeb.UserAuth do
       conn
     else
       conn
-      |> put_flash(:error, "You must log in to access this page.")
+      |> put_flash(:error, "Bitte melden Sie sich an, um diese Seite zu öffnen.")
       |> maybe_store_return_to()
       |> redirect(to: ~p"/users/log-in")
       |> halt()

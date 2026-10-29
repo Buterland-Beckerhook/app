@@ -31,9 +31,9 @@ defmodule BbhWeb.UserLive.Login do
         <div :if={local_mail_adapter?()} class="alert alert-info">
           <.icon name="hero-information-circle" class="size-6 shrink-0" />
           <div>
-            <p>You are running the local mail adapter.</p>
+            <p>Lokaler Mail-Adapter aktiv.</p>
             <p>
-              To see sent emails, visit <.link href="/dev/mailbox" class="underline">the mailbox page</.link>.
+              Versendete E-Mails stehen im <.link href="/dev/mailbox" class="underline">Postfach</.link>.
             </p>
           </div>
         </div>
@@ -49,14 +49,14 @@ defmodule BbhWeb.UserLive.Login do
             readonly={!!@current_scope}
             field={f[:email]}
             type="email"
-            label="Email"
+            label="E-Mail"
             autocomplete="username"
             spellcheck="false"
             required
             phx-mounted={JS.focus()}
           />
           <.button class="btn btn-primary w-full">
-            Log in with email <span aria-hidden="true">→</span>
+            Anmeldelink per E-Mail <span aria-hidden="true">→</span>
           </.button>
         </.form>
 
@@ -119,7 +119,7 @@ defmodule BbhWeb.UserLive.Login do
         end
 
         info =
-          "If your email is in our system, you will receive instructions for logging in shortly."
+          "Falls die Adresse bei uns hinterlegt ist, erhalten Sie in Kürze einen Anmeldelink."
 
         {:noreply,
          socket

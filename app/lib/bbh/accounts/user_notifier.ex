@@ -22,19 +22,16 @@ defmodule Bbh.Accounts.UserNotifier do
   Deliver instructions to update a user email.
   """
   def deliver_update_email_instructions(user, url) do
-    deliver(user.email, "Update email instructions", """
+    deliver(user.email, "E-Mail-Adresse ändern", """
+    Hallo,
 
-    ==============================
-
-    Hi #{user.email},
-
-    You can change your email by visiting the URL below:
+    für Ihr Konto auf buterland-beckerhook.de wurde eine Änderung der
+    E-Mail-Adresse angefordert. Über diesen Link bestätigen Sie die neue Adresse:
 
     #{url}
 
-    If you didn't request this change, please ignore this.
-
-    ==============================
+    Wenn Sie diese Änderung nicht angefordert haben, können Sie diese E-Mail
+    ignorieren.
     """)
   end
 
@@ -49,36 +46,30 @@ defmodule Bbh.Accounts.UserNotifier do
   end
 
   defp deliver_magic_link_instructions(user, url) do
-    deliver(user.email, "Log in instructions", """
+    deliver(user.email, "Ihr Anmeldelink", """
+    Hallo,
 
-    ==============================
-
-    Hi #{user.email},
-
-    You can log into your account by visiting the URL below:
+    über diesen Link melden Sie sich im internen Bereich von
+    buterland-beckerhook.de an:
 
     #{url}
 
-    If you didn't request this email, please ignore this.
-
-    ==============================
+    Der Link ist nur kurze Zeit gültig und kann einmal verwendet werden.
+    Wenn Sie keine Anmeldung angefordert haben, können Sie diese E-Mail ignorieren.
     """)
   end
 
   defp deliver_confirmation_instructions(user, url) do
-    deliver(user.email, "Confirmation instructions", """
+    deliver(user.email, "Ihr Zugang zu buterland-beckerhook.de", """
+    Hallo,
 
-    ==============================
-
-    Hi #{user.email},
-
-    You can confirm your account by visiting the URL below:
+    für Sie wurde ein Zugang zum internen Bereich von buterland-beckerhook.de
+    eingerichtet. Über diesen Link bestätigen Sie Ihr Konto und melden sich an:
 
     #{url}
 
-    If you didn't create an account with us, please ignore this.
-
-    ==============================
+    Der Link ist nur kurze Zeit gültig und kann einmal verwendet werden.
+    Wenn Sie keinen Zugang erwartet haben, können Sie diese E-Mail ignorieren.
     """)
   end
 end

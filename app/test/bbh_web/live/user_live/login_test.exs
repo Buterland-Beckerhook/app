@@ -10,7 +10,7 @@ defmodule BbhWeb.UserLive.LoginTest do
 
       assert html =~ "Anmelden"
       assert html =~ "Interner Bereich für Redakteure des Vereins."
-      assert html =~ "Log in with email"
+      assert html =~ "Anmeldelink per E-Mail"
       assert html =~ "Mit Passkey anmelden"
     end
   end
@@ -53,7 +53,7 @@ defmodule BbhWeb.UserLive.LoginTest do
         |> render_submit()
         |> follow_redirect(conn, ~p"/users/log-in")
 
-      assert html =~ "If your email is in our system"
+      assert html =~ "Falls die Adresse bei uns hinterlegt ist"
 
       assert Bbh.Repo.get_by!(Bbh.Accounts.UserToken, user_id: user.id).context ==
                "login"
@@ -67,7 +67,7 @@ defmodule BbhWeb.UserLive.LoginTest do
         |> render_submit()
         |> follow_redirect(conn, ~p"/users/log-in")
 
-      assert html =~ "If your email is in our system"
+      assert html =~ "Falls die Adresse bei uns hinterlegt ist"
     end
   end
 
@@ -82,7 +82,7 @@ defmodule BbhWeb.UserLive.LoginTest do
 
       assert html =~ "Bitte erneut anmelden, um sensible Aktionen durchzuführen."
       refute html =~ "Register"
-      assert html =~ "Log in with email"
+      assert html =~ "Anmeldelink per E-Mail"
 
       assert html =~
                ~s(<input type="email" name="user[email]" id="login_form_magic_email" value="#{user.email}")

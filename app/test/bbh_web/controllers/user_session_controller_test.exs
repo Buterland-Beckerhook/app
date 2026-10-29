@@ -60,7 +60,7 @@ defmodule BbhWeb.UserSessionControllerTest do
       assert get_session(conn, :user_token)
       # New account with no passkey/2FA → nudged to enrollment.
       assert redirected_to(conn) == ~p"/users/security"
-      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "User confirmed successfully."
+      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "Konto bestätigt. Willkommen!"
 
       assert Accounts.get_user!(user.id).confirmed_at
 
@@ -78,7 +78,7 @@ defmodule BbhWeb.UserSessionControllerTest do
         })
 
       assert Phoenix.Flash.get(conn.assigns.flash, :error) ==
-               "The link is invalid or it has expired."
+               "Der Link ist ungültig oder abgelaufen."
 
       assert redirected_to(conn) == ~p"/users/log-in"
     end
@@ -130,14 +130,14 @@ defmodule BbhWeb.UserSessionControllerTest do
       conn = conn |> log_in_user(user) |> delete(~p"/users/log-out")
       assert redirected_to(conn) == ~p"/"
       refute get_session(conn, :user_token)
-      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "Logged out successfully"
+      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "Erfolgreich abgemeldet"
     end
 
     test "succeeds even if the user is not logged in", %{conn: conn} do
       conn = delete(conn, ~p"/users/log-out")
       assert redirected_to(conn) == ~p"/"
       refute get_session(conn, :user_token)
-      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "Logged out successfully"
+      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "Erfolgreich abgemeldet"
     end
   end
 
