@@ -6,7 +6,7 @@ defmodule Bbh.Workers.TicketNewNotifier do
   Cron plus a marker column (`tickets.notified_at`), like the other notifiers: each run
   picks the due, unannounced tickets, so a missed run is repaired by the next. A ticket
   someone took within the two minutes, or one marked as spam, is not announced; spam
-  taken back counts as new again.
+  taken back counts as new again. A queue nobody is granted goes to the admins.
   """
   use Oban.Worker, queue: :notifications, max_attempts: 3
 
@@ -39,7 +39,7 @@ defmodule Bbh.Workers.TicketNewNotifier do
 
     tickets
     |> Enum.flat_map(fn ticket ->
-      for user <- Grants.list_users(ticket.queue), do: {user, ticket}
+      for user <- Grants.notify_users(ticket.queue), do: {user, ticket}
     end)
     |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
     |> Enum.each(fn {user, tickets} -> Notifier.new_tickets(user, tickets) end)

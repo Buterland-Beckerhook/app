@@ -40,6 +40,17 @@ defmodule Bbh.Tickets.Grants do
   end
 
   @doc """
+  Who hears about a queue's tickets: the users granted it — or, while nobody is, the
+  admins, so a request to an unstaffed queue is never announced to no one.
+  """
+  def notify_users(queue_key) do
+    case list_users(queue_key) do
+      [] -> Repo.all(from u in User, where: u.role == "admin", order_by: u.email)
+      users -> users
+    end
+  end
+
+  @doc """
   Replaces a user's grants with `keys`, in one transaction. `admin` is recorded as the
   granting user. Unknown keys are refused.
   """

@@ -107,6 +107,17 @@ defmodule Bbh.Tickets.NotificationsTest do
     end
   end
 
+  test "a queue nobody is granted goes to the admins" do
+    admin = admin_user_fixture()
+    ticket = ticket_fixture(queue: "webmaster") |> age(inserted_at: ago(3, :minute))
+
+    emails = run(TicketNewNotifier) && sent_emails()
+    admins = Repo.all(from u in Bbh.Accounts.User, where: u.role == "admin", select: u.email)
+    assert admin.email in admins
+    assert Enum.sort(Enum.map(emails, fn %{to: [{_, to}]} -> to end)) == Enum.sort(admins)
+    assert Enum.all?(emails, &(&1.text_body =~ Ticket.reference(ticket)))
+  end
+
   describe "assignment" do
     test "someone else assigning tells the assignee", %{scope: scope, user: user} do
       colleague = user_fixture()
@@ -207,7 +218,8 @@ defmodule Bbh.Tickets.NotificationsTest do
 
       run(TicketReminder)
 
-      emails = sent_emails()
+      # The unstaffed queue also reminds the admins; here only the digest matters.
+      emails = Enum.filter(sent_emails(), &(&1.subject == "Postfach: Tagesübersicht"))
       admins = Repo.all(from u in Bbh.Accounts.User, where: u.role == "admin", select: u.email)
       assert admin.email in admins
       assert Enum.sort(Enum.map(emails, fn %{to: [{_, to}]} -> to end)) == Enum.sort(admins)
@@ -230,7 +242,7 @@ defmodule Bbh.Tickets.NotificationsTest do
       {:ok, _} = Settings.update_tickets(%{ticket_admin_digest_enabled: false})
       ticket_fixture(queue: "vorstand") |> age(inserted_at: ago(4, :day))
       run(TicketReminder)
-      assert_no_email_sent()
+      refute Enum.any?(sent_emails(), &(&1.subject == "Postfach: Tagesübersicht"))
     end
   end
 end

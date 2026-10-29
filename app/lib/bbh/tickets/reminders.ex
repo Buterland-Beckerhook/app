@@ -9,7 +9,8 @@ defmodule Bbh.Tickets.Reminders do
     * `follow_up` with its date reached → the assignee
     * `waiting` for `ticket_remind_waiting_days` → the assignee ("nachfassen oder schließen")
 
-  A reminder that names the assignee goes to the queue while nobody has the ticket.
+  A reminder that names the assignee goes to the queue while nobody has the ticket; a
+  queue nobody is granted reminds the admins.
   Escalation (admin digest only): `new` and unassigned for `ticket_escalate_days`.
   """
   import Ecto.Query
@@ -66,7 +67,7 @@ defmodule Bbh.Tickets.Reminders do
   defp recipients(%Ticket{assignee_id: nil, queue: queue}), do: queue_users(queue)
   defp recipients(%Ticket{assignee_id: id}), do: [id]
 
-  defp queue_users(queue), do: queue |> Grants.list_users() |> Enum.map(& &1.id)
+  defp queue_users(queue), do: queue |> Grants.notify_users() |> Enum.map(& &1.id)
 
   @doc false
   def reason(%Ticket{status: "new"}, s, _now),
