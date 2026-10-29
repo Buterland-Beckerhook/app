@@ -9,7 +9,7 @@ defmodule BbhWeb.UserLive.Confirmation do
     <Layouts.app flash={@flash} current_scope={@current_scope}>
       <div class="mx-auto max-w-sm">
         <div class="text-center">
-          <.header>Welcome {@user.email}</.header>
+          <.header>Willkommen, {@user.email}</.header>
         </div>
 
         <.form
@@ -25,13 +25,13 @@ defmodule BbhWeb.UserLive.Confirmation do
           <.button
             name={@form[:remember_me].name}
             value="true"
-            phx-disable-with="Confirming..."
+            phx-disable-with="Wird bestätigt …"
             class="btn btn-primary w-full"
           >
-            Confirm and stay logged in
+            Bestätigen und angemeldet bleiben
           </.button>
-          <.button phx-disable-with="Confirming..." class="btn btn-primary btn-soft w-full mt-2">
-            Confirm and log in only this time
+          <.button phx-disable-with="Wird bestätigt …" class="btn btn-primary btn-soft w-full mt-2">
+            Bestätigen und nur dieses Mal anmelden
           </.button>
         </.form>
 
@@ -46,20 +46,20 @@ defmodule BbhWeb.UserLive.Confirmation do
         >
           <input type="hidden" name={@form[:token].name} value={@form[:token].value} />
           <%= if @current_scope do %>
-            <.button phx-disable-with="Logging in..." class="btn btn-primary w-full">
-              Log in
+            <.button phx-disable-with="Anmeldung …" class="btn btn-primary w-full">
+              Anmelden
             </.button>
           <% else %>
             <.button
               name={@form[:remember_me].name}
               value="true"
-              phx-disable-with="Logging in..."
+              phx-disable-with="Anmeldung …"
               class="btn btn-primary w-full"
             >
-              Keep me logged in on this device
+              Auf diesem Gerät angemeldet bleiben
             </.button>
-            <.button phx-disable-with="Logging in..." class="btn btn-primary btn-soft w-full mt-2">
-              Log me in only this time
+            <.button phx-disable-with="Anmeldung …" class="btn btn-primary btn-soft w-full mt-2">
+              Nur dieses Mal anmelden
             </.button>
           <% end %>
         </.form>
@@ -78,7 +78,7 @@ defmodule BbhWeb.UserLive.Confirmation do
     else
       {:ok,
        socket
-       |> put_flash(:error, "Magic link is invalid or it has expired.")
+       |> put_flash(:error, "Der Anmeldelink ist ungültig oder abgelaufen.")
        |> push_navigate(to: ~p"/users/log-in")}
     end
   end

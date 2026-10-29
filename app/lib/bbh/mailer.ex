@@ -30,25 +30,34 @@ defmodule Bbh.Mailer do
   callers keep the `{:ok, _} | {:error, _}` contract instead of crashing — which
   is exactly the connection/DNS failure this logging exists to diagnose.
 
-  Credentials are never logged — only the relay host.
+  Credentials are never logged — only the relay host. With `redact: true` neither are
+  recipients nor subject (mail carrying personal data, e.g. the Postfach's); the
+  context names what was sent. `mailer:` sends through another Swoosh mailer
+  (`Bbh.TicketMailer`) with the same logging.
   """
-  def deliver_logged(email, context \\ "mail") do
-    relay = Application.get_env(:bbh, __MODULE__, [])[:relay]
+  def deliver_logged(email, context \\ "mail", opts \\ []) do
+    mailer = opts[:mailer] || __MODULE__
+    relay = Application.get_env(:bbh, mailer, [])[:relay]
+
+    {to, subject} =
+      if opts[:redact],
+        do: {"[redacted]", "[redacted]"},
+        else: {inspect(email.to), inspect(email.subject)}
 
     Logger.info(
-      "[mail:#{context}] sending subject=#{inspect(email.subject)} " <>
-        "to=#{inspect(email.to)} relay=#{inspect(relay)}"
+      "[mail:#{context}] sending subject=#{subject} " <>
+        "to=#{to} relay=#{inspect(relay)}"
     )
 
     try do
-      case deliver(email) do
+      case mailer.deliver(email) do
         {:ok, meta} = ok ->
-          Logger.info("[mail:#{context}] delivered to=#{inspect(email.to)} meta=#{inspect(meta)}")
+          Logger.info("[mail:#{context}] delivered to=#{to} meta=#{inspect(meta)}")
           ok
 
         {:error, reason} = err ->
           Logger.error(
-            "[mail:#{context}] delivery FAILED to=#{inspect(email.to)} " <>
+            "[mail:#{context}] delivery FAILED to=#{to} " <>
               "relay=#{inspect(relay)} reason=#{inspect(reason)}"
           )
 

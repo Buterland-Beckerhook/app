@@ -28,6 +28,60 @@ if tz = System.get_env("TIME_ZONE") do
   config :bbh, :time_zone, tz
 end
 
+# Postfach (ticket system). Off until the switch-over (on in dev, see dev.exs); the old
+# mail path stays meanwhile. Only an explicitly set variable overrides the default.
+if enabled = System.get_env("TICKETS_ENABLED") do
+  config :bbh, :tickets_enabled, enabled in ~w(true 1)
+end
+
+# Beta: "beta." in front of every Postfach queue address (Bbh.Tickets.Queue), so it
+# receives and replies as the test aliases even with a copy of Prod's queue list.
+if prefix = System.get_env("TICKET_ADDRESS_PREFIX") do
+  config :bbh, :ticket_address_prefix, prefix
+end
+
+# The Postfach's collector mailbox (Bbh.Tickets.Mailbox) — import only when set. Beta
+# uses its own mailbox: a poller with Prod's credentials would take Prod's mail.
+if imap_host = System.get_env("TICKET_IMAP_HOST") do
+  config :bbh, :ticket_imap,
+    host: imap_host,
+    port: String.to_integer(System.get_env("TICKET_IMAP_PORT") || "993"),
+    username: System.get_env("TICKET_IMAP_USERNAME"),
+    password: System.get_env("TICKET_IMAP_PASSWORD"),
+    tls: true
+end
+
+# Also file the collector mailbox's Junk folder as spam tickets (Bbh.Tickets.Mailbox).
+if junk = System.get_env("TICKET_IMPORT_JUNK") do
+  config :bbh, :ticket_import_junk, junk in ~w(true 1)
+end
+
+for {env, key, parse} <- [
+      {"TICKET_SPAM_SCORE", :ticket_spam_score, &(&1 |> Float.parse() |> elem(0))},
+      {"TICKET_MAX_ATTACHMENT_MB", :ticket_max_attachment_mb, &String.to_integer/1},
+      {"TICKET_MAX_MAIL_MB", :ticket_max_mail_mb, &String.to_integer/1},
+      {"TICKET_RETENTION_MONTHS", :ticket_retention_months, &String.to_integer/1},
+      {"TICKET_PURGE_DAYS", :ticket_purge_days, &String.to_integer/1},
+      {"TICKET_EVENT_RETENTION_MONTHS", :ticket_event_retention_months, &String.to_integer/1}
+    ],
+    value = System.get_env(env) do
+  config :bbh, key, parse.(value)
+end
+
+# Field encryption keys for the Postfach (Bbh.Vault). Set together; Beta gets its own,
+# never Prod's. Checked at boot when TICKETS_ENABLED is on.
+if keys = System.get_env("TICKET_KEYS") do
+  config :bbh, Bbh.Vault,
+    keys: keys,
+    current_key: System.get_env("TICKET_KEY_CURRENT"),
+    hmac_key: System.get_env("TICKET_HMAC_KEY")
+end
+
+# Login log retention (Bbh.Accounts.AuthLog), stated in the Datenschutzerklärung.
+if days = System.get_env("AUTH_LOG_RETENTION_DAYS") do
+  config :bbh, :auth_log_retention_days, String.to_integer(days)
+end
+
 # The public beta: never indexed, banner on every page linking the live site (BbhWeb.Beta).
 # `BETA=true` turns it on (`BETA_NOINDEX` is its former name); a `beta.` host turns it on
 # by itself, so a forgotten variable cannot expose the beta. Independent of the
@@ -181,12 +235,10 @@ if config_env() == :prod do
   # Contact form email via the club's own SMTP server.
   smtp_relay = System.get_env("SMTP_RELAY")
 
-  config :bbh, Bbh.Mailer,
+  smtp = [
     adapter: Swoosh.Adapters.SMTP,
     relay: smtp_relay,
     port: String.to_integer(System.get_env("SMTP_PORT") || "587"),
-    username: System.get_env("SMTP_USERNAME"),
-    password: System.get_env("SMTP_PASSWORD"),
     tls: :always,
     auth: :always,
     # Submission relay: connect straight to SMTP_RELAY, don't chase its MX records
@@ -209,6 +261,22 @@ if config_env() == :prod do
         match_fun: :public_key.pkix_verify_hostname_match_fun(:https)
       ]
     ]
+  ]
+
+  config :bbh,
+         Bbh.Mailer,
+         smtp ++
+           [username: System.get_env("SMTP_USERNAME"), password: System.get_env("SMTP_PASSWORD")]
+
+  # Postfach replies through the tickets@ mailbox (Bbh.TicketMailer) — only when its
+  # credentials are set; no fallback to the noreply@ account. Beta uses its own mailbox.
+  if ticket_smtp_user = System.get_env("TICKET_SMTP_USERNAME") do
+    config :bbh,
+           Bbh.TicketMailer,
+           smtp ++ [username: ticket_smtp_user, password: System.get_env("TICKET_SMTP_PASSWORD")]
+  else
+    config :bbh, Bbh.TicketMailer, adapter: nil
+  end
 
   config :swoosh, :api_client, false
 

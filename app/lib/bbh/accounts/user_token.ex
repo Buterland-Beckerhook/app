@@ -19,6 +19,7 @@ defmodule Bbh.Accounts.UserToken do
     field :context, :string
     field :sent_to, :string
     field :authenticated_at, :utc_datetime
+    field :auth_method, :string
     belongs_to :user, Bbh.Accounts.User
 
     timestamps(type: :utc_datetime, updated_at: false)
@@ -42,11 +43,22 @@ defmodule Bbh.Accounts.UserToken do
   You could then use this information to display all valid sessions
   and devices in the UI and allow users to explicitly expire any
   session they deem invalid.
+
+  The user's virtual `authenticated_at` and `auth_method` are copied onto the token,
+  so a token reissued from a loaded session keeps both.
   """
   def build_session_token(user) do
     token = :crypto.strong_rand_bytes(@rand_size)
     dt = user.authenticated_at || DateTime.utc_now(:second)
-    {token, %UserToken{token: token, context: "session", user_id: user.id, authenticated_at: dt}}
+
+    {token,
+     %UserToken{
+       token: token,
+       context: "session",
+       user_id: user.id,
+       authenticated_at: dt,
+       auth_method: user.auth_method
+     }}
   end
 
   @doc """
@@ -62,7 +74,9 @@ defmodule Bbh.Accounts.UserToken do
       from token in by_token_and_context_query(token, "session"),
         join: user in assoc(token, :user),
         where: token.inserted_at > ago(@session_validity_in_days, "day"),
-        select: {%{user | authenticated_at: token.authenticated_at}, token.inserted_at}
+        select:
+          {%{user | authenticated_at: token.authenticated_at, auth_method: token.auth_method},
+           token.inserted_at}
 
     {:ok, query}
   end

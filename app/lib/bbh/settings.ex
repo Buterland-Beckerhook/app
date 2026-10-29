@@ -26,6 +26,49 @@ defmodule Bbh.Settings do
     |> Repo.insert_or_update()
   end
 
+  @doc "A changeset for the Postfach tab."
+  def change_tickets(%SiteSettings{} = settings, attrs \\ %{}),
+    do: SiteSettings.tickets_changeset(settings, attrs)
+
+  @doc "Update the Postfach reminder settings."
+  def update_tickets(attrs) do
+    (Repo.one(from s in SiteSettings, limit: 1) || %SiteSettings{})
+    |> SiteSettings.tickets_changeset(attrs)
+    |> Repo.insert_or_update()
+  end
+
+  @doc """
+  Claims today's Postfach reminder run: sets `ticket_reminders_sent_on` to `today` and
+  returns `true` — unless it already was, then `false`. One conditional UPDATE, so two
+  overlapping runs cannot both send.
+  """
+  def claim_ticket_reminders(%Date{} = today) do
+    {count, _} =
+      Repo.update_all(
+        from(s in SiteSettings,
+          where: is_nil(s.ticket_reminders_sent_on) or s.ticket_reminders_sent_on < ^today
+        ),
+        set: [ticket_reminders_sent_on: today]
+      )
+
+    count > 0
+  end
+
+  @doc "How far the Junk import has read: `{uidvalidity, last_uid}` or `{nil, nil}`."
+  def ticket_junk_position do
+    s = get()
+    {s.ticket_junk_uidvalidity, s.ticket_junk_last_uid}
+  end
+
+  @doc "Remembers how far the Junk import has read."
+  def put_ticket_junk_position(uidvalidity, last_uid) do
+    Repo.update_all(SiteSettings,
+      set: [ticket_junk_uidvalidity: uidvalidity, ticket_junk_last_uid: last_uid]
+    )
+
+    :ok
+  end
+
   @doc """
   Whether push notifications should currently be held back for quiet hours.
 

@@ -31,9 +31,9 @@ defmodule BbhWeb.UserLive.Login do
         <div :if={local_mail_adapter?()} class="alert alert-info">
           <.icon name="hero-information-circle" class="size-6 shrink-0" />
           <div>
-            <p>You are running the local mail adapter.</p>
+            <p>Lokaler Mail-Adapter aktiv.</p>
             <p>
-              To see sent emails, visit <.link href="/dev/mailbox" class="underline">the mailbox page</.link>.
+              Versendete E-Mails stehen im <.link href="/dev/mailbox" class="underline">Postfach</.link>.
             </p>
           </div>
         </div>
@@ -49,14 +49,14 @@ defmodule BbhWeb.UserLive.Login do
             readonly={!!@current_scope}
             field={f[:email]}
             type="email"
-            label="Email"
+            label="E-Mail"
             autocomplete="username"
             spellcheck="false"
             required
             phx-mounted={JS.focus()}
           />
           <.button class="btn btn-primary w-full">
-            Log in with email <span aria-hidden="true">→</span>
+            Anmeldelink per E-Mail <span aria-hidden="true">→</span>
           </.button>
         </.form>
 
@@ -97,7 +97,8 @@ defmodule BbhWeb.UserLive.Login do
         passkey_options: nil,
         passkey_token: nil,
         trigger_passkey: false,
-        client_ip: connect_client_ip(socket)
+        client_ip: BbhWeb.ClientIp.from_socket(socket),
+        user_agent: get_connect_info(socket, :user_agent)
       )
 
     # The passkey challenge is minted only on the connected mount and rendered
@@ -111,15 +112,19 @@ defmodule BbhWeb.UserLive.Login do
   def handle_event("submit_magic", %{"user" => %{"email" => email}}, socket) do
     case BbhWeb.RateLimit.check("magic_send", socket.assigns.client_ip, 5, :timer.minutes(15)) do
       :ok ->
-        if user = Accounts.get_user_by_email(email) do
+        user = Accounts.get_user_by_email(email)
+
+        if user do
           Accounts.deliver_login_instructions(
             user,
             &url(~p"/users/log-in/#{&1}")
           )
         end
 
+        log_auth_event(socket, user, "magic_link_sent", "magic_link")
+
         info =
-          "If your email is in our system, you will receive instructions for logging in shortly."
+          "Falls die Adresse bei uns hinterlegt ist, erhalten Sie in Kürze einen Anmeldelink."
 
         {:noreply,
          socket
@@ -158,12 +163,16 @@ defmodule BbhWeb.UserLive.Login do
            assign(socket, passkey_challenge: nil, passkey_token: token, trigger_passkey: true)}
         else
           {:error, :wrong_user} ->
+            log_auth_event(socket, socket.assigns.current_scope.user, "passkey_failed", "passkey")
+
             {:noreply,
              socket
              |> assign_passkey_challenge()
              |> put_flash(:error, "Dieser Passkey gehört zu einem anderen Konto.")}
 
           {:error, _reason} ->
+            log_auth_event(socket, nil, "passkey_failed", "passkey")
+
             {:noreply,
              socket
              |> assign_passkey_challenge()
@@ -208,32 +217,17 @@ defmodule BbhWeb.UserLive.Login do
 
   defp same_user_on_reauth(_socket, _user), do: :ok
 
-  defp local_mail_adapter? do
-    Application.get_env(:bbh, Bbh.Mailer)[:adapter] == Swoosh.Adapters.Local
+  defp log_auth_event(socket, user, event, method) do
+    Accounts.AuthLog.record(%{
+      user: user,
+      event: event,
+      method: method,
+      ip: socket.assigns.client_ip,
+      user_agent: socket.assigns.user_agent
+    })
   end
 
-  # Best-effort client IP from the socket connect info (trusted proxy sets
-  # x-forwarded-for). Falls back to the peer address, then "unknown" on the
-  # disconnected mount.
-  defp connect_client_ip(socket) do
-    forwarded =
-      socket
-      |> get_connect_info(:x_headers)
-      |> List.wrap()
-      |> Enum.find_value(fn
-        {"x-forwarded-for", value} -> value |> String.split(",") |> List.first() |> String.trim()
-        _ -> nil
-      end)
-
-    cond do
-      is_binary(forwarded) ->
-        forwarded
-
-      true ->
-        case get_connect_info(socket, :peer_data) do
-          %{address: address} -> address |> :inet.ntoa() |> to_string()
-          _ -> "unknown"
-        end
-    end
+  defp local_mail_adapter? do
+    Application.get_env(:bbh, Bbh.Mailer)[:adapter] == Swoosh.Adapters.Local
   end
 end

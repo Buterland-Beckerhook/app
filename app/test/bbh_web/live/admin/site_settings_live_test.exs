@@ -51,4 +51,53 @@ defmodule BbhWeb.Admin.SiteSettingsLiveTest do
     html = conn |> get(~p"/") |> html_response(200)
     refute html =~ "Versteckter Text"
   end
+
+  describe "Postfach tab" do
+    test "saves the reminder settings", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, ~p"/admin/website/postfach")
+
+      lv
+      |> form("#tickets-settings-form",
+        tickets: %{
+          ticket_reminder_hour: "7",
+          ticket_remind_unassigned_hours: "12",
+          ticket_remind_idle_days: "5",
+          ticket_remind_waiting_days: "10",
+          ticket_escalate_days: "2",
+          ticket_admin_digest_enabled: "false"
+        }
+      )
+      |> render_submit()
+
+      assert %{
+               ticket_reminder_hour: 7,
+               ticket_remind_unassigned_hours: 12,
+               ticket_remind_idle_days: 5,
+               ticket_remind_waiting_days: 10,
+               ticket_escalate_days: 2,
+               ticket_admin_digest_enabled: false
+             } = Bbh.Settings.get()
+    end
+
+    test "refuses values out of range", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, ~p"/admin/website/postfach")
+
+      html =
+        lv
+        |> form("#tickets-settings-form", tickets: %{ticket_remind_idle_days: "0"})
+        |> render_submit()
+
+      assert html =~ "must be greater than or equal to 1" or html =~ "größer"
+      assert Bbh.Settings.get().ticket_remind_idle_days == 7
+    end
+
+    test "the tabs switch between the two forms", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, ~p"/admin/website")
+      assert has_element?(lv, "#site-settings-form")
+      refute has_element?(lv, "#tickets-settings-form")
+
+      lv |> element(~s|a[href="/admin/website/postfach"]|) |> render_click()
+      assert has_element?(lv, "#tickets-settings-form")
+    end
+  end
 end

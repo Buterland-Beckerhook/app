@@ -110,7 +110,7 @@ defmodule BbhWeb.Admin.RedirectLive.Index do
           <div class="min-w-64 grow">
             <.input field={@check_form[:path]} placeholder="/aktuell/2020/kein_biwak" />
           </div>
-          <.button phx-disable-with="Prüfe…">Prüfen</.button>
+          <.button phx-disable-with="Prüfe…" class="btn btn-primary btn-soft mb-2">Prüfen</.button>
         </.form>
 
         <p :if={@check_result} id="check-result" class="mt-2 text-sm">

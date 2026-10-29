@@ -1,4 +1,5 @@
-# Development stack: Postgres + Phoenix (mix, source mounted) + Caddy (local HTTPS).
+# Development stack: Postgres + Phoenix (mix, source mounted) + Caddy (local HTTPS)
+# + Dovecot (the Postfach's collector mailbox, like mailcow's).
 # Start with: make dev  (== docker compose up --build)
 #
 # This is the DEV stack. The production stack lives in deploy/compose.yml and is
@@ -44,6 +45,22 @@ services:
       - build:/app/_build
     tty: true
 
+  # The Postfach's IMAP mailbox for local tests: the same server software as mailcow,
+  # so the import talks the real protocol. `make mail-samples` drops sample mails into
+  # INBOX; the poller (every two minutes) files them. Login: any user, USER_PASSWORD.
+  dovecot:
+    image: dovecot/dovecot:2.4.5
+    restart: unless-stopped
+    environment:
+      USER_PASSWORD: postfach
+    ports:
+      # Plain IMAP for a desktop client (Thunderbird) to look into the mailbox.
+      - "1143:31143"
+    volumes:
+      - ./dev/dovecot/postfach.conf:/etc/dovecot/conf.d/postfach.conf:ro
+      - ./dev/dovecot/samples:/samples:ro
+      - dovecot_mail:/srv/vmail
+
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
@@ -63,3 +80,4 @@ volumes:
   build:
   caddy_data:
   caddy_config:
+  dovecot_mail:

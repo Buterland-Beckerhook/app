@@ -275,9 +275,8 @@
           <label class="flex items-start gap-2 text-sm">
             <input type="checkbox" name="sepa" value="true" class="mt-1" />
             <span>
-              Ich ermächtige den Schützenverein Buterland-Beckerhook e.V., den jeweils gültigen
-              Jahresbeitrag jährlich mittels SEPA-Lastschrift von meinem oben genannten Konto
-              einzuziehen (SEPA-Lastschriftmandat).
+              {Bbh.Membership.mandate_text()}
+              <span class="mt-1 block text-muted">{Bbh.Membership.mandate_note()}</span>
             </span>
           </label>
           <p :if={error_for(@errors, :sepa)} class="mt-1 text-sm text-error">

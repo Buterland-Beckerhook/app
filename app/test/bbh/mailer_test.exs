@@ -83,6 +83,17 @@ defmodule Bbh.MailerTest do
       refute log =~ "sup3r-s3cret-pw"
       refute log =~ "smtp-user"
     end
+
+    test "redact: true keeps recipients and subject out of the log" do
+      email = sample_email()
+      log = capture_log(fn -> Mailer.deliver_logged(email, "membership-copy", redact: true) end)
+
+      assert log =~ "[mail:membership-copy] sending"
+      assert log =~ "[redacted]"
+      [{_, address} | _] = email.to
+      refute log =~ address
+      refute log =~ email.subject
+    end
   end
 
   describe "sender/0 and sender_name/0" do

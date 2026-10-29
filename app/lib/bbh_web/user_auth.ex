@@ -26,20 +26,29 @@ defmodule BbhWeb.UserAuth do
   # the reissuing of tokens completely.
   @session_reissue_age_in_days 7
 
+  @strong_auth_message "Für diesen Bereich ist eine Anmeldung mit Passkey oder " <>
+                         "Zwei-Faktor-Code nötig."
+
   @doc """
   Logs the user in.
+
+  `method` is how the user proved who they are (one of `Bbh.Accounts.User.auth_methods/0`);
+  it is stored on the session token and decides `:require_strong_auth`.
 
   Redirects to the session's `:user_return_to` path
   or falls back to the `signed_in_path/1`.
   """
-  def log_in_user(conn, user, params \\ %{}) do
+  def log_in_user(conn, user, params \\ %{}, method \\ nil) do
     user_return_to = get_session(conn, :user_return_to)
 
     conn
     # Consume it so it can't linger (the same-user renew path doesn't clear the
     # session), which would otherwise re-fire the same redirect on a later login.
     |> delete_session(:user_return_to)
-    |> create_or_extend_session(user, params)
+    # A fresh login always mints a new token, also for a re-auth of the same user, so
+    # the method of this login replaces the previous one.
+    |> create_or_extend_session(%{user | auth_method: method}, params)
+    |> log_auth_event(user, "login_succeeded", method)
     |> redirect(to: user_return_to || signed_in_path(conn))
   end
 
@@ -73,6 +82,14 @@ defmodule BbhWeb.UserAuth do
   It clears all session data for safety. See renew_session.
   """
   def log_out_user(conn) do
+    case conn.assigns[:current_scope] do
+      %{user: %Accounts.User{} = user} ->
+        log_auth_event(conn, user, "logged_out", user.auth_method)
+
+      _ ->
+        conn
+    end
+
     user_token = get_session(conn, :user_token)
     user_token && Accounts.delete_user_session_token(user_token)
 
@@ -84,6 +101,22 @@ defmodule BbhWeb.UserAuth do
     |> renew_session(nil)
     |> delete_resp_cookie(@remember_me_cookie, @remember_me_options)
     |> redirect(to: ~p"/")
+  end
+
+  @doc """
+  Writes an entry to the login log (`Bbh.Accounts.AuthLog`) with the request's client
+  IP and user agent. Returns the conn, so it fits a pipeline.
+  """
+  def log_auth_event(conn, user, event, method \\ nil) do
+    Accounts.AuthLog.record(%{
+      user: user,
+      event: event,
+      method: method,
+      ip: BbhWeb.ClientIp.get(conn),
+      user_agent: conn |> get_req_header("user-agent") |> List.first()
+    })
+
+    conn
   end
 
   @doc """
@@ -250,7 +283,10 @@ defmodule BbhWeb.UserAuth do
     else
       socket =
         socket
-        |> Phoenix.LiveView.put_flash(:error, "You must log in to access this page.")
+        |> Phoenix.LiveView.put_flash(
+          :error,
+          "Bitte melden Sie sich an, um diese Seite zu öffnen."
+        )
         |> Phoenix.LiveView.redirect(to: ~p"/users/log-in")
 
       {:halt, socket}
@@ -276,7 +312,7 @@ defmodule BbhWeb.UserAuth do
     end
   end
 
-  # Any authenticated staff member (admin, editor, calendar_editor).
+  # Any authenticated staff member (admin, editor, calendar_editor, tickets).
   def on_mount(:require_staff, params, session, socket),
     do: on_mount(:require_authenticated, params, session, socket)
 
@@ -300,6 +336,69 @@ defmodule BbhWeb.UserAuth do
     end
   end
 
+  # Termine and Kalender teilen: every role but "Nur Postfach".
+  def on_mount(:require_events, params, session, socket) do
+    case on_mount(:require_authenticated, params, session, socket) do
+      {:cont, socket} ->
+        if BbhWeb.Authz.can_access_section?(socket.assigns.current_scope.user, :events) do
+          {:cont, socket}
+        else
+          socket =
+            socket
+            |> Phoenix.LiveView.put_flash(:error, "Kein Zugriff auf diesen Bereich.")
+            |> Phoenix.LiveView.redirect(to: ~p"/admin")
+
+          {:halt, socket}
+        end
+
+      halted ->
+        halted
+    end
+  end
+
+  # The Postfach: a queue grant (or admin) and a strongly authenticated session.
+  def on_mount(:require_tickets, params, session, socket) do
+    case on_mount(:require_strong_auth, params, session, socket) do
+      {:cont, socket} ->
+        if BbhWeb.Authz.can_access_tickets?(socket.assigns.current_scope) do
+          {:cont, socket}
+        else
+          socket =
+            socket
+            |> Phoenix.LiveView.put_flash(:error, "Kein Zugriff auf das Postfach.")
+            |> Phoenix.LiveView.redirect(to: ~p"/admin")
+
+          {:halt, socket}
+        end
+
+      halted ->
+        halted
+    end
+  end
+
+  # Sensitive areas (the Postfach): the session must have been established with a passkey
+  # or a magic link plus TOTP code — see `Bbh.Accounts.User.strong_auth?/1`.
+  def on_mount(:require_strong_auth, params, session, socket) do
+    case on_mount(:require_authenticated, params, session, socket) do
+      {:cont, socket} ->
+        user = socket.assigns.current_scope.user
+
+        if Accounts.User.strong_auth?(user) do
+          {:cont, socket}
+        else
+          socket =
+            socket
+            |> Phoenix.LiveView.put_flash(:error, @strong_auth_message)
+            |> Phoenix.LiveView.redirect(to: strong_auth_path(user))
+
+          {:halt, socket}
+        end
+
+      halted ->
+        halted
+    end
+  end
+
   def on_mount(:require_sudo_mode, _params, session, socket) do
     socket = mount_current_scope(socket, session)
 
@@ -308,7 +407,10 @@ defmodule BbhWeb.UserAuth do
     else
       socket =
         socket
-        |> Phoenix.LiveView.put_flash(:error, "You must re-authenticate to access this page.")
+        |> Phoenix.LiveView.put_flash(
+          :error,
+          "Bitte melden Sie sich erneut an, um diese Seite zu öffnen."
+        )
         |> Phoenix.LiveView.redirect(to: ~p"/users/log-in")
 
       {:halt, socket}
@@ -337,11 +439,37 @@ defmodule BbhWeb.UserAuth do
       conn
     else
       conn
-      |> put_flash(:error, "You must log in to access this page.")
+      |> put_flash(:error, "Bitte melden Sie sich an, um diese Seite zu öffnen.")
       |> maybe_store_return_to()
       |> redirect(to: ~p"/users/log-in")
       |> halt()
     end
+  end
+
+  @doc """
+  Plug counterpart of `on_mount(:require_strong_auth, …)` for controllers (attachment
+  and PDF downloads). Must run after `require_authenticated_user/2`.
+  """
+  def require_strong_auth(conn, _opts) do
+    user = conn.assigns.current_scope.user
+
+    if Accounts.User.strong_auth?(user) do
+      conn
+    else
+      conn
+      |> put_flash(:error, @strong_auth_message)
+      |> maybe_store_return_to()
+      |> redirect(to: strong_auth_path(user))
+      |> halt()
+    end
+  end
+
+  # Someone who has a second factor only needs to log in again with it; someone without
+  # one has to set it up first.
+  defp strong_auth_path(user) do
+    if Accounts.Passkeys.has_passkey?(user) or Accounts.User.totp_enabled?(user),
+      do: ~p"/users/log-in",
+      else: ~p"/users/security"
   end
 
   defp maybe_store_return_to(%{method: "GET"} = conn) do

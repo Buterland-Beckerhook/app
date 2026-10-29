@@ -82,7 +82,8 @@ defmodule BbhWeb.ConnCase do
   It returns an updated `conn`.
   """
   def log_in_user(conn, user, opts \\ []) do
-    token = Bbh.Accounts.generate_user_session_token(user)
+    # `auth_method: "passkey"` (or "magic_link_totp") for areas behind :require_strong_auth.
+    token = Bbh.Accounts.generate_user_session_token(%{user | auth_method: opts[:auth_method]})
 
     maybe_set_token_authenticated_at(token, opts[:token_authenticated_at])
 

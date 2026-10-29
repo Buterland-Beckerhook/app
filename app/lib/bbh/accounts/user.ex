@@ -2,7 +2,7 @@ defmodule Bbh.Accounts.User do
   use Ecto.Schema
   import Ecto.Changeset
 
-  @roles ~w(admin editor calendar_editor)
+  @roles ~w(admin editor calendar_editor tickets)
   def roles, do: @roles
 
   @primary_key {:id, :binary_id, autogenerate: true}
@@ -11,6 +11,9 @@ defmodule Bbh.Accounts.User do
     field :email, :string
     field :confirmed_at, :utc_datetime
     field :authenticated_at, :utc_datetime, virtual: true
+    # How the current session was established — read from the session token, see
+    # `Bbh.Accounts.UserToken`. Nil outside a session and for tokens older than the column.
+    field :auth_method, :string, virtual: true
     field :role, :string, default: "editor"
     field :calendars, {:array, :string}, default: []
     field :totp_secret, :binary, redact: true
@@ -18,6 +21,19 @@ defmodule Bbh.Accounts.User do
 
     timestamps(type: :utc_datetime)
   end
+
+  @auth_methods ~w(passkey magic_link magic_link_totp)
+  @strong_auth_methods ~w(passkey magic_link_totp)
+
+  @doc "The ways a session can be established."
+  def auth_methods, do: @auth_methods
+
+  @doc """
+  Whether the session was established with a second factor: a passkey (user
+  verification required) or a magic link followed by a TOTP code.
+  """
+  def strong_auth?(%__MODULE__{auth_method: method}), do: method in @strong_auth_methods
+  def strong_auth?(_), do: false
 
   @doc "Whether the user is an administrator."
   def admin?(%__MODULE__{role: "admin"}), do: true

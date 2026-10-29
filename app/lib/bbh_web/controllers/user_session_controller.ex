@@ -7,11 +7,11 @@ defmodule BbhWeb.UserSessionController do
   alias BbhWeb.UserAuth
 
   def create(conn, %{"_action" => "confirmed"} = params) do
-    create(conn, params, "User confirmed successfully.")
+    create(conn, params, "Konto bestätigt. Willkommen!")
   end
 
   def create(conn, params) do
-    create(conn, params, "Welcome back!")
+    create(conn, params, "Willkommen zurück!")
   end
 
   # passkey login handoff: the assertion was already verified in the login
@@ -22,10 +22,11 @@ defmodule BbhWeb.UserSessionController do
     case Phoenix.Token.verify(BbhWeb.Endpoint, "passkey_session", token, max_age: 60) do
       {:ok, user_id} ->
         user = Accounts.get_user!(user_id)
-        conn |> put_flash(:info, info) |> UserAuth.log_in_user(user, user_params)
+        conn |> put_flash(:info, info) |> UserAuth.log_in_user(user, user_params, "passkey")
 
       _ ->
         conn
+        |> UserAuth.log_auth_event(nil, "login_failed", "passkey")
         |> put_flash(:error, "Anmeldung abgelaufen. Bitte erneut versuchen.")
         |> redirect(to: ~p"/users/log-in")
     end
@@ -45,7 +46,8 @@ defmodule BbhWeb.UserSessionController do
 
       _ ->
         conn
-        |> put_flash(:error, "The link is invalid or it has expired.")
+        |> UserAuth.log_auth_event(nil, "login_failed", "magic_link")
+        |> put_flash(:error, "Der Link ist ungültig oder abgelaufen.")
         |> redirect(to: ~p"/users/log-in")
     end
   end
@@ -61,7 +63,7 @@ defmodule BbhWeb.UserSessionController do
 
   def delete(conn, _params) do
     conn
-    |> put_flash(:info, "Logged out successfully.")
+    |> put_flash(:info, "Erfolgreich abgemeldet.")
     |> UserAuth.log_out_user()
   end
 
@@ -92,7 +94,7 @@ defmodule BbhWeb.UserSessionController do
       conn
       |> put_flash(:info, info)
       |> UserAuth.maybe_put_enrollment_return_to(user)
-      |> UserAuth.log_in_user(user, params)
+      |> UserAuth.log_in_user(user, params, "magic_link")
     end
   end
 end

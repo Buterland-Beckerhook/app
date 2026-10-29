@@ -76,6 +76,15 @@
       ]
     },
     {
+      "description": "typst: tags are v-prefixed; a bump also needs both SHA256 args in the Dockerfiles, so it is never auto-merged",
+      "matchPackageNames": ["typst/typst"],
+      "extractVersion": "^v(?<version>.+)$",
+      "automerge": false,
+      "prBodyNotes": [
+        "⚠️ Update `TYPST_SHA256_AMD64` / `TYPST_SHA256_ARM64` in `app/Dockerfile` and `app/Dockerfile.dev`, and `TYPST_SHA256` in `.github/workflows/ci.yml`, from the release assets' sha256 digests — the image build fails on a stale checksum. Then download a membership PDF from the Postfach: the template (`app/priv/pdf/aufnahmeantrag.typ`) may need changes for a new Typst version."
+      ]
+    },
+    {
       "description": "Group the Phoenix ecosystem",
       "matchPackageNames": [
         "phoenix",

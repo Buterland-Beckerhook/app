@@ -144,6 +144,28 @@ services:
       # TZ sets the container's OS zone (log timestamps) from the same value.
       TIME_ZONE: ${TIME_ZONE:-Europe/Berlin}
       TZ: ${TIME_ZONE:-Europe/Berlin}
+      # Postfach (ticket system), see deploy/.env.example. Beta uses its own keys.
+      TICKETS_ENABLED: ${TICKETS_ENABLED:-false}
+      TICKET_KEYS: ${TICKET_KEYS:-}
+      TICKET_KEY_CURRENT: ${TICKET_KEY_CURRENT:-}
+      TICKET_HMAC_KEY: ${TICKET_HMAC_KEY:-}
+      TICKET_ADDRESS_PREFIX: ${TICKET_ADDRESS_PREFIX:-}
+      TICKET_SMTP_USERNAME: ${TICKET_SMTP_USERNAME:-}
+      TICKET_SMTP_PASSWORD: ${TICKET_SMTP_PASSWORD:-}
+      TICKET_IMAP_HOST: ${TICKET_IMAP_HOST:-}
+      TICKET_IMAP_PORT: ${TICKET_IMAP_PORT:-993}
+      TICKET_IMAP_USERNAME: ${TICKET_IMAP_USERNAME:-}
+      TICKET_IMAP_PASSWORD: ${TICKET_IMAP_PASSWORD:-}
+      TICKET_SPAM_SCORE: ${TICKET_SPAM_SCORE:-6.0}
+      TICKET_IMPORT_JUNK: ${TICKET_IMPORT_JUNK:-false}
+      TICKET_MAX_ATTACHMENT_MB: ${TICKET_MAX_ATTACHMENT_MB:-10}
+      TICKET_MAX_MAIL_MB: ${TICKET_MAX_MAIL_MB:-25}
+      # Retention — stated in the Datenschutzerklärung; change both together.
+      TICKET_RETENTION_MONTHS: ${TICKET_RETENTION_MONTHS:-12}
+      TICKET_PURGE_DAYS: ${TICKET_PURGE_DAYS:-30}
+      TICKET_EVENT_RETENTION_MONTHS: ${TICKET_EVENT_RETENTION_MONTHS:-12}
+      # Days the admin login log is kept (Datenschutzerklärung). Defaults to 90.
+      AUTH_LOG_RETENTION_DAYS: ${AUTH_LOG_RETENTION_DAYS:-90}
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
       VAPID_SUBJECT: ${VAPID_SUBJECT}

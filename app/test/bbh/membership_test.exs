@@ -5,6 +5,8 @@ defmodule Bbh.MembershipTest do
 
   alias Bbh.Membership
 
+  doctest Bbh.Membership
+
   @valid %{
     "nachname" => "  Mustermann  ",
     "vorname" => "  Max  ",
@@ -123,6 +125,25 @@ defmodule Bbh.MembershipTest do
     end
   end
 
+  describe "mask_iban/1" do
+    test "keeps country code, check digits and the last four" do
+      assert Membership.mask_iban("DE89370400440532013000") == "DE89 •••• •••• •••• ••30 00"
+      assert Membership.mask_iban("DE89 3704 0044 0532 0130 00") == "DE89 •••• •••• •••• ••30 00"
+    end
+
+    test "handles the shortest and longest IBANs" do
+      # Norway, 15 characters.
+      assert Membership.mask_iban("NO9386011117947") == "NO93 •••• •••7 947"
+      # Saint Lucia, 32; the maximum is 34.
+      long = "LC55HEMM000100010012001200023015"
+      masked = Membership.mask_iban(long)
+      assert masked |> String.replace(" ", "") |> String.length() == 32
+      assert String.starts_with?(masked, "LC55 ••••")
+      assert String.ends_with?(masked, "3015")
+      assert Membership.mask_iban(String.duplicate("A", 34)) |> String.ends_with?("AA")
+    end
+  end
+
   describe "deliver/1" do
     test "sends the application to the club and a confirmation copy to the applicant" do
       {:ok, data} = Membership.validate(@valid)
@@ -142,6 +163,8 @@ defmodule Bbh.MembershipTest do
       # Second mail: the copy to the applicant.
       assert_email_sent(fn email ->
         assert email.to == [{"Max Mustermann", "max@example.com"}]
+        refute email.text_body =~ "DE89370400440532013000"
+        assert email.text_body =~ "DE89 •••• •••• •••• ••30 00"
         assert email.text_body =~ "vielen Dank"
       end)
     end

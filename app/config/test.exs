@@ -44,6 +44,7 @@ config :bbh, Bbh.Notifications, async: false
 # Redirects: no node-global rule cache (async tests use separate sandboxes), and the
 # 404 log is written inline so it stays inside the test's SQL sandbox.
 config :bbh, Bbh.Redirects, cache: false
+config :bbh, Bbh.Tickets.Queue, cache: false
 config :bbh, BbhWeb.Redirector, async: false
 
 # Don't pre-warm image variants in tests: the detached task would outlive the
@@ -52,6 +53,7 @@ config :bbh, :media_prewarm, false
 
 # In test we don't send emails
 config :bbh, Bbh.Mailer, adapter: Swoosh.Adapters.Test
+config :bbh, Bbh.TicketMailer, adapter: Swoosh.Adapters.Test
 
 # Disable swoosh api client as it is only required for production adapters
 config :swoosh, :api_client, false
@@ -69,3 +71,10 @@ config :phoenix_live_view,
 # Sort query params output of verified routes for robust url comparisons
 config :phoenix,
   sort_verified_routes_query_params: true
+
+# Postfach field encryption (Bbh.Vault): two keys, so rotation is testable.
+config :bbh, Bbh.Vault,
+  keys:
+    "1:u9RC15scmJMvWayszFhjPQtglQTWmHeO3aOnZh4UDv4=,2:OY9GKth7niWJ7Ypg+qyWEqoFown+XJyH7s8F7HgXimk=",
+  current_key: "2",
+  hmac_key: "eF+UYuKVOgBT1mZ1kuZOLXWU93HHaKFg8pGumAve2aY="

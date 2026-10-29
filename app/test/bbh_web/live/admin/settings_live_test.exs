@@ -41,7 +41,7 @@ defmodule BbhWeb.Admin.SettingsLiveTest do
         |> live(~p"/admin/einstellungen")
         |> follow_redirect(conn, ~p"/users/log-in")
 
-      assert conn.resp_body =~ "You must re-authenticate to access this page."
+      assert conn.resp_body =~ "Bitte melden Sie sich erneut an, um diese Seite zu öffnen."
     end
   end
 
@@ -112,7 +112,7 @@ defmodule BbhWeb.Admin.SettingsLiveTest do
       assert {:live_redirect, %{to: path, flash: flash}} = redirect
       assert path == ~p"/admin/einstellungen"
       assert %{"info" => message} = flash
-      assert message == "Email changed successfully."
+      assert message == "E-Mail-Adresse geändert."
       refute Accounts.get_user_by_email(user.email)
       assert Accounts.get_user_by_email(email)
 
@@ -121,7 +121,7 @@ defmodule BbhWeb.Admin.SettingsLiveTest do
       assert {:live_redirect, %{to: path, flash: flash}} = redirect
       assert path == ~p"/admin/einstellungen"
       assert %{"error" => message} = flash
-      assert message == "Email change link is invalid or it has expired."
+      assert message == "Der Link zur Änderung der E-Mail-Adresse ist ungültig oder abgelaufen."
     end
 
     test "does not update email with invalid token", %{conn: conn, user: user} do
@@ -129,7 +129,7 @@ defmodule BbhWeb.Admin.SettingsLiveTest do
       assert {:live_redirect, %{to: path, flash: flash}} = redirect
       assert path == ~p"/admin/einstellungen"
       assert %{"error" => message} = flash
-      assert message == "Email change link is invalid or it has expired."
+      assert message == "Der Link zur Änderung der E-Mail-Adresse ist ungültig oder abgelaufen."
       assert Accounts.get_user_by_email(user.email)
     end
 
@@ -426,7 +426,7 @@ defmodule BbhWeb.Admin.SettingsLiveTest do
         |> live(~p"/admin/einstellungen/tokens")
         |> follow_redirect(conn, ~p"/users/log-in")
 
-      assert conn.resp_body =~ "You must re-authenticate to access this page."
+      assert conn.resp_body =~ "Bitte melden Sie sich erneut an, um diese Seite zu öffnen."
     end
   end
 

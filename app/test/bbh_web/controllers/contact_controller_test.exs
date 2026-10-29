@@ -95,4 +95,42 @@ defmodule BbhWeb.ContactControllerTest do
       assert_no_email_sent()
     end
   end
+
+  describe "with the Postfach (TICKETS_ENABLED)" do
+    setup do
+      Application.put_env(:bbh, :tickets_enabled, true)
+      on_exit(fn -> Application.delete_env(:bbh, :tickets_enabled) end)
+    end
+
+    test "offers the queues, preselected via ?an=", %{conn: conn} do
+      html = conn |> get(~p"/kontakt?an=vorstand") |> html_response(200)
+      assert html =~ ~s|<option value="vorstand" selected|
+      refute html =~ ~s|value="webmaster"|
+      refute html =~ ~s|value="mitgliedschaft"|
+    end
+
+    test "creates a ticket in the chosen queue and sends no mail", %{conn: conn} do
+      conn = post(conn, ~p"/kontakt", human_params(%{"an" => "offiziere"}))
+
+      assert redirected_to(conn) == ~p"/kontakt"
+      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "eingegangen"
+      assert_no_email_sent()
+
+      [ticket] = Bbh.Repo.all(Bbh.Tickets.Ticket)
+      assert ticket.queue == "offiziere"
+      assert ticket.kind == "contact"
+      assert ticket.status == "new"
+
+      admin = Bbh.Accounts.Scope.for_user(Bbh.AccountsFixtures.admin_user_fixture())
+      {:ok, loaded} = Bbh.Tickets.get_ticket(admin, ticket.number)
+      assert loaded.subject == "Ich hätte eine Frage."
+      assert loaded.requester_name == "Erika Musterfrau"
+      refute Map.has_key?(loaded.payload || %{}, "client_ip")
+    end
+
+    test "falls back to the default queue for one the form does not offer", %{conn: conn} do
+      post(conn, ~p"/kontakt", human_params(%{"an" => "mitgliedschaft"}))
+      assert [%{queue: "info"}] = Bbh.Repo.all(Bbh.Tickets.Ticket)
+    end
+  end
 end

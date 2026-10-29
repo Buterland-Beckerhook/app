@@ -11,8 +11,9 @@ defmodule BbhWeb.ContactController do
   # Upper bound on how long an issued form stays submittable.
   @max_form_age_seconds 7_200
 
-  def new(conn, _params) do
-    render_form(conn, %{}, %{})
+  # `?an=vorstand` preselects a recipient, so club pages can link straight to it.
+  def new(conn, params) do
+    render_form(conn, Map.take(params, ["an"]), %{})
   end
 
   def create(conn, params) do
@@ -26,7 +27,9 @@ defmodule BbhWeb.ContactController do
       {:ok, data} ->
         case check_spam(conn, params) do
           :ok ->
-            deliver(conn, data)
+            if Bbh.Tickets.enabled?(),
+              do: create_ticket(conn, data, params),
+              else: deliver(conn, data)
 
           {:spam, reason} ->
             Logger.warning("Contact form rejected as spam (#{reason})")
@@ -35,6 +38,27 @@ defmodule BbhWeb.ContactController do
             |> put_flash(:error, "Spam-Schutz fehlgeschlagen. Bitte versuchen Sie es erneut.")
             |> render_form(params, %{})
         end
+    end
+  end
+
+  # Postfach: the request becomes a ticket; no mail leaves, and none goes back to the
+  # sender — the form must not be a way to send arbitrary text to any address.
+  defp create_ticket(conn, data, params) do
+    case Bbh.Tickets.create_from_contact(data, params["an"]) do
+      {:ok, _ticket} ->
+        conn
+        |> put_flash(:info, "Vielen Dank! Ihre Nachricht ist bei uns eingegangen.")
+        |> redirect(to: ~p"/kontakt")
+
+      {:error, reason} ->
+        Logger.error("Contact form ticket failed: #{inspect(reason)}")
+
+        conn
+        |> put_flash(
+          :error,
+          "Ihre Nachricht konnte nicht gesendet werden. Bitte versuchen Sie es später erneut."
+        )
+        |> render_form(params, %{})
     end
   end
 
@@ -86,6 +110,7 @@ defmodule BbhWeb.ContactController do
       page_title: "Kontakt",
       params: params,
       errors: errors,
+      recipients: if(Bbh.Tickets.enabled?(), do: Bbh.Tickets.Queue.contact_options(), else: []),
       form_token: Phoenix.Token.sign(conn, @form_token_salt, System.os_time(:second)),
       altcha: Bbh.Altcha.enabled?() && Bbh.Altcha.challenge()
     )

@@ -35,22 +35,8 @@ defmodule BbhWeb.RateLimit do
     end
   end
 
-  @doc """
-  Best-effort client IP string for use in rate-limit keys.
-
-  The app runs behind a trusted reverse proxy (Traefik/Caddy) that sets
-  `x-forwarded-for`; the left-most entry is the originating client. Falls back
-  to the socket peer address when the header is absent (e.g. direct access).
-  """
-  def client_ip(%Plug.Conn{} = conn) do
-    case Plug.Conn.get_req_header(conn, "x-forwarded-for") do
-      [value | _] when is_binary(value) ->
-        value |> String.split(",") |> List.first() |> String.trim()
-
-      _ ->
-        normalize(conn.remote_ip)
-    end
-  end
+  @doc "Client IP string for use in rate-limit keys — see `BbhWeb.ClientIp`."
+  defdelegate client_ip(conn), to: BbhWeb.ClientIp, as: :get
 
   defp normalize(ip) when is_tuple(ip), do: ip |> :inet.ntoa() |> to_string()
   defp normalize(other), do: to_string(other)

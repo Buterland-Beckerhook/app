@@ -7,12 +7,14 @@ defmodule BbhWeb.Admin.DashboardLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    is_admin = Bbh.Accounts.User.admin?(socket.assigns.current_scope.user)
+    scope = socket.assigns.current_scope
+    is_admin = Bbh.Accounts.User.admin?(scope.user)
 
     socket =
       socket
       |> assign(page_title: "Übersicht", is_admin: is_admin, range_days: 30)
       |> assign_async(:stats, &load_stats/0)
+      |> assign_tickets(scope)
 
     {:ok, if(is_admin, do: load_analytics(socket), else: socket)}
   end
@@ -21,6 +23,17 @@ defmodule BbhWeb.Admin.DashboardLive do
   def handle_event("set_range", %{"days" => days}, socket) do
     days = if String.to_integer(days) in @ranges, do: String.to_integer(days), else: 30
     {:noreply, socket |> assign(range_days: days) |> load_analytics()}
+  end
+
+  # The Postfach widget: new tickets in the user's queues and the ones assigned to them.
+  defp assign_tickets(socket, scope) do
+    if BbhWeb.Authz.can_access_tickets?(scope) do
+      assign(socket,
+        tickets: %{new: Bbh.Tickets.count_new(scope), mine: Bbh.Tickets.list_assigned(scope)}
+      )
+    else
+      assign(socket, tickets: nil)
+    end
   end
 
   # Runs off the connected mount so the page shell renders without blocking on the DB.
@@ -76,6 +89,30 @@ defmodule BbhWeb.Admin.DashboardLive do
         <:subtitle>Willkommen im Verwaltungsbereich.</:subtitle>
       </.header>
 
+      <section :if={@tickets} id="tickets-widget" class="mt-6 rounded-box border border-base-300 p-4">
+        <div class="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 class="text-lg font-semibold">Postfach</h2>
+          <.link navigate={~p"/admin/postfach"} class="link text-sm">
+            {@tickets.new} neue Anfrage{if @tickets.new != 1, do: "n"}
+          </.link>
+        </div>
+        <p :if={@tickets.mine == []} class="mt-2 text-sm text-base-content/60">
+          Dir ist gerade nichts zugewiesen.
+        </p>
+        <ul :if={@tickets.mine != []} class="mt-2 space-y-1 text-sm">
+          <li :for={t <- @tickets.mine} class="flex flex-wrap items-center gap-2">
+            <.link
+              navigate={~p"/admin/postfach/#{Bbh.Tickets.Ticket.reference(t)}"}
+              class="link font-mono"
+            >
+              {Bbh.Tickets.Ticket.reference(t)}
+            </.link>
+            <span>{t.subject}</span>
+            <.status_badge kind={:ticket} status={t.status} />
+          </li>
+        </ul>
+      </section>
+
       <.async_result :let={stats} assign={@stats}>
         <:loading>
           <div class="mt-6 grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -96,6 +133,7 @@ defmodule BbhWeb.Admin.DashboardLive do
             navigate={~p"/admin/artikel"}
           />
           <.stat_card
+            :if={BbhWeb.Authz.can_access_section?(user, :events)}
             label="Termine"
             value={total(stats.events)}
             breakdown={status_breakdown(stats.events)}

@@ -18,7 +18,7 @@ defmodule BbhWeb.UserLive.ConfirmationTest do
         end)
 
       {:ok, _lv, html} = live(conn, ~p"/users/log-in/#{token}")
-      assert html =~ "Confirm and stay logged in"
+      assert html =~ "Bestätigen und angemeldet bleiben"
     end
 
     test "renders login page for confirmed user", %{conn: conn, confirmed_user: user} do
@@ -28,8 +28,8 @@ defmodule BbhWeb.UserLive.ConfirmationTest do
         end)
 
       {:ok, _lv, html} = live(conn, ~p"/users/log-in/#{token}")
-      refute html =~ "Confirm my account"
-      assert html =~ "Keep me logged in on this device"
+      refute html =~ "Bestätigen und angemeldet bleiben"
+      assert html =~ "Auf diesem Gerät angemeldet bleiben"
     end
 
     test "renders login page for already logged in user", %{conn: conn, confirmed_user: user} do
@@ -41,8 +41,8 @@ defmodule BbhWeb.UserLive.ConfirmationTest do
         end)
 
       {:ok, _lv, html} = live(conn, ~p"/users/log-in/#{token}")
-      refute html =~ "Confirm my account"
-      assert html =~ "Log in"
+      refute html =~ "Bestätigen und angemeldet bleiben"
+      assert html =~ "Anmelden"
     end
 
     test "confirms the given token once", %{conn: conn, unconfirmed_user: user} do
@@ -59,7 +59,7 @@ defmodule BbhWeb.UserLive.ConfirmationTest do
       conn = follow_trigger_action(form, conn)
 
       assert Phoenix.Flash.get(conn.assigns.flash, :info) =~
-               "User confirmed successfully"
+               "Konto bestätigt"
 
       assert Accounts.get_user!(user.id).confirmed_at
       # we are logged in now (and nudged to set up a passkey/2FA)
@@ -73,7 +73,7 @@ defmodule BbhWeb.UserLive.ConfirmationTest do
         live(conn, ~p"/users/log-in/#{token}")
         |> follow_redirect(conn, ~p"/users/log-in")
 
-      assert html =~ "Magic link is invalid or it has expired"
+      assert html =~ "Der Anmeldelink ist ungültig oder abgelaufen"
     end
 
     test "logs confirmed user in without changing confirmed_at", %{
@@ -93,7 +93,7 @@ defmodule BbhWeb.UserLive.ConfirmationTest do
       conn = follow_trigger_action(form, conn)
 
       assert Phoenix.Flash.get(conn.assigns.flash, :info) =~
-               "Welcome back!"
+               "Willkommen zurück!"
 
       assert Accounts.get_user!(user.id).confirmed_at == user.confirmed_at
 
@@ -104,7 +104,7 @@ defmodule BbhWeb.UserLive.ConfirmationTest do
         live(conn, ~p"/users/log-in/#{token}")
         |> follow_redirect(conn, ~p"/users/log-in")
 
-      assert html =~ "Magic link is invalid or it has expired"
+      assert html =~ "Der Anmeldelink ist ungültig oder abgelaufen"
     end
 
     test "raises error for invalid token", %{conn: conn} do
@@ -112,7 +112,7 @@ defmodule BbhWeb.UserLive.ConfirmationTest do
         live(conn, ~p"/users/log-in/invalid-token")
         |> follow_redirect(conn, ~p"/users/log-in")
 
-      assert html =~ "Magic link is invalid or it has expired"
+      assert html =~ "Der Anmeldelink ist ungültig oder abgelaufen"
     end
   end
 end

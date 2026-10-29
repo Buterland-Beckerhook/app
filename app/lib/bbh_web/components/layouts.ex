@@ -398,6 +398,7 @@ defmodule BbhWeb.Layouts do
   # Sections are added here as their CRUD is built.
   @admin_nav [
     {:dashboard, "/admin", "Übersicht"},
+    {:tickets, "/admin/postfach", "Postfach"},
     {:articles, "/admin/artikel", "Artikel"},
     {:tags, "/admin/schlagworte", "Schlagworte"},
     {:events, "/admin/termine", "Termine"},
@@ -544,10 +545,11 @@ defmodule BbhWeb.Layouts do
   defp admin_user?(_), do: false
 
   # Only show sections the current user may actually open.
-  defp visible_nav(%{user: user}),
+  defp visible_nav(%{user: user} = scope),
     do:
-      Enum.filter(@admin_nav, fn {key, _href, _label} ->
-        BbhWeb.Authz.can_access_section?(user, key)
+      Enum.filter(@admin_nav, fn
+        {:tickets, _href, _label} -> BbhWeb.Authz.can_access_tickets?(scope)
+        {key, _href, _label} -> BbhWeb.Authz.can_access_section?(user, key)
       end)
 
   defp visible_nav(_), do: []

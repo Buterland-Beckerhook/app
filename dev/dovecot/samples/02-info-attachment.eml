@@ -1,0 +1,35 @@
+X-Original-To: info@buterland-beckerhook.de
+Delivered-To: tickets@buterland-beckerhook.de
+From: Anna Schmidt <anna@example.com>
+To: info@buterland-beckerhook.de, offiziere@buterland-beckerhook.de
+Subject: Fotos vom Schützenfest
+Message-ID: <sample-02@example.com>
+Date: Thu, 29 Oct 2026 11:00:00 +0100
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="sample02"
+
+--sample02
+Content-Type: multipart/alternative; boundary="alt02"
+
+--alt02
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: quoted-printable
+
+Hallo zusammen,
+
+anbei ein Foto vom Umzug. D=FCrfen wir es auf der Website verwenden?
+
+Gr=FC=DFe, Anna
+--alt02
+Content-Type: text/html; charset=utf-8
+
+<p>Hallo zusammen,</p><p>anbei ein Foto vom Umzug.</p>
+--alt02--
+
+--sample02
+Content-Type: image/png
+Content-Disposition: attachment; filename="umzug.png"
+Content-Transfer-Encoding: base64
+
+iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==
+--sample02--

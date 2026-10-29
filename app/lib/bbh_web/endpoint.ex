@@ -12,8 +12,8 @@ defmodule BbhWeb.Endpoint do
   ]
 
   socket "/live", Phoenix.LiveView.Socket,
-    websocket: [connect_info: [:peer_data, :x_headers, session: @session_options]],
-    longpoll: [connect_info: [:peer_data, :x_headers, session: @session_options]]
+    websocket: [connect_info: [:peer_data, :x_headers, :user_agent, session: @session_options]],
+    longpoll: [connect_info: [:peer_data, :x_headers, :user_agent, session: @session_options]]
 
   # First in the pipeline so its `register_before_send` covers every response,
   # including the static assets Plug.Static halts on. No-op unless the beta flag is set.

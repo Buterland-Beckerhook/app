@@ -144,6 +144,50 @@ Every year's winners of the club's trophies live in `trophies` / `trophy_wins`
   (`20261025150100_import_trophy_winners`); the source with gaps and caveats is
   `docs/verein/pokalschiessen.md`.
 
+## Postfach (tickets)
+
+Contact form, membership form and mail to the club addresses become tickets in
+`/admin/postfach` (`Bbh.Tickets`), behind `TICKETS_ENABLED` (on in dev). See
+`docs/adr/0016-ticket-system.md` and the full plan in `docs/plans/ticket-system.md`.
+Rules that constrain changes:
+
+- **Clear text only in `Bbh.Tickets`.** Personal data lives in `*_enc` columns
+  (`Bbh.Vault`, AAD = table.column:row id); write through `Vault.encrypt_changes/3`,
+  read through `Vault.decrypt_fields/3`. New personal fields get a virtual field with
+  `redact: true` plus an `_enc` column — and an entry in `Bbh.Release.rekey_tickets/0`.
+  Filters and sorting stay on plain columns; there is no search over ticket content.
+- **No personal data in Oban args, logs or staff mails.** Jobs carry ids; ticket mail
+  is logged with `Mailer.deliver_logged(…, redact: true)`; `ticket_events.meta` holds
+  statuses and ids only; notifications name queue + reference + link, never subject,
+  name or address. gen_smtp's debug logging is filtered for the same reason.
+- **Authorize with the scope.** Ticket checks are `BbhWeb.Authz.can_view_ticket?/2` etc.
+  on `current_scope` (its `ticket_queues` are the grants). Every Postfach route — LiveView
+  (`:require_tickets`) and controller (`UserAuth.require_strong_auth/2`) — needs a passkey
+  or magic-link + TOTP session. A ticket the scope may not see is "not found".
+- **Downloads are opaque.** Attachments go out as `application/octet-stream` attachment
+  with `nosniff`; mail HTML is turned into text on import and never rendered. The
+  membership PDF is generated per request and never stored.
+- **Never answer automatically.** Inbound auto-replies, bulk mail and bounces are
+  filed, not answered (backscatter). Replies are sent only by a person, from
+  `Bbh.TicketMailer` (`tickets@`), never from `noreply@`.
+- **The IMAP server copy goes when work starts** (`Bbh.Workers.ImapCleanup`), checked
+  against UIDVALIDITY. Anything that takes a ticket out of `new` goes through
+  `update_and_log/4` (or calls `release_server_copy/2`) so this still happens.
+- **Retention is env** (`TICKET_RETENTION_MONTHS`, `TICKET_PURGE_DAYS`,
+  `TICKET_EVENT_RETENTION_MONTHS`), because the Datenschutzerklärung states it;
+  reminder thresholds are a site setting (tab „Postfach").
+- **Beta never sees Prod's mail or tickets:** own `TICKET_KEYS`, own mailbox
+  (`beta.tickets@`, and `TICKET_ADDRESS_PREFIX=beta.` so every queue address becomes
+  its `beta.` test alias), and
+  `deploy/sync-data.sh` truncates the ticket tables. `scripts/seed.sh` empties them
+  (and the login log) after a restore, too — unless `KEEP_TICKETS=1`.
+- **Queues are data** (`ticket_queues`, admin at `/admin/postfaecher`), cached in
+  `:persistent_term` — write them through `Bbh.Tickets.Queue` only. `info` (fallback for
+  unknown recipients) and `mitgliedschaft` (membership form) are fixed: editable, never
+  deleted or deactivated. A key never changes; a queue in use is deactivated, not deleted.
+- **Dev mailbox:** the `dovecot` service; `make mail-samples` drops sample mails into
+  its INBOX, the poller files them within two minutes.
+
 ## Article tags
 
 Tags stay a plain string list on `articles` — there is no tag table; the tag list is

@@ -18,6 +18,9 @@ defmodule BbhWeb.UserSessionControllerTest do
         })
 
       assert get_session(conn, :user_token)
+      assert session_auth_method(conn) == "magic_link"
+      assert [%{user_id: user_id, method: "magic_link"}] = auth_events("login_succeeded")
+      assert user_id == user.id
       # No passkey/2FA yet → nudged to the enrollment page (skippable).
       assert redirected_to(conn) == ~p"/users/security"
 
@@ -60,7 +63,7 @@ defmodule BbhWeb.UserSessionControllerTest do
       assert get_session(conn, :user_token)
       # New account with no passkey/2FA → nudged to enrollment.
       assert redirected_to(conn) == ~p"/users/security"
-      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "User confirmed successfully."
+      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "Konto bestätigt. Willkommen!"
 
       assert Accounts.get_user!(user.id).confirmed_at
 
@@ -78,9 +81,12 @@ defmodule BbhWeb.UserSessionControllerTest do
         })
 
       assert Phoenix.Flash.get(conn.assigns.flash, :error) ==
-               "The link is invalid or it has expired."
+               "Der Link ist ungültig oder abgelaufen."
 
       assert redirected_to(conn) == ~p"/users/log-in"
+
+      assert [%{user_id: nil, method: "magic_link", ip: "127.0.0.1"}] =
+               auth_events("login_failed")
     end
   end
 
@@ -91,6 +97,7 @@ defmodule BbhWeb.UserSessionControllerTest do
       conn = post(conn, ~p"/users/log-in", %{"user" => %{"passkey_token" => token}})
 
       assert get_session(conn, :user_token)
+      assert session_auth_method(conn) == "passkey"
       assert redirected_to(conn) == ~p"/admin"
     end
 
@@ -127,17 +134,18 @@ defmodule BbhWeb.UserSessionControllerTest do
 
   describe "DELETE /users/log-out" do
     test "logs the user out", %{conn: conn, user: user} do
-      conn = conn |> log_in_user(user) |> delete(~p"/users/log-out")
+      conn = conn |> log_in_user(user, auth_method: "passkey") |> delete(~p"/users/log-out")
       assert redirected_to(conn) == ~p"/"
+      assert [%{method: "passkey"}] = auth_events("logged_out")
       refute get_session(conn, :user_token)
-      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "Logged out successfully"
+      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "Erfolgreich abgemeldet"
     end
 
     test "succeeds even if the user is not logged in", %{conn: conn} do
       conn = delete(conn, ~p"/users/log-out")
       assert redirected_to(conn) == ~p"/"
       refute get_session(conn, :user_token)
-      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "Logged out successfully"
+      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "Erfolgreich abgemeldet"
     end
   end
 
@@ -160,5 +168,15 @@ defmodule BbhWeb.UserSessionControllerTest do
       assert redirected_to(conn) == ~p"/"
       refute get_session(conn, :user_token)
     end
+  end
+
+  defp session_auth_method(conn) do
+    {user, _} = Bbh.Accounts.get_user_by_session_token(get_session(conn, :user_token))
+    user.auth_method
+  end
+
+  defp auth_events(event) do
+    import Ecto.Query
+    Bbh.Repo.all(from e in Bbh.Accounts.AuthEvent, where: e.event == ^event)
   end
 end

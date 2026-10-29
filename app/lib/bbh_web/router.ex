@@ -230,10 +230,13 @@ defmodule BbhWeb.Router do
   scope "/admin", BbhWeb.Admin do
     pipe_through [:browser, :require_authenticated_user]
 
-    # Dashboard + Termine: open to any staff (admin, editor, calendar_editor).
+    # Dashboard: open to any staff.
     live_session :admin_staff, on_mount: [{BbhWeb.UserAuth, :require_staff}] do
       live "/", DashboardLive, :index
+    end
 
+    # Termine: every role but "Nur Postfach".
+    live_session :admin_events, on_mount: [{BbhWeb.UserAuth, :require_events}] do
       live "/termine", EventLive.Index, :index
       live "/termine/teilen", ShareLive.Index, :index
       live "/termine/neu", EventLive.Form, :new
@@ -268,10 +271,25 @@ defmodule BbhWeb.Router do
       live "/seiten/:id/bearbeiten", PageLive.Form, :edit
     end
 
+    # The Postfach: a queue grant (or admin) and a passkey/TOTP session.
+    get "/postfach/:ref/antrag.pdf", TicketPdfController, :show
+    get "/postfach/:ref/anhang/:id", TicketAttachmentController, :show
+
+    live_session :admin_tickets, on_mount: [{BbhWeb.UserAuth, :require_tickets}] do
+      live "/postfach", TicketLive.Index, :index
+      live "/postfach/auskunft", TicketLive.Requester, :index
+      live "/postfach/:ref", TicketLive.Show, :show
+    end
+
     # Admin-only sections.
     live_session :admin_only, on_mount: [{BbhWeb.UserAuth, :require_admin}] do
       live "/benutzer", UserLive.Index, :index
+      live "/benutzer/:id/anmeldungen", UserLive.AuthLog, :show
+      live "/postfaecher", QueueLive, :index
+      live "/postfaecher/neu", QueueLive, :new
+      live "/postfaecher/:key", QueueLive, :edit
       live "/website", SiteSettingsLive, :index
+      live "/website/postfach", SiteSettingsLive, :tickets
       live "/push", PushLive, :index
       live "/bankleitzahlen", BlzLive, :index
 

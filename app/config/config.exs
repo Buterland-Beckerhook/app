@@ -80,6 +80,8 @@ config :phoenix_live_view,
 # For production it's recommended to configure a different adapter
 # at the `config/runtime.exs`.
 config :bbh, Bbh.Mailer, adapter: Swoosh.Adapters.Local
+# Postfach replies (dev: the same local mailbox, /dev/mailbox).
+config :bbh, Bbh.TicketMailer, adapter: Swoosh.Adapters.Local
 
 # Configure esbuild (the version is required)
 config :esbuild,
@@ -157,6 +159,12 @@ config :bbh, Oban,
        {"*/5 * * * *", Bbh.Workers.ArticlePublishNotifier},
        {"*/5 * * * *", Bbh.Workers.EventPublishNotifier},
        {"*/5 * * * *", Bbh.Workers.EventReminderNotifier},
+       # Postfach: announce new tickets (bundled, two minutes after they came in) and the
+       # daily reminders + admin digest (the hour is a site setting, checked hourly).
+       {"*/2 * * * *", Bbh.Workers.TicketNewNotifier},
+       {"5 * * * *", Bbh.Workers.TicketReminder},
+       # Fetch mail from the Postfach mailbox (a no-op without TICKET_IMAP_HOST).
+       {"*/2 * * * *", Bbh.Workers.ImapPoller},
        # Rebuild the full-text search index; self-healing, so a coarse cadence is fine.
        {"*/15 * * * *", Bbh.Workers.SearchReindexer},
        # Reclaim dead MCP tokens and spent OAuth codes. Nightly is plenty — neither still
@@ -164,6 +172,8 @@ config :bbh, Oban,
        {"30 3 * * *", Bbh.Workers.AuthPruner},
        # Forget 404-log entries nobody has hit for 90 days.
        {"45 3 * * *", Bbh.Workers.NotFoundPruner},
+       # Postfach retention: soft-delete closed tickets, purge deleted ones and old spam.
+       {"55 3 * * *", Bbh.Workers.TicketPruner},
        # Fold visitor hashes older than seven days into daily totals and delete them.
        {"50 3 * * *", Bbh.Workers.AnalyticsRollup},
        # Refresh the map archive monthly — OSM edits are slow to matter here.

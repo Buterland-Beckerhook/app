@@ -20,11 +20,90 @@ defmodule Bbh.Membership do
   @creditor_id "DE39SVB00000430432"
   @mandate_reference "gleich Mitgliedsnummer"
 
+  # The declarations shown on the form. Rendered from here, so `form_version/0` names
+  # exactly the wording an applicant accepted, and the PDF and the applicant's copy
+  # print the same text. The wording of the paper form: a SEPA Core mandate needs both
+  # the authorisation and the instruction to the bank, plus the refund notice.
+  @mandate_text "Ich ermächtige den Schützenverein Buterland-Beckerhook e.V., den " <>
+                  "Jahresbeitrag von meinem Konto mittels Lastschrift einzuziehen. Zugleich " <>
+                  "weise ich mein Kreditinstitut an, die vom Schützenverein " <>
+                  "Buterland-Beckerhook e.V. auf mein Konto gezogenen Lastschriften einzulösen."
+  @mandate_note "Hinweis: Ich kann innerhalb von acht Wochen, beginnend mit dem " <>
+                  "Belastungsdatum, die Erstattung des belasteten Betrages verlangen. Es " <>
+                  "gelten dabei die mit meinem Kreditinstitut vereinbarten Bedingungen."
+  @privacy_note "Informationen zur Verarbeitung Ihrer Daten finden Sie in unserer " <>
+                  "Datenschutzerklärung."
+  @form_version :crypto.hash(
+                  :sha256,
+                  Enum.join([@mandate_text, @mandate_note, @privacy_note], "\n")
+                )
+                |> Base.encode16(case: :lower)
+                |> binary_part(0, 12)
+
+  @doc "The SEPA mandate the applicant gives by ticking the box."
+  def mandate_text, do: @mandate_text
+
+  @doc "The refund notice that belongs to the mandate."
+  def mandate_note, do: @mandate_note
+
+  @doc "The privacy notice below the form (the link target is the template's)."
+  def privacy_note, do: @privacy_note
+
+  @doc """
+  First 12 hex digits of the SHA-256 of mandate and privacy text — stored with each
+  application so the record states which wording was accepted. Changes by itself when
+  the text does.
+  """
+  def form_version, do: @form_version
+
+  @doc "Gläubiger-Identifikationsnummer of the club."
+  def creditor_id, do: @creditor_id
+
+  @doc "Mandatsreferenz as the form states it (the member number, once assigned)."
+  def mandate_reference, do: @mandate_reference
+
+  @doc "Annual fee and debit date, as the paper form states them."
+  def fee_note,
+    do:
+      "Mitgliedsbeitrag: Der Jahresbeitrag beträgt derzeit 30,- € und wird jeweils am " <>
+        "15. März per SEPA-Lastschrift eingezogen."
+
+  @doc ~s(An IBAN in the usual groups of four, e.g. "DE89 3704 0044 0532 0130 00".)
+  def format_iban(iban) when is_binary(iban) do
+    iban
+    |> String.replace(~r/\s/, "")
+    |> String.graphemes()
+    |> Enum.chunk_every(4)
+    |> Enum.map_join(" ", &Enum.join/1)
+  end
+
+  def format_iban(_), do: ""
+
   @doc "Minimum age for a membership (Satzung). Soft: only hinted/flagged, never rejected."
   def min_age, do: Application.get_env(:bbh, :membership_min_age, 16)
 
   @doc "Children are listed only when younger than this age. Soft: only hinted/flagged."
   def max_child_age, do: Application.get_env(:bbh, :membership_max_child_age, 15)
+
+  @doc """
+  The IBAN as the applicant's confirmation copy shows it: country code, check digits and
+  the last four characters, the rest bulleted, in the usual groups of four — enough to
+  recognise the account, useless to anyone reading the mail on its way.
+
+      iex> Bbh.Membership.mask_iban("DE89370400440532013000")
+      "DE89 •••• •••• •••• ••30 00"
+  """
+  def mask_iban(iban) when is_binary(iban) do
+    iban = String.replace(iban, ~r/\s/, "")
+    len = String.length(iban)
+    hidden = max(len - 8, 0)
+
+    (String.slice(iban, 0, min(4, len)) <>
+       String.duplicate("•", hidden) <> String.slice(iban, max(len - 4, 4)..-1//1))
+    |> String.graphemes()
+    |> Enum.chunk_every(4)
+    |> Enum.map_join(" ", &Enum.join/1)
+  end
 
   @doc "Whether the honeypot field was filled (a bot tell)."
   def honeypot_filled?(params) do
@@ -132,13 +211,19 @@ defmodule Bbh.Membership do
     |> Mailer.deliver_logged("membership")
   end
 
+  @doc """
+  The confirmation copy to the applicant — also their copy of the SEPA mandate. The IBAN
+  is masked; the address is kept out of the log.
+  """
+  def deliver_applicant_copy(data), do: deliver_to_applicant(data)
+
   defp deliver_to_applicant(%{email: email} = data) do
     new()
     |> to({full_name(data), email})
     |> from({Mailer.sender_name(), Mailer.sender()})
     |> subject("Ihr Aufnahmeantrag beim Schützenverein Buterland-Beckerhook e.V.")
     |> text_body(applicant_body(data))
-    |> Mailer.deliver_logged("membership-copy")
+    |> Mailer.deliver_logged("membership-copy", redact: true)
   end
 
   defp club_body(data) do
@@ -154,13 +239,14 @@ defmodule Bbh.Membership do
 
     Zu Ihrer Übersicht sind Ihre übermittelten Angaben nachstehend aufgeführt.
 
-    #{summary(data)}
+    #{summary(data, iban: mask_iban(data.iban))}
     Mit freundlichen Grüßen
     Schützenverein Buterland-Beckerhook e.V.
     """
   end
 
-  defp summary(data) do
+  # The club copy carries the full IBAN; the applicant's copy passes a masked one.
+  defp summary(data, opts \\ []) do
     """
     Aufnahmeantrag
     --------------
@@ -174,12 +260,15 @@ defmodule Bbh.Membership do
     SEPA-Lastschriftmandat
     ----------------------
     Kontoinhaber:  #{data.kontoinhaber}
-    IBAN:          #{data.iban}
+    IBAN:          #{Keyword.get(opts, :iban, data.iban)}
     BIC:           #{data.bic}
     Kreditinstitut: #{data.kreditinstitut}
     Gläubiger-ID:  #{@creditor_id}
     Mandatsreferenz: #{@mandate_reference}
     SEPA-Mandat erteilt: #{yes_no(data.sepa)}
+
+    #{@mandate_text}
+    #{@mandate_note}
     """
   end
 
@@ -194,14 +283,18 @@ defmodule Bbh.Membership do
     "\nKinder unter #{max_child_age()} Jahren:\n" <> lines <> "\n"
   end
 
-  # Non-blocking notes for the club: applicant below min age, or a listed child not
-  # actually below the child age. Appended only when something is off.
-  defp age_flags(data) do
-    flags =
-      [applicant_age_flag(data) | Enum.map(data.children, &child_age_flag/1)]
-      |> Enum.reject(&is_nil/1)
+  @doc """
+  Non-blocking notes for the club: applicant below the minimum age, or a listed child
+  not actually below the child age. Empty when nothing is off.
+  """
+  def flags(data) do
+    [applicant_age_flag(data) | Enum.map(data.children, &child_age_flag/1)]
+    |> Enum.reject(&is_nil/1)
+  end
 
-    case flags do
+  # Appended to the club mail only when something is off.
+  defp age_flags(data) do
+    case flags(data) do
       [] ->
         ""
 
