@@ -21,9 +21,9 @@ forwarded each club address to the board members' own accounts. That had three c
 or mail — becomes one ticket in a queue; the people granted that queue work it,
 admins read everything. Replies go out from the system, as the club address.
 
-- **Queues are fixed in code** (`Bbh.Tickets.Queue`), **grants are a table**
-  (`queue_grants`) set per user in the user administration, independent of the content
-  role. A new role „Nur Postfach" (`tickets`) has no content access at all. `queue_key`
+- **Queues are data** (`ticket_queues`, maintained by admins — a new address such as
+  `insta@` must not need a release), **grants are a table** (`queue_grants`) set per
+  user in the user administration, independent of the content role. A new role „Nur Postfach" (`tickets`) has no content access at all. `queue_key`
   is a plain string so admin-defined groups can later share the column.
 - **Personal data is encrypted at rest** (`Bbh.Vault`, AES-256-GCM via `:crypto`), each
   value bound to table, column and row id (AAD), so a dump or backup is unreadable
@@ -60,7 +60,8 @@ admins read everything. Replies go out from the system, as the club address.
   `tickets@`, then pointing the queue aliases at it and removing the forwarding rules.
 - Losing the keys loses every ticket; rotation is `TICKET_KEYS` + `TICKET_KEY_CURRENT`
   and `Bbh.Release.rekey_tickets/0`.
-- Beta must have its own keys, its own mailbox and no ticket rows
+- Beta must have its own keys, its own mailbox, `TICKET_ADDRESS_PREFIX=beta.` (Beta
+  gets Prod's queue list with every sync) and no ticket rows
   (`deploy/sync-data.sh` truncates them): a Beta poller with Prod's credentials would
   take and delete real mail.
 - A dev database restored from a Prod snapshot carries tickets the dev keys cannot

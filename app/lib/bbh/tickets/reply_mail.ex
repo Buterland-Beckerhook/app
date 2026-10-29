@@ -31,9 +31,9 @@ defmodule Bbh.Tickets.ReplyMail do
   end
 
   @doc """
-  The display name replies go out with: the club, plus the queue — except for the
-  general queue, which simply speaks for the club. Membership applications are
-  answered by the Vorstand, from its address, so they are signed as the Vorstand.
+  The display name replies go out with: the club, plus the queue's signature line
+  (`Bbh.Tickets.Queue.signature/1`) — none for the general queue, which simply speaks
+  for the club; "Vorstand" for membership applications, answered from its address.
   """
   def sender_name(queue) do
     case signer(queue) do
@@ -49,9 +49,7 @@ defmodule Bbh.Tickets.ReplyMail do
     end
   end
 
-  defp signer("info"), do: nil
-  defp signer("mitgliedschaft"), do: Queue.label("vorstand")
-  defp signer(queue), do: Queue.label(queue)
+  defp signer(queue), do: Queue.signature(queue)
 
   @doc ~s(The subject: "Re: …" for mail, a fixed one for forms — always with the reference.)
   def subject(%Ticket{kind: "email", subject: subject} = ticket) do

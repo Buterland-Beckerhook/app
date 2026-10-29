@@ -284,6 +284,9 @@ defmodule BbhWeb.Router do
     live_session :admin_only, on_mount: [{BbhWeb.UserAuth, :require_admin}] do
       live "/benutzer", UserLive.Index, :index
       live "/benutzer/:id/anmeldungen", UserLive.AuthLog, :show
+      live "/postfaecher", QueueLive, :index
+      live "/postfaecher/neu", QueueLive, :new
+      live "/postfaecher/:key", QueueLive, :edit
       live "/website", SiteSettingsLive, :index
       live "/website/postfach", SiteSettingsLive, :tickets
       live "/push", PushLive, :index

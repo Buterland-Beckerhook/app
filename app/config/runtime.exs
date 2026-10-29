@@ -34,10 +34,10 @@ if enabled = System.get_env("TICKETS_ENABLED") do
   config :bbh, :tickets_enabled, enabled in ~w(true 1)
 end
 
-# Per-queue addresses (Bbh.Tickets.Queue), e.g. test aliases on Beta:
-# "info=info-beta@…,vorstand=vorstand-beta@…". Unlisted queues keep the club address.
-if addresses = System.get_env("TICKET_QUEUE_ADDRESSES") do
-  config :bbh, :ticket_queue_addresses, addresses
+# Beta: "beta." in front of every Postfach queue address (Bbh.Tickets.Queue), so it
+# receives and replies as the test aliases even with a copy of Prod's queue list.
+if prefix = System.get_env("TICKET_ADDRESS_PREFIX") do
+  config :bbh, :ticket_address_prefix, prefix
 end
 
 # The Postfach's collector mailbox (Bbh.Tickets.Mailbox) — import only when set. Beta

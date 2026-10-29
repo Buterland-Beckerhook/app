@@ -99,6 +99,9 @@ defmodule BbhWeb.Admin.TicketLive.Index do
         <:subtitle>
           Anfragen aus Kontakt- und Mitgliedsformular.
         </:subtitle>
+        <:actions :if={Authz.can_delete_ticket?(@current_scope)}>
+          <.button navigate={~p"/admin/postfaecher"}>Postfächer verwalten</.button>
+        </:actions>
       </.header>
 
       <div class="mt-6 flex flex-wrap items-center justify-between gap-3">

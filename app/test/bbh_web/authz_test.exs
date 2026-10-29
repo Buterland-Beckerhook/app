@@ -1,5 +1,6 @@
 defmodule BbhWeb.AuthzTest do
-  use ExUnit.Case, async: true
+  # The DB: queues live in ticket_queues.
+  use Bbh.DataCase, async: true
 
   alias Bbh.Accounts.User
   alias Bbh.Calendar.Event

@@ -21,6 +21,9 @@ AGENTS.md („Postfach"). Where the implementation differs from this plan:
   `Tickets/Ignoriert` or `Junk`.
 - `mix bbh.vault.gen_key` (not `bbh.tickets.gen_key`).
 - Spam is purged after `TICKET_PURGE_DAYS` of inactivity without a soft delete first (§10).
+- Queues are data, not code: table `ticket_queues`, maintained at `/admin/postfaecher`
+  (label, inbound and reply address, signature line, contact form, order, active).
+  `TICKET_QUEUE_ADDRESSES` is gone; Beta uses `TICKET_ADDRESS_PREFIX=beta.` (§3).
 Target repo: `Buterland-Beckerhook/app` · implementation locally with Claude Code
 Later condensed into
 `docs/adr/0016-ticket-system.md` + an AGENTS.md section.

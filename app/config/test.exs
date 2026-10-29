@@ -44,6 +44,7 @@ config :bbh, Bbh.Notifications, async: false
 # Redirects: no node-global rule cache (async tests use separate sandboxes), and the
 # 404 log is written inline so it stays inside the test's SQL sandbox.
 config :bbh, Bbh.Redirects, cache: false
+config :bbh, Bbh.Tickets.Queue, cache: false
 config :bbh, BbhWeb.Redirector, async: false
 
 # Don't pre-warm image variants in tests: the detached task would outlive the
