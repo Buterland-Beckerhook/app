@@ -141,8 +141,27 @@ defmodule BbhWeb.Admin.TicketLiveTest do
 
       assert html =~ "Gern, am 12. Juli."
       assert html =~ "wird gesendet"
+      # A fresh, empty field — not the browser's old text.
+      assert has_element?(lv, "#reply-body-1")
+      refute has_element?(lv, "#reply-body-0")
       assert %{status: "closed", assignee_id: id} = Bbh.Repo.get!(Ticket, ticket.id)
       assert id == user.id
+    end
+
+    test "the sender can be corrected; form requests name it in the thread", %{conn: conn} do
+      ticket = ticket_fixture()
+      {:ok, lv, html} = live(conn, ~p"/admin/postfach/#{Ticket.reference(ticket)}")
+      assert html =~ "Kontaktformular von Erika Musterfrau (erika@example.com)"
+
+      lv |> element("button", "Ändern") |> render_click()
+
+      html =
+        lv
+        |> form("#requester-form", %{"name" => "Erika Muster", "email" => "erika@example.org"})
+        |> render_submit()
+
+      assert html =~ "Absender geändert"
+      assert html =~ "Antwort an erika@example.org"
     end
 
     test "Kein Spam brings a ticket back", %{conn: conn, user: user} do

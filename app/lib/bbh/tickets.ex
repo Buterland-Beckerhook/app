@@ -713,6 +713,27 @@ defmodule Bbh.Tickets do
   end
 
   @doc """
+  Corrects the requester's name and address — a typo in the form, or a reply that
+  bounced. Re-encrypted, with a new blind index; logged without the values.
+  """
+  def update_requester(%Scope{} = scope, %Ticket{} = ticket, name, email) do
+    name = String.trim(name || "")
+    email = email |> to_string() |> String.trim()
+
+    with :ok <- authorize(scope, ticket),
+         true <- email =~ ~r/^[^\s@]+@[^\s@]+\.[^\s@]+$/ || {:error, :invalid_email} do
+      ticket
+      |> Ecto.Changeset.change(
+        requester_name: if(name == "", do: nil, else: name),
+        requester_email: email,
+        requester_email_hmac: Vault.blind_index(email)
+      )
+      |> Vault.encrypt_changes("tickets", Ticket.encrypted_fields())
+      |> update_and_log(scope, "requester_changed", %{})
+    end
+  end
+
+  @doc """
   Sets the Mitgliedsnummer on a membership ticket (stored encrypted in the payload; it
   is also the SEPA mandate reference).
   """

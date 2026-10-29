@@ -208,6 +208,28 @@ defmodule Bbh.TicketsTest do
       assert "unmarked_spam" in Enum.map(Tickets.list_events(spam), & &1.action)
     end
 
+    test "the requester can be corrected", %{scope: scope} do
+      ticket = ticket_fixture()
+      {:ok, loaded} = Tickets.get_ticket(scope, ticket.number)
+
+      assert {:ok, _} =
+               Tickets.update_requester(scope, loaded, " Erika M. ", "erika.neu@example.com ")
+
+      {:ok, changed} = Tickets.get_ticket(scope, ticket.number)
+      assert changed.requester_name == "Erika M."
+      assert changed.requester_email == "erika.neu@example.com"
+      assert changed.requester_email_hmac == Bbh.Vault.blind_index("erika.neu@example.com")
+
+      assert Tickets.update_requester(scope, changed, "x", "keine adresse") ==
+               {:error, :invalid_email}
+
+      foreign = ticket_fixture(queue: "vorstand")
+      assert Tickets.update_requester(scope, foreign, "x", "a@b.de") == {:error, :unauthorized}
+
+      event = Enum.find(Tickets.list_events(ticket), &(&1.action == "requester_changed"))
+      assert event.meta == %{}
+    end
+
     test "views are logged at most once per ten minutes", %{scope: scope} do
       ticket = ticket_fixture()
       :ok = Tickets.record_view(scope, ticket)

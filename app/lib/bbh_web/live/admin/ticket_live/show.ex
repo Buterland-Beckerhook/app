@@ -29,6 +29,10 @@ defmodule BbhWeb.Admin.TicketLive.Show do
            page_title: Ticket.reference(ticket),
            note_form: note_form(),
            reply_form: reply_form(),
+           # Part of the textareas' ids: bumped after a save, so LiveView renders a fresh,
+           # empty field instead of keeping what the browser holds.
+           form_n: 0,
+           editing_requester: false,
            replies_enabled: Tickets.replies_enabled?()
          )
          |> assign_ticket(ticket)}
@@ -117,7 +121,7 @@ defmodule BbhWeb.Admin.TicketLive.Show do
         {:noreply,
          socket
          |> put_flash(:info, "Antwort wird gesendet.")
-         |> assign(reply_form: reply_form())
+         |> assign(reply_form: reply_form(), form_n: socket.assigns.form_n + 1)
          |> reload()}
 
       {:error, :empty} ->
@@ -131,11 +135,39 @@ defmodule BbhWeb.Admin.TicketLive.Show do
     end
   end
 
+  def handle_event("edit_requester", _params, socket),
+    do: {:noreply, assign(socket, editing_requester: !socket.assigns.editing_requester)}
+
+  def handle_event("requester", %{"name" => name, "email" => email}, socket) do
+    %{current_scope: scope, ticket: ticket} = socket.assigns
+
+    case Tickets.update_requester(scope, ticket, name, email) do
+      {:ok, _} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Absender geändert.")
+         |> assign(editing_requester: false)
+         |> reload()}
+
+      {:error, :invalid_email} ->
+        {:noreply, put_flash(socket, :error, "Das ist keine gültige E-Mail-Adresse.")}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Absender nicht geändert.")}
+    end
+  end
+
   def handle_event("note", %{"note" => %{"body" => body}}, socket) do
     case Tickets.add_note(socket.assigns.current_scope, socket.assigns.ticket, body) do
-      {:ok, _} -> {:noreply, socket |> assign(note_form: note_form()) |> reload()}
-      {:error, :empty} -> {:noreply, put_flash(socket, :error, "Die Notiz ist leer.")}
-      {:error, _} -> {:noreply, put_flash(socket, :error, "Notiz nicht gespeichert.")}
+      {:ok, _} ->
+        {:noreply,
+         socket |> assign(note_form: note_form(), form_n: socket.assigns.form_n + 1) |> reload()}
+
+      {:error, :empty} ->
+        {:noreply, put_flash(socket, :error, "Die Notiz ist leer.")}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Notiz nicht gespeichert.")}
     end
   end
 
@@ -242,6 +274,7 @@ defmodule BbhWeb.Admin.TicketLive.Show do
           >
             <.input
               field={@reply_form[:body]}
+              id={"reply-body-#{@form_n}"}
               type="textarea"
               label={"Antwort an #{@ticket.requester_email}"}
               rows="8"
@@ -272,6 +305,7 @@ defmodule BbhWeb.Admin.TicketLive.Show do
           <.form :if={not @deleted} for={@note_form} id="note-form" phx-submit="note">
             <.input
               field={@note_form[:body]}
+              id={"note-body-#{@form_n}"}
               type="textarea"
               label="Interne Notiz"
               rows="4"
@@ -284,9 +318,45 @@ defmodule BbhWeb.Admin.TicketLive.Show do
         <aside class="space-y-6">
           <section class="rounded-box bg-base-200 p-4 space-y-4">
             <div>
-              <h2 class="text-sm font-semibold">Absender</h2>
-              <p>{@ticket.requester_name || "–"}</p>
-              <p class="break-all text-sm">{@ticket.requester_email}</p>
+              <div class="flex items-baseline justify-between gap-2">
+                <h2 class="text-sm font-semibold">Absender</h2>
+                <button
+                  :if={not @deleted}
+                  type="button"
+                  phx-click="edit_requester"
+                  class="link text-xs"
+                >
+                  {if @editing_requester, do: "Abbrechen", else: "Ändern"}
+                </button>
+              </div>
+              <div :if={not @editing_requester}>
+                <p>{@ticket.requester_name || "–"}</p>
+                <p class="break-all text-sm">{@ticket.requester_email}</p>
+              </div>
+              <form
+                :if={@editing_requester}
+                phx-submit="requester"
+                id="requester-form"
+                class="mt-2 space-y-2"
+              >
+                <input
+                  name="name"
+                  value={@ticket.requester_name}
+                  placeholder="Name"
+                  aria-label="Name"
+                  class="input input-bordered input-sm w-full"
+                />
+                <input
+                  name="email"
+                  type="email"
+                  value={@ticket.requester_email}
+                  placeholder="E-Mail-Adresse"
+                  aria-label="E-Mail-Adresse"
+                  required
+                  class="input input-bordered input-sm w-full"
+                />
+                <.button class="btn btn-sm w-full">Speichern</.button>
+              </form>
             </div>
 
             <div :if={not @deleted} class="space-y-2">
@@ -504,9 +574,13 @@ defmodule BbhWeb.Admin.TicketLive.Show do
   defp message_class("note"), do: "border-warning/40 bg-warning/10"
   defp message_class(_system), do: "border-dashed border-base-300 text-sm text-base-content/70"
 
-  defp message_label(%{direction: "in"}, %{kind: "contact"}), do: "Kontaktformular"
-  defp message_label(%{direction: "in"}, %{kind: "membership"}), do: "Mitgliedsantrag"
-  defp message_label(%{direction: "in", from: from}, _), do: "E-Mail von #{from}"
+  defp message_label(%{direction: "in"} = m, %{kind: "contact"} = t),
+    do: "Kontaktformular von #{sender(m, t)}"
+
+  defp message_label(%{direction: "in"} = m, %{kind: "membership"} = t),
+    do: "Mitgliedsantrag von #{sender(m, t)}"
+
+  defp message_label(%{direction: "in"} = m, t), do: "E-Mail von #{sender(m, t)}"
 
   defp message_label(%{direction: "out", author: author} = m, _),
     do: "Antwort von #{author && author.email}#{if is_nil(m.sent_at), do: " · wird gesendet …"}"
@@ -516,6 +590,13 @@ defmodule BbhWeb.Admin.TicketLive.Show do
 
   defp message_label(_message, _ticket), do: "System"
 
+  # "Name (address)" as the message came in; the name from the ticket for forms.
+  defp sender(%{from: from}, %{kind: kind, requester_name: name})
+       when kind in ["contact", "membership"] and is_binary(name) and name != "",
+       do: "#{name} (#{from})"
+
+  defp sender(%{from: from}, _ticket), do: from || "unbekannt"
+
   @event_labels %{
     "created" => "eingegangen",
     "viewed" => "angesehen",
@@ -524,6 +605,7 @@ defmodule BbhWeb.Admin.TicketLive.Show do
     "queue_changed" => "Postfach gewechselt",
     "replied" => "beantwortet",
     "noted" => "Notiz",
+    "requester_changed" => "Absender geändert",
     "received" => "Antwort des Absenders eingegangen",
     "attachment_downloaded" => "Anhang heruntergeladen",
     "pdf_exported" => "PDF heruntergeladen",
