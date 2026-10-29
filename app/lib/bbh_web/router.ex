@@ -277,6 +277,7 @@ defmodule BbhWeb.Router do
 
     live_session :admin_tickets, on_mount: [{BbhWeb.UserAuth, :require_tickets}] do
       live "/postfach", TicketLive.Index, :index
+      live "/postfach/auskunft", TicketLive.Requester, :index
       live "/postfach/:ref", TicketLive.Show, :show
     end
 

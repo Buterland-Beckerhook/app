@@ -62,7 +62,11 @@ defmodule Bbh.Tickets.Retention do
     |> Enum.count(&purge_ticket/1)
   end
 
-  defp purge_ticket(ticket) do
+  @doc """
+  Purges one ticket now: its server copies first, then the row with messages and
+  attachments. `false` (ticket kept) when the IMAP server cannot be reached.
+  """
+  def purge_ticket(ticket) do
     case ImapCleanup.clean_ticket(ticket, "delete") do
       :ok ->
         delete!(ticket)
