@@ -131,8 +131,12 @@ defmodule Bbh.Tickets.Notifier do
     """
 
     --
-    Diese Nachricht enthält bewusst keine Inhalte der Anfrage. Die Benachrichtigungen
-    richten sich nach deinen Postfach-Freigaben in der Benutzerverwaltung.
+    Aus Datenschutzgründen enthält diese Nachricht keine Namen, Adressen oder
+    Inhalte der Anfrage: E-Mails werden auf dem Handy gelesen, weitergeleitet und
+    lange aufbewahrt. Alle Details siehst du nach der Anmeldung im Postfach.
+
+    Die Benachrichtigungen richten sich nach deinen Postfach-Freigaben in der
+    Benutzerverwaltung.
     """
   end
 

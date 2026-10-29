@@ -68,6 +68,7 @@ defmodule Bbh.Tickets.NotificationsTest do
         assert email.text_body =~ Ticket.reference(a)
         assert email.text_body =~ Ticket.reference(b)
         assert email.to == [{"", user.email}]
+        assert email.text_body =~ "Aus Datenschutzgründen"
       end)
 
       run(TicketNewNotifier)
