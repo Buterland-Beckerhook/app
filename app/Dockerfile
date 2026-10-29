@@ -85,7 +85,7 @@ RUN mix release
 FROM ${RUNNER_IMAGE} AS final
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends libstdc++6 openssl libncurses6 locales tzdata ca-certificates curl \
+  && apt-get install -y --no-install-recommends libstdc++6 openssl libncurses6 locales tzdata ca-certificates curl xz-utils \
   && rm -rf /var/lib/apt/lists/*
 
 # `pmtiles` CLI for the map archive (Bbh.Workers.MapTilesUpdater, ADR 0014): one
@@ -107,6 +107,26 @@ RUN case "${TARGETARCH:-$(dpkg --print-architecture)}" in \
   && tar -xzf /tmp/pmtiles.tar.gz -C /usr/local/bin pmtiles \
   && rm /tmp/pmtiles.tar.gz \
   && pmtiles version
+
+# `typst` CLI for the membership application PDF (Bbh.Tickets.Pdf): one static
+# binary, pinned and checksum-verified like pmtiles above. A version bump needs both checksums
+# (the release assets' sha256 digests); Renovate opens it for review.
+# renovate: datasource=github-releases depName=typst/typst
+ARG TYPST_VERSION=0.15.1
+ARG TYPST_SHA256_AMD64=a6d077d0a95eed5a2eba715b2dae06be954f624ccbf85758a03f389ded33118c
+ARG TYPST_SHA256_ARM64=5aa8d74a3d906e60ea12a66ac2f37f8eef1b14cbad7182a745e393a10c23dcee
+RUN case "${TARGETARCH:-$(dpkg --print-architecture)}" in \
+      amd64) arch=x86_64; sum="${TYPST_SHA256_AMD64}" ;; \
+      arm64) arch=aarch64; sum="${TYPST_SHA256_ARM64}" ;; \
+      *) echo "no typst build for this architecture" >&2; exit 1 ;; \
+    esac \
+  && curl -fsSL -o /tmp/typst.tar.xz \
+       "https://github.com/typst/typst/releases/download/v${TYPST_VERSION}/typst-${arch}-unknown-linux-musl.tar.xz" \
+  && echo "${sum}  /tmp/typst.tar.xz" | sha256sum -c - \
+  && tar -xJf /tmp/typst.tar.xz -C /tmp \
+  && mv "/tmp/typst-${arch}-unknown-linux-musl/typst" /usr/local/bin/typst \
+  && rm -rf /tmp/typst.tar.xz "/tmp/typst-${arch}-unknown-linux-musl" \
+  && typst --version
 
 # Set the locale
 RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen \

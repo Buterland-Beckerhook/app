@@ -47,6 +47,26 @@ defmodule Bbh.Membership do
   @doc "Gläubiger-Identifikationsnummer of the club."
   def creditor_id, do: @creditor_id
 
+  @doc "Mandatsreferenz as the form states it (the member number, once assigned)."
+  def mandate_reference, do: @mandate_reference
+
+  @doc "Annual fee and debit date, as the paper form states them."
+  def fee_note,
+    do:
+      "Mitgliedsbeitrag: Der Jahresbeitrag beträgt derzeit 30,- € und wird jeweils am " <>
+        "15. März per SEPA-Lastschrift eingezogen."
+
+  @doc ~s(An IBAN in the usual groups of four, e.g. "DE89 3704 0044 0532 0130 00".)
+  def format_iban(iban) when is_binary(iban) do
+    iban
+    |> String.replace(~r/\s/, "")
+    |> String.graphemes()
+    |> Enum.chunk_every(4)
+    |> Enum.map_join(" ", &Enum.join/1)
+  end
+
+  def format_iban(_), do: ""
+
   @doc "Minimum age for a membership (Satzung). Soft: only hinted/flagged, never rejected."
   def min_age, do: Application.get_env(:bbh, :membership_min_age, 16)
 

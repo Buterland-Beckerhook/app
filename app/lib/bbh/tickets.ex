@@ -499,6 +499,24 @@ defmodule Bbh.Tickets do
 
   def set_member_number(_scope, _ticket, _number), do: {:error, :not_membership}
 
+  @doc """
+  The membership application of a ticket as PDF (`Bbh.Tickets.Pdf`), logged as
+  `pdf_exported`. The PDF is returned, never stored.
+  """
+  def export_pdf(%Scope{user: user} = scope, %Ticket{kind: "membership"} = ticket) do
+    with :ok <- authorize_view(scope, ticket),
+         {:ok, pdf} <- Bbh.Tickets.Pdf.membership_application(ticket, user) do
+      log_event(ticket, user, "pdf_exported", %{})
+      {:ok, pdf}
+    end
+  end
+
+  def export_pdf(_scope, _ticket), do: {:error, :not_membership}
+
+  defp authorize_view(scope, ticket) do
+    if Authz.can_view_ticket?(scope, ticket), do: :ok, else: {:error, :unauthorized}
+  end
+
   @doc "Logs that the scope's user opened the ticket — once per 10 minutes."
   def record_view(%Scope{user: user}, %Ticket{} = ticket) do
     since = DateTime.utc_now(:second) |> DateTime.add(-@view_throttle_minutes, :minute)

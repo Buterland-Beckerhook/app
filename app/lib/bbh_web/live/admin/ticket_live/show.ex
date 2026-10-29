@@ -338,6 +338,13 @@ defmodule BbhWeb.Admin.TicketLive.Show do
               <p class="text-xs text-base-content/60">Zugleich die Mandatsreferenz.</p>
               <.button class="btn btn-sm w-full">Speichern</.button>
             </form>
+            <a
+              href={~p"/admin/postfach/#{Ticket.reference(@ticket)}/antrag.pdf"}
+              class="btn btn-sm btn-primary mt-3 w-full"
+              download
+            >
+              <.icon name="hero-arrow-down-tray" class="size-4" /> PDF herunterladen
+            </a>
           </section>
 
           <section :if={@related != []} class="rounded-box bg-base-200 p-4">
