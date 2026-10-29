@@ -28,6 +28,11 @@ if tz = System.get_env("TIME_ZONE") do
   config :bbh, :time_zone, tz
 end
 
+# Login log retention (Bbh.Accounts.AuthLog), stated in the Datenschutzerklärung.
+if days = System.get_env("AUTH_LOG_RETENTION_DAYS") do
+  config :bbh, :auth_log_retention_days, String.to_integer(days)
+end
+
 # The public beta: never indexed, banner on every page linking the live site (BbhWeb.Beta).
 # `BETA=true` turns it on (`BETA_NOINDEX` is its former name); a `beta.` host turns it on
 # by itself, so a forgotten variable cannot expose the beta. Independent of the

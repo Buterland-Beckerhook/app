@@ -53,11 +53,18 @@ defmodule BbhWeb.TotpControllerTest do
     test "re-renders with an error on an invalid code", %{conn: conn, user: user} do
       conn = conn |> pending(user) |> post(~p"/users/totp", %{"totp" => %{"code" => "000000"}})
       assert html_response(conn, 200) =~ "Ungültiger Code"
+      assert [%{user_id: user_id, method: "magic_link_totp"}] = auth_events("totp_failed")
+      assert user_id == user.id
     end
   end
 
   defp session_auth_method(conn) do
     {user, _} = Bbh.Accounts.get_user_by_session_token(get_session(conn, :user_token))
     user.auth_method
+  end
+
+  defp auth_events(event) do
+    import Ecto.Query
+    Bbh.Repo.all(from e in Bbh.Accounts.AuthEvent, where: e.event == ^event)
   end
 end

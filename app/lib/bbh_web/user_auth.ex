@@ -48,6 +48,7 @@ defmodule BbhWeb.UserAuth do
     # A fresh login always mints a new token, also for a re-auth of the same user, so
     # the method of this login replaces the previous one.
     |> create_or_extend_session(%{user | auth_method: method}, params)
+    |> log_auth_event(user, "login_succeeded", method)
     |> redirect(to: user_return_to || signed_in_path(conn))
   end
 
@@ -81,6 +82,14 @@ defmodule BbhWeb.UserAuth do
   It clears all session data for safety. See renew_session.
   """
   def log_out_user(conn) do
+    case conn.assigns[:current_scope] do
+      %{user: %Accounts.User{} = user} ->
+        log_auth_event(conn, user, "logged_out", user.auth_method)
+
+      _ ->
+        conn
+    end
+
     user_token = get_session(conn, :user_token)
     user_token && Accounts.delete_user_session_token(user_token)
 
@@ -92,6 +101,22 @@ defmodule BbhWeb.UserAuth do
     |> renew_session(nil)
     |> delete_resp_cookie(@remember_me_cookie, @remember_me_options)
     |> redirect(to: ~p"/")
+  end
+
+  @doc """
+  Writes an entry to the login log (`Bbh.Accounts.AuthLog`) with the request's client
+  IP and user agent. Returns the conn, so it fits a pipeline.
+  """
+  def log_auth_event(conn, user, event, method \\ nil) do
+    Accounts.AuthLog.record(%{
+      user: user,
+      event: event,
+      method: method,
+      ip: BbhWeb.ClientIp.get(conn),
+      user_agent: conn |> get_req_header("user-agent") |> List.first()
+    })
+
+    conn
   end
 
   @doc """

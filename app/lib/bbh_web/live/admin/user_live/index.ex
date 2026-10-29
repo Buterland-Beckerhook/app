@@ -1,5 +1,5 @@
 defmodule BbhWeb.Admin.UserLive.Index do
-  @moduledoc "Admin-only user management: invite, change role, delete."
+  @moduledoc "Admin-only user management: invite, change role, delete, login log."
   use BbhWeb, :live_view
 
   alias Bbh.Accounts
@@ -176,8 +176,17 @@ defmodule BbhWeb.Admin.UserLive.Index do
           <.status_badge kind={:user} status={if u.confirmed_at, do: "confirmed", else: "pending"} />
         </:col>
         <:action :let={u}>
-          <div :if={u.id != @current_scope.user.id} class="flex items-center justify-end gap-2">
+          <div class="flex items-center justify-end gap-2">
             <.link
+              navigate={~p"/admin/benutzer/#{u.id}/anmeldungen"}
+              class="link"
+              title="Anmeldungen"
+              aria-label="Anmeldungen"
+            >
+              <.icon name="hero-clock" class="size-5" />
+            </.link>
+            <.link
+              :if={u.id != @current_scope.user.id}
               phx-click={JS.push("logout_all", value: %{id: u.id})}
               data-confirm="Diesen Benutzer von allen Geräten abmelden?"
               class="link"
@@ -187,6 +196,7 @@ defmodule BbhWeb.Admin.UserLive.Index do
               <.icon name="hero-arrow-left-start-on-rectangle" class="size-5" />
             </.link>
             <.link
+              :if={u.id != @current_scope.user.id}
               phx-click={JS.push("delete", value: %{id: u.id})}
               data-confirm="Diesen Benutzer wirklich löschen?"
               class="link link-error"

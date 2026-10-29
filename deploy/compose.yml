@@ -144,6 +144,8 @@ services:
       # TZ sets the container's OS zone (log timestamps) from the same value.
       TIME_ZONE: ${TIME_ZONE:-Europe/Berlin}
       TZ: ${TIME_ZONE:-Europe/Berlin}
+      # Days the admin login log is kept (Datenschutzerklärung). Defaults to 90.
+      AUTH_LOG_RETENTION_DAYS: ${AUTH_LOG_RETENTION_DAYS:-90}
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
       VAPID_SUBJECT: ${VAPID_SUBJECT}

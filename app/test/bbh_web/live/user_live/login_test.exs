@@ -57,6 +57,9 @@ defmodule BbhWeb.UserLive.LoginTest do
 
       assert Bbh.Repo.get_by!(Bbh.Accounts.UserToken, user_id: user.id).context ==
                "login"
+
+      assert Bbh.Repo.get_by!(Bbh.Accounts.AuthEvent, event: "magic_link_sent").user_id ==
+               user.id
     end
 
     test "does not disclose if user is registered", %{conn: conn} do
@@ -68,6 +71,8 @@ defmodule BbhWeb.UserLive.LoginTest do
         |> follow_redirect(conn, ~p"/users/log-in")
 
       assert html =~ "Falls die Adresse bei uns hinterlegt ist"
+      # Logged without a user, and without the address typed in.
+      assert %{user_id: nil} = Bbh.Repo.get_by!(Bbh.Accounts.AuthEvent, event: "magic_link_sent")
     end
   end
 

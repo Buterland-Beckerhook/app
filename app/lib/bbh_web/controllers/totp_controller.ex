@@ -28,7 +28,9 @@ defmodule BbhWeb.TotpController do
         render(conn, :new, error: "Zu viele Versuche. Bitte später erneut versuchen.")
 
       false ->
-        render(conn, :new, error: "Ungültiger Code. Bitte erneut versuchen.")
+        conn
+        |> UserAuth.log_auth_event(user, "totp_failed", "magic_link_totp")
+        |> render(:new, error: "Ungültiger Code. Bitte erneut versuchen.")
     end
   end
 

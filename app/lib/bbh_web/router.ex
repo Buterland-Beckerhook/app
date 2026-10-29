@@ -271,6 +271,7 @@ defmodule BbhWeb.Router do
     # Admin-only sections.
     live_session :admin_only, on_mount: [{BbhWeb.UserAuth, :require_admin}] do
       live "/benutzer", UserLive.Index, :index
+      live "/benutzer/:id/anmeldungen", UserLive.AuthLog, :show
       live "/website", SiteSettingsLive, :index
       live "/push", PushLive, :index
       live "/bankleitzahlen", BlzLive, :index

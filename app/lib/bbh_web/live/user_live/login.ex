@@ -97,7 +97,8 @@ defmodule BbhWeb.UserLive.Login do
         passkey_options: nil,
         passkey_token: nil,
         trigger_passkey: false,
-        client_ip: BbhWeb.ClientIp.from_socket(socket)
+        client_ip: BbhWeb.ClientIp.from_socket(socket),
+        user_agent: get_connect_info(socket, :user_agent)
       )
 
     # The passkey challenge is minted only on the connected mount and rendered
@@ -111,12 +112,16 @@ defmodule BbhWeb.UserLive.Login do
   def handle_event("submit_magic", %{"user" => %{"email" => email}}, socket) do
     case BbhWeb.RateLimit.check("magic_send", socket.assigns.client_ip, 5, :timer.minutes(15)) do
       :ok ->
-        if user = Accounts.get_user_by_email(email) do
+        user = Accounts.get_user_by_email(email)
+
+        if user do
           Accounts.deliver_login_instructions(
             user,
             &url(~p"/users/log-in/#{&1}")
           )
         end
+
+        log_auth_event(socket, user, "magic_link_sent", "magic_link")
 
         info =
           "Falls die Adresse bei uns hinterlegt ist, erhalten Sie in Kürze einen Anmeldelink."
@@ -158,12 +163,16 @@ defmodule BbhWeb.UserLive.Login do
            assign(socket, passkey_challenge: nil, passkey_token: token, trigger_passkey: true)}
         else
           {:error, :wrong_user} ->
+            log_auth_event(socket, socket.assigns.current_scope.user, "passkey_failed", "passkey")
+
             {:noreply,
              socket
              |> assign_passkey_challenge()
              |> put_flash(:error, "Dieser Passkey gehört zu einem anderen Konto.")}
 
           {:error, _reason} ->
+            log_auth_event(socket, nil, "passkey_failed", "passkey")
+
             {:noreply,
              socket
              |> assign_passkey_challenge()
@@ -207,6 +216,16 @@ defmodule BbhWeb.UserLive.Login do
        do: {:error, :wrong_user}
 
   defp same_user_on_reauth(_socket, _user), do: :ok
+
+  defp log_auth_event(socket, user, event, method) do
+    Accounts.AuthLog.record(%{
+      user: user,
+      event: event,
+      method: method,
+      ip: socket.assigns.client_ip,
+      user_agent: socket.assigns.user_agent
+    })
+  end
 
   defp local_mail_adapter? do
     Application.get_env(:bbh, Bbh.Mailer)[:adapter] == Swoosh.Adapters.Local

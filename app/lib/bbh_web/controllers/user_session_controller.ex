@@ -26,6 +26,7 @@ defmodule BbhWeb.UserSessionController do
 
       _ ->
         conn
+        |> UserAuth.log_auth_event(nil, "login_failed", "passkey")
         |> put_flash(:error, "Anmeldung abgelaufen. Bitte erneut versuchen.")
         |> redirect(to: ~p"/users/log-in")
     end
@@ -45,6 +46,7 @@ defmodule BbhWeb.UserSessionController do
 
       _ ->
         conn
+        |> UserAuth.log_auth_event(nil, "login_failed", "magic_link")
         |> put_flash(:error, "Der Link ist ungültig oder abgelaufen.")
         |> redirect(to: ~p"/users/log-in")
     end

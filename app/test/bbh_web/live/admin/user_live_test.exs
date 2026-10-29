@@ -95,4 +95,36 @@ defmodule BbhWeb.Admin.UserLiveTest do
     assert html =~ "von allen Geräten abgemeldet"
     refute Accounts.get_user_by_session_token(token)
   end
+
+  describe "login log" do
+    test "shows a user's entries, newest first", %{conn: conn} do
+      other = user_fixture()
+
+      Bbh.Accounts.AuthLog.record(%{
+        user: other,
+        event: "totp_failed",
+        method: "magic_link_totp",
+        ip: "203.0.113.7",
+        user_agent: "Firefox/140"
+      })
+
+      {:ok, lv, _html} = live(conn, ~p"/admin/benutzer")
+      assert has_element?(lv, ~s|a[href="/admin/benutzer/#{other.id}/anmeldungen"]|)
+
+      {:ok, _lv, html} = live(conn, ~p"/admin/benutzer/#{other.id}/anmeldungen")
+      assert html =~ other.email
+      assert html =~ "Falscher 2FA-Code"
+      assert html =~ "Anmeldelink + 2FA"
+      assert html =~ "203.0.113.7"
+      assert html =~ "Firefox/140"
+    end
+
+    test "is admin-only", %{conn: conn} do
+      editor = user_fixture()
+      conn = log_in_user(conn, editor)
+
+      assert {:error, {:redirect, %{to: "/admin"}}} =
+               live(conn, ~p"/admin/benutzer/#{editor.id}/anmeldungen")
+    end
+  end
 end
