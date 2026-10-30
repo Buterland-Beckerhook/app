@@ -26,6 +26,24 @@ defmodule BbhWeb.MediaController do
   def show(conn, %{"path" => segments} = params) do
     key = Enum.join(segments, "/")
 
+    if variant_requested?(params) and not BbhWeb.MediaSignature.valid?(key, params),
+      do: show_unsigned(conn, key),
+      else: show_variant(conn, key, params)
+  end
+
+  # Variant parameters without a valid signature were not built by
+  # `BbhWeb.Format.media_url/2`. Generating them would let anyone fill the disk cache
+  # one size at a time, so the original stands in — not cached as if it were the variant.
+  defp show_unsigned(conn, key) do
+    case Bbh.Media.resolve_variant(key, nil, nil) do
+      {:ok, path, content_type} -> serve(conn, path, content_type, @fallback)
+      :error -> conn |> put_status(:not_found) |> text("Not found")
+    end
+  end
+
+  defp variant_requested?(params), do: Enum.any?(~w(w h fx fy), &Map.has_key?(params, &1))
+
+  defp show_variant(conn, key, params) do
     case Bbh.Media.resolve_variant(
            key,
            dim(params["w"]),

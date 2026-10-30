@@ -2,6 +2,7 @@ defmodule BbhWeb.RichtextImagesTest do
   use Bbh.DataCase, async: true
 
   import Bbh.ContentFixtures
+  import BbhWeb.MediaUrlHelpers
   import Phoenix.HTML, only: [safe_to_string: 1]
 
   alias BbhWeb.RichtextImages
@@ -23,7 +24,7 @@ defmodule BbhWeb.RichtextImagesTest do
   describe "rewrite/1" do
     test "wraps a known image in a figure with variants, dimensions, lightbox and caption" do
       u = image(description: "Der neue König")
-      out = RichtextImages.rewrite("<p>Text " <> img(u, ~s( alt="alt")) <> " mehr</p>")
+      out = unsigned(RichtextImages.rewrite("<p>Text " <> img(u, ~s( alt="alt")) <> " mehr</p>"))
       key = u.storage_key
 
       assert out =~ ~r{\A<p>Text <span class="bbh-fig">}
@@ -49,7 +50,7 @@ defmodule BbhWeb.RichtextImagesTest do
 
     test "a large original offers every step and opens at 1600 in the lightbox" do
       u = image(width: 4000, height: 3000)
-      out = RichtextImages.rewrite(img(u))
+      out = unsigned(RichtextImages.rewrite(img(u)))
 
       assert out =~ "1600w\""
       refute out =~ "4000w"
@@ -58,7 +59,7 @@ defmodule BbhWeb.RichtextImagesTest do
 
     test "a stale ?v= on the stored src resolves; output carries the current revision" do
       u = image(width: 600) |> Ecto.Changeset.change(revision: 3) |> Bbh.Repo.update!()
-      out = RichtextImages.rewrite(~s(<img src="/media/#{u.storage_key}?v=1" />))
+      out = unsigned(RichtextImages.rewrite(~s(<img src="/media/#{u.storage_key}?v=1" />)))
 
       assert out =~ ~s(src="/media/#{u.storage_key}?w=600&amp;v=3")
       assert out =~ ~s(srcset="/media/#{u.storage_key}?w=480&amp;v=3 480w)
