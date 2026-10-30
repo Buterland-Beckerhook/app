@@ -979,4 +979,28 @@ defmodule BbhWeb.Admin.MediaLiveTest do
       :nomatch -> flunk("expected to find #{inspect(fragment)} in the page")
     end
   end
+
+  describe "paging" do
+    test "shows 60 tiles, then the next page when asked", %{conn: conn} do
+      for i <- 1..61, do: upload_fixture(%{filename: "bild-#{i}.webp"})
+
+      {:ok, lv, _html} = live(conn, ~p"/admin/medien")
+      assert lv |> element("#media-grid") |> render() |> count_tiles() == 60
+      assert has_element?(lv, "button", "Weitere laden")
+
+      render_hook(lv, "load_more", %{})
+      assert lv |> element("#media-grid") |> render() |> count_tiles() == 61
+      refute has_element?(lv, "button", "Weitere laden")
+    end
+
+    test "grid thumbnails load lazily", %{conn: conn} do
+      upload_fixture()
+      {:ok, lv, _html} = live(conn, ~p"/admin/medien")
+
+      assert has_element?(lv, ~s|#media-grid img[loading="lazy"]|)
+    end
+  end
+
+  defp count_tiles(html),
+    do: html |> LazyHTML.from_fragment() |> LazyHTML.query("figure") |> Enum.count()
 end

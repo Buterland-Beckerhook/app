@@ -443,4 +443,36 @@ defmodule Bbh.AccountsTest do
       refute inspect(%User{totp_secret: "supersecret"}) =~ "supersecret"
     end
   end
+
+  describe "valid_totp?/3" do
+    setup do
+      %{secret: Accounts.generate_totp_secret(), now: 1_800_000_015}
+    end
+
+    test "accepts the current period's code", %{secret: secret, now: now} do
+      assert Accounts.valid_totp?(secret, NimbleTOTP.verification_code(secret, time: now), now)
+    end
+
+    test "accepts the previous period's code, across the boundary", %{secret: secret, now: now} do
+      code = NimbleTOTP.verification_code(secret, time: now - 30)
+      assert Accounts.valid_totp?(secret, " #{code} ", now)
+    end
+
+    test "rejects older codes, future codes and junk", %{secret: secret, now: now} do
+      refute Accounts.valid_totp?(
+               secret,
+               NimbleTOTP.verification_code(secret, time: now - 60),
+               now
+             )
+
+      refute Accounts.valid_totp?(
+               secret,
+               NimbleTOTP.verification_code(secret, time: now + 30),
+               now
+             )
+
+      refute Accounts.valid_totp?(secret, "", now)
+      refute Accounts.valid_totp?(nil, "123456", now)
+    end
+  end
 end

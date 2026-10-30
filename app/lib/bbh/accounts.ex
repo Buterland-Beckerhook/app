@@ -54,13 +54,25 @@ defmodule Bbh.Accounts do
     )
   end
 
-  @doc "Validate a TOTP code against a raw secret."
-  def valid_totp?(secret, code) when is_binary(secret) and is_binary(code) do
+  # How far back a code may come from: one 30 s period, as RFC 6238 §5.2 suggests, so a
+  # code read off the phone at :29 and submitted at :31 still counts.
+  @totp_drift_seconds 30
+
+  @doc """
+  Validate a TOTP code against a raw secret: the current period's code, or the
+  previous period's (`@totp_drift_seconds`).
+  """
+  def valid_totp?(secret, code, now \\ System.os_time(:second))
+
+  def valid_totp?(secret, code, now) when is_binary(secret) and is_binary(code) do
     code = String.trim(code)
-    code != "" and NimbleTOTP.valid?(secret, code)
+
+    code != "" and
+      (NimbleTOTP.valid?(secret, code, time: now) or
+         NimbleTOTP.valid?(secret, code, time: now - @totp_drift_seconds))
   end
 
-  def valid_totp?(_, _), do: false
+  def valid_totp?(_secret, _code, _now), do: false
 
   @doc "Validate a code against the user's stored TOTP secret."
   def valid_user_totp?(%User{totp_secret: secret}, code), do: valid_totp?(secret, code)

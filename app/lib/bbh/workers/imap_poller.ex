@@ -99,18 +99,21 @@ defmodule Bbh.Workers.ImapPoller do
   defp import(conn, uid, uidvalidity) do
     with {:ok, raw} when is_binary(raw) <- Imap.uid_fetch(conn, uid) do
       location = %{imap_mailbox: Mailbox.inbox(), imap_uidvalidity: uidvalidity, imap_uid: uid}
-      result = Importer.import(raw, location)
+      # Parsed once, here: a mail can be tens of MB, and filing needs its Message-ID hash.
+      parsed = InboundMail.parse(raw)
+      hash = message_id_hash(parsed, raw)
+      result = Importer.import_parsed(parsed, raw, location)
       Logger.info("Postfach import: UID #{uid} → #{outcome(result)}")
 
       case result do
         {:created, %{status: "spam"}} ->
-          file(conn, uid, raw, Mailbox.junk())
+          file(conn, uid, hash, Mailbox.junk())
 
         {kind, _ticket} when kind in [:created, :appended] ->
-          file(conn, uid, raw, Mailbox.imported())
+          file(conn, uid, hash, Mailbox.imported())
 
         :duplicate ->
-          file(conn, uid, raw, Mailbox.imported())
+          file(conn, uid, hash, Mailbox.imported())
 
         _ignored_or_bounce ->
           Imap.uid_move(conn, uid, Mailbox.ignored())
@@ -120,19 +123,16 @@ defmodule Bbh.Workers.ImapPoller do
 
   # Move it and remember where it went (the INBOX UID is stale after the move); a ticket
   # already in work drops the copy at once.
-  defp file(conn, uid, raw, folder) do
+  defp file(conn, uid, hash, folder) do
     with {:ok, %{uidvalidity: validity, uid: new_uid}} <- Imap.uid_move(conn, uid, folder) do
-      hash =
-        case InboundMail.parse(raw) do
-          {:ok, mail} -> mail.message_id_hash
-          _ -> InboundMail.sha256(raw)
-        end
-
       with %{} = ticket <- Tickets.record_server_copy(hash, folder, validity, new_uid) do
         Tickets.release_new_server_copy(ticket)
       end
     end
   end
+
+  defp message_id_hash({:ok, mail}, _raw), do: mail.message_id_hash
+  defp message_id_hash(_unparseable, raw), do: InboundMail.sha256(raw)
 
   defp outcome({kind, _}), do: kind
   defp outcome(kind), do: kind
