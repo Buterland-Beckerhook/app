@@ -33,7 +33,7 @@ defmodule Bbh.Mailer do
   Credentials are never logged — only the relay host. With `redact: true` neither are
   recipients nor subject (mail carrying personal data, e.g. the Postfach's); the
   context names what was sent. `mailer:` sends through another Swoosh mailer
-  (`Bbh.TicketMailer`) with the same logging.
+  (`Bbh.Tickets.Mailer`) with the same logging.
   """
   def deliver_logged(email, context \\ "mail", opts \\ []) do
     mailer = opts[:mailer] || __MODULE__

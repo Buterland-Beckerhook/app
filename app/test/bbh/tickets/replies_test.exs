@@ -1,5 +1,5 @@
 defmodule Bbh.Tickets.RepliesTest do
-  # Not async: one test swaps the TicketMailer adapter.
+  # Not async: one test swaps the Tickets.Mailer adapter.
   use Bbh.DataCase, async: false
   use Oban.Testing, repo: Bbh.Repo
 
@@ -81,9 +81,9 @@ defmodule Bbh.Tickets.RepliesTest do
     end
 
     test "is refused while the reply mailbox is not configured", %{scope: scope} do
-      previous = Application.get_env(:bbh, Bbh.TicketMailer)
-      Application.put_env(:bbh, Bbh.TicketMailer, adapter: nil)
-      on_exit(fn -> Application.put_env(:bbh, Bbh.TicketMailer, previous) end)
+      previous = Application.get_env(:bbh, Bbh.Tickets.Mailer)
+      Application.put_env(:bbh, Bbh.Tickets.Mailer, adapter: nil)
+      on_exit(fn -> Application.put_env(:bbh, Bbh.Tickets.Mailer, previous) end)
 
       assert Tickets.reply(scope, loaded(scope, ticket_fixture()), "x") ==
                {:error, :replies_disabled}
@@ -179,9 +179,9 @@ defmodule Bbh.Tickets.RepliesTest do
     test "a reply that cannot be sent is marked on the ticket after the last attempt", %{
       scope: scope
     } do
-      previous = Application.get_env(:bbh, Bbh.TicketMailer)
-      Application.put_env(:bbh, Bbh.TicketMailer, adapter: FailingAdapter)
-      on_exit(fn -> Application.put_env(:bbh, Bbh.TicketMailer, previous) end)
+      previous = Application.get_env(:bbh, Bbh.Tickets.Mailer)
+      Application.put_env(:bbh, Bbh.Tickets.Mailer, adapter: FailingAdapter)
+      on_exit(fn -> Application.put_env(:bbh, Bbh.Tickets.Mailer, previous) end)
 
       ticket = loaded(scope, ticket_fixture())
       {:ok, _} = Tickets.reply(scope, ticket, "Hallo")

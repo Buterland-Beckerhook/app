@@ -21,7 +21,7 @@ defmodule Bbh.Workers.ImapPoller do
 
   require Logger
 
-  alias Bbh.Imap
+  alias Bbh.Tickets.Imap
   alias Bbh.Tickets
   alias Bbh.Tickets.{Importer, InboundMail, Mailbox}
 

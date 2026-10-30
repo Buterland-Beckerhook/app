@@ -268,14 +268,14 @@ if config_env() == :prod do
          smtp ++
            [username: System.get_env("SMTP_USERNAME"), password: System.get_env("SMTP_PASSWORD")]
 
-  # Postfach replies through the tickets@ mailbox (Bbh.TicketMailer) — only when its
+  # Postfach replies through the tickets@ mailbox (Bbh.Tickets.Mailer) — only when its
   # credentials are set; no fallback to the noreply@ account. Beta uses its own mailbox.
   if ticket_smtp_user = System.get_env("TICKET_SMTP_USERNAME") do
     config :bbh,
-           Bbh.TicketMailer,
+           Bbh.Tickets.Mailer,
            smtp ++ [username: ticket_smtp_user, password: System.get_env("TICKET_SMTP_PASSWORD")]
   else
-    config :bbh, Bbh.TicketMailer, adapter: nil
+    config :bbh, Bbh.Tickets.Mailer, adapter: nil
   end
 
   config :swoosh, :api_client, false

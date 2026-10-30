@@ -1,4 +1,4 @@
-defmodule Bbh.Imap do
+defmodule Bbh.Tickets.Imap do
   @moduledoc """
   A minimal IMAP client for exactly one server: mailcow's Dovecot, where the Postfach
   collects its mail (`docs/plans/ticket-system.md` §6.2). It speaks only what the import

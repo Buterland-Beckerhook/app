@@ -1,6 +1,6 @@
 defmodule Bbh.Workers.TicketReplySender do
   @moduledoc """
-  Sends one reply from the Postfach through `Bbh.TicketMailer`. The job names the
+  Sends one reply from the Postfach through `Bbh.Tickets.Mailer`. The job names the
   message by id only — Oban args live in the database and its dumps.
 
   Retries on a delivery error; when the last attempt fails, a system message on the

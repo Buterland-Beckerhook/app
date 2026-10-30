@@ -17,7 +17,7 @@ defmodule Bbh.Workers.ImapCleanup do
 
   require Logger
 
-  alias Bbh.Imap
+  alias Bbh.Tickets.Imap
   alias Bbh.Repo
   alias Bbh.Tickets
   alias Bbh.Tickets.{Mailbox, Ticket}
