@@ -36,6 +36,12 @@
       "addLabels": ["major"]
     },
     {
+      "description": "0.x packages: a minor bump may break (semver), so it is reviewed like a major",
+      "matchCurrentValue": "/^(~>\\s*)?v?0\\./",
+      "matchUpdateTypes": ["minor"],
+      "automerge": false
+    },
+    {
       "description": "Postgres image: one PR across dev, deploy and CI",
       "matchDatasources": ["docker"],
       "matchPackageNames": ["postgres"],
@@ -97,20 +103,44 @@
         "phoenix_template"
       ],
       "groupName": "phoenix"
+    },
+    {
+      "description": "Vendored JS: the PR only bumps the version table; the files have to be replaced by hand",
+      "matchFileNames": ["app/assets/vendor/**"],
+      "automerge": false,
+      "prBodyNotes": [
+        "⚠️ **Vendored files.** This PR only changes the version in `VERSIONS.md`. Replace the files from the new package in this PR (see the table for paths), then check the page that uses them: Altcha on /kontakt (and `lib/bbh/altcha.ex` for its challenge/verify contract), Quill in the admin editor, flatpickr in the event form, the map on an event with a location."
+      ]
+    },
+    {
+      "description": "esbuild/tailwind CLI and git-tag assets: the build fetches them, so check the asset build before merging",
+      "matchPackageNames": ["esbuild", "tailwindcss", "tailwindlabs/heroicons", "saadeghi/daisyui"],
+      "automerge": false
     }
   ],
   "customManagers": [
     {
       "customType": "regex",
-      "description": "Update versions annotated with `# renovate:` comments (Elixir/OTP/Debian in Dockerfiles + CI)",
+      "description": "Update versions annotated with `# renovate:` comments (Elixir/OTP/Debian in Dockerfiles + CI, git-tag deps in mix.exs, esbuild/tailwind CLIs in config.exs)",
       "managerFilePatterns": [
         "/(^|/)Dockerfile$/",
         "/(^|/)Dockerfile\\.dev$/",
-        "/(^|/)\\.github/workflows/[^/]+\\.ya?ml$/"
+        "/(^|/)\\.github/workflows/[^/]+\\.ya?ml$/",
+        "/(^|/)app/mix\\.exs$/",
+        "/(^|/)app/config/config\\.exs$/"
       ],
       "matchStrings": [
         "# renovate: datasource=(?<datasource>[a-z-]+?) depName=(?<depName>[^\\s]+?)(?: versioning=(?<versioning>[^\\s]+?))?[ \\t]*\\r?\\n[^\\n]*?[:=]\\s*[\"']?(?<currentValue>[^\\s\"'\\n]+)"
       ]
+    },
+    {
+      "customType": "regex",
+      "description": "Vendored JS: the Package/Version columns of the VERSIONS.md tables under app/assets/vendor",
+      "managerFilePatterns": ["/(^|/)app/assets/vendor/(.+/)?VERSIONS\\.md$/"],
+      "matchStrings": [
+        "\\| `(?<depName>[^`]+)`(?: \\([^)]*\\))? \\| (?<currentValue>\\d+\\.\\d+\\.\\d+) \\|"
+      ],
+      "datasourceTemplate": "npm"
     }
   ]
 }
