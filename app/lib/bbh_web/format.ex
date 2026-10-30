@@ -3,6 +3,7 @@ defmodule BbhWeb.Format do
 
   alias Bbh.Media.Upload
   alias Bbh.Content.Article
+  alias BbhWeb.MediaSignature
 
   @months ~w(Januar Februar März April Mai Juni Juli August September Oktober November Dezember)
   @weekday_abbr ~w(Mo. Di. Mi. Do. Fr. Sa. So.)
@@ -80,11 +81,16 @@ defmodule BbhWeb.Format do
   def media_url(%Ecto.Association.NotLoaded{}, _opts), do: nil
 
   def media_url(%Upload{storage_key: key} = upload, opts) do
-    query =
+    variant =
       [w: opts[:width], h: opts[:height]]
       |> Enum.concat(focal_params(upload, opts))
-      |> Enum.concat(revision_param(upload))
       |> Enum.reject(fn {_k, v} -> is_nil(v) end)
+
+    query =
+      case variant do
+        [] -> revision_param(upload)
+        _ -> variant ++ revision_param(upload) ++ [s: MediaSignature.sign(key, variant)]
+      end
 
     case query do
       [] -> "/media/#{key}"

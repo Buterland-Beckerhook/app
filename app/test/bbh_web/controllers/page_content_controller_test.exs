@@ -2,6 +2,7 @@ defmodule BbhWeb.PageContentControllerTest do
   use BbhWeb.ConnCase, async: true
 
   import Bbh.ContentFixtures
+  import BbhWeb.MediaUrlHelpers
   import Bbh.ClubFixtures
 
   test "GET /verein lists published top-level pages", %{conn: conn} do
@@ -216,7 +217,7 @@ defmodule BbhWeb.PageContentControllerTest do
       assert LazyHTML.attribute(list, "style") == ["--r: 1.5", "--r: 0.6667", "--r: 1.3333"]
       # 2 × 14rem rows × ratio, rounded up to 100px; no height, so no crop server-side.
       assert ["/media/" <> a, _, _] = list |> LazyHTML.query("img") |> LazyHTML.attribute("src")
-      assert a =~ ~r/\?w=700\z/
+      assert unsigned(a) =~ ~r/\?w=700\z/
       # More than two pictures: the filler keeps the last row at row height.
       assert markup =~ "bbh-justified-fill"
     end
@@ -237,7 +238,7 @@ defmodule BbhWeb.PageContentControllerTest do
 
       refute markup =~ "bbh-justified-fill"
       assert [src] = markup |> items() |> LazyHTML.query("img") |> LazyHTML.attribute("src")
-      assert src =~ ~r/\?w=800\z/
+      assert unsigned(src) =~ ~r/\?w=800\z/
     end
 
     test "the title is the caption below the pictures", %{add: add, html: html} do
