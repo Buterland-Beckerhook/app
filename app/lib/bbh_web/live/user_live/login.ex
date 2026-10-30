@@ -114,7 +114,9 @@ defmodule BbhWeb.UserLive.Login do
       :ok ->
         user = Accounts.get_user_by_email(email)
 
-        if user do
+        # Per address too, so rotating IPs cannot flood one inbox with login links. The
+        # answer stays the same either way: it must not tell whether an account exists.
+        if user && email_allowed?(user) do
           Accounts.deliver_login_instructions(
             user,
             &url(~p"/users/log-in/#{&1}")
@@ -190,6 +192,9 @@ defmodule BbhWeb.UserLive.Login do
      |> assign_passkey_challenge()
      |> put_flash(:error, "Passkey abgebrochen: #{message}")}
   end
+
+  defp email_allowed?(user),
+    do: BbhWeb.RateLimit.check("magic_send_email", user.email, 3, :timer.minutes(15)) == :ok
 
   # Mint a fresh authentication challenge and render it (plus the client options)
   # into the hook's data attribute. Called on connected mount and after every

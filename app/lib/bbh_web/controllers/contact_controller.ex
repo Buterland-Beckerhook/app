@@ -31,6 +31,13 @@ defmodule BbhWeb.ContactController do
               do: create_ticket(conn, data, params),
               else: deliver(conn, data)
 
+          :rate_limited ->
+            Logger.warning("Contact form rejected: rate limit")
+
+            conn
+            |> put_flash(:error, "Zu viele Anfragen. Bitte später erneut versuchen.")
+            |> render_form(params, %{})
+
           {:spam, reason} ->
             Logger.warning("Contact form rejected as spam (#{reason})")
 
@@ -88,8 +95,16 @@ defmodule BbhWeb.ContactController do
       Bbh.Contact.honeypot_filled?(params) -> {:spam, "honeypot"}
       not timing_ok?(conn, params) -> {:spam, "timing"}
       Bbh.Altcha.enabled?() and not Bbh.Altcha.verify(params["altcha"]) -> {:spam, "altcha"}
+      rate_limited?(conn) -> :rate_limited
       true -> :ok
     end
+  end
+
+  # Last, so only submissions that passed every spam check count: each one sends mail
+  # or opens a ticket, and the proof of work alone is cheap for a script. A person rarely writes more than a few messages an hour.
+  defp rate_limited?(conn) do
+    BbhWeb.RateLimit.check("contact_submit", BbhWeb.RateLimit.client_ip(conn), 5, :timer.hours(1)) !=
+      :ok
   end
 
   defp timing_ok?(conn, params) do

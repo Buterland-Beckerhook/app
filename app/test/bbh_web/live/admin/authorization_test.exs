@@ -46,10 +46,30 @@ defmodule BbhWeb.Admin.AuthorizationTest do
 
     test "an admin can open /admin/benutzer", %{conn: conn} do
       admin = admin_user_fixture()
-      conn = log_in_user(conn, admin)
+      conn = log_in_user(conn, admin, auth_method: "passkey")
 
       {:ok, _lv, html} = live(conn, ~p"/admin/benutzer")
       assert html =~ "Benutzer"
+    end
+
+    test "an admin with a magic-link-only session sets up a second factor first", %{
+      conn: conn
+    } do
+      conn = log_in_user(conn, admin_user_fixture(), auth_method: "magic_link")
+
+      assert {:error, {:redirect, %{to: "/users/security", flash: %{"error" => msg}}}} =
+               live(conn, ~p"/admin/benutzer")
+
+      assert msg =~ "Passkey"
+    end
+
+    test "an admin who has TOTP is asked to log in again with it", %{conn: conn} do
+      {:ok, admin} =
+        Bbh.Accounts.enable_totp(admin_user_fixture(), Bbh.Accounts.generate_totp_secret())
+
+      conn = log_in_user(conn, admin, auth_method: "magic_link")
+
+      assert {:error, {:redirect, %{to: "/users/log-in"}}} = live(conn, ~p"/admin/benutzer")
     end
 
     test "an editor can open the general admin area", %{conn: conn} do
@@ -72,7 +92,7 @@ defmodule BbhWeb.Admin.AuthorizationTest do
 
       test "an admin can open #{route}", %{conn: conn} do
         admin = admin_user_fixture()
-        conn = log_in_user(conn, admin)
+        conn = log_in_user(conn, admin, auth_method: "magic_link_totp")
 
         assert {:ok, _lv, _html} = live(conn, unquote(route))
       end

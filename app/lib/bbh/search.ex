@@ -140,12 +140,16 @@ defmodule Bbh.Search do
   # Published, real articles whose publish date has passed (same rule as the
   # public /aktuell listing). Throne names ride along in the article's content.
   defp article_docs(now) do
-    Repo.all(
-      from a in Article,
-        where: a.status == "published" and a.no_article == false and a.date_published <= ^now,
-        preload: [:throne]
-    )
-    |> Enum.map(fn a ->
+    articles =
+      Repo.all(
+        from a in Article,
+          where: a.status == "published" and a.no_article == false and a.date_published <= ^now,
+          preload: [:throne]
+      )
+
+    blocks = Content.load_blocks_for(articles)
+
+    Enum.map(articles, fn a ->
       %{
         source_type: "article",
         source_id: a.id,
@@ -153,7 +157,7 @@ defmodule Bbh.Search do
         url: "/aktuell/#{a.year}/#{a.slug}",
         content:
           join(
-            [a.subtitle, a.author, blocks_text(a)] ++
+            [a.subtitle, a.author, blocks_text(blocks[a.id])] ++
               a.tags ++ a.aliases ++ throne_parts(a.throne)
           ),
         document_date: a.date_published
@@ -192,52 +196,43 @@ defmodule Bbh.Search do
   # Publicly reachable pages: the menu-reachable /verein/* tree, the two legal
   # pages with their own top-level routes, and unlisted /seite/* pages. Pages
   # marked `noindex` stay out (their children are still indexed).
+  # Collected as {page, path} first, so all their blocks load in one batch.
   defp page_docs do
-    Enum.reject(menu_docs() ++ legal_docs() ++ unlisted_docs(), &is_nil/1)
+    pages =
+      (menu_pages() ++ legal_pages() ++ unlisted_pages())
+      |> Enum.reject(fn {page, _path} -> page.noindex end)
+
+    blocks = pages |> Enum.map(&elem(&1, 0)) |> Content.load_blocks_for()
+
+    Enum.map(pages, fn {page, path} ->
+      %{
+        source_type: "page",
+        source_id: page.id,
+        title: page.title,
+        url: path,
+        content: blocks_text(blocks[page.id]),
+        document_date: page.updated_at
+      }
+    end)
   end
 
-  defp menu_docs do
-    Content.list_menu_pages()
-    |> Enum.flat_map(fn root -> page_tree_docs(root, "/verein/" <> root.slug) end)
-  end
+  # The whole published /verein tree; a noindex page is skipped, its children are not.
+  defp menu_pages, do: Enum.map(Content.menu_page_tree(), fn {page, path, _} -> {page, path} end)
 
-  defp page_tree_docs(page, path) do
-    children =
-      page.id
-      |> Content.list_child_pages()
-      |> Enum.flat_map(fn child -> page_tree_docs(child, path <> "/" <> child.slug) end)
+  defp unlisted_pages, do: Enum.map(Content.list_unlisted_pages(), &{&1, "/seite/" <> &1.slug})
 
-    [page_doc(page, path) | children]
-  end
+  defp legal_pages do
+    slugs = ~w(impressum datenschutz)
 
-  defp unlisted_docs do
-    Enum.map(Content.list_unlisted_pages(), &page_doc(&1, "/seite/" <> &1.slug))
-  end
-
-  defp legal_docs do
-    ~w(impressum datenschutz)
-    |> Enum.map(fn slug -> {slug, Repo.get_by(Page, slug: slug, status: "published")} end)
-    |> Enum.filter(fn {_slug, page} -> page end)
-    |> Enum.map(fn {slug, page} -> page_doc(page, "/" <> slug) end)
-  end
-
-  defp page_doc(%Page{noindex: true}, _path), do: nil
-
-  defp page_doc(page, path) do
-    %{
-      source_type: "page",
-      source_id: page.id,
-      title: page.title,
-      url: path,
-      content: blocks_text(page),
-      document_date: page.updated_at
-    }
+    Repo.all(from p in Page, where: p.slug in ^slugs and p.status == "published")
+    |> Enum.map(&{&1, "/" <> &1.slug})
   end
 
   # Joined plain text of an owner's content blocks (page or article), for the index.
-  defp blocks_text(owner) do
-    owner
-    |> Content.load_blocks()
+  defp blocks_text(nil), do: ""
+
+  defp blocks_text(blocks) do
+    blocks
     |> Enum.map(fn {_pb, block} -> block_text(block) end)
     |> join()
   end
