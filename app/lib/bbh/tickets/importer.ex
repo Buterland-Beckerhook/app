@@ -31,12 +31,16 @@ defmodule Bbh.Tickets.Importer do
   mail on the server, stored with the message (optional). `spam: true` files a new
   ticket as spam whatever its score (mail from the Junk folder).
   """
-  def import(raw, location \\ %{}, opts \\ []) do
-    case InboundMail.parse(raw) do
-      {:ok, mail} -> import_mail(mail, raw, location, opts)
-      {:error, :unparseable} -> :ignored
-    end
-  end
+  def import(raw, location \\ %{}, opts \\ []),
+    do: import_parsed(InboundMail.parse(raw), raw, location, opts)
+
+  @doc """
+  `import/3` for a mail the caller has already parsed with `InboundMail.parse/1`, so a
+  large mail is decoded once (the poller needs the Message-ID hash afterwards too).
+  """
+  def import_parsed(parsed, raw, location \\ %{}, opts \\ [])
+  def import_parsed({:ok, mail}, raw, location, opts), do: import_mail(mail, raw, location, opts)
+  def import_parsed({:error, :unparseable}, _raw, _location, _opts), do: :ignored
 
   defp import_mail(mail, raw, location, opts) do
     cond do
