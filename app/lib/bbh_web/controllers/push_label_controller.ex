@@ -7,13 +7,11 @@ defmodule BbhWeb.PushLabelController do
   """
   use BbhWeb, :controller
 
-  alias Bbh.Accounts.User
-
   def update(conn, %{"endpoint" => endpoint, "label" => label})
       when is_binary(endpoint) and is_binary(label) do
     scope = conn.assigns[:current_scope]
 
-    if User.admin?(scope && scope.user) do
+    if Bbh.Authz.admin?(scope) do
       case Bbh.Notifications.set_label(endpoint, label) do
         {:ok, sub} -> json(conn, %{ok: true, label: sub.label})
         {:error, :too_long} -> conn |> put_status(:unprocessable_entity) |> json(%{ok: false})

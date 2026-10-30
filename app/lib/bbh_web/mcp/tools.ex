@@ -15,7 +15,7 @@ defmodule BbhWeb.MCP.Tools do
   never looks like "the server is broken".
   """
   alias Bbh.Accounts.User
-  alias BbhWeb.Authz
+  alias Bbh.Authz
   alias BbhWeb.MCP.Tools.Articles
   alias BbhWeb.MCP.Tools.Events
   alias BbhWeb.MCP.Tools.Media

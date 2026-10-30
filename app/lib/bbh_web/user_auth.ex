@@ -331,7 +331,7 @@ defmodule BbhWeb.UserAuth do
   def on_mount(:require_content_editor, params, session, socket) do
     case on_mount(:require_strong_auth, params, session, socket) do
       {:cont, socket} ->
-        if BbhWeb.Authz.can_access_section?(socket.assigns.current_scope.user, :articles) do
+        if Bbh.Authz.can_access_section?(socket.assigns.current_scope.user, :articles) do
           {:cont, socket}
         else
           socket =
@@ -349,11 +349,11 @@ defmodule BbhWeb.UserAuth do
 
   # Termine and Kalender teilen: every role but "Nur Postfach". The only section a plain
   # magic-link session may use; the public calendar inside it still needs a strong
-  # session (`BbhWeb.Authz.can_manage_calendar?/2`).
+  # session (`Bbh.Authz.can_manage_calendar?/2`).
   def on_mount(:require_events, params, session, socket) do
     case on_mount(:require_authenticated, params, session, socket) do
       {:cont, socket} ->
-        if BbhWeb.Authz.can_access_section?(socket.assigns.current_scope.user, :events) do
+        if Bbh.Authz.can_access_section?(socket.assigns.current_scope.user, :events) do
           {:cont, socket}
         else
           socket =
@@ -373,7 +373,7 @@ defmodule BbhWeb.UserAuth do
   def on_mount(:require_tickets, params, session, socket) do
     case on_mount(:require_strong_auth, params, session, socket) do
       {:cont, socket} ->
-        if BbhWeb.Authz.can_access_tickets?(socket.assigns.current_scope) do
+        if Bbh.Authz.can_access_tickets?(socket.assigns.current_scope) do
           {:cont, socket}
         else
           socket =

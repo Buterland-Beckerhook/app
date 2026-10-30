@@ -96,7 +96,7 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
     article = socket.assigns.article
 
     cond do
-      not BbhWeb.Authz.can_delete?(socket.assigns.current_scope.user, article) ->
+      not Bbh.Authz.can_delete?(socket.assigns.current_scope.user, article) ->
         {:noreply, put_flash(socket, :error, "Keine Berechtigung zum Löschen.")}
 
       confirm == article.slug ->
@@ -624,7 +624,7 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
       </section>
 
       <.danger_zone
-        :if={@live_action == :edit and BbhWeb.Authz.can_delete?(@current_scope.user, @article)}
+        :if={@live_action == :edit and Bbh.Authz.can_delete?(@current_scope.user, @article)}
         confirm_value={@article.slug}
       >
         Der Artikel „{@article.title}" wird mit allen Inhaltsblöcken dauerhaft gelöscht.

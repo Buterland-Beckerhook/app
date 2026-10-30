@@ -45,7 +45,7 @@ defmodule BbhWeb.Admin.TagLive.Index do
   end
 
   def handle_event("delete", %{"tag" => tag}, socket) do
-    if BbhWeb.Authz.can_delete?(socket.assigns.current_scope.user, :tag) do
+    if Bbh.Authz.can_delete?(socket.assigns.current_scope.user, :tag) do
       {:ok, count} = Content.delete_tag(tag)
 
       {:noreply,
@@ -155,7 +155,7 @@ defmodule BbhWeb.Admin.TagLive.Index do
             <.icon name="hero-pencil-square" class="size-5" />
           </.link>
           <.link
-            :if={BbhWeb.Authz.can_delete?(@current_scope.user, :tag)}
+            :if={Bbh.Authz.can_delete?(@current_scope.user, :tag)}
             phx-click={JS.push("delete", value: %{tag: t.name})}
             data-confirm={"„#{t.name}“ aus #{articles(t.count)} entfernen?"}
             class="link link-error"

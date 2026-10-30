@@ -39,7 +39,7 @@ defmodule BbhWeb.Admin.LocationLive.Form do
     location = socket.assigns.location
 
     cond do
-      not BbhWeb.Authz.can_delete?(socket.assigns.current_scope.user, location) ->
+      not Bbh.Authz.can_delete?(socket.assigns.current_scope.user, location) ->
         {:noreply, put_flash(socket, :error, "Keine Berechtigung zum Löschen.")}
 
       confirm == location.key ->
@@ -111,7 +111,7 @@ defmodule BbhWeb.Admin.LocationLive.Form do
       </.form>
 
       <.danger_zone
-        :if={@live_action == :edit and BbhWeb.Authz.can_delete?(@current_scope.user, @location)}
+        :if={@live_action == :edit and Bbh.Authz.can_delete?(@current_scope.user, @location)}
         confirm_value={@location.key}
       >
         Der Ort „{@location.name}" wird dauerhaft gelöscht.

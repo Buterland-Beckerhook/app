@@ -1,10 +1,10 @@
-defmodule BbhWeb.AuthzTest do
+defmodule Bbh.AuthzTest do
   # The DB: queues live in ticket_queues.
   use Bbh.DataCase, async: true
 
   alias Bbh.Accounts.User
   alias Bbh.Calendar.Event
-  alias BbhWeb.Authz
+  alias Bbh.Authz
 
   # Strongly authenticated sessions unless a test says otherwise; `weak/1` downgrades.
   defp admin, do: %User{role: "admin", calendars: [], auth_method: "passkey"}

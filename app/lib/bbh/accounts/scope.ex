@@ -19,7 +19,7 @@ defmodule Bbh.Accounts.Scope do
   alias Bbh.Accounts.User
 
   # `ticket_queues`: the Postfach queues the user is granted (`Bbh.Tickets.Grants`),
-  # loaded once here so ticket authorization (`BbhWeb.Authz`) stays in memory.
+  # loaded once here so ticket authorization (`Bbh.Authz`) stays in memory.
   defstruct user: nil, ticket_queues: []
 
   @doc """

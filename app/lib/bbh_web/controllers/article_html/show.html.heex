@@ -17,7 +17,7 @@
         &larr; Zurück zu Aktuelles
       </a>
       <.edit_link
-        :if={BbhWeb.Authz.can_access_section?(@current_scope && @current_scope.user, :articles)}
+        :if={Bbh.Authz.can_access_section?(@current_scope && @current_scope.user, :articles)}
         href={~p"/admin/artikel/#{@article.id}/bearbeiten"}
       />
     </div>

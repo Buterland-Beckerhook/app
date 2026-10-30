@@ -52,7 +52,7 @@ defmodule BbhWeb.Admin.TrophyLive.TrophyForm do
     trophy = socket.assigns.trophy
 
     cond do
-      not BbhWeb.Authz.can_delete?(socket.assigns.current_scope.user, trophy) ->
+      not Bbh.Authz.can_delete?(socket.assigns.current_scope.user, trophy) ->
         {:noreply, put_flash(socket, :error, "Keine Berechtigung zum Löschen.")}
 
       confirm != trophy.name ->
@@ -105,7 +105,7 @@ defmodule BbhWeb.Admin.TrophyLive.TrophyForm do
       </.form>
 
       <.danger_zone
-        :if={@live_action == :edit and BbhWeb.Authz.can_delete?(@current_scope.user, @trophy)}
+        :if={@live_action == :edit and Bbh.Authz.can_delete?(@current_scope.user, @trophy)}
         confirm_value={@trophy.name}
       >
         Der Pokal „{@trophy.name}“ wird dauerhaft gelöscht – nur möglich, solange er keine

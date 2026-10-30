@@ -45,5 +45,5 @@ defmodule BbhWeb.ArticleController do
   end
 
   defp editor?(conn),
-    do: BbhWeb.Authz.can_preview?(conn.assigns[:current_scope], :articles)
+    do: Bbh.Authz.can_preview?(conn.assigns[:current_scope], :articles)
 end

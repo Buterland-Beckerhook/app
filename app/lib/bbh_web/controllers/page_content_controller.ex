@@ -6,7 +6,7 @@ defmodule BbhWeb.PageContentController do
 
   @doc "Section overview: the dynamic list of top-level Verein pages (replaces the old tiles)."
   def verein(conn, _params) do
-    preview? = BbhWeb.Authz.can_preview?(conn.assigns[:current_scope], :pages)
+    preview? = Bbh.Authz.can_preview?(conn.assigns[:current_scope], :pages)
 
     render(conn, :verein,
       page_title: "Verein",
@@ -17,7 +17,7 @@ defmodule BbhWeb.PageContentController do
 
   @doc "A single nested page under /verein/*path, with breadcrumb + section sidebar."
   def verein_page(conn, %{"path" => segments}) do
-    preview? = BbhWeb.Authz.can_preview?(conn.assigns[:current_scope], :pages)
+    preview? = Bbh.Authz.can_preview?(conn.assigns[:current_scope], :pages)
 
     case Content.get_page_by_path(segments, preview?) do
       {page, ancestors} ->
@@ -50,7 +50,7 @@ defmodule BbhWeb.PageContentController do
 
   @doc "An unlisted page under /seite/:slug — outside the menu, reachable only via links."
   def unlisted(conn, %{"slug" => slug}) do
-    preview? = BbhWeb.Authz.can_preview?(conn.assigns[:current_scope], :pages)
+    preview? = Bbh.Authz.can_preview?(conn.assigns[:current_scope], :pages)
 
     case Content.get_unlisted_page(slug, preview?) do
       {page, blocks} ->
