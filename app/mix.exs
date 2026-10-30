@@ -10,6 +10,22 @@ defmodule Bbh.MixProject do
       # Test support files (fixtures, ConnCase, …) are compiled via elixirc_paths,
       # not loaded as test files — tell `mix test` to ignore them.
       test_ignore_filters: [&String.starts_with?(&1, "test/support/")],
+      # `mix test --cover` (CI) fails below the threshold. Set under today's coverage so it
+      # catches regressions without blocking; raise it as the gaps close.
+      test_coverage: [
+        summary: [threshold: 85],
+        # Test support and dev-only time travel are not application code.
+        ignore_modules: [
+          ~r/Fixtures$/,
+          ~r/DevClock/,
+          Bbh.DataCase,
+          BbhWeb.ConnCase,
+          Bbh.FakeImap,
+          Bbh.WaxStub,
+          Bbh.WebAuthnSoftwareAuthenticator,
+          BbhWeb.MediaUrlHelpers
+        ]
+      ],
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       deps: deps(),
