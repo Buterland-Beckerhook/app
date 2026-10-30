@@ -1,7 +1,7 @@
 defmodule Bbh.Club do
   @moduledoc "Read/query API for people (board, officers, historical figures) and Pokale."
   import Ecto.Query
-  alias Bbh.Repo
+  alias Bbh.{Authz, Repo}
   alias Bbh.Club.Person
   alias Bbh.Club.Trophy
   alias Bbh.Club.TrophyWin
@@ -105,7 +105,11 @@ defmodule Bbh.Club do
   def get_person!(id), do: Person |> Repo.get!(id) |> Repo.preload(:portrait)
   def create_person(attrs), do: %Person{} |> Person.changeset(attrs) |> Repo.insert()
   def update_person(%Person{} = p, attrs), do: p |> Person.changeset(attrs) |> Repo.update()
-  def delete_person(%Person{} = p), do: Repo.delete(p)
+  @doc "Delete a person. Admin-only: `{:error, :unauthorized}` otherwise."
+  def delete_person(scope, %Person{} = p) do
+    with :ok <- Authz.authorize_delete(scope, p), do: Repo.delete(p)
+  end
+
   def change_person(%Person{} = p, attrs \\ %{}), do: Person.changeset(p, attrs)
 
   @doc "Role options as {label, value} tuples for a form select."
@@ -125,12 +129,15 @@ defmodule Bbh.Club do
 
   @doc """
   Deletes a trophy that has no winners. One with winners is refused — `trophy_wins`
-  restricts the delete, and the history should not vanish with a click.
+  restricts the delete, and the history should not vanish with a click. Admin-only:
+  `{:error, :unauthorized}` otherwise.
   """
-  def delete_trophy(%Trophy{} = trophy) do
-    if Repo.exists?(from w in TrophyWin, where: w.trophy_id == ^trophy.id),
-      do: {:error, :has_wins},
-      else: Repo.delete(trophy)
+  def delete_trophy(scope, %Trophy{} = trophy) do
+    with :ok <- Authz.authorize_delete(scope, trophy) do
+      if Repo.exists?(from w in TrophyWin, where: w.trophy_id == ^trophy.id),
+        do: {:error, :has_wins},
+        else: Repo.delete(trophy)
+    end
   end
 
   @doc "Winners, newest year first, trophy preloaded."
@@ -149,7 +156,11 @@ defmodule Bbh.Club do
   def update_trophy_win(%TrophyWin{} = w, attrs),
     do: w |> TrophyWin.changeset(attrs) |> Repo.update()
 
-  def delete_trophy_win(%TrophyWin{} = w), do: Repo.delete(w)
+  @doc "Delete a winner entry. Admin-only: `{:error, :unauthorized}` otherwise."
+  def delete_trophy_win(scope, %TrophyWin{} = w) do
+    with :ok <- Authz.authorize_delete(scope, w), do: Repo.delete(w)
+  end
+
   def change_trophy_win(%TrophyWin{} = w, attrs \\ %{}), do: TrophyWin.changeset(w, attrs)
 
   @doc "Trophy options as {label, id} tuples for a form select."

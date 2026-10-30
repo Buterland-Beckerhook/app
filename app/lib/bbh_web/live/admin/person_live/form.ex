@@ -49,7 +49,7 @@ defmodule BbhWeb.Admin.PersonLive.Form do
         {:noreply, put_flash(socket, :error, "Keine Berechtigung zum Löschen.")}
 
       confirm == person.name ->
-        {:ok, _} = Club.delete_person(person)
+        {:ok, _} = Club.delete_person(socket.assigns.current_scope, person)
 
         {:noreply,
          socket |> put_flash(:info, "Person gelöscht.") |> push_navigate(to: ~p"/admin/personen")}

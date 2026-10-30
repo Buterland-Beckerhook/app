@@ -430,13 +430,25 @@ defmodule Bbh.ContentTest do
                ["image_gallery", "richtext"]
     end
 
-    test "delete_article/1 removes the article's blocks and their concrete rows" do
+    test "deletes are admin-only" do
+      article = article_fixture()
+      page = page_fixture()
+      editor = Bbh.Accounts.Scope.for_user(Bbh.AccountsFixtures.user_fixture())
+
+      assert {:error, :unauthorized} = Content.delete_article(editor, article)
+      assert {:error, :unauthorized} = Content.delete_page(editor, page)
+      assert {:error, :unauthorized} = Content.delete_page(nil, page)
+      assert Content.get_article!(article.id)
+      assert {:ok, _} = Content.delete_page(admin_scope(), page)
+    end
+
+    test "delete_article/2 removes the article's blocks and their concrete rows" do
       article = article_fixture(body: "<p>Text</p>")
       gallery_block_fixture(article, [upload_fixture()])
 
       [{rt_pb, _}, {gal_pb, _}] = Content.load_blocks(article)
 
-      {:ok, _} = Content.delete_article(article)
+      {:ok, _} = Content.delete_article(admin_scope(), article)
 
       assert Content.load_blocks(article) == []
       refute Bbh.Repo.get(Bbh.Content.Blocks.RichText, rt_pb.block_id)
@@ -744,4 +756,7 @@ defmodule Bbh.ContentTest do
       assert Content.load_blocks_for([]) == %{}
     end
   end
+
+  defp admin_scope,
+    do: Bbh.Accounts.Scope.for_user(Bbh.AccountsFixtures.admin_user_fixture())
 end

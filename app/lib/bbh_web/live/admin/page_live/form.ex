@@ -56,7 +56,7 @@ defmodule BbhWeb.Admin.PageLive.Form do
         {:noreply, put_flash(socket, :error, "Keine Berechtigung zum Löschen.")}
 
       confirm == page.slug ->
-        {:ok, _} = Content.delete_page(page)
+        {:ok, _} = Content.delete_page(socket.assigns.current_scope, page)
 
         {:noreply,
          socket |> put_flash(:info, "Seite gelöscht.") |> push_navigate(to: ~p"/admin/seiten")}

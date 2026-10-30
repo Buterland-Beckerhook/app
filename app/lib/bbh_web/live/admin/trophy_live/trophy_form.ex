@@ -59,7 +59,7 @@ defmodule BbhWeb.Admin.TrophyLive.TrophyForm do
         {:noreply, put_flash(socket, :error, "Der eingegebene Wert stimmt nicht überein.")}
 
       true ->
-        case Club.delete_trophy(trophy) do
+        case Club.delete_trophy(socket.assigns.current_scope, trophy) do
           {:ok, _} ->
             {:noreply,
              socket |> put_flash(:info, "Pokal gelöscht.") |> push_navigate(to: ~p"/admin/pokale")}

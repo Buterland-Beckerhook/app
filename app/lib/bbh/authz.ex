@@ -83,6 +83,14 @@ defmodule Bbh.Authz do
   def can_delete?(%User{} = user, _resource), do: User.admin?(user)
   def can_delete?(_, _), do: false
 
+  @doc """
+  `can_delete?/2` for a scope, as the contexts' delete functions check it: `:ok`, or
+  `{:error, :unauthorized}`. Nil-safe.
+  """
+  def authorize_delete(scope, resource) do
+    if can_delete?(scope && scope.user, resource), do: :ok, else: {:error, :unauthorized}
+  end
+
   ## Postfach
 
   @doc "Whether the scope may open the Postfach: admins, and anyone with a queue grant."
