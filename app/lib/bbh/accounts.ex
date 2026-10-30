@@ -6,7 +6,7 @@ defmodule Bbh.Accounts do
   import Ecto.Query, warn: false
   alias Bbh.Repo
 
-  alias Bbh.Accounts.{User, UserToken, UserNotifier}
+  alias Bbh.Accounts.{User, UserPasskey, UserToken, UserNotifier}
 
   ## Database getters
 
@@ -65,11 +65,18 @@ defmodule Bbh.Accounts do
   @doc "Validate a code against the user's stored TOTP secret."
   def valid_user_totp?(%User{totp_secret: secret}, code), do: valid_totp?(secret, code)
 
-  @doc "Enable TOTP for a user with a verified secret."
+  @doc "Enable TOTP for a user with a verified secret. Ends a pending factor reset."
   def enable_totp(%User{} = user, secret) do
-    user
-    |> Ecto.Changeset.change(totp_secret: secret, totp_confirmed_at: DateTime.utc_now(:second))
-    |> Repo.update()
+    with {:ok, user} <-
+           user
+           |> Ecto.Changeset.change(
+             totp_secret: secret,
+             totp_confirmed_at: DateTime.utc_now(:second)
+           )
+           |> Repo.update() do
+      clear_factor_reset(user)
+      {:ok, user}
+    end
   end
 
   @doc "Disable TOTP for a user."
@@ -77,6 +84,51 @@ defmodule Bbh.Accounts do
     user
     |> Ecto.Changeset.change(totp_secret: nil, totp_confirmed_at: nil)
     |> Repo.update()
+  end
+
+  ## Second-factor reset (admin)
+
+  @doc """
+  Resets the user's second factors so they can enroll new ones: removes all passkeys
+  and TOTP, ends every session, and issues a one-time code
+  (`UserToken.build_factor_reset_code/1`). Until the user has set up a new factor,
+  enrolling one needs that code, so mailbox access alone is not enough.
+
+  Returns `{:ok, {code, session_tokens}}`; the caller drops the live sockets of the
+  returned session tokens (`BbhWeb.UserAuth.disconnect_sessions/1`).
+  """
+  def reset_second_factors(%User{} = user) do
+    {code, reset_token} = UserToken.build_factor_reset_code(user)
+
+    Repo.transact(fn ->
+      sessions = list_user_session_tokens(user)
+      Repo.delete_all(from p in UserPasskey, where: p.user_id == ^user.id)
+      {:ok, _} = disable_totp(user)
+
+      Repo.delete_all(
+        from t in UserToken,
+          where: t.user_id == ^user.id and t.context in ["session", "factor_reset"]
+      )
+
+      Repo.insert!(reset_token)
+      {:ok, {code, sessions}}
+    end)
+  end
+
+  @doc "Whether an admin reset is waiting for the user to re-enroll with its code."
+  def factor_reset_pending?(%User{} = user),
+    do: Repo.exists?(UserToken.factor_reset_query(user))
+
+  @doc "Whether `code` is the user's current, unexpired factor-reset code."
+  def valid_factor_reset_code?(%User{} = user, code) when is_binary(code),
+    do: Repo.exists?(UserToken.verify_factor_reset_code_query(user, code))
+
+  def valid_factor_reset_code?(_user, _code), do: false
+
+  @doc "Ends a pending factor reset — once the user has enrolled a new factor."
+  def clear_factor_reset(%User{} = user) do
+    Repo.delete_all(UserToken.factor_reset_query(user))
+    :ok
   end
 
   ## User registration
@@ -114,11 +166,11 @@ defmodule Bbh.Accounts do
   def update_user_calendars(%User{} = user, calendars),
     do: user |> User.calendars_changeset(%{calendars: calendars}) |> Repo.update()
 
-  @doc "Invite a new user: create the account with a role and email login instructions."
+  @doc "Invite a new user: create the account with a role and email an invitation link."
   def invite_user(attrs, magic_link_url_fun) do
     with {:ok, user} <- register_user(attrs),
          {:ok, user} <- update_user_role(user, attrs["role"] || "editor") do
-      deliver_login_instructions(user, magic_link_url_fun)
+      deliver_invite_instructions(user, magic_link_url_fun)
       {:ok, user}
     end
   end
@@ -264,6 +316,18 @@ defmodule Bbh.Accounts do
     {encoded_token, user_token} = UserToken.build_email_token(user, "login")
     Repo.insert!(user_token)
     UserNotifier.deliver_login_instructions(user, magic_link_url_fun.(encoded_token))
+  end
+
+  @doc """
+  Delivers the invitation to a freshly invited user: a magic link for the first login
+  that stays valid longer than a regular one (see `UserToken`). Single use like any
+  magic link — the first login consumes it.
+  """
+  def deliver_invite_instructions(%User{} = user, magic_link_url_fun)
+      when is_function(magic_link_url_fun, 1) do
+    {encoded_token, user_token} = UserToken.build_email_token(user, "invite")
+    Repo.insert!(user_token)
+    UserNotifier.deliver_invite_instructions(user, magic_link_url_fun.(encoded_token))
   end
 
   @doc """

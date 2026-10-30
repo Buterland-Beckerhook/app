@@ -320,6 +320,10 @@ defmodule BbhWeb.Router do
       on_mount: [{BbhWeb.UserAuth, :require_enrolled_strong_auth}] do
       live "/users/security", UserLive.SecuritySetup, :index
     end
+
+    # One-time code after an admin reset of the user's second factors.
+    get "/users/reset-code", FactorResetController, :new
+    post "/users/reset-code", FactorResetController, :create
   end
 
   scope "/", BbhWeb do

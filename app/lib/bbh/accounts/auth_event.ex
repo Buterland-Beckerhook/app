@@ -3,7 +3,8 @@ defmodule Bbh.Accounts.AuthEvent do
   use Ecto.Schema
   import Ecto.Changeset
 
-  @events ~w(magic_link_sent login_succeeded login_failed totp_failed passkey_failed logged_out)
+  @events ~w(magic_link_sent login_succeeded login_failed totp_failed passkey_failed logged_out
+              factors_reset factor_reset_failed)
 
   @doc "The events the log knows."
   def events, do: @events
