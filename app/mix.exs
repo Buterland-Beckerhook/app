@@ -91,7 +91,7 @@ defmodule Bbh.MixProject do
       {:tz, "~> 0.28.2"},
       # Security tooling (compile-time only): dependency CVE scan + Phoenix SAST.
       {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false},
-      {:sobelow, "~> 0.16", only: [:dev, :test], runtime: false}
+      {:sobelow, "~> 0.18", only: [:dev, :test], runtime: false}
     ]
   end
 
