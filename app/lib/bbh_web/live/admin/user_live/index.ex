@@ -2,7 +2,10 @@ defmodule BbhWeb.Admin.UserLive.Index do
   @moduledoc "Admin-only user management: invite, change role, Postfach queues, delete, login log."
   use BbhWeb, :live_view
 
+  require Logger
+
   alias Bbh.Accounts
+  alias Bbh.Accounts.AuthLog
   alias Bbh.Accounts.Passkeys
   alias Bbh.Accounts.User
   alias Bbh.Calendar.Event
@@ -23,6 +26,12 @@ defmodule BbhWeb.Admin.UserLive.Index do
      |> assign(page_title: "Benutzer", roles: @roles)
      |> assign(invite_form: to_form(%{"email" => "", "role" => "editor"}, as: "user"))
      |> assign(list_state: AdminList.init(sort: "email", dir: :asc))
+     |> assign(reset_code: nil)
+     # For the login log entry of a factor reset; connect info is only readable here.
+     |> assign(
+       client_ip: BbhWeb.ClientIp.from_socket(socket),
+       user_agent: get_connect_info(socket, :user_agent)
+     )
      |> load_users()}
   end
 
@@ -101,6 +110,36 @@ defmodule BbhWeb.Admin.UserLive.Index do
     {:noreply, put_flash(socket, :info, "Benutzer von allen Geräten abgemeldet.")}
   end
 
+  # Lost passkey/authenticator: wipe the factors and hand out a one-time code. The code
+  # is shown here once and must reach the user out-of-band (in person, by phone) — the
+  # mailbox alone must not be enough to enroll a new factor.
+  def handle_event("reset_factors", %{"id" => id}, socket) do
+    if id == socket.assigns.current_scope.user.id do
+      {:noreply,
+       put_flash(socket, :error, "Die eigene Anmeldung kann nicht zurückgesetzt werden.")}
+    else
+      user = Accounts.get_user!(id)
+      {:ok, {code, sessions}} = Accounts.reset_second_factors(user)
+      BbhWeb.UserAuth.disconnect_sessions(sessions)
+
+      AuthLog.record(%{
+        user: user,
+        event: "factors_reset",
+        ip: socket.assigns.client_ip,
+        user_agent: socket.assigns.user_agent
+      })
+
+      Logger.info(
+        "Second factors of #{user.email} reset by #{socket.assigns.current_scope.user.email}"
+      )
+
+      {:noreply, socket |> assign(reset_code: %{email: user.email, code: code}) |> load_users()}
+    end
+  end
+
+  def handle_event("dismiss_reset_code", _params, socket),
+    do: {:noreply, assign(socket, reset_code: nil)}
+
   def handle_event("list-" <> action, params, socket),
     do: {:noreply, AdminList.handle(action, params, socket, &load_users/1)}
 
@@ -152,6 +191,26 @@ defmodule BbhWeb.Admin.UserLive.Index do
           Einladen
         </.button>
       </.form>
+
+      <div :if={@reset_code} id="reset-code" role="alert" class="alert alert-warning mt-6 items-start">
+        <.icon name="hero-key" class="size-6 shrink-0" />
+        <div class="space-y-2">
+          <p>
+            Passkeys und 2FA von <strong>{@reset_code.email}</strong>
+            wurden zurückgesetzt und alle Sitzungen beendet.
+          </p>
+          <p class="font-mono text-2xl tracking-widest">{@reset_code.code}</p>
+          <p class="text-sm">
+            Diesen Code bitte persönlich oder telefonisch weitergeben, nicht per E-Mail.
+            Er ist {Bbh.Accounts.UserToken.factor_reset_validity_in_hours()} Stunden gültig
+            und wird nur jetzt angezeigt. Nach der Anmeldung per Link fragt die Seite danach,
+            erst dann lässt sich ein neuer Passkey oder 2FA einrichten.
+          </p>
+        </div>
+        <button type="button" phx-click="dismiss_reset_code" class="btn btn-sm btn-ghost">
+          Schließen
+        </button>
+      </div>
 
       <.list_search q={@list_meta.q} placeholder="Nach E-Mail suchen…" />
 
@@ -235,6 +294,16 @@ defmodule BbhWeb.Admin.UserLive.Index do
               aria-label="Von allen Geräten abmelden"
             >
               <.icon name="hero-arrow-left-start-on-rectangle" class="size-5" />
+            </.link>
+            <.link
+              :if={u.id != @current_scope.user.id and u.confirmed_at}
+              phx-click={JS.push("reset_factors", value: %{id: u.id})}
+              data-confirm="Passkeys und 2FA dieses Benutzers zurücksetzen? Alle Sitzungen werden beendet; für die Neueinrichtung erhältst du einen Code, den du persönlich weitergibst."
+              class="link"
+              title="Passkeys und 2FA zurücksetzen"
+              aria-label="Passkeys und 2FA zurücksetzen"
+            >
+              <.icon name="hero-key" class="size-5" />
             </.link>
             <.link
               :if={u.id != @current_scope.user.id}

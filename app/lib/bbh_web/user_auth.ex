@@ -417,12 +417,25 @@ defmodule BbhWeb.UserAuth do
   # it — otherwise mailbox access alone would let an attacker enroll their own passkey
   # or TOTP and so reach the strong-auth areas. Without any factor yet, a plain session
   # may enter to set up the first one.
+  #
+  # After an admin reset (`Bbh.Accounts.reset_second_factors/1`) the user has no factor
+  # either, but here the session must first prove the one-time code the admin handed
+  # over (`BbhWeb.FactorResetController`).
   def on_mount(:require_enrolled_strong_auth, params, session, socket) do
     case on_mount(:require_authenticated, params, session, socket) do
       {:cont, socket} ->
-        if second_factor?(socket.assigns.current_scope.user),
-          do: on_mount(:require_strong_auth, params, session, socket),
-          else: {:cont, socket}
+        user = socket.assigns.current_scope.user
+
+        cond do
+          second_factor?(user) ->
+            on_mount(:require_strong_auth, params, session, socket)
+
+          factor_reset_unverified?(user, session) ->
+            {:halt, Phoenix.LiveView.redirect(socket, to: ~p"/users/reset-code")}
+
+          true ->
+            {:cont, socket}
+        end
 
       halted ->
         halted
@@ -499,6 +512,16 @@ defmodule BbhWeb.UserAuth do
   defp strong_auth_path(user) do
     if second_factor?(user), do: ~p"/users/log-in", else: ~p"/users/security"
   end
+
+  @doc """
+  Marks the session as having proven the user's factor-reset code, so it may enroll a
+  new second factor (see `on_mount(:require_enrolled_strong_auth, …)`).
+  """
+  def put_factor_reset_verified(conn, user),
+    do: put_session(conn, :factor_reset_verified, user.id)
+
+  defp factor_reset_unverified?(user, session),
+    do: session["factor_reset_verified"] != user.id and Accounts.factor_reset_pending?(user)
 
   defp second_factor?(user),
     do: Accounts.Passkeys.has_passkey?(user) or Accounts.User.totp_enabled?(user)

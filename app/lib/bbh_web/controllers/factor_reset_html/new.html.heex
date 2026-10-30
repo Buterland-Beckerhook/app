@@ -1,0 +1,30 @@
+<Layouts.app flash={@flash} current_scope={@current_scope} current_path="/users/reset-code">
+  <div class="mx-auto max-w-sm">
+    <.header>
+      Zugang wiederherstellen
+      <:subtitle>
+        Dein Passkey und deine Zwei-Faktor-Anmeldung wurden von einem Administrator
+        zurückgesetzt. Bitte gib den Code ein, den du von ihm erhalten hast.
+      </:subtitle>
+    </.header>
+
+    <form method="post" action={~p"/users/reset-code"} class="mt-6 space-y-4">
+      <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+      <div>
+        <input
+          type="text"
+          name="reset[code]"
+          autocomplete="off"
+          autocapitalize="characters"
+          spellcheck="false"
+          maxlength="12"
+          autofocus
+          class="input input-bordered w-full text-center text-2xl tracking-widest uppercase"
+          placeholder="XXXX-XXXX"
+        />
+        <p :if={@error} class="mt-1 text-sm text-error">{@error}</p>
+      </div>
+      <button type="submit" class="btn btn-primary w-full">Weiter</button>
+    </form>
+  </div>
+</Layouts.app>

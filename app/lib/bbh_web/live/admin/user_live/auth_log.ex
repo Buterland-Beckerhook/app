@@ -11,7 +11,9 @@ defmodule BbhWeb.Admin.UserLive.AuthLog do
     "login_failed" => "Anmeldung fehlgeschlagen",
     "totp_failed" => "Falscher 2FA-Code",
     "passkey_failed" => "Passkey fehlgeschlagen",
-    "logged_out" => "Abgemeldet"
+    "logged_out" => "Abgemeldet",
+    "factors_reset" => "2FA/Passkeys zurückgesetzt",
+    "factor_reset_failed" => "Falscher Reset-Code"
   }
 
   @method_labels %{
@@ -20,7 +22,7 @@ defmodule BbhWeb.Admin.UserLive.AuthLog do
     "magic_link_totp" => "Anmeldelink + 2FA"
   }
 
-  @failures ~w(login_failed totp_failed passkey_failed)
+  @failures ~w(login_failed totp_failed passkey_failed factor_reset_failed)
 
   @impl true
   def mount(%{"id" => id}, _session, socket) do
