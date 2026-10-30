@@ -4,9 +4,9 @@ defmodule BbhWeb.CalendarShareController do
 
   @doc "Serve the shared internal calendar as a read-only iCal feed, or 404."
   def feed(conn, %{"token" => token}) do
-    case Bbh.Calendar.verify_share_token(token) do
+    case Bbh.Calendar.Shares.verify_share_token(token) do
       {:ok, share} ->
-        events = Bbh.Calendar.shared_calendar_events(share.calendar)
+        events = Bbh.Calendar.Shares.shared_calendar_events(share.calendar)
         send_ical(conn, Bbh.ICal.feed(events, site_url()), "#{share.calendar}.ics")
 
       :error ->

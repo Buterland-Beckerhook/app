@@ -19,7 +19,7 @@ defmodule BbhWeb.Admin.LocationLive.Index do
 
   defp load_list(socket) do
     meta =
-      AdminList.process(Calendar.list_locations(), socket.assigns.list_state,
+      AdminList.process(Calendar.Locations.list_locations(), socket.assigns.list_state,
         search: [& &1.name, & &1.city],
         sort: %{"name" => & &1.name, "city" => & &1.city}
       )

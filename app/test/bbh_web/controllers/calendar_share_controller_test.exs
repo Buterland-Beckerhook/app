@@ -60,7 +60,7 @@ defmodule BbhWeb.CalendarShareControllerTest do
 
     test "returns 404 for a revoked token", %{conn: conn} do
       {plaintext, share} = share_for("vorstand")
-      {:ok, _} = Calendar.revoke_share(share.id)
+      {:ok, _} = Calendar.Shares.revoke_share(share.id)
 
       assert conn |> get(~p"/kalender/geteilt/#{plaintext}") |> response(404)
     end

@@ -14,7 +14,7 @@ defmodule BbhWeb.Admin.EventLive.Form do
 
     {:ok,
      socket
-     |> assign(:location_options, Calendar.location_options())
+     |> assign(:location_options, Calendar.Locations.location_options())
      |> assign(:calendar_options, Authz.assignable_calendar_options(user))
      |> assign(:copy_warning, nil)
      |> apply_action(socket.assigns.live_action, params)}
