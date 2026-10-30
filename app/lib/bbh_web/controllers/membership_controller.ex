@@ -37,6 +37,13 @@ defmodule BbhWeb.MembershipController do
               do: create_ticket(conn, data, params),
               else: deliver(conn, data, params)
 
+          :rate_limited ->
+            Logger.warning("Membership form rejected: rate limit")
+
+            conn
+            |> put_flash(:error, "Zu viele Anfragen. Bitte später erneut versuchen.")
+            |> render_form(params, %{})
+
           {:spam, reason} ->
             Logger.warning("Membership form rejected as spam (#{reason})")
 
@@ -109,8 +116,21 @@ defmodule BbhWeb.MembershipController do
       Bbh.Membership.honeypot_filled?(params) -> {:spam, "honeypot"}
       not timing_ok?(conn, params) -> {:spam, "timing"}
       Bbh.Altcha.enabled?() and not Bbh.Altcha.verify(params["altcha"]) -> {:spam, "altcha"}
+      rate_limited?(conn) -> :rate_limited
       true -> :ok
     end
+  end
+
+  # Last, so only submissions that passed every spam check count: each one sends mail
+  # or opens a ticket, and the proof of work alone is cheap for a script. A family may apply together from one address.
+  defp rate_limited?(conn) do
+    BbhWeb.RateLimit.check(
+      "membership_submit",
+      BbhWeb.RateLimit.client_ip(conn),
+      10,
+      :timer.hours(1)
+    ) !=
+      :ok
   end
 
   defp timing_ok?(conn, params) do
