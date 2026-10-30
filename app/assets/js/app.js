@@ -767,6 +767,8 @@ window.liveSocket = liveSocket
     style.textContent =
       "dialog.lightbox{padding:0;border:0;background:transparent;width:100vw;height:100vh;max-width:100vw;max-height:100vh;overflow:hidden}" +
       "dialog.lightbox::backdrop{background:rgba(0,0,0,.92)}" +
+      // The dialog takes the initial focus (autofocus below), never shows a ring itself.
+      "dialog.lightbox:focus{outline:none}" +
       "dialog.lightbox .lb-stage{position:relative;width:100vw;height:100vh;display:flex;align-items:center;justify-content:center}" +
       // Image + caption stack, centred and shrink-wrapped so the caption's left
       // edge lines up with the image's left edge.
@@ -797,6 +799,9 @@ window.liveSocket = liveSocket
 
     dialog = document.createElement("dialog")
     dialog.className = "lightbox"
+    // Focus the dialog itself on open, not its first button: Chrome draws the close
+    // button's focus ring whenever the last input was a key (←/→, Enter).
+    dialog.autofocus = true
     dialog.innerHTML =
       '<div class="lb-stage">' +
       '<button class="lb-close" aria-label="Schließen">✕</button>' +

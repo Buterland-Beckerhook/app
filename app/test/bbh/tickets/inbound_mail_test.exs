@@ -104,6 +104,41 @@ defmodule Bbh.Tickets.InboundMailTest do
     assert {:ok, %{text: "Klartext", attachments: []}} = InboundMail.parse(raw)
   end
 
+  test "Outlook's blank and non-breaking-space lines collapse to one blank line" do
+    raw =
+      crlf("""
+      From: a@example.com
+      Subject: Outlook
+      MIME-Version: 1.0
+      Content-Type: text/plain; charset=utf-8
+
+      Hallo zusammen!
+
+      \u00A0
+
+      Anmeldungen bitte an:
+
+      a@example.com \t
+
+      \u00A0
+
+      \u00A0
+
+      Gruß
+      Rainer
+      """)
+
+    assert {:ok, %{text: text}} = InboundMail.parse(raw)
+    assert text == "Hallo zusammen!\n\nAnmeldungen bitte an:\n\na@example.com\n\nGruß\nRainer"
+  end
+
+  test "placeholder sender names are dropped" do
+    for name <- ["undefined", "null", "NaN"] do
+      raw = crlf("From: \"#{name}\" <a@example.com>\nSubject: X\n\nText\n")
+      assert {:ok, %{from_name: nil, from_email: "a@example.com"}} = InboundMail.parse(raw)
+    end
+  end
+
   test "auto replies, bulk mail, reports and the spamd header" do
     raw =
       crlf("""
