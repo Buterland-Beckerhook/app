@@ -8,6 +8,10 @@ defmodule BbhWeb.Admin.MediaLive.Index do
   alias Bbh.Media.Upload
   alias BbhWeb.Admin.MediaEditor
 
+  # Tiles per page. The grid grows by this much whenever its end scrolls into view, so
+  # a visit no longer renders — and asks thumbnails for — the whole library at once.
+  @page_size 60
+
   @impl true
   def mount(_params, _session, socket) do
     socket =
@@ -64,16 +68,24 @@ defmodule BbhWeb.Admin.MediaLive.Index do
     assign(socket, tree: tree, folder_options: Media.folder_options(tree.roots))
   end
 
-  defp load_items(socket) do
+  # The first page, replacing whatever the grid showed.
+  defp load_items(socket), do: load_page(socket, 0, reset: true)
+
+  defp load_page(socket, page, stream_opts) do
+    # One more than a page, to know whether another one follows.
     items =
       Media.list_uploads(
         search: socket.assigns.search,
         sort: socket.assigns.sort,
         folder: folder_scope(socket.assigns),
-        recent: socket.assigns.scope == :recent && Media.recent_limit()
+        recent: socket.assigns.scope == :recent && Media.recent_limit(),
+        limit: @page_size + 1,
+        offset: page * @page_size
       )
 
-    stream(socket, :items, items, reset: true)
+    socket
+    |> assign(page: page, more?: length(items) > @page_size)
+    |> stream(:items, Enum.take(items, @page_size), stream_opts)
   end
 
   # What `Media.list_uploads(folder:)` expects for each scope. A folder lists its own files
@@ -116,6 +128,11 @@ defmodule BbhWeb.Admin.MediaLive.Index do
 
   @impl true
   def handle_event("validate", _params, socket), do: {:noreply, socket}
+
+  def handle_event("load_more", _params, %{assigns: %{more?: true}} = socket),
+    do: {:noreply, load_page(socket, socket.assigns.page + 1, [])}
+
+  def handle_event("load_more", _params, socket), do: {:noreply, socket}
 
   def handle_event("filter", %{"search" => search, "sort" => sort} = params, socket) do
     {:noreply,
@@ -654,6 +671,7 @@ defmodule BbhWeb.Admin.MediaLive.Index do
         id="media-grid"
         phx-hook="MediaGrid"
         phx-update="stream"
+        phx-viewport-bottom={@more? && "load_more"}
         class="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4"
       >
         <figure
@@ -667,6 +685,8 @@ defmodule BbhWeb.Admin.MediaLive.Index do
             :if={Media.image?(item)}
             src={media_url(item, width: 300, height: 300)}
             alt=""
+            loading="lazy"
+            decoding="async"
             draggable="false"
             class="aspect-square w-full rounded object-cover"
           />
@@ -705,6 +725,12 @@ defmodule BbhWeb.Admin.MediaLive.Index do
             </div>
           </figcaption>
         </figure>
+      </div>
+
+      <div :if={@more?} class="mt-4 text-center">
+        <button type="button" phx-click="load_more" class="btn btn-sm btn-ghost">
+          Weitere laden
+        </button>
       </div>
 
       <.media_editor :if={@editing} upload={@editing} folder_options={@folder_options} />

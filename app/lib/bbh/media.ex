@@ -115,8 +115,14 @@ defmodule Bbh.Media do
     |> filter_images_only(opts[:images_only])
     |> filter_recent(opts[:recent])
     |> sort_uploads(opts[:sort] || "newest")
+    |> page(opts[:limit], opts[:offset])
     |> Repo.all()
   end
+
+  # Offset paging for the media library grid. Every sort ends on the id, so a page
+  # boundary between uploads with the same timestamp or filename is stable.
+  defp page(query, nil, _offset), do: query
+  defp page(query, limit, offset), do: from(u in query, limit: ^limit, offset: ^(offset || 0))
 
   defp filter_recent(query, n) when is_integer(n) do
     newest = from(u in query, order_by: [desc: u.inserted_at], limit: ^n, select: u.id)
@@ -147,9 +153,14 @@ defmodule Bbh.Media do
   defp filter_images_only(query, true), do: where(query, [u], u.content_type in ^@image_types)
   defp filter_images_only(query, _), do: query
 
-  defp sort_uploads(query, "oldest"), do: from(u in query, order_by: [asc: u.inserted_at])
-  defp sort_uploads(query, "name"), do: from(u in query, order_by: [asc: u.filename])
-  defp sort_uploads(query, _newest), do: from(u in query, order_by: [desc: u.inserted_at])
+  defp sort_uploads(query, "oldest"),
+    do: from(u in query, order_by: [asc: u.inserted_at, asc: u.id])
+
+  defp sort_uploads(query, "name"), do: from(u in query, order_by: [asc: u.filename, asc: u.id])
+
+  defp sort_uploads(query, _newest),
+    do: from(u in query, order_by: [desc: u.inserted_at, desc: u.id])
+
   def get_upload!(id), do: Repo.get!(Upload, id)
 
   @doc """
