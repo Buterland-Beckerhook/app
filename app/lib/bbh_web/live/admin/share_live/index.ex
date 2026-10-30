@@ -3,7 +3,7 @@ defmodule BbhWeb.Admin.ShareLive.Index do
 
   alias Bbh.Calendar
   alias Bbh.Calendar.CalendarShare
-  alias BbhWeb.Authz
+  alias Bbh.Authz
 
   @impl true
   def mount(_params, _session, socket) do

@@ -10,7 +10,7 @@ defmodule BbhWeb.Admin.TicketLive.Requester do
 
   alias Bbh.Tickets
   alias Bbh.Tickets.{Queue, Retention, Ticket}
-  alias BbhWeb.Authz
+  alias Bbh.Authz
 
   @impl true
   def mount(_params, _session, socket) do

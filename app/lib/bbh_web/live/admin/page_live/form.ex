@@ -52,7 +52,7 @@ defmodule BbhWeb.Admin.PageLive.Form do
     page = socket.assigns.page
 
     cond do
-      not BbhWeb.Authz.can_delete?(socket.assigns.current_scope.user, page) ->
+      not Bbh.Authz.can_delete?(socket.assigns.current_scope.user, page) ->
         {:noreply, put_flash(socket, :error, "Keine Berechtigung zum Löschen.")}
 
       confirm == page.slug ->
@@ -331,7 +331,7 @@ defmodule BbhWeb.Admin.PageLive.Form do
       <.block_editor :if={@live_action == :edit} blocks={@blocks} />
 
       <.danger_zone
-        :if={@live_action == :edit and BbhWeb.Authz.can_delete?(@current_scope.user, @page)}
+        :if={@live_action == :edit and Bbh.Authz.can_delete?(@current_scope.user, @page)}
         confirm_value={@page.slug}
       >
         Die Seite „{@page.title}" und alle ihre Blöcke werden dauerhaft gelöscht.

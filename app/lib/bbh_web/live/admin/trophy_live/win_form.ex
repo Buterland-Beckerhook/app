@@ -59,7 +59,7 @@ defmodule BbhWeb.Admin.TrophyLive.WinForm do
     win = socket.assigns.win
 
     cond do
-      not BbhWeb.Authz.can_delete?(socket.assigns.current_scope.user, win) ->
+      not Bbh.Authz.can_delete?(socket.assigns.current_scope.user, win) ->
         {:noreply, put_flash(socket, :error, "Keine Berechtigung zum Löschen.")}
 
       confirm == win.winner ->
@@ -115,7 +115,7 @@ defmodule BbhWeb.Admin.TrophyLive.WinForm do
       </.form>
 
       <.danger_zone
-        :if={@live_action == :edit and BbhWeb.Authz.can_delete?(@current_scope.user, @win)}
+        :if={@live_action == :edit and Bbh.Authz.can_delete?(@current_scope.user, @win)}
         confirm_value={@win.winner}
       >
         Der Eintrag „{@win.winner}, {@win.year}“ wird dauerhaft gelöscht.

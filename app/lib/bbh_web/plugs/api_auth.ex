@@ -4,7 +4,7 @@ defmodule BbhWeb.Plugs.ApiAuth do
 
   On success the connection carries `:current_scope` — the very same
   `Bbh.Accounts.Scope` the admin LiveViews run on — plus the `:api_token` that produced
-  it. Everything downstream authorizes through `BbhWeb.Authz` against that scope, so a
+  it. Everything downstream authorizes through `Bbh.Authz` against that scope, so a
   token can never reach past what its owner may do.
 
   On failure it halts with `401` and a `WWW-Authenticate` challenge pointing at the

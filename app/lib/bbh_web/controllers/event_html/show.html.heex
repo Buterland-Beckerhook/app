@@ -6,7 +6,7 @@
         &larr; Zurück zu Termine
       </a>
       <.edit_link
-        :if={BbhWeb.Authz.can_edit_event?(@current_scope && @current_scope.user, @event)}
+        :if={Bbh.Authz.can_edit_event?(@current_scope && @current_scope.user, @event)}
         href={~p"/admin/termine/#{@event.id}/bearbeiten"}
       />
     </div>

@@ -291,6 +291,17 @@ defmodule Bbh.Calendar do
     |> Map.new()
   end
 
+  @doc """
+  An event by id without preloads, or `nil`. Tolerant of ids from form params: a
+  malformed id is a miss, not an `Ecto.Query.CastError`.
+  """
+  def get_event(id) do
+    case Ecto.UUID.cast(id) do
+      {:ok, uuid} -> Repo.get(Event, uuid)
+      :error -> nil
+    end
+  end
+
   def get_event!(id) do
     Event
     |> Repo.get!(id)

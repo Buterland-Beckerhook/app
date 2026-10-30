@@ -7,7 +7,7 @@ defmodule BbhWeb.Admin.TicketLive.Index do
 
   alias Bbh.Tickets
   alias Bbh.Tickets.{Queue, Retention, Ticket}
-  alias BbhWeb.Authz
+  alias Bbh.Authz
 
   # "Offen" is the work nobody has taken yet; "Alle" everything still in work.
   @views [

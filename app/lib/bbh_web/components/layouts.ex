@@ -41,7 +41,7 @@ defmodule BbhWeb.Layouts do
   # (top-level, published, placement "menu" pages) so editors control it. A logged-in
   # editor additionally sees unpublished menu pages, each flagged as a draft.
   defp nav_links(current_scope) do
-    preview? = BbhWeb.Authz.can_preview?(current_scope, :pages)
+    preview? = Bbh.Authz.can_preview?(current_scope, :pages)
 
     verein =
       case Enum.map(
@@ -284,7 +284,7 @@ defmodule BbhWeb.Layouts do
         {render_slot(@inner_block)}
       </main>
 
-      <.push_dialog admin={Bbh.Accounts.User.admin?(@current_scope && @current_scope.user)} />
+      <.push_dialog admin={Bbh.Authz.admin?(@current_scope)} />
 
       <%!-- Deliberately the same dark green in both themes (design handoff). --%>
       <footer class="mt-16 bg-[#0d2617] text-[#cfe0d4]">
@@ -548,8 +548,8 @@ defmodule BbhWeb.Layouts do
   defp visible_nav(%{user: user} = scope),
     do:
       Enum.filter(@admin_nav, fn
-        {:tickets, _href, _label} -> BbhWeb.Authz.can_access_tickets?(scope)
-        {key, _href, _label} -> BbhWeb.Authz.can_access_section?(user, key)
+        {:tickets, _href, _label} -> Bbh.Authz.can_access_tickets?(scope)
+        {key, _href, _label} -> Bbh.Authz.can_access_section?(user, key)
       end)
 
   defp visible_nav(_), do: []

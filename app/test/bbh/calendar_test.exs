@@ -153,6 +153,17 @@ defmodule Bbh.CalendarTest do
     end
   end
 
+  describe "get_event/1" do
+    test "an event by id; nil for an unknown or malformed id" do
+      event = event_fixture()
+
+      assert Calendar.get_event(event.id).id == event.id
+      assert Calendar.get_event(Ecto.UUID.generate()) == nil
+      assert Calendar.get_event("kein-uuid") == nil
+      assert Calendar.get_event(nil) == nil
+    end
+  end
+
   describe "get_public_event/2" do
     test "returns a public event by slug and year with its location" do
       location = location_fixture()

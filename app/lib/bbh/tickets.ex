@@ -6,7 +6,7 @@ defmodule Bbh.Tickets do
   This context is the only place that sees clear text. Personal data is encrypted with
   `Bbh.Vault` on the way in and decrypted on the way out; lists, filters and reminders
   run on the plain columns (queue, status, assignee, dates). Every function that acts
-  for a person takes their `Bbh.Accounts.Scope` and authorizes through `BbhWeb.Authz`.
+  for a person takes their `Bbh.Accounts.Scope` and authorizes through `Bbh.Authz`.
 
   Every change is broadcast on the `"tickets"` PubSub topic, so open lists and tickets
   update in place, and recorded in `ticket_events` — without personal data.
@@ -19,7 +19,7 @@ defmodule Bbh.Tickets do
   alias Bbh.Repo
   alias Bbh.Tickets.{Attachment, Event, Grant, Message, Queue, Ticket}
   alias Bbh.Vault
-  alias BbhWeb.Authz
+  alias Bbh.Authz
 
   @topic "tickets"
   @page_size 50

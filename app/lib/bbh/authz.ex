@@ -1,4 +1,4 @@
-defmodule BbhWeb.Authz do
+defmodule Bbh.Authz do
   @moduledoc """
   Central authorization policy for the admin area.
 
@@ -27,6 +27,10 @@ defmodule BbhWeb.Authz do
   alias Bbh.Tickets.Queue
 
   @content_sections ~w(articles tags locations people trophies pages media)a
+
+  @doc "Whether the (possibly nil, e.g. anonymous) scope belongs to an admin."
+  def admin?(%Scope{user: user}), do: User.admin?(user)
+  def admin?(_), do: false
 
   @doc "Whether the user may open a given admin section."
   def can_access_section?(%User{} = user, section) do

@@ -3,7 +3,7 @@ defmodule BbhWeb.Admin.EventLive.Form do
 
   alias Bbh.Calendar
   alias Bbh.Calendar.Event
-  alias BbhWeb.Authz
+  alias Bbh.Authz
   alias BbhWeb.EventPaths
 
   @statuses [{"Entwurf", "draft"}, {"Veröffentlicht", "published"}, {"Abgesagt", "canceled"}]
@@ -80,8 +80,7 @@ defmodule BbhWeb.Admin.EventLive.Form do
   defp festival_for_new_item(_user, id) when id in [nil, ""], do: nil
 
   defp festival_for_new_item(user, id) do
-    with {:ok, uuid} <- Ecto.UUID.cast(id),
-         %Event{parent_id: nil} = festival <- Bbh.Repo.get(Event, uuid),
+    with %Event{parent_id: nil} = festival <- Calendar.get_event(id),
          true <- Event.festival?(festival) and Authz.can_edit_event?(user, festival) do
       festival
     else
@@ -102,7 +101,7 @@ defmodule BbhWeb.Admin.EventLive.Form do
       :festival_options,
       Calendar.festival_options(user, event.starts_at || Bbh.Time.now(), event.id)
     )
-    |> assign(:parent, event.parent_id && Bbh.Repo.get(Event, event.parent_id))
+    |> assign(:parent, event.parent_id && Calendar.get_event(event.parent_id))
     |> assign(:programme, programme)
     |> assign(:festival?, festival?)
     |> assign(
@@ -243,15 +242,9 @@ defmodule BbhWeb.Admin.EventLive.Form do
   # The calendar a save lands in: an item's comes from its festival (the changeset
   # copies it), whatever the — hidden — field says.
   defp effective_calendar(%{"parent_id" => parent_id} = params) when parent_id not in [nil, ""] do
-    case Ecto.UUID.cast(parent_id) do
-      {:ok, uuid} ->
-        case Bbh.Repo.get(Event, uuid) do
-          %Event{calendar: calendar} -> calendar
-          nil -> params["calendar"]
-        end
-
-      :error ->
-        params["calendar"]
+    case Calendar.get_event(parent_id) do
+      %Event{calendar: calendar} -> calendar
+      nil -> params["calendar"]
     end
   end
 

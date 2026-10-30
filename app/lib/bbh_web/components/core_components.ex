@@ -678,7 +678,7 @@ defmodule BbhWeb.CoreComponents do
   @doc """
   A compact "edit in the admin area" affordance for authorized editors on public
   pages. Opens the admin form in a new tab. Always render it inside an `:if` that
-  checks authorization for the specific resource (e.g. `BbhWeb.Authz.can_edit_event?/2`).
+  checks authorization for the specific resource (e.g. `Bbh.Authz.can_edit_event?/2`).
   """
   attr :href, :string, required: true
   attr :label, :string, default: "Bearbeiten"

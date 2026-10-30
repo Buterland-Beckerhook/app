@@ -7,7 +7,7 @@ defmodule Bbh.ApiTokens do
   therefore does not yield a usable token.
 
   A token never grants more than its owner has. `verify/2` returns the user, and every
-  caller runs the resulting `Bbh.Accounts.Scope` through `BbhWeb.Authz` exactly like the
+  caller runs the resulting `Bbh.Accounts.Scope` through `Bbh.Authz` exactly like the
   admin LiveViews do — the token's `scopes` narrow that further, they never widen it.
   """
   import Ecto.Query

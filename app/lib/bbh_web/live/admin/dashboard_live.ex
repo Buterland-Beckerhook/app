@@ -6,7 +6,7 @@ defmodule BbhWeb.Admin.DashboardLive do
   @impl true
   def mount(_params, _session, socket) do
     scope = socket.assigns.current_scope
-    is_admin = Bbh.Accounts.User.admin?(scope.user)
+    is_admin = Bbh.Authz.admin?(scope)
 
     socket =
       socket
@@ -25,7 +25,7 @@ defmodule BbhWeb.Admin.DashboardLive do
 
   # The Postfach widget: new tickets in the user's queues and the ones assigned to them.
   defp assign_tickets(socket, scope) do
-    if BbhWeb.Authz.can_access_tickets?(scope) do
+    if Bbh.Authz.can_access_tickets?(scope) do
       assign(socket,
         tickets: %{new: Bbh.Tickets.count_new(scope), mine: Bbh.Tickets.list_assigned(scope)}
       )
@@ -115,27 +115,27 @@ defmodule BbhWeb.Admin.DashboardLive do
         <% user = @current_scope.user %>
         <div class="mt-6 grid grid-cols-2 gap-4 md:grid-cols-4">
           <.stat_card
-            :if={BbhWeb.Authz.can_access_section?(user, :articles)}
+            :if={Bbh.Authz.can_access_section?(user, :articles)}
             label="Artikel"
             value={total(stats.articles)}
             breakdown={status_breakdown(stats.articles)}
             navigate={~p"/admin/artikel"}
           />
           <.stat_card
-            :if={BbhWeb.Authz.can_access_section?(user, :events)}
+            :if={Bbh.Authz.can_access_section?(user, :events)}
             label="Termine"
             value={total(stats.events)}
             breakdown={status_breakdown(stats.events)}
             navigate={~p"/admin/termine"}
           />
           <.stat_card
-            :if={BbhWeb.Authz.can_access_section?(user, :people)}
+            :if={Bbh.Authz.can_access_section?(user, :people)}
             label="Personen"
             value={stats.people}
             navigate={~p"/admin/personen"}
           />
           <.stat_card
-            :if={BbhWeb.Authz.can_access_section?(user, :pages)}
+            :if={Bbh.Authz.can_access_section?(user, :pages)}
             label="Seiten"
             value={total(stats.pages)}
             breakdown={status_breakdown(stats.pages)}

@@ -45,7 +45,7 @@ defmodule BbhWeb.Admin.PersonLive.Form do
     person = socket.assigns.person
 
     cond do
-      not BbhWeb.Authz.can_delete?(socket.assigns.current_scope.user, person) ->
+      not Bbh.Authz.can_delete?(socket.assigns.current_scope.user, person) ->
         {:noreply, put_flash(socket, :error, "Keine Berechtigung zum Löschen.")}
 
       confirm == person.name ->
@@ -170,7 +170,7 @@ defmodule BbhWeb.Admin.PersonLive.Form do
       </.form>
 
       <.danger_zone
-        :if={@live_action == :edit and BbhWeb.Authz.can_delete?(@current_scope.user, @person)}
+        :if={@live_action == :edit and Bbh.Authz.can_delete?(@current_scope.user, @person)}
         confirm_value={@person.name}
       >
         Die Person „{@person.name}" wird dauerhaft gelöscht.
