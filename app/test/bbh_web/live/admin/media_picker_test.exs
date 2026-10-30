@@ -38,8 +38,8 @@ defmodule BbhWeb.Admin.MediaPickerTest do
     setup :register_and_log_in_admin
 
     setup do
-      {:ok, folder} = Media.create_folder(%{"name" => "Schützenfest"})
-      {:ok, sub} = Media.create_folder(%{"name" => "2025", "parent_id" => folder.id})
+      {:ok, folder} = Media.Folders.create_folder(%{"name" => "Schützenfest"})
+      {:ok, sub} = Media.Folders.create_folder(%{"name" => "2025", "parent_id" => folder.id})
 
       %{
         folder: folder,

@@ -48,14 +48,14 @@ defmodule BbhWeb.Admin.MediaLive.Index do
   defp scope_from(nil), do: :all
   defp scope_from("recent"), do: :recent
   defp scope_from("none"), do: :unfiled
-  defp scope_from(id), do: Media.get_folder(id) || :all
+  defp scope_from(id), do: Media.Folders.get_folder(id) || :all
 
   defp reveal_scope(socket), do: reveal(socket, socket.assigns.scope)
 
   # Unfold every folder above this one, so its row is in sight. The folder's own branch is
   # left as the editor had it: the row is visible either way, and its files are in the
   # grid regardless of whether the branch below it is open. Needs the parent chain
-  # Media.get_folder/1 preloads.
+  # Media.Folders.get_folder/1 preloads.
   defp reveal(socket, %Folder{} = folder) do
     ancestors = folder |> Folder.path() |> Enum.drop(-1) |> Enum.map(& &1.id)
     assign(socket, :expanded, MapSet.union(socket.assigns.expanded, MapSet.new(ancestors)))
@@ -64,8 +64,8 @@ defmodule BbhWeb.Admin.MediaLive.Index do
   defp reveal(socket, _scope), do: socket
 
   defp load_tree(socket) do
-    tree = Media.list_folder_tree()
-    assign(socket, tree: tree, folder_options: Media.folder_options(tree.roots))
+    tree = Media.Folders.list_folder_tree()
+    assign(socket, tree: tree, folder_options: Media.Folders.folder_options(tree.roots))
   end
 
   # The first page, replacing whatever the grid showed.
@@ -101,14 +101,14 @@ defmodule BbhWeb.Admin.MediaLive.Index do
 
   # The folders a folder lists with "Unterordner einbeziehen": the chosen one plus everything
   # below it, so a folded branch hides nothing. Read off the already-loaded tree for the same reason
-  # `Media.folder_options/1` takes loaded roots — re-querying would double the work on
+  # `Media.Folders.folder_options/1` takes loaded roots — re-querying would double the work on
   # every folder change, upload, edit and drop.
   #
   # The price of reusing the tree: "filter" re-lists against the tree the last load_tree/1
   # left, so a sub-folder another admin created mid-session is missed until the editor
   # clicks anything. Self-healing, and this is a handful of editors, not a busy multi-tenant
   # app — but it is the one place the reuse is observable.
-  defp branch_ids(tree, %Folder{id: id}), do: Media.branch_ids(tree, id)
+  defp branch_ids(tree, %Folder{id: id}), do: Media.Folders.branch_ids(tree, id)
 
   # The folder an upload lands in. A sub-folder is a fine home for a file.
   defp folder_scope_id(%Folder{id: id}), do: id
@@ -239,7 +239,7 @@ defmodule BbhWeb.Admin.MediaLive.Index do
   def handle_event("create_folder", %{"name" => name}, socket) do
     parent_id = new_folder_parent_id(socket.assigns.scope)
 
-    case Media.create_folder(%{"name" => String.trim(name), "parent_id" => parent_id}) do
+    case Media.Folders.create_folder(%{"name" => String.trim(name), "parent_id" => parent_id}) do
       {:ok, _folder} ->
         {:noreply,
          socket
@@ -255,7 +255,7 @@ defmodule BbhWeb.Admin.MediaLive.Index do
   def handle_event("delete_folder", _params, socket) do
     case socket.assigns.scope do
       %Folder{} = folder ->
-        {:ok, _} = Media.delete_folder(folder)
+        {:ok, _} = Media.Folders.delete_folder(folder)
 
         target =
           if folder.parent_id,
@@ -276,15 +276,16 @@ defmodule BbhWeb.Admin.MediaLive.Index do
   # ids come from the browser, so everything is re-read and re-validated here; the
   # depth cap is enforced in Bbh.Media.Folder.move_changeset/4.
   def handle_event("move_folder", %{"id" => id} = params, socket) do
-    with %Folder{} = folder <- Media.get_folder(id),
-         {:ok, moved} <- Media.move_folder(folder, params["parent_id"], params["position"]) do
+    with %Folder{} = folder <- Media.Folders.get_folder(id),
+         {:ok, moved} <-
+           Media.Folders.move_folder(folder, params["parent_id"], params["position"]) do
       # Unfold the new parents, or the folder just dragged in disappears the moment sorting
       # is switched back off. Re-read for the parent chain reveal/2 walks.
       listed = listed_folders(socket)
 
       {:noreply,
        socket
-       |> reveal(Media.get_folder(moved.id))
+       |> reveal(Media.Folders.get_folder(moved.id))
        |> load_tree()
        |> reload_scope()
        |> reload_if_branch_changed(listed)}
@@ -350,7 +351,7 @@ defmodule BbhWeb.Admin.MediaLive.Index do
   # heading is built from.
   defp reload_scope(socket) do
     case socket.assigns.scope do
-      %Folder{id: id} -> assign(socket, :scope, Media.get_folder(id) || :all)
+      %Folder{id: id} -> assign(socket, :scope, Media.Folders.get_folder(id) || :all)
       _ -> socket
     end
   end
@@ -382,7 +383,7 @@ defmodule BbhWeb.Admin.MediaLive.Index do
   defp moved_message(%{folder_id: nil}), do: "Datei aus dem Ordner entfernt."
 
   defp moved_message(%{folder_id: folder_id}) do
-    case Media.get_folder(folder_id) do
+    case Media.Folders.get_folder(folder_id) do
       %Folder{name: name} -> "Datei nach „#{name}“ verschoben."
       nil -> "Datei verschoben."
     end

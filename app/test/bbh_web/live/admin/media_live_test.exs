@@ -96,7 +96,7 @@ defmodule BbhWeb.Admin.MediaLiveTest do
       render_click(lv, "toggle_new_folder", %{})
       render_submit(lv, "create_folder", %{"name" => "Satzungen"})
 
-      assert [folder] = Media.list_subfolders(nil)
+      assert [folder] = Media.Folders.list_subfolders(nil)
       assert folder.name == "Satzungen"
 
       {:ok, _lv, html} = live(conn, ~p"/admin/medien?#{[folder: folder.id]}")
@@ -104,9 +104,9 @@ defmodule BbhWeb.Admin.MediaLiveTest do
     end
 
     test "the tree shows every top-level folder, sub-folders folded away", %{conn: conn} do
-      {:ok, presse} = Media.create_folder(%{"name" => "Presse"})
-      {:ok, _} = Media.create_folder(%{"name" => "2026", "parent_id" => presse.id})
-      {:ok, _} = Media.create_folder(%{"name" => "Satzungen"})
+      {:ok, presse} = Media.Folders.create_folder(%{"name" => "Presse"})
+      {:ok, _} = Media.Folders.create_folder(%{"name" => "2026", "parent_id" => presse.id})
+      {:ok, _} = Media.Folders.create_folder(%{"name" => "Satzungen"})
 
       {:ok, lv, html} = live(conn, ~p"/admin/medien")
 
@@ -124,10 +124,10 @@ defmodule BbhWeb.Admin.MediaLiveTest do
       # Deliberately move the alphabetically *later* folder to the front: with the
       # position column reverted this asserts the opposite of what name-ordering gives,
       # so it fails rather than passing by coincidence.
-      {:ok, aktuelles} = Media.create_folder(%{"name" => "Aktuelles"})
-      {:ok, archiv} = Media.create_folder(%{"name" => "Archiv"})
+      {:ok, aktuelles} = Media.Folders.create_folder(%{"name" => "Aktuelles"})
+      {:ok, archiv} = Media.Folders.create_folder(%{"name" => "Archiv"})
 
-      {:ok, _} = Media.move_folder(archiv, nil, 0)
+      {:ok, _} = Media.Folders.move_folder(archiv, nil, 0)
 
       {:ok, _lv, html} = live(conn, ~p"/admin/medien")
 
@@ -147,9 +147,9 @@ defmodule BbhWeb.Admin.MediaLiveTest do
     end
 
     test "creating from inside a deepest-level folder does what the hint promises", %{conn: conn} do
-      {:ok, presse} = Media.create_folder(%{"name" => "Presse"})
-      {:ok, year} = Media.create_folder(%{"name" => "2026", "parent_id" => presse.id})
-      {:ok, child} = Media.create_folder(%{"name" => "Fest", "parent_id" => year.id})
+      {:ok, presse} = Media.Folders.create_folder(%{"name" => "Presse"})
+      {:ok, year} = Media.Folders.create_folder(%{"name" => "2026", "parent_id" => presse.id})
+      {:ok, child} = Media.Folders.create_folder(%{"name" => "Fest", "parent_id" => year.id})
 
       {:ok, lv, _html} = live(conn, ~p"/admin/medien?#{[folder: child.id]}")
       html = render_click(lv, "toggle_new_folder", %{})
@@ -161,12 +161,14 @@ defmodule BbhWeb.Admin.MediaLiveTest do
       html = render_submit(lv, "create_folder", %{"name" => "Satzungen"})
 
       refute html =~ "Ebenen tief"
-      assert %{parent_id: nil} = Enum.find(Media.list_subfolders(nil), &(&1.name == "Satzungen"))
+
+      assert %{parent_id: nil} =
+               Enum.find(Media.Folders.list_subfolders(nil), &(&1.name == "Satzungen"))
     end
 
     test "creating from inside a second-level folder makes a third level", %{conn: conn} do
-      {:ok, archiv} = Media.create_folder(%{"name" => "Archiv"})
-      {:ok, year} = Media.create_folder(%{"name" => "2026", "parent_id" => archiv.id})
+      {:ok, archiv} = Media.Folders.create_folder(%{"name" => "Archiv"})
+      {:ok, year} = Media.Folders.create_folder(%{"name" => "2026", "parent_id" => archiv.id})
 
       {:ok, lv, html} = live(conn, ~p"/admin/medien?#{[folder: year.id]}")
       assert html =~ "Archiv / 2026"
@@ -176,15 +178,15 @@ defmodule BbhWeb.Admin.MediaLiveTest do
 
       html = render_submit(lv, "create_folder", %{"name" => "Schützenfest"})
 
-      assert ["Schützenfest"] == Media.list_subfolders(year.id) |> Enum.map(& &1.name)
+      assert ["Schützenfest"] == Media.Folders.list_subfolders(year.id) |> Enum.map(& &1.name)
       # Rendered as a row of its own, one level further in.
       assert html =~ ~s(data-depth="3")
     end
 
     test "opening a third-level folder unfolds every folder above it", %{conn: conn} do
-      {:ok, archiv} = Media.create_folder(%{"name" => "Archiv"})
-      {:ok, year} = Media.create_folder(%{"name" => "2026", "parent_id" => archiv.id})
-      {:ok, fest} = Media.create_folder(%{"name" => "Fest", "parent_id" => year.id})
+      {:ok, archiv} = Media.Folders.create_folder(%{"name" => "Archiv"})
+      {:ok, year} = Media.Folders.create_folder(%{"name" => "2026", "parent_id" => archiv.id})
+      {:ok, fest} = Media.Folders.create_folder(%{"name" => "Fest", "parent_id" => year.id})
 
       {:ok, lv, _html} = live(conn, ~p"/admin/medien?#{[folder: fest.id]}")
 
@@ -193,7 +195,7 @@ defmodule BbhWeb.Admin.MediaLiveTest do
     end
 
     test "creating from inside a top-level folder makes a sub-folder", %{conn: conn} do
-      {:ok, presse} = Media.create_folder(%{"name" => "Presse"})
+      {:ok, presse} = Media.Folders.create_folder(%{"name" => "Presse"})
 
       {:ok, lv, _html} = live(conn, ~p"/admin/medien?#{[folder: presse.id]}")
       html = render_click(lv, "toggle_new_folder", %{})
@@ -201,11 +203,11 @@ defmodule BbhWeb.Admin.MediaLiveTest do
 
       render_submit(lv, "create_folder", %{"name" => "2026"})
 
-      assert ["2026"] == Media.list_subfolders(presse.id) |> Enum.map(& &1.name)
+      assert ["2026"] == Media.Folders.list_subfolders(presse.id) |> Enum.map(& &1.name)
     end
 
     test "an unknown folder in the URL falls back to Alle Medien", %{conn: conn} do
-      {:ok, folder} = Media.create_folder(%{"name" => "Presse"})
+      {:ok, folder} = Media.Folders.create_folder(%{"name" => "Presse"})
       filed = upload_fixture(folder_id: folder.id, filename: "im-ordner.webp")
       unfiled = upload_fixture(filename: "ohne-ordner.webp")
 
@@ -222,7 +224,7 @@ defmodule BbhWeb.Admin.MediaLiveTest do
     end
 
     test "editing an item saves metadata and moves it to a folder", %{conn: conn} do
-      {:ok, folder} = Media.create_folder(%{"name" => "Presse"})
+      {:ok, folder} = Media.Folders.create_folder(%{"name" => "Presse"})
       upload = upload_fixture(%{})
       {:ok, lv, _html} = live(conn, ~p"/admin/medien")
 
@@ -246,9 +248,9 @@ defmodule BbhWeb.Admin.MediaLiveTest do
 
   describe "expanding" do
     setup do
-      {:ok, presse} = Media.create_folder(%{"name" => "Presse"})
-      {:ok, child} = Media.create_folder(%{"name" => "2026", "parent_id" => presse.id})
-      {:ok, satzung} = Media.create_folder(%{"name" => "Satzungen"})
+      {:ok, presse} = Media.Folders.create_folder(%{"name" => "Presse"})
+      {:ok, child} = Media.Folders.create_folder(%{"name" => "2026", "parent_id" => presse.id})
+      {:ok, satzung} = Media.Folders.create_folder(%{"name" => "Satzungen"})
 
       %{presse: presse, child: child, satzung: satzung}
     end
@@ -316,12 +318,12 @@ defmodule BbhWeb.Admin.MediaLiveTest do
 
   describe "edit mode" do
     setup do
-      {:ok, presse} = Media.create_folder(%{"name" => "Presse"})
-      {:ok, child} = Media.create_folder(%{"name" => "2026", "parent_id" => presse.id})
+      {:ok, presse} = Media.Folders.create_folder(%{"name" => "Presse"})
+      {:ok, child} = Media.Folders.create_folder(%{"name" => "2026", "parent_id" => presse.id})
       # A second branch nobody opens, so "restores the previous state" can be told apart
       # from "everything stays unfolded once sorting has been used".
-      {:ok, satzung} = Media.create_folder(%{"name" => "Satzungen"})
-      {:ok, _} = Media.create_folder(%{"name" => "alt", "parent_id" => satzung.id})
+      {:ok, satzung} = Media.Folders.create_folder(%{"name" => "Satzungen"})
+      {:ok, _} = Media.Folders.create_folder(%{"name" => "alt", "parent_id" => satzung.id})
 
       %{presse: presse, child: child, satzung: satzung}
     end
@@ -428,7 +430,7 @@ defmodule BbhWeb.Admin.MediaLiveTest do
 
   describe "scope" do
     setup do
-      {:ok, folder} = Media.create_folder(%{"name" => "Presse"})
+      {:ok, folder} = Media.Folders.create_folder(%{"name" => "Presse"})
 
       %{
         folder: folder,
@@ -445,7 +447,9 @@ defmodule BbhWeb.Admin.MediaLiveTest do
     end
 
     test "Zuletzt hochgeladen lists the newest files from every folder", ctx do
-      {:ok, child} = Media.create_folder(%{"name" => "2026", "parent_id" => ctx.folder.id})
+      {:ok, child} =
+        Media.Folders.create_folder(%{"name" => "2026", "parent_id" => ctx.folder.id})
+
       upload_fixture(folder_id: child.id, filename: "im-unterordner.webp")
 
       {:ok, lv, html} = live(ctx.conn, ~p"/admin/medien?folder=recent")
@@ -471,7 +475,9 @@ defmodule BbhWeb.Admin.MediaLiveTest do
     end
 
     test "a folder lists only its own files by default", ctx do
-      {:ok, child} = Media.create_folder(%{"name" => "2026", "parent_id" => ctx.folder.id})
+      {:ok, child} =
+        Media.Folders.create_folder(%{"name" => "2026", "parent_id" => ctx.folder.id})
+
       nested = upload_fixture(folder_id: child.id, filename: "im-unterordner.webp")
 
       {:ok, _lv, html} = live(ctx.conn, ~p"/admin/medien?#{[folder: ctx.folder.id]}")
@@ -484,7 +490,9 @@ defmodule BbhWeb.Admin.MediaLiveTest do
     end
 
     test "Unterordner einbeziehen lists the sub-folders' files too", ctx do
-      {:ok, child} = Media.create_folder(%{"name" => "2026", "parent_id" => ctx.folder.id})
+      {:ok, child} =
+        Media.Folders.create_folder(%{"name" => "2026", "parent_id" => ctx.folder.id})
+
       nested = upload_fixture(folder_id: child.id, filename: "im-unterordner.webp")
 
       {:ok, lv, _html} = live(ctx.conn, ~p"/admin/medien?#{[folder: ctx.folder.id]}")
@@ -497,7 +505,9 @@ defmodule BbhWeb.Admin.MediaLiveTest do
     end
 
     test "a sub-folder lists only its own files", ctx do
-      {:ok, child} = Media.create_folder(%{"name" => "2026", "parent_id" => ctx.folder.id})
+      {:ok, child} =
+        Media.Folders.create_folder(%{"name" => "2026", "parent_id" => ctx.folder.id})
+
       nested = upload_fixture(folder_id: child.id, filename: "im-unterordner.webp")
 
       {:ok, _lv, html} = live(ctx.conn, ~p"/admin/medien?#{[folder: child.id]}")
@@ -518,7 +528,9 @@ defmodule BbhWeb.Admin.MediaLiveTest do
     end
 
     test "a folder's count follows the grid, with or without its sub-folders", ctx do
-      {:ok, child} = Media.create_folder(%{"name" => "2026", "parent_id" => ctx.folder.id})
+      {:ok, child} =
+        Media.Folders.create_folder(%{"name" => "2026", "parent_id" => ctx.folder.id})
+
       upload_fixture(folder_id: child.id, filename: "im-unterordner.webp")
 
       {:ok, lv, _html} = live(ctx.conn, ~p"/admin/medien?#{[folder: ctx.folder.id]}")
@@ -532,7 +544,8 @@ defmodule BbhWeb.Admin.MediaLiveTest do
     end
 
     test "filing a tile into a sub-folder takes it out of the open parent's grid", ctx do
-      {:ok, child} = Media.create_folder(%{"name" => "2026", "parent_id" => ctx.folder.id})
+      {:ok, child} =
+        Media.Folders.create_folder(%{"name" => "2026", "parent_id" => ctx.folder.id})
 
       {:ok, lv, _html} = live(ctx.conn, ~p"/admin/medien?#{[folder: ctx.folder.id]}")
       html = render_hook(lv, "move_media", %{"id" => ctx.filed.id, "folder_id" => child.id})
@@ -543,7 +556,8 @@ defmodule BbhWeb.Admin.MediaLiveTest do
     end
 
     test "with sub-folders included, filing a tile into one keeps it in the grid", ctx do
-      {:ok, child} = Media.create_folder(%{"name" => "2026", "parent_id" => ctx.folder.id})
+      {:ok, child} =
+        Media.Folders.create_folder(%{"name" => "2026", "parent_id" => ctx.folder.id})
 
       {:ok, lv, _html} = live(ctx.conn, ~p"/admin/medien?#{[folder: ctx.folder.id]}")
       include_subfolders(lv)
@@ -555,7 +569,9 @@ defmodule BbhWeb.Admin.MediaLiveTest do
     end
 
     test "Unterordner einbeziehen stays on while moving between folders", ctx do
-      {:ok, child} = Media.create_folder(%{"name" => "2026", "parent_id" => ctx.folder.id})
+      {:ok, child} =
+        Media.Folders.create_folder(%{"name" => "2026", "parent_id" => ctx.folder.id})
+
       upload_fixture(folder_id: child.id, filename: "im-unterordner.webp")
 
       {:ok, lv, _html} = live(ctx.conn, ~p"/admin/medien?#{[folder: child.id]}")
@@ -575,7 +591,7 @@ defmodule BbhWeb.Admin.MediaLiveTest do
 
   describe "drag & drop" do
     test "dropping a tile on a folder moves it and removes it from the grid", %{conn: conn} do
-      {:ok, folder} = Media.create_folder(%{"name" => "Presse"})
+      {:ok, folder} = Media.Folders.create_folder(%{"name" => "Presse"})
       upload = upload_fixture(%{})
 
       # Browsing "Ohne Ordner", so the file leaves the current scope when it is filed.
@@ -590,7 +606,7 @@ defmodule BbhWeb.Admin.MediaLiveTest do
     end
 
     test "dropping a tile on Ohne Ordner unfiles it", %{conn: conn} do
-      {:ok, folder} = Media.create_folder(%{"name" => "Presse"})
+      {:ok, folder} = Media.Folders.create_folder(%{"name" => "Presse"})
       upload = upload_fixture(folder_id: folder.id)
 
       {:ok, lv, _html} = live(conn, ~p"/admin/medien?#{[folder: folder.id]}")
@@ -601,7 +617,7 @@ defmodule BbhWeb.Admin.MediaLiveTest do
     end
 
     test "a tile stays in the grid when Alle Medien is open", %{conn: conn} do
-      {:ok, folder} = Media.create_folder(%{"name" => "Presse"})
+      {:ok, folder} = Media.Folders.create_folder(%{"name" => "Presse"})
       upload = upload_fixture(%{})
 
       {:ok, lv, _html} = live(conn, ~p"/admin/medien")
@@ -612,45 +628,45 @@ defmodule BbhWeb.Admin.MediaLiveTest do
     end
 
     test "dragging a folder reorders its level", %{conn: conn} do
-      {:ok, a} = Media.create_folder(%{"name" => "A"})
-      {:ok, _b} = Media.create_folder(%{"name" => "B"})
-      {:ok, c} = Media.create_folder(%{"name" => "C"})
+      {:ok, a} = Media.Folders.create_folder(%{"name" => "A"})
+      {:ok, _b} = Media.Folders.create_folder(%{"name" => "B"})
+      {:ok, c} = Media.Folders.create_folder(%{"name" => "C"})
 
       {:ok, lv, _html} = live(conn, ~p"/admin/medien")
       html = render_hook(lv, "move_folder", %{"id" => c.id, "parent_id" => "", "position" => 0})
 
-      assert ["C", "A", "B"] == Media.list_subfolders(nil) |> Enum.map(& &1.name)
+      assert ["C", "A", "B"] == Media.Folders.list_subfolders(nil) |> Enum.map(& &1.name)
 
       assert index_of(html, ~s(data-folder-id="#{c.id}")) <
                index_of(html, ~s(data-folder-id="#{a.id}"))
     end
 
     test "dragging a folder onto another nests it", %{conn: conn} do
-      {:ok, a} = Media.create_folder(%{"name" => "A"})
-      {:ok, b} = Media.create_folder(%{"name" => "B"})
+      {:ok, a} = Media.Folders.create_folder(%{"name" => "A"})
+      {:ok, b} = Media.Folders.create_folder(%{"name" => "B"})
 
       {:ok, lv, _html} = live(conn, ~p"/admin/medien")
       render_hook(lv, "move_folder", %{"id" => b.id, "parent_id" => a.id, "position" => 0})
 
-      assert Media.get_folder(b.id).parent_id == a.id
+      assert Media.Folders.get_folder(b.id).parent_id == a.id
     end
 
     test "a move the depth cap forbids flashes an error and changes nothing", %{conn: conn} do
-      {:ok, a} = Media.create_folder(%{"name" => "A"})
-      {:ok, b} = Media.create_folder(%{"name" => "B"})
-      {:ok, child} = Media.create_folder(%{"name" => "2026", "parent_id" => a.id})
-      {:ok, _} = Media.create_folder(%{"name" => "Fest", "parent_id" => child.id})
+      {:ok, a} = Media.Folders.create_folder(%{"name" => "A"})
+      {:ok, b} = Media.Folders.create_folder(%{"name" => "B"})
+      {:ok, child} = Media.Folders.create_folder(%{"name" => "2026", "parent_id" => a.id})
+      {:ok, _} = Media.Folders.create_folder(%{"name" => "Fest", "parent_id" => child.id})
 
       {:ok, lv, _html} = live(conn, ~p"/admin/medien")
       html = render_hook(lv, "move_folder", %{"id" => a.id, "parent_id" => b.id, "position" => 0})
 
       assert html =~ "Unterordnern"
-      refute Media.get_folder(a.id).parent_id
-      assert ["A", "B"] == Media.list_subfolders(nil) |> Enum.map(& &1.name)
+      refute Media.Folders.get_folder(a.id).parent_id
+      assert ["A", "B"] == Media.Folders.list_subfolders(nil) |> Enum.map(& &1.name)
     end
 
     test "a crafted drop payload flashes instead of crashing the LiveView", %{conn: conn} do
-      {:ok, a} = Media.create_folder(%{"name" => "A"})
+      {:ok, a} = Media.Folders.create_folder(%{"name" => "A"})
 
       {:ok, lv, _html} = live(conn, ~p"/admin/medien")
 
@@ -662,12 +678,12 @@ defmodule BbhWeb.Admin.MediaLiveTest do
         })
 
       assert html =~ "Zielordner nicht gefunden"
-      refute Media.get_folder(a.id).parent_id
+      refute Media.Folders.get_folder(a.id).parent_id
     end
 
     test "a stale folder id is ignored rather than crashing", %{conn: conn} do
-      {:ok, a} = Media.create_folder(%{"name" => "A"})
-      {:ok, b} = Media.create_folder(%{"name" => "B"})
+      {:ok, a} = Media.Folders.create_folder(%{"name" => "A"})
+      {:ok, b} = Media.Folders.create_folder(%{"name" => "B"})
 
       {:ok, lv, _html} = live(conn, ~p"/admin/medien")
 
@@ -683,7 +699,7 @@ defmodule BbhWeb.Admin.MediaLiveTest do
       # page.) The move-folder failures all end in one of these two words.
       refute html =~ "nicht gefunden"
       refute html =~ "existiert"
-      assert ["A", "B"] == Media.list_subfolders(nil) |> Enum.map(& &1.name)
+      assert ["A", "B"] == Media.Folders.list_subfolders(nil) |> Enum.map(& &1.name)
 
       assert index_of(html, ~s(data-folder-id="#{a.id}")) <
                index_of(html, ~s(data-folder-id="#{b.id}"))
@@ -714,21 +730,21 @@ defmodule BbhWeb.Admin.MediaLiveTest do
     end
 
     test "a name already taken on the target level is refused in German", %{conn: conn} do
-      {:ok, a} = Media.create_folder(%{"name" => "A"})
-      {:ok, b} = Media.create_folder(%{"name" => "B"})
-      {:ok, _} = Media.create_folder(%{"name" => "B", "parent_id" => a.id})
+      {:ok, a} = Media.Folders.create_folder(%{"name" => "A"})
+      {:ok, b} = Media.Folders.create_folder(%{"name" => "B"})
+      {:ok, _} = Media.Folders.create_folder(%{"name" => "B", "parent_id" => a.id})
 
       # Nothing in the tree stops an editor dragging B onto A, so this is a live path.
       {:ok, lv, _html} = live(conn, ~p"/admin/medien")
       html = render_hook(lv, "move_folder", %{"id" => b.id, "parent_id" => a.id, "position" => 0})
 
       assert html =~ "existiert bereits"
-      refute Media.get_folder(b.id).parent_id
+      refute Media.Folders.get_folder(b.id).parent_id
     end
 
     test "moving the open folder updates the heading", %{conn: conn} do
-      {:ok, presse} = Media.create_folder(%{"name" => "Presse"})
-      {:ok, child} = Media.create_folder(%{"name" => "2026", "parent_id" => presse.id})
+      {:ok, presse} = Media.Folders.create_folder(%{"name" => "Presse"})
+      {:ok, child} = Media.Folders.create_folder(%{"name" => "2026", "parent_id" => presse.id})
 
       {:ok, lv, html} = live(conn, ~p"/admin/medien?#{[folder: child.id]}")
       assert html =~ "Presse / 2026"
@@ -739,12 +755,12 @@ defmodule BbhWeb.Admin.MediaLiveTest do
       # The heading specifically — "2026" also appears in the tree row either way.
       refute html =~ "Presse / 2026"
       assert html =~ ~r{<h2[^>]*>\s*2026\s*</h2>}
-      refute Media.get_folder(child.id).parent_id
+      refute Media.Folders.get_folder(child.id).parent_id
     end
 
     test "nesting a folder into the open one brings its files into the grid", %{conn: conn} do
-      {:ok, presse} = Media.create_folder(%{"name" => "Presse"})
-      {:ok, satzung} = Media.create_folder(%{"name" => "Satzungen"})
+      {:ok, presse} = Media.Folders.create_folder(%{"name" => "Presse"})
+      {:ok, satzung} = Media.Folders.create_folder(%{"name" => "Satzungen"})
       nested = upload_fixture(folder_id: satzung.id, filename: "wird-eingehaengt.webp")
 
       {:ok, lv, _html} = live(conn, ~p"/admin/medien?#{[folder: presse.id]}")
@@ -764,8 +780,8 @@ defmodule BbhWeb.Admin.MediaLiveTest do
     end
 
     test "un-nesting a folder out of the open one takes its files with it", %{conn: conn} do
-      {:ok, presse} = Media.create_folder(%{"name" => "Presse"})
-      {:ok, child} = Media.create_folder(%{"name" => "2026", "parent_id" => presse.id})
+      {:ok, presse} = Media.Folders.create_folder(%{"name" => "Presse"})
+      {:ok, child} = Media.Folders.create_folder(%{"name" => "2026", "parent_id" => presse.id})
       nested = upload_fixture(folder_id: child.id, filename: "verlaesst-den-ordner.webp")
 
       {:ok, lv, _html} = live(conn, ~p"/admin/medien?#{[folder: presse.id]}")
@@ -779,8 +795,8 @@ defmodule BbhWeb.Admin.MediaLiveTest do
     end
 
     test "a crafted expand id does not take the LiveView down", %{conn: conn} do
-      {:ok, folder} = Media.create_folder(%{"name" => "Presse"})
-      {:ok, _} = Media.create_folder(%{"name" => "2026", "parent_id" => folder.id})
+      {:ok, folder} = Media.Folders.create_folder(%{"name" => "Presse"})
+      {:ok, _} = Media.Folders.create_folder(%{"name" => "2026", "parent_id" => folder.id})
 
       {:ok, lv, _html} = live(conn, ~p"/admin/medien")
 
@@ -796,7 +812,7 @@ defmodule BbhWeb.Admin.MediaLiveTest do
     end
 
     test "tiles and folder rows carry what the hooks need", %{conn: conn} do
-      {:ok, folder} = Media.create_folder(%{"name" => "Presse"})
+      {:ok, folder} = Media.Folders.create_folder(%{"name" => "Presse"})
       upload = upload_fixture(%{})
 
       {:ok, lv, _html} = live(conn, ~p"/admin/medien")
@@ -825,8 +841,8 @@ defmodule BbhWeb.Admin.MediaLiveTest do
 
     test "no inline event handlers reach the markup", %{conn: conn} do
       upload = upload_fixture(caption: "Mit Bildunterschrift")
-      {:ok, folder} = Media.create_folder(%{"name" => "Presse"})
-      {:ok, _} = Media.create_folder(%{"name" => "2026", "parent_id" => folder.id})
+      {:ok, folder} = Media.Folders.create_folder(%{"name" => "Presse"})
+      {:ok, _} = Media.Folders.create_folder(%{"name" => "2026", "parent_id" => folder.id})
 
       {:ok, lv, html} = live(conn, ~p"/admin/medien")
 
@@ -847,7 +863,7 @@ defmodule BbhWeb.Admin.MediaLiveTest do
 
   describe "page order" do
     test "upload comes first, then the tree, then the media", %{conn: conn} do
-      {:ok, _} = Media.create_folder(%{"name" => "Presse"})
+      {:ok, _} = Media.Folders.create_folder(%{"name" => "Presse"})
       {:ok, _lv, html} = live(conn, ~p"/admin/medien")
 
       assert index_of(html, ~s(id="upload-form")) < index_of(html, ~s(id="media-tree"))
