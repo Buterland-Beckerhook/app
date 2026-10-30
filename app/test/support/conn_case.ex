@@ -62,7 +62,8 @@ defmodule BbhWeb.ConnCase do
       setup :register_and_log_in_admin
 
   It stores an updated connection and a registered admin user in the
-  test context.
+  test context. Logged in with a passkey, as the admin-only areas require; set
+  `@tag auth_method: "magic_link"` for a session without a second factor.
   """
   def register_and_log_in_admin(%{conn: conn} = context) do
     user = Bbh.AccountsFixtures.admin_user_fixture()
@@ -72,6 +73,7 @@ defmodule BbhWeb.ConnCase do
       context
       |> Map.take([:token_authenticated_at, :auth_method])
       |> Enum.into([])
+      |> then(&Keyword.merge([auth_method: "passkey"], &1))
 
     %{conn: log_in_user(conn, user, opts), user: user, scope: scope}
   end

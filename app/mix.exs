@@ -57,20 +57,26 @@ defmodule Bbh.MixProject do
       {:phoenix_live_dashboard, "~> 0.9.0"},
       {:esbuild, "~> 0.10", runtime: Mix.env() == :dev},
       {:tailwind, "~> 0.5", runtime: Mix.env() == :dev},
-      {:heroicons,
-       github: "tailwindlabs/heroicons",
-       tag: "v2.2.0",
-       sparse: "optimized",
-       app: false,
-       compile: false,
-       depth: 1},
-      {:daisyui,
-       github: "saadeghi/daisyui",
-       tag: "v5.7.50",
-       sparse: "packages/bundle",
-       app: false,
-       compile: false,
-       depth: 1},
+      {
+        :heroicons,
+        # renovate: datasource=github-tags depName=tailwindlabs/heroicons
+        tag: "v2.2.0",
+        github: "tailwindlabs/heroicons",
+        sparse: "optimized",
+        app: false,
+        compile: false,
+        depth: 1
+      },
+      {
+        :daisyui,
+        # renovate: datasource=github-tags depName=saadeghi/daisyui
+        tag: "v5.7.50",
+        github: "saadeghi/daisyui",
+        sparse: "packages/bundle",
+        app: false,
+        compile: false,
+        depth: 1
+      },
       {:swoosh, "~> 1.16"},
       {:gen_smtp, "~> 1.2"},
       {:image, "~> 0.72"},
@@ -91,7 +97,7 @@ defmodule Bbh.MixProject do
       {:tz, "~> 0.28.2"},
       # Security tooling (compile-time only): dependency CVE scan + Phoenix SAST.
       {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false},
-      {:sobelow, "~> 0.16", only: [:dev, :test], runtime: false}
+      {:sobelow, "~> 0.18", only: [:dev, :test], runtime: false}
     ]
   end
 

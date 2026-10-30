@@ -301,7 +301,8 @@ defmodule BbhWeb.UserAuth do
     end
   end
 
-  # Admin-only sections also need a strongly authenticated session.
+  # Admin-only areas: an admin role and, like the Postfach, a strongly authenticated
+  # session — a compromised mailbox alone must not be enough to manage users.
   def on_mount(:require_admin, params, session, socket) do
     case on_mount(:require_strong_auth, params, session, socket) do
       {:cont, socket} ->
@@ -393,22 +394,8 @@ defmodule BbhWeb.UserAuth do
   # `Bbh.Accounts.User.strong_auth?/1`.
   def on_mount(:require_strong_auth, params, session, socket) do
     case on_mount(:require_authenticated, params, session, socket) do
-      {:cont, socket} ->
-        user = socket.assigns.current_scope.user
-
-        if Accounts.User.strong_auth?(user) do
-          {:cont, socket}
-        else
-          socket =
-            socket
-            |> Phoenix.LiveView.put_flash(:error, @strong_auth_message)
-            |> Phoenix.LiveView.redirect(to: strong_auth_path(user))
-
-          {:halt, socket}
-        end
-
-      halted ->
-        halted
+      {:cont, socket} -> require_strong_session(socket)
+      halted -> halted
     end
   end
 
@@ -442,6 +429,21 @@ defmodule BbhWeb.UserAuth do
           "Bitte melden Sie sich erneut an, um diese Seite zu öffnen."
         )
         |> Phoenix.LiveView.redirect(to: ~p"/users/log-in")
+
+      {:halt, socket}
+    end
+  end
+
+  defp require_strong_session(socket) do
+    user = socket.assigns.current_scope.user
+
+    if Accounts.User.strong_auth?(user) do
+      {:cont, socket}
+    else
+      socket =
+        socket
+        |> Phoenix.LiveView.put_flash(:error, @strong_auth_message)
+        |> Phoenix.LiveView.redirect(to: strong_auth_path(user))
 
       {:halt, socket}
     end

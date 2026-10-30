@@ -154,15 +154,7 @@ defmodule BbhWeb.Admin.SettingsLive do
     true = Accounts.sudo_mode?(user)
     true = User.strong_auth?(user)
 
-    case ApiTokens.create_pat(user, name, scopes_for(access)) do
-      {:ok, plaintext, _token} ->
-        {:noreply,
-         socket
-         |> assign(new_token: plaintext, tokens: ApiTokens.list_pats(user), error: nil)}
-
-      {:error, changeset} ->
-        {:noreply, assign(socket, error: Args.errors(changeset))}
-    end
+    create_token(socket, user, name, access)
   end
 
   def handle_event("revoke_token", %{"id" => id}, socket) do
@@ -294,6 +286,18 @@ defmodule BbhWeb.Admin.SettingsLive do
 
   # "Nur Lesen" is the narrower grant; mcp:write implies mcp:read on the server, but the
   # token records both so the admin list shows what was actually granted.
+  defp create_token(socket, user, name, access) do
+    case ApiTokens.create_pat(user, name, scopes_for(access)) do
+      {:ok, plaintext, _token} ->
+        {:noreply,
+         socket
+         |> assign(new_token: plaintext, tokens: ApiTokens.list_pats(user), error: nil)}
+
+      {:error, changeset} ->
+        {:noreply, assign(socket, error: Args.errors(changeset))}
+    end
+  end
+
   defp scopes_for("ro"), do: ["mcp:read"]
   defp scopes_for(_rw), do: ["mcp:read", "mcp:write"]
 

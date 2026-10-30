@@ -686,4 +686,42 @@ defmodule Bbh.ContentTest do
       assert is_nil(unchanged.date_modified)
     end
   end
+
+  describe "page tree in few queries" do
+    test "page_ancestors returns the chain root → leaf" do
+      root = page_fixture(%{placement: "menu"})
+      mid = page_fixture(%{parent_id: root.id})
+      leaf = page_fixture(%{parent_id: mid.id})
+
+      assert Enum.map(Content.page_ancestors(leaf), & &1.id) == [root.id, mid.id, leaf.id]
+      assert Content.page_ancestors(root) == [root]
+    end
+
+    test "section_links lists one section's subtree, not the next section" do
+      root = page_fixture(%{placement: "menu", sort_order: 1})
+      child = page_fixture(%{parent_id: root.id})
+      _draft = page_fixture(%{parent_id: root.id, status: "draft"})
+      other = page_fixture(%{placement: "menu", sort_order: 2})
+
+      paths = root |> Content.section_links() |> Enum.map(& &1.path)
+
+      assert paths == ["/verein/#{root.slug}", "/verein/#{root.slug}/#{child.slug}"]
+      refute "/verein/#{other.slug}" in paths
+    end
+
+    test "load_blocks_for loads several owners' blocks at once" do
+      a = article_fixture()
+      b = article_fixture()
+      richtext_block_fixture(a, "<p>A</p>")
+      richtext_block_fixture(b, "<p>B</p>")
+
+      by_owner = Content.load_blocks_for([a, b])
+
+      # The same as loading each owner on its own, in position order.
+      assert by_owner == %{a.id => Content.load_blocks(a), b.id => Content.load_blocks(b)}
+      assert {_, %{body: "<p>A</p>"}} = List.last(by_owner[a.id])
+      assert {_, %{body: "<p>B</p>"}} = List.last(by_owner[b.id])
+      assert Content.load_blocks_for([]) == %{}
+    end
+  end
 end

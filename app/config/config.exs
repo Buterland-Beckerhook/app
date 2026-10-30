@@ -85,6 +85,7 @@ config :bbh, Bbh.TicketMailer, adapter: Swoosh.Adapters.Local
 
 # Configure esbuild (the version is required)
 config :esbuild,
+  # renovate: datasource=npm depName=esbuild
   version: "0.25.4",
   # app.js plus the bundles it loads on demand (js/lazy/*: Quill, flatpickr, Altcha),
   # each built as its own IIFE next to it — assets/js/lazy/<name>.js. Listed one by one
@@ -107,6 +108,7 @@ config :esbuild,
 
 # Configure tailwind (the version is required)
 config :tailwind,
+  # renovate: datasource=npm depName=tailwindcss
   version: "4.3.0",
   bbh: [
     args: ~w(
