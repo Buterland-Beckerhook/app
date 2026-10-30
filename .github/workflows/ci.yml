@@ -2,8 +2,10 @@ name: CI
 
 # Test + audit gate. Runs on every PR and on pushes to the active branch, and is
 # the required check that makes Renovate's auto-merge safe (see renovate.json).
+# merge_group: the merge queue runs it on main plus the queued PRs before merging.
 on:
   pull_request:
+  merge_group:
   push:
     branches: [feat/phoenix-rewrite, main]
 
