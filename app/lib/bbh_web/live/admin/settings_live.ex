@@ -27,6 +27,9 @@ defmodule BbhWeb.Admin.SettingsLive do
 
   @rp_name "Buterland-Beckerhook"
 
+  @admin_token_message "Als Administrator bitte mit Passkey oder Zwei-Faktor-Code " <>
+                         "anmelden, um ein Token zu erstellen."
+
   @impl true
   def mount(%{"token" => token}, _session, socket) do
     socket =
@@ -137,15 +140,11 @@ defmodule BbhWeb.Admin.SettingsLive do
     # way update_email does, so minting a credential can never ride on a stale mount.
     true = Accounts.sudo_mode?(user)
 
-    case ApiTokens.create_pat(user, name, scopes_for(access)) do
-      {:ok, plaintext, _token} ->
-        {:noreply,
-         socket
-         |> assign(new_token: plaintext, tokens: ApiTokens.list_pats(user), error: nil)}
-
-      {:error, changeset} ->
-        {:noreply, assign(socket, error: Args.errors(changeset))}
-    end
+    # An admin's token carries admin rights for a year: like the admin-only areas, it
+    # takes a session established with a second factor.
+    if User.admin?(user) and not User.strong_auth?(user),
+      do: {:noreply, assign(socket, error: @admin_token_message)},
+      else: create_token(socket, user, name, access)
   end
 
   def handle_event("revoke_token", %{"id" => id}, socket) do
@@ -277,6 +276,18 @@ defmodule BbhWeb.Admin.SettingsLive do
 
   # "Nur Lesen" is the narrower grant; mcp:write implies mcp:read on the server, but the
   # token records both so the admin list shows what was actually granted.
+  defp create_token(socket, user, name, access) do
+    case ApiTokens.create_pat(user, name, scopes_for(access)) do
+      {:ok, plaintext, _token} ->
+        {:noreply,
+         socket
+         |> assign(new_token: plaintext, tokens: ApiTokens.list_pats(user), error: nil)}
+
+      {:error, changeset} ->
+        {:noreply, assign(socket, error: Args.errors(changeset))}
+    end
+  end
+
   defp scopes_for("ro"), do: ["mcp:read"]
   defp scopes_for(_rw), do: ["mcp:read", "mcp:write"]
 

@@ -136,6 +136,30 @@ defmodule BbhWeb.OAuthControllerTest do
       assert html =~ "Erlauben"
     end
 
+    test "asks an admin with a magic-link-only session for a second factor", %{
+      conn: conn,
+      client: client
+    } do
+      conn =
+        log_in_user(conn, Bbh.AccountsFixtures.admin_user_fixture(), auth_method: "magic_link")
+
+      {_verifier, challenge} = pkce()
+
+      conn = get(conn, ~p"/oauth/authorize?#{authorize_params(client, challenge)}")
+
+      assert redirected_to(conn) == ~p"/users/security"
+      assert get_session(conn, :user_return_to) =~ "/oauth/authorize?"
+    end
+
+    test "renders consent for an admin with a passkey session", %{conn: conn, client: client} do
+      conn = log_in_user(conn, Bbh.AccountsFixtures.admin_user_fixture(), auth_method: "passkey")
+      {_verifier, challenge} = pkce()
+
+      conn = get(conn, ~p"/oauth/authorize?#{authorize_params(client, challenge)}")
+
+      assert html_response(conn, 200) =~ "Erlauben"
+    end
+
     test "lets the consent form's redirect reach the client (CSP form-action)", %{
       conn: conn,
       client: client

@@ -350,6 +350,34 @@ defmodule BbhWeb.Admin.SettingsLiveTest do
       assert html =~ "iPhone"
     end
 
+    @tag auth_method: "magic_link"
+    test "an admin without a second factor in the session cannot mint one", %{
+      conn: conn,
+      user: user
+    } do
+      {:ok, lv, _html} = live(conn, ~p"/admin/einstellungen/tokens")
+
+      html =
+        lv
+        |> form("form[phx-submit='create_token']", %{"name" => "iPhone", "access" => "rw"})
+        |> render_submit()
+
+      assert html =~ "Passkey oder Zwei-Faktor-Code"
+      assert Bbh.ApiTokens.list_pats(user) == []
+    end
+
+    test "an editor still mints one with a magic-link session", %{conn: conn} do
+      editor = Bbh.AccountsFixtures.user_fixture()
+      conn = log_in_user(conn, editor)
+      {:ok, lv, _html} = live(conn, ~p"/admin/einstellungen/tokens")
+
+      lv
+      |> form("form[phx-submit='create_token']", %{"name" => "iPhone", "access" => "rw"})
+      |> render_submit()
+
+      assert [_] = Bbh.ApiTokens.list_pats(editor)
+    end
+
     test "honours the read-only choice", %{conn: conn, user: user} do
       {:ok, lv, _html} = live(conn, ~p"/admin/einstellungen/tokens")
 

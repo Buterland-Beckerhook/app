@@ -108,7 +108,7 @@ defmodule BbhWeb.Router do
   # Consent. On the browser pipeline on purpose: the site's own login (magic link or
   # passkey, plus TOTP) is the OAuth login. See docs/adr/0010-mcp-oauth.md.
   scope "/oauth", BbhWeb do
-    pipe_through [:browser, :require_authenticated_user]
+    pipe_through [:browser, :require_authenticated_user, :require_strong_auth_for_admin]
 
     get "/authorize", OAuthController, :new
     post "/authorize", OAuthController, :create
