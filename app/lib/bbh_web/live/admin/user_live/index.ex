@@ -61,7 +61,9 @@ defmodule BbhWeb.Admin.UserLive.Index do
          |> load_users()}
 
       true ->
-        id |> Accounts.get_user!() |> Accounts.update_user_role(role)
+        with {:ok, user} <- id |> Accounts.get_user!() |> Accounts.update_user_role(role),
+             do: remount_sessions(user)
+
         {:noreply, load_users(socket)}
     end
   end
@@ -76,6 +78,7 @@ defmodule BbhWeb.Admin.UserLive.Index do
     queues = Map.get(params, "queues", [])
     user = Accounts.get_user!(id)
     {:ok, _} = Grants.set_grants(socket.assigns.current_scope.user, user, queues)
+    remount_sessions(user)
     {:noreply, load_users(socket)}
   end
 
@@ -83,7 +86,11 @@ defmodule BbhWeb.Admin.UserLive.Index do
     if id == socket.assigns.current_scope.user.id do
       {:noreply, put_flash(socket, :error, "Das eigene Konto kann nicht gelöscht werden.")}
     else
-      id |> Accounts.get_user!() |> Accounts.delete_user()
+      user = Accounts.get_user!(id)
+      # The tokens go with the user (FK cascade); fetch them first to drop the sockets.
+      tokens = Accounts.list_user_session_tokens(user)
+      {:ok, _} = Accounts.delete_user(user)
+      BbhWeb.UserAuth.disconnect_sessions(tokens)
       {:noreply, socket |> put_flash(:info, "Benutzer gelöscht.") |> load_users()}
     end
   end
@@ -96,6 +103,12 @@ defmodule BbhWeb.Admin.UserLive.Index do
 
   def handle_event("list-" <> action, params, socket),
     do: {:noreply, AdminList.handle(action, params, socket, &load_users/1)}
+
+  # Privileges are checked at on_mount only, so open tabs would keep the old ones.
+  # Disconnecting makes the client reconnect and remount with the user re-read from the
+  # DB; the sessions themselves stay valid.
+  defp remount_sessions(user),
+    do: user |> Accounts.list_user_session_tokens() |> BbhWeb.UserAuth.disconnect_sessions()
 
   # An admin being changed to a non-admin role while they are the only admin left.
   defp demoting_last_admin?(id, role) do
