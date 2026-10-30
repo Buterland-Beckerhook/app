@@ -47,7 +47,7 @@ defmodule BbhWeb.Admin.MediaEditorTest do
     end
 
     test "an empty folder select clears the folder instead of failing" do
-      {:ok, folder} = Media.create_folder(%{"name" => "Presse"})
+      {:ok, folder} = Media.Folders.create_folder(%{"name" => "Presse"})
       upload = upload_fixture(folder_id: folder.id)
 
       assert {:close, saved, {:info, _}} =

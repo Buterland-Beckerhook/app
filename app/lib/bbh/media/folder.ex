@@ -13,7 +13,7 @@ defmodule Bbh.Media.Folder do
   schema "media_folders" do
     field :name, :string
     # Hand-ordered within the parent level. Never cast from user params — it is set by
-    # Bbh.Media.create_folder/1 and rewritten wholesale by Bbh.Ordering.renumber/2.
+    # Bbh.Media.Folders.create_folder/1 and rewritten wholesale by Bbh.Ordering.renumber/2.
     field :position, :integer, default: 0
 
     belongs_to :parent, __MODULE__
@@ -28,7 +28,7 @@ defmodule Bbh.Media.Folder do
 
   @doc """
   The folder's path from the top level down to itself, read off the `parent` chain
-  `Bbh.Media.get_folder/1` preloads. A chain that is not loaded ends the path there.
+  `Bbh.Media.Folders.get_folder/1` preloads. A chain that is not loaded ends the path there.
   """
   def path(%__MODULE__{parent: %__MODULE__{} = parent} = folder), do: path(parent) ++ [folder]
   def path(%__MODULE__{} = folder), do: [folder]

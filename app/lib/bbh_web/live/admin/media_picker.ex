@@ -121,7 +121,7 @@ defmodule BbhWeb.Admin.MediaPicker do
 
   # `folder` is nil (the root), a %Folder{}, or :recent — the virtual folder.
   defp folder_from("recent"), do: :recent
-  defp folder_from(folder_id), do: Media.get_folder(blank_to_nil(folder_id))
+  defp folder_from(folder_id), do: Media.Folders.get_folder(blank_to_nil(folder_id))
 
   defp browse_opts(nil), do: [folder: :root]
   defp browse_opts(:recent), do: [recent: Media.recent_limit()]
@@ -129,8 +129,8 @@ defmodule BbhWeb.Admin.MediaPicker do
 
   # A virtual folder has no sub-folders of its own; it offers the top level instead, being
   # where the modal opens.
-  defp subfolders(:recent), do: Media.child_folders(nil)
-  defp subfolders(folder), do: Media.child_folders(folder)
+  defp subfolders(:recent), do: Media.Folders.child_folders(nil)
+  defp subfolders(folder), do: Media.Folders.child_folders(folder)
 
   defp blank_to_nil(""), do: nil
   defp blank_to_nil(value), do: value
@@ -292,7 +292,7 @@ defmodule BbhWeb.Admin.MediaPicker do
   end
 
   # Folder path for the breadcrumb, root → current, off the parent chain
-  # Media.get_folder/1 preloads.
+  # Media.Folders.get_folder/1 preloads.
   defp folder_crumbs(%Folder{} = folder), do: Folder.path(folder)
   defp folder_crumbs(:recent), do: [%{id: "recent", name: "Zuletzt hochgeladen"}]
   defp folder_crumbs(_folder), do: []
