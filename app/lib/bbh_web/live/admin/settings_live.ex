@@ -15,7 +15,7 @@ defmodule BbhWeb.Admin.SettingsLive do
 
   # Changing the email or a sign-in method is a sensitive account action —
   # require a recent re-authentication (sudo mode) on top of the live_session's
-  # staff check.
+  # check (a strong session once the user has a second factor).
   on_mount {BbhWeb.UserAuth, :require_sudo_mode}
 
   alias Bbh.Accounts
@@ -26,9 +26,6 @@ defmodule BbhWeb.Admin.SettingsLive do
   alias BbhWeb.MCP.Args
 
   @rp_name "Buterland-Beckerhook"
-
-  @admin_token_message "Als Administrator bitte mit Passkey oder Zwei-Faktor-Code " <>
-                         "anmelden, um ein Token zu erstellen."
 
   @impl true
   def mount(%{"token" => token}, _session, socket) do
@@ -79,7 +76,31 @@ defmodule BbhWeb.Admin.SettingsLive do
     if connected?(socket), do: assign_registration_challenge(socket), else: socket
   end
 
+  # A token reaches the content sections, which need a strong session — so minting one
+  # does too. Matters for a user without a second factor, who may enter the settings
+  # (to set one up) from a plain magic-link session.
   defp apply_action(socket, :tokens) do
+    if User.strong_auth?(socket.assigns.current_scope.user),
+      do: assign_tokens(socket),
+      else:
+        socket
+        |> put_flash(
+          :error,
+          "Für Zugriffstoken ist eine Anmeldung mit Passkey oder " <>
+            "Zwei-Faktor-Code nötig."
+        )
+        |> push_patch(to: ~p"/admin/einstellungen")
+  end
+
+  defp apply_action(socket, :totp) do
+    assign_totp_state(socket, socket.assigns.current_scope.user)
+  end
+
+  defp apply_action(socket, _account) do
+    assign(socket, page_title: "Einstellungen")
+  end
+
+  defp assign_tokens(socket) do
     assign(socket,
       page_title: "Zugriffstoken",
       tokens: ApiTokens.list_pats(socket.assigns.current_scope.user),
@@ -89,14 +110,6 @@ defmodule BbhWeb.Admin.SettingsLive do
       new_token: nil,
       error: nil
     )
-  end
-
-  defp apply_action(socket, :totp) do
-    assign_totp_state(socket, socket.assigns.current_scope.user)
-  end
-
-  defp apply_action(socket, _account) do
-    assign(socket, page_title: "Einstellungen")
   end
 
   ## Account (email) ---------------------------------------------------------
@@ -139,12 +152,9 @@ defmodule BbhWeb.Admin.SettingsLive do
     # `on_mount :require_sudo_mode` already gates this LiveView; assert it here too, the
     # way update_email does, so minting a credential can never ride on a stale mount.
     true = Accounts.sudo_mode?(user)
+    true = User.strong_auth?(user)
 
-    # An admin's token carries admin rights for a year: like the admin-only areas, it
-    # takes a session established with a second factor.
-    if User.admin?(user) and not User.strong_auth?(user),
-      do: {:noreply, assign(socket, error: @admin_token_message)},
-      else: create_token(socket, user, name, access)
+    create_token(socket, user, name, access)
   end
 
   def handle_event("revoke_token", %{"id" => id}, socket) do

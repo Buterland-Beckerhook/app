@@ -199,4 +199,32 @@ defmodule BbhWeb.Admin.UserLiveTest do
     BbhWeb.Endpoint.subscribe("users_sessions:#{Base.url_encode64(token)}")
     token
   end
+
+  describe "resetting second factors" do
+    test "wipes the factors and shows the one-time code once", %{conn: conn} do
+      user = user_fixture()
+      passkey_fixture(user)
+      {:ok, lv, _html} = live(conn, ~p"/admin/benutzer")
+
+      html = render_click(lv, "reset_factors", %{"id" => user.id})
+
+      assert [_, code] = Regex.run(~r/([A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4})/, html)
+      assert html =~ "persönlich oder telefonisch"
+      refute Accounts.Passkeys.has_passkey?(user)
+      assert Accounts.valid_factor_reset_code?(user, code)
+
+      assert [_] = Bbh.Repo.all_by(Accounts.AuthEvent, user_id: user.id, event: "factors_reset")
+
+      refute render_click(lv, "dismiss_reset_code", %{}) =~ code
+    end
+
+    test "is not offered for the own account", %{conn: conn, user: admin} do
+      {:ok, lv, _html} = live(conn, ~p"/admin/benutzer")
+
+      assert render_click(lv, "reset_factors", %{"id" => admin.id}) =~
+               "kann nicht zurückgesetzt werden"
+
+      refute Accounts.factor_reset_pending?(admin)
+    end
+  end
 end

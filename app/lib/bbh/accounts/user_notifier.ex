@@ -45,6 +45,24 @@ defmodule Bbh.Accounts.UserNotifier do
     end
   end
 
+  @doc """
+  Deliver the invitation of a newly created account.
+  """
+  def deliver_invite_instructions(user, url) do
+    deliver(user.email, "Ihr Zugang zu buterland-beckerhook.de", """
+    Hallo,
+
+    für Sie wurde ein Zugang zum internen Bereich von buterland-beckerhook.de
+    eingerichtet. Über diesen Link bestätigen Sie Ihr Konto und melden sich an:
+
+    #{url}
+
+    Der Link ist 5 Tage gültig und kann einmal verwendet werden. Ist er abgelaufen,
+    können Sie auf der Anmeldeseite mit Ihrer E-Mail-Adresse einen neuen anfordern.
+    Wenn Sie keinen Zugang erwartet haben, können Sie diese E-Mail ignorieren.
+    """)
+  end
+
   defp deliver_magic_link_instructions(user, url) do
     deliver(user.email, "Ihr Anmeldelink", """
     Hallo,

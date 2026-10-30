@@ -31,6 +31,18 @@ defmodule BbhWeb.UserSessionControllerTest do
       assert response =~ ~p"/users/log-out"
     end
 
+    test "does not nudge a passkey user towards TOTP setup it could not reach",
+         %{conn: conn, user: user} do
+      # Without a passkey in the session, adding TOTP needs a strong login first.
+      passkey_fixture(user)
+      {token, _hashed_token} = generate_user_magic_link_token(user)
+
+      conn = post(conn, ~p"/users/log-in", %{"user" => %{"token" => token}})
+
+      assert session_auth_method(conn) == "magic_link"
+      assert redirected_to(conn) == ~p"/admin"
+    end
+
     test "sends a fully enrolled user straight to the admin area", %{conn: conn, user: user} do
       passkey_fixture(user)
       {:ok, user} = Accounts.enable_totp(user, Accounts.generate_totp_secret())

@@ -99,6 +99,43 @@ defmodule BbhWeb.Admin.AuthorizationTest do
     end
   end
 
+  describe "plain (magic-link) session" do
+    setup %{conn: conn} do
+      admin = admin_user_fixture()
+      %{conn: log_in_user(conn, admin, auth_method: "magic_link")}
+    end
+
+    for route <- [
+          "/admin/artikel",
+          "/admin/medien",
+          "/admin/seiten",
+          "/admin/benutzer",
+          "/admin/website",
+          "/admin/weiterleitungen"
+        ] do
+      test "is sent to set up a second factor from #{route}", %{conn: conn} do
+        assert {:error, {:redirect, %{to: "/users/security", flash: %{"error" => msg}}}} =
+                 live(conn, unquote(route))
+
+        assert msg =~ "Passkey oder Zwei-Faktor-Code"
+      end
+    end
+
+    test "is sent to log in again when a second factor exists" do
+      admin = admin_user_fixture()
+      passkey_fixture(admin)
+      conn = log_in_user(build_conn(), admin, auth_method: "magic_link")
+
+      assert {:error, {:redirect, %{to: "/users/log-in"}}} = live(conn, ~p"/admin/artikel")
+    end
+
+    test "still reaches the dashboard and Termine", %{conn: conn} do
+      assert {:ok, _lv, _html} = live(conn, ~p"/admin")
+      assert {:ok, _lv, _html} = live(conn, ~p"/admin/termine")
+      assert {:ok, _lv, _html} = live(conn, ~p"/admin/termine/teilen")
+    end
+  end
+
   describe "role Nur Postfach" do
     setup %{conn: conn} do
       user = user_fixture()

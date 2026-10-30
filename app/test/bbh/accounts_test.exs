@@ -324,6 +324,120 @@ defmodule Bbh.AccountsTest do
     end
   end
 
+  describe "invitations" do
+    defp invite_token(user) do
+      extract_user_token(&Accounts.deliver_invite_instructions(user, &1))
+    end
+
+    defp age_tokens(user, context, amount, unit) do
+      dt = DateTime.add(DateTime.utc_now(:second), -amount, unit)
+
+      from(t in UserToken, where: t.user_id == ^user.id and t.context == ^context)
+      |> Repo.update_all(set: [inserted_at: dt])
+    end
+
+    test "the link is stored as an invite and its mail names the validity" do
+      user = unconfirmed_user_fixture()
+
+      {:ok, email} = Accounts.deliver_invite_instructions(user, &"https://example.test/#{&1}")
+
+      assert email.text_body =~ "5 Tage gültig"
+      assert [%{context: "invite", sent_to: sent_to}] = Repo.all_by(UserToken, user_id: user.id)
+      assert sent_to == user.email
+    end
+
+    test "stays valid for 5 days" do
+      user = unconfirmed_user_fixture()
+      token = invite_token(user)
+
+      age_tokens(user, "invite", 4 * 24 + 23, :hour)
+      assert Accounts.get_user_by_magic_link_token(token)
+
+      age_tokens(user, "invite", 5 * 24 + 1, :hour)
+      refute Accounts.get_user_by_magic_link_token(token)
+    end
+
+    test "can be used once" do
+      user = unconfirmed_user_fixture()
+      token = invite_token(user)
+
+      assert {:ok, {%User{confirmed_at: %DateTime{}}, _}} =
+               Accounts.login_user_by_magic_link(token)
+
+      assert {:error, :not_found} = Accounts.login_user_by_magic_link(token)
+    end
+
+    test "is useless for an account that has already logged in" do
+      user = user_fixture()
+      token = invite_token(user)
+
+      refute Accounts.get_user_by_magic_link_token(token)
+      assert {:error, :not_found} = Accounts.login_user_by_magic_link(token)
+    end
+
+    test "a regular magic link keeps its 15 minutes" do
+      user = user_fixture()
+      {token, _} = generate_user_magic_link_token(user)
+
+      age_tokens(user, "login", 16, :minute)
+      refute Accounts.get_user_by_magic_link_token(token)
+    end
+  end
+
+  describe "reset_second_factors/1" do
+    setup do
+      user = user_fixture()
+      passkey_fixture(user)
+      {:ok, user} = Accounts.enable_totp(user, Accounts.generate_totp_secret())
+      session = Accounts.generate_user_session_token(user)
+      %{user: user, session: session}
+    end
+
+    test "removes passkeys, TOTP and sessions and issues a code", %{user: user, session: session} do
+      assert {:ok, {code, [_session]}} = Accounts.reset_second_factors(user)
+
+      user = Accounts.get_user!(user.id)
+      refute Bbh.Accounts.Passkeys.has_passkey?(user)
+      refute User.totp_enabled?(user)
+      refute Accounts.get_user_by_session_token(session)
+
+      assert code =~ ~r/^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/
+      assert Accounts.factor_reset_pending?(user)
+      assert Accounts.valid_factor_reset_code?(user, code)
+    end
+
+    test "accepts the code regardless of case, dash and spaces", %{user: user} do
+      {:ok, {code, _}} = Accounts.reset_second_factors(user)
+      sloppy = code |> String.replace("-", " ") |> String.downcase()
+
+      assert Accounts.valid_factor_reset_code?(user, sloppy)
+      refute Accounts.valid_factor_reset_code?(user, "AAAA-AAAA")
+    end
+
+    test "the code expires after 24 hours but the reset stays pending", %{user: user} do
+      {:ok, {code, _}} = Accounts.reset_second_factors(user)
+      age_tokens(user, "factor_reset", 25, :hour)
+
+      refute Accounts.valid_factor_reset_code?(user, code)
+      assert Accounts.factor_reset_pending?(user)
+    end
+
+    test "a second reset replaces the first code", %{user: user} do
+      {:ok, {first, _}} = Accounts.reset_second_factors(user)
+      {:ok, {second, _}} = Accounts.reset_second_factors(user)
+
+      refute Accounts.valid_factor_reset_code?(user, first)
+      assert Accounts.valid_factor_reset_code?(user, second)
+    end
+
+    test "enrolling TOTP ends the pending reset", %{user: user} do
+      {:ok, _} = Accounts.reset_second_factors(user)
+      {:ok, user} = Accounts.enable_totp(user, Accounts.generate_totp_secret())
+
+      refute Accounts.factor_reset_pending?(user)
+    end
+  end
+
   describe "inspect/2 for the User module" do
     test "does not include the TOTP secret" do
       refute inspect(%User{totp_secret: "supersecret"}) =~ "supersecret"

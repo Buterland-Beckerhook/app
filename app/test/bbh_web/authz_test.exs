@@ -6,8 +6,10 @@ defmodule BbhWeb.AuthzTest do
   alias Bbh.Calendar.Event
   alias BbhWeb.Authz
 
-  defp admin, do: %User{role: "admin", calendars: []}
-  defp editor(cals \\ []), do: %User{role: "editor", calendars: cals}
+  # Strongly authenticated sessions unless a test says otherwise; `weak/1` downgrades.
+  defp admin, do: %User{role: "admin", calendars: [], auth_method: "passkey"}
+  defp editor(cals \\ []), do: %User{role: "editor", calendars: cals, auth_method: "passkey"}
+  defp weak(user), do: %{user | auth_method: "magic_link"}
   defp cal_editor(cals), do: %User{role: "calendar_editor", calendars: cals}
 
   defp public_event, do: %Event{calendar: nil}
@@ -50,6 +52,27 @@ defmodule BbhWeb.AuthzTest do
       refute Authz.can_manage_calendar?(cal_editor(["vorstand"]), nil)
       assert Authz.can_manage_calendar?(cal_editor(["vorstand"]), "vorstand")
       refute Authz.can_manage_calendar?(cal_editor(["vorstand"]), "offiziere")
+    end
+  end
+
+  describe "public calendar from a plain (magic-link) session" do
+    test "nobody may manage it, internal calendars stay usable" do
+      refute Authz.can_manage_calendar?(weak(admin()), nil)
+      refute Authz.can_manage_calendar?(weak(editor()), nil)
+      assert Authz.can_manage_calendar?(weak(admin()), "vorstand")
+      assert Authz.can_manage_calendar?(weak(editor(["vorstand"])), "vorstand")
+    end
+
+    test "nobody may delete a public event, internal ones stay deletable" do
+      refute Authz.can_delete_event?(weak(admin()), public_event())
+      assert Authz.can_delete_event?(weak(admin()), event("vorstand"))
+      assert Authz.can_delete_event?(weak(cal_editor(["vorstand"])), event("vorstand"))
+    end
+
+    test "the public option is not offered" do
+      values = admin() |> weak() |> Authz.assignable_calendar_options() |> Enum.map(&elem(&1, 1))
+      refute "" in values
+      assert Enum.all?(Event.calendars(), &(&1 in values))
     end
   end
 

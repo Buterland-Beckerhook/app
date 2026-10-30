@@ -6,7 +6,7 @@ defmodule BbhWeb.UserLive.SecuritySetup do
   """
   use BbhWeb, :live_view
 
-  on_mount {BbhWeb.UserAuth, :require_authenticated}
+  on_mount {BbhWeb.UserAuth, :require_enrolled_strong_auth}
 
   alias Bbh.Accounts.Passkeys
   alias Bbh.Accounts.User

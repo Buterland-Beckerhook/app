@@ -123,6 +123,16 @@ defmodule BbhWeb.OAuthControllerTest do
       assert redirected_to(conn) =~ "log-in"
     end
 
+    test "needs a strong session: a plain magic-link login must set up a second factor",
+         %{conn: conn, client: client} do
+      %{conn: conn} = register_and_log_in_user(%{conn: conn, auth_method: "magic_link"})
+      {_verifier, challenge} = pkce()
+
+      conn = get(conn, ~p"/oauth/authorize?#{authorize_params(client, challenge)}")
+
+      assert redirected_to(conn) == ~p"/users/security"
+    end
+
     test "renders consent for a logged-in user", %{conn: conn, client: client} do
       %{conn: conn} = register_and_log_in_user(%{conn: conn})
       {_verifier, challenge} = pkce()

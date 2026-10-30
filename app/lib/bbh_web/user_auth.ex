@@ -64,16 +64,24 @@ defmodule BbhWeb.UserAuth do
   by navigating there explicitly (which stores it as a return path); that's fine —
   `SecuritySetup` redirects to the admin area when nothing is missing.
   """
-  def maybe_put_enrollment_return_to(conn, user) do
-    if get_session(conn, :user_return_to) == nil and needs_security_enrollment?(user) do
+  def maybe_put_enrollment_return_to(conn, user, method) do
+    if get_session(conn, :user_return_to) == nil and needs_security_enrollment?(user, method) do
       put_session(conn, :user_return_to, ~p"/users/security")
     else
       conn
     end
   end
 
-  defp needs_security_enrollment?(user) do
-    not Accounts.Passkeys.has_passkey?(user) or not Accounts.User.totp_enabled?(user)
+  # Only nudge towards what this session may actually set up: a session without a
+  # second factor can enroll the *first* one, but once one exists, adding another needs
+  # a strong session (see `on_mount(:require_enrolled_strong_auth, …)`).
+  defp needs_security_enrollment?(user, method) do
+    has_passkey = Accounts.Passkeys.has_passkey?(user)
+    has_totp = Accounts.User.totp_enabled?(user)
+
+    (not has_passkey or not has_totp) and
+      (Accounts.User.strong_auth?(%{user | auth_method: method}) or
+         not (has_passkey or has_totp))
   end
 
   @doc """
@@ -296,10 +304,10 @@ defmodule BbhWeb.UserAuth do
   # Admin-only areas: an admin role and, like the Postfach, a strongly authenticated
   # session — a compromised mailbox alone must not be enough to manage users.
   def on_mount(:require_admin, params, session, socket) do
-    case on_mount(:require_authenticated, params, session, socket) do
+    case on_mount(:require_strong_auth, params, session, socket) do
       {:cont, socket} ->
         if Accounts.User.admin?(socket.assigns.current_scope.user) do
-          require_strong_session(socket)
+          {:cont, socket}
         else
           socket =
             socket
@@ -318,9 +326,10 @@ defmodule BbhWeb.UserAuth do
   def on_mount(:require_staff, params, session, socket),
     do: on_mount(:require_authenticated, params, session, socket)
 
-  # Content sections: admins and content editors, but not calendar-only editors.
+  # Content sections: admins and content editors, but not calendar-only editors, and
+  # only from a strongly authenticated session.
   def on_mount(:require_content_editor, params, session, socket) do
-    case on_mount(:require_authenticated, params, session, socket) do
+    case on_mount(:require_strong_auth, params, session, socket) do
       {:cont, socket} ->
         if BbhWeb.Authz.can_access_section?(socket.assigns.current_scope.user, :articles) do
           {:cont, socket}
@@ -338,7 +347,9 @@ defmodule BbhWeb.UserAuth do
     end
   end
 
-  # Termine and Kalender teilen: every role but "Nur Postfach".
+  # Termine and Kalender teilen: every role but "Nur Postfach". The only section a plain
+  # magic-link session may use; the public calendar inside it still needs a strong
+  # session (`BbhWeb.Authz.can_manage_calendar?/2`).
   def on_mount(:require_events, params, session, socket) do
     case on_mount(:require_authenticated, params, session, socket) do
       {:cont, socket} ->
@@ -378,12 +389,43 @@ defmodule BbhWeb.UserAuth do
     end
   end
 
-  # Sensitive areas (the Postfach): the session must have been established with a passkey
-  # or a magic link plus TOTP code — see `Bbh.Accounts.User.strong_auth?/1`.
+  # Sensitive areas (everything but Termine and the dashboard): the session must have
+  # been established with a passkey or a magic link plus TOTP code — see
+  # `Bbh.Accounts.User.strong_auth?/1`.
   def on_mount(:require_strong_auth, params, session, socket) do
     case on_mount(:require_authenticated, params, session, socket) do
       {:cont, socket} -> require_strong_session(socket)
       halted -> halted
+    end
+  end
+
+  # Account security (settings, the enrollment nudge): once the user has a second
+  # factor, changing sign-in methods, the email or API tokens needs a session that used
+  # it — otherwise mailbox access alone would let an attacker enroll their own passkey
+  # or TOTP and so reach the strong-auth areas. Without any factor yet, a plain session
+  # may enter to set up the first one.
+  #
+  # After an admin reset (`Bbh.Accounts.reset_second_factors/1`) the user has no factor
+  # either, but here the session must first prove the one-time code the admin handed
+  # over (`BbhWeb.FactorResetController`).
+  def on_mount(:require_enrolled_strong_auth, params, session, socket) do
+    case on_mount(:require_authenticated, params, session, socket) do
+      {:cont, socket} ->
+        user = socket.assigns.current_scope.user
+
+        cond do
+          second_factor?(user) ->
+            on_mount(:require_strong_auth, params, session, socket)
+
+          factor_reset_unverified?(user, session) ->
+            {:halt, Phoenix.LiveView.redirect(socket, to: ~p"/users/reset-code")}
+
+          true ->
+            {:cont, socket}
+        end
+
+      halted ->
+        halted
     end
   end
 
@@ -467,24 +509,24 @@ defmodule BbhWeb.UserAuth do
     end
   end
 
-  @doc """
-  For controllers that admins reach with their full rights (OAuth consent): an admin
-  needs a strongly authenticated session, everyone else passes. Must run after
-  `require_authenticated_user/2`.
-  """
-  def require_strong_auth_for_admin(conn, opts) do
-    if Accounts.User.admin?(conn.assigns.current_scope.user),
-      do: require_strong_auth(conn, opts),
-      else: conn
-  end
-
   # Someone who has a second factor only needs to log in again with it; someone without
   # one has to set it up first.
   defp strong_auth_path(user) do
-    if Accounts.Passkeys.has_passkey?(user) or Accounts.User.totp_enabled?(user),
-      do: ~p"/users/log-in",
-      else: ~p"/users/security"
+    if second_factor?(user), do: ~p"/users/log-in", else: ~p"/users/security"
   end
+
+  @doc """
+  Marks the session as having proven the user's factor-reset code, so it may enroll a
+  new second factor (see `on_mount(:require_enrolled_strong_auth, …)`).
+  """
+  def put_factor_reset_verified(conn, user),
+    do: put_session(conn, :factor_reset_verified, user.id)
+
+  defp factor_reset_unverified?(user, session),
+    do: session["factor_reset_verified"] != user.id and Accounts.factor_reset_pending?(user)
+
+  defp second_factor?(user),
+    do: Accounts.Passkeys.has_passkey?(user) or Accounts.User.totp_enabled?(user)
 
   defp maybe_store_return_to(%{method: "GET"} = conn) do
     put_session(conn, :user_return_to, current_path(conn))

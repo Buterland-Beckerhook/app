@@ -9,8 +9,17 @@ defmodule Bbh.Accounts.UserToken do
   # It is very important to keep the magic link token expiry short,
   # since someone with access to the email may take over the account.
   @magic_link_validity_in_minutes 15
+  # Invitations go out unasked and may sit in an inbox for a while. They only work for
+  # an account that has never logged in (see verify_magic_link_token_query/1).
+  @invite_validity_in_days 5
+  # The code an admin hands over out-of-band after resetting someone's second factors.
+  @factor_reset_validity_in_hours 24
   @change_email_validity_in_days 7
   @session_validity_in_days 14
+
+  # No 0/O, 1/I: the code is read out over the phone or copied from a note.
+  @code_alphabet ~c"ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+  @code_length 8
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
@@ -118,7 +127,8 @@ defmodule Bbh.Accounts.UserToken do
 
   The given token is valid if it matches its hashed counterpart in the
   database. This function also checks whether the token has expired. The context
-  of a magic link token is always "login".
+  of a magic link token is "login" (short-lived) or "invite" (the first login of an
+  invited account, longer-lived but useless once the account is confirmed).
   """
   def verify_magic_link_token_query(token) do
     case Base.url_decode64(token, padding: false) do
@@ -126,9 +136,14 @@ defmodule Bbh.Accounts.UserToken do
         hashed_token = :crypto.hash(@hash_algorithm, decoded_token)
 
         query =
-          from token in by_token_and_context_query(hashed_token, "login"),
+          from token in UserToken,
             join: user in assoc(token, :user),
-            where: token.inserted_at > ago(^@magic_link_validity_in_minutes, "minute"),
+            where: token.token == ^hashed_token,
+            where:
+              (token.context == "login" and
+                 token.inserted_at > ago(^@magic_link_validity_in_minutes, "minute")) or
+                (token.context == "invite" and is_nil(user.confirmed_at) and
+                   token.inserted_at > ago(^@invite_validity_in_days, "day")),
             where: token.sent_to == user.email,
             select: {user, token}
 
@@ -165,6 +180,44 @@ defmodule Bbh.Accounts.UserToken do
         :error
     end
   end
+
+  @doc """
+  Builds the one-time code for re-enrolling after an admin reset of the user's second
+  factors. Returns `{code, user_token}`; only the hash is stored. The code is shown to
+  the admin once and handed over out-of-band (in person, by phone), so that access to
+  the mailbox alone is not enough to enroll a new factor.
+  """
+  def build_factor_reset_code(user) do
+    # 32 symbols divide 256 evenly, so `rem/2` keeps the draw unbiased.
+    code =
+      for <<byte <- :crypto.strong_rand_bytes(@code_length)>>,
+        into: "",
+        do: <<Enum.at(@code_alphabet, rem(byte, 32))>>
+
+    {format_code(code),
+     %UserToken{token: hash_code(code), context: "factor_reset", user_id: user.id}}
+  end
+
+  @doc "Query for the user's unexpired factor-reset token matching `code`."
+  def verify_factor_reset_code_query(user, code) do
+    from t in by_token_and_context_query(hash_code(normalize_code(code)), "factor_reset"),
+      where: t.user_id == ^user.id,
+      where: t.inserted_at > ago(^@factor_reset_validity_in_hours, "hour")
+  end
+
+  @doc "Query for all of the user's factor-reset tokens, expired or not."
+  def factor_reset_query(user),
+    do: from(t in UserToken, where: t.user_id == ^user.id and t.context == "factor_reset")
+
+  @doc "How long a factor-reset code is valid, for the admin's hint."
+  def factor_reset_validity_in_hours, do: @factor_reset_validity_in_hours
+
+  # Case, spaces and the dash are presentation only.
+  defp normalize_code(code), do: code |> String.upcase() |> String.replace(~r/[^A-Z0-9]/, "")
+
+  defp format_code(code), do: String.slice(code, 0, 4) <> "-" <> String.slice(code, 4, 4)
+
+  defp hash_code(code), do: :crypto.hash(@hash_algorithm, code)
 
   defp by_token_and_context_query(token, context) do
     from UserToken, where: [token: ^token, context: ^context]

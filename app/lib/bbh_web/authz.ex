@@ -17,6 +17,10 @@ defmodule BbhWeb.Authz do
 
   Deletes are admin-only everywhere, except events on a non-public calendar, which the
   users granted that calendar may also delete.
+
+  Session strength: every section but Termine requires a strongly authenticated session
+  (enforced by the `BbhWeb.UserAuth` on_mount hooks); inside Termine, the public calendar
+  does too (`can_manage_calendar?/2`).
   """
   alias Bbh.Accounts.{Scope, User}
   alias Bbh.Calendar.Event
@@ -43,11 +47,16 @@ defmodule BbhWeb.Authz do
   """
   def can_preview?(scope, section), do: can_access_section?(scope && scope.user, section)
 
-  @doc "Whether the user may create/edit an event on the given calendar (nil = public)."
+  @doc """
+  Whether the user may create/edit an event on the given calendar (nil = public).
+
+  The public calendar is website content, so like the content sections it needs a
+  strongly authenticated session; the internal calendars are fine with a plain one.
+  """
   def can_manage_calendar?(%User{} = user, calendar) do
     cond do
+      is_nil(calendar) -> (User.admin?(user) or user.role == "editor") and User.strong_auth?(user)
       User.admin?(user) -> true
-      is_nil(calendar) -> user.role == "editor"
       true -> User.manages_calendar?(user, calendar)
     end
   end
@@ -58,9 +67,11 @@ defmodule BbhWeb.Authz do
   def can_edit_event?(user, %Event{calendar: calendar}), do: can_manage_calendar?(user, calendar)
 
   @doc "Whether the user may delete this event (admins, or grantees of a non-public calendar)."
-  def can_delete_event?(%User{} = user, %Event{calendar: calendar}) do
-    User.admin?(user) or (not is_nil(calendar) and User.manages_calendar?(user, calendar))
-  end
+  def can_delete_event?(%User{} = user, %Event{calendar: nil}),
+    do: User.admin?(user) and User.strong_auth?(user)
+
+  def can_delete_event?(%User{} = user, %Event{calendar: calendar}),
+    do: User.admin?(user) or User.manages_calendar?(user, calendar)
 
   def can_delete_event?(_, _), do: false
 

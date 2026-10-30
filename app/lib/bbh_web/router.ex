@@ -106,9 +106,10 @@ defmodule BbhWeb.Router do
   end
 
   # Consent. On the browser pipeline on purpose: the site's own login (magic link or
-  # passkey, plus TOTP) is the OAuth login. See docs/adr/0010-mcp-oauth.md.
+  # passkey, plus TOTP) is the OAuth login. See docs/adr/0010-mcp-oauth.md. A token
+  # reaches the content sections, so granting one needs a strong session like they do.
   scope "/oauth", BbhWeb do
-    pipe_through [:browser, :require_authenticated_user, :require_strong_auth_for_admin]
+    pipe_through [:browser, :require_authenticated_user, :require_strong_auth]
 
     get "/authorize", OAuthController, :new
     post "/authorize", OAuthController, :create
@@ -301,7 +302,7 @@ defmodule BbhWeb.Router do
 
     # Account settings — shown as a modal over the admin chrome. One live_session
     # so the sections (Account/Passkeys/2FA) patch in-place without a reload.
-    live_session :admin_account, on_mount: [{BbhWeb.UserAuth, :require_staff}] do
+    live_session :admin_account, on_mount: [{BbhWeb.UserAuth, :require_enrolled_strong_auth}] do
       live "/einstellungen", SettingsLive, :account
       live "/einstellungen/passkeys", SettingsLive, :passkeys
       live "/einstellungen/2fa", SettingsLive, :totp
@@ -316,9 +317,13 @@ defmodule BbhWeb.Router do
     pipe_through [:browser, :require_authenticated_user]
 
     live_session :require_authenticated_user,
-      on_mount: [{BbhWeb.UserAuth, :require_authenticated}] do
+      on_mount: [{BbhWeb.UserAuth, :require_enrolled_strong_auth}] do
       live "/users/security", UserLive.SecuritySetup, :index
     end
+
+    # One-time code after an admin reset of the user's second factors.
+    get "/users/reset-code", FactorResetController, :new
+    post "/users/reset-code", FactorResetController, :create
   end
 
   scope "/", BbhWeb do
