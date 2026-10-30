@@ -82,12 +82,21 @@ defmodule Bbh.Content.TagsTest do
     end
   end
 
-  describe "delete_tag/1" do
+  describe "delete_tag/2" do
+    test "is admin-only" do
+      a = article_fixture(tags: ["Corona"])
+      editor = Bbh.Accounts.Scope.for_user(Bbh.AccountsFixtures.user_fixture())
+
+      assert {:error, :unauthorized} = Content.delete_tag(editor, "Corona")
+      assert tags(a) == ["Corona"]
+    end
+
     test "removes the tag from every article" do
       a = article_fixture(tags: ["Corona", "Biwak"])
       b = article_fixture(tags: ["Corona"])
+      admin = Bbh.Accounts.Scope.for_user(Bbh.AccountsFixtures.admin_user_fixture())
 
-      assert {:ok, 2} = Content.delete_tag("Corona")
+      assert {:ok, 2} = Content.delete_tag(admin, "Corona")
       assert tags(a) == ["Biwak"]
       assert tags(b) == []
     end

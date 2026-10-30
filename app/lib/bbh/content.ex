@@ -1,7 +1,7 @@
 defmodule Bbh.Content do
   @moduledoc "Read/query API for articles, thrones, and block-based pages."
   import Ecto.Query
-  alias Bbh.Repo
+  alias Bbh.{Authz, Repo}
   alias Bbh.Content.{Article, ArticleBlock, Throne, Page, PageBlock, Blocks}
 
   @doc """
@@ -556,15 +556,20 @@ defmodule Bbh.Content do
        else: changeset
   end
 
-  @doc "Delete an article together with its content blocks (concrete block rows included)."
-  def delete_article(%Article{} = article) do
-    blocks = load_blocks(article)
+  @doc """
+  Delete an article together with its content blocks (concrete block rows included).
+  Admin-only (`Bbh.Authz.can_delete?/2`): `{:error, :unauthorized}` otherwise.
+  """
+  def delete_article(scope, %Article{} = article) do
+    with :ok <- Authz.authorize_delete(scope, article) do
+      blocks = load_blocks(article)
 
-    Repo.transaction(fn ->
-      Enum.each(blocks, fn {pb, _} -> delete_block!(pb) end)
-      Repo.delete!(article)
-    end)
-    |> Bbh.Search.reindex_after()
+      Repo.transaction(fn ->
+        Enum.each(blocks, fn {pb, _} -> delete_block!(pb) end)
+        Repo.delete!(article)
+      end)
+      |> Bbh.Search.reindex_after()
+    end
   end
 
   def change_article(%Article{} = article, attrs \\ %{}), do: Article.changeset(article, attrs)
@@ -646,8 +651,13 @@ defmodule Bbh.Content do
     end
   end
 
-  @doc "Remove a tag (exact spelling) from every article. Returns `{:ok, count}`."
-  def delete_tag(tag) when is_binary(tag), do: retag(tag, &List.delete(&1, tag))
+  @doc """
+  Remove a tag (exact spelling) from every article. Returns `{:ok, count}`; admin-only,
+  `{:error, :unauthorized}` otherwise.
+  """
+  def delete_tag(scope, tag) when is_binary(tag) do
+    with :ok <- Authz.authorize_delete(scope, :tag), do: retag(tag, &List.delete(&1, tag))
+  end
 
   defp retag(tag, fun) do
     Repo.transaction(fn ->
@@ -831,15 +841,20 @@ defmodule Bbh.Content do
     end
   end
 
-  @doc "Delete a page along with its page_blocks and the concrete (polymorphic) block rows."
-  def delete_page(%Page{} = page) do
-    blocks = load_blocks(page)
+  @doc """
+  Delete a page along with its page_blocks and the concrete (polymorphic) block rows.
+  Admin-only: `{:error, :unauthorized}` otherwise.
+  """
+  def delete_page(scope, %Page{} = page) do
+    with :ok <- Authz.authorize_delete(scope, page) do
+      blocks = load_blocks(page)
 
-    Repo.transaction(fn ->
-      Enum.each(blocks, fn {pb, _} -> delete_block!(pb) end)
-      Repo.delete!(page)
-    end)
-    |> Bbh.Search.reindex_after()
+      Repo.transaction(fn ->
+        Enum.each(blocks, fn {pb, _} -> delete_block!(pb) end)
+        Repo.delete!(page)
+      end)
+      |> Bbh.Search.reindex_after()
+    end
   end
 
   ## Admin — content blocks (pages and articles share the same block_* tables)

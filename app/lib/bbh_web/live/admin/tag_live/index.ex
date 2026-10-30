@@ -46,7 +46,7 @@ defmodule BbhWeb.Admin.TagLive.Index do
 
   def handle_event("delete", %{"tag" => tag}, socket) do
     if Bbh.Authz.can_delete?(socket.assigns.current_scope.user, :tag) do
-      {:ok, count} = Content.delete_tag(tag)
+      {:ok, count} = Content.delete_tag(socket.assigns.current_scope, tag)
 
       {:noreply,
        socket |> put_flash(:info, "„#{tag}“ entfernt (#{articles(count)}).") |> load_list()}

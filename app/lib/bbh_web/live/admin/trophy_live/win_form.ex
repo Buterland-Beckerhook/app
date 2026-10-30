@@ -63,7 +63,7 @@ defmodule BbhWeb.Admin.TrophyLive.WinForm do
         {:noreply, put_flash(socket, :error, "Keine Berechtigung zum Löschen.")}
 
       confirm == win.winner ->
-        {:ok, _} = Club.delete_trophy_win(win)
+        {:ok, _} = Club.delete_trophy_win(socket.assigns.current_scope, win)
 
         {:noreply,
          socket |> put_flash(:info, "Sieger gelöscht.") |> push_navigate(to: ~p"/admin/pokale")}

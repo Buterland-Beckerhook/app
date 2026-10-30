@@ -3,7 +3,10 @@ defmodule Bbh.ClubTrophiesTest do
 
   import Bbh.ClubFixtures
 
+  alias Bbh.Accounts.Scope
   alias Bbh.Club
+
+  defp admin_scope, do: Scope.for_user(Bbh.AccountsFixtures.admin_user_fixture())
 
   describe "trophy wins" do
     test "one winner per trophy and year" do
@@ -29,13 +32,24 @@ defmodule Bbh.ClubTrophiesTest do
       trophy = trophy_fixture()
       trophy_win_fixture(trophy: trophy)
 
-      assert {:error, :has_wins} = Club.delete_trophy(trophy)
+      assert {:error, :has_wins} = Club.delete_trophy(admin_scope(), trophy)
       assert Club.get_trophy!(trophy.id)
     end
 
     test "a trophy without winners is deleted" do
       trophy = trophy_fixture()
-      assert {:ok, _} = Club.delete_trophy(trophy)
+      assert {:ok, _} = Club.delete_trophy(admin_scope(), trophy)
+    end
+
+    test "deletes are admin-only" do
+      trophy = trophy_fixture()
+      win = trophy_win_fixture(trophy: trophy)
+      editor = Scope.for_user(Bbh.AccountsFixtures.user_fixture())
+
+      assert {:error, :unauthorized} = Club.delete_trophy_win(editor, win)
+      assert {:error, :unauthorized} = Club.delete_trophy(editor, trophy)
+      assert {:error, :unauthorized} = Club.delete_trophy_win(nil, win)
+      assert {:ok, _} = Club.delete_trophy_win(admin_scope(), win)
     end
   end
 

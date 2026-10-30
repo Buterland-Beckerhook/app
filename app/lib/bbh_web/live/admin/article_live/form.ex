@@ -100,7 +100,7 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
         {:noreply, put_flash(socket, :error, "Keine Berechtigung zum Löschen.")}
 
       confirm == article.slug ->
-        {:ok, _} = Content.delete_article(article)
+        {:ok, _} = Content.delete_article(socket.assigns.current_scope, article)
 
         {:noreply,
          socket |> put_flash(:info, "Artikel gelöscht.") |> push_navigate(to: ~p"/admin/artikel")}
