@@ -65,7 +65,7 @@ defmodule Bbh.Tickets.InboundMail do
     {:ok,
      %{
        mail
-       | from_name: from_name,
+       | from_name: display_name(from_name),
          from_email: from_email,
          text: text(parts),
          attachments: attachments(parts)
@@ -190,6 +190,14 @@ defmodule Bbh.Tickets.InboundMail do
     _ -> []
   end
 
+  # Some mailers fill an unset name from a JavaScript value: `"undefined" <a@b>`.
+  defp display_name(nil), do: nil
+
+  defp display_name(name) do
+    name = String.trim(name)
+    if String.downcase(name) in ["", "undefined", "null", "nan"], do: nil, else: name
+  end
+
   defp address(nil), do: nil
 
   defp address(value) do
@@ -296,9 +304,18 @@ defmodule Bbh.Tickets.InboundMail do
     |> String.replace(~r/\?=\s+=\?/, "")
   end
 
+  # Outlook's text part puts a blank line after every paragraph and turns empty
+  # paragraphs into lines of a lone non-breaking space; at most one blank line is kept.
   defp normalize(text) do
     text
     |> String.replace("\r\n", "\n")
+    |> collapse_blank_lines()
+  end
+
+  defp collapse_blank_lines(text) do
+    text
+    |> String.replace(~r/[ \t\x{00A0}]+$/mu, "")
+    |> String.replace(~r/\n{3,}/, "\n\n")
     |> String.trim()
   end
 
@@ -313,9 +330,8 @@ defmodule Bbh.Tickets.InboundMail do
     |> HtmlSanitizeEx.strip_tags()
     |> decode_entities()
     |> String.replace(~r/[ \t]+/, " ")
-    |> String.replace(~r/ *\n */, "\n")
-    |> String.replace(~r/\n{3,}/, "\n\n")
-    |> String.trim()
+    |> String.replace(~r/\n +/, "\n")
+    |> collapse_blank_lines()
   end
 
   @entities %{
