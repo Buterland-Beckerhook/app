@@ -287,6 +287,17 @@ defmodule Bbh.AccountsTest do
     end
   end
 
+  describe "list_user_session_tokens/1" do
+    test "lists only the user's session tokens and keeps them valid" do
+      user = user_fixture()
+      token = Accounts.generate_user_session_token(user)
+      _other = Accounts.generate_user_session_token(user_fixture())
+
+      assert [%{token: ^token}] = Accounts.list_user_session_tokens(user)
+      assert Accounts.get_user_by_session_token(token)
+    end
+  end
+
   describe "deliver_login_instructions/2" do
     setup do
       %{user: unconfirmed_user_fixture()}
