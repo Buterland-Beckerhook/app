@@ -238,11 +238,21 @@ defmodule Bbh.Content do
   The owner is a `%Page{}` (page_blocks) or an `%Article{}` (article_blocks); both order
   the same shared `block_*` tables.
   """
-  def load_blocks(owner) do
-    {join, key} = block_join(owner)
+  def load_blocks(owner), do: owner |> List.wrap() |> load_blocks_for() |> Map.get(owner.id, [])
+
+  @doc """
+  `load_blocks/1` for many owners of one kind (all pages or all articles) at once: one
+  query for the join rows and one per block type, however many owners. Returns
+  `%{owner_id => [{join_row, block}]}`; owners without blocks are absent.
+  """
+  def load_blocks_for([]), do: %{}
+
+  def load_blocks_for([first | _] = owners) do
+    {join, key} = block_join(first)
+    ids = Enum.map(owners, & &1.id)
 
     joins =
-      Repo.all(from pb in join, where: field(pb, ^key) == ^owner.id, order_by: [asc: pb.position])
+      Repo.all(from pb in join, where: field(pb, ^key) in ^ids, order_by: [asc: pb.position])
 
     # Batch-load each block table by the ids referenced for that type.
     by_type = Enum.group_by(joins, & &1.block_type, & &1.block_id)
@@ -255,9 +265,9 @@ defmodule Bbh.Content do
         {type, Map.new(Repo.all(query), &{&1.id, &1})}
       end)
 
-    Enum.map(joins, fn pb ->
-      {pb, get_in(loaded, [pb.block_type, pb.block_id])}
-    end)
+    joins
+    |> Enum.map(fn pb -> {pb, get_in(loaded, [pb.block_type, pb.block_id])} end)
+    |> Enum.group_by(fn {pb, _block} -> Map.fetch!(pb, key) end)
   end
 
   # Blocks attach to either a page (page_blocks) or an article (article_blocks), sharing
@@ -347,15 +357,29 @@ defmodule Bbh.Content do
     end
   end
 
-  @doc "A page's ancestor chain, root → leaf (inclusive)."
-  def page_ancestors(%Page{} = page), do: build_ancestors(page, [page])
+  @doc "A page's ancestor chain, root → leaf (inclusive). One query, however deep."
+  def page_ancestors(%Page{parent_id: nil} = page), do: [page]
 
-  defp build_ancestors(%Page{parent_id: nil}, acc), do: acc
+  def page_ancestors(%Page{parent_id: pid} = page) do
+    initial = from(p in Page, where: p.id == ^pid)
+    parents = from(p in Page, join: a in "page_ancestors", on: p.id == a.parent_id)
 
-  defp build_ancestors(%Page{parent_id: pid}, acc) do
-    case Repo.get(Page, pid) do
+    by_id =
+      {"page_ancestors", Page}
+      |> recursive_ctes(true)
+      |> with_cte("page_ancestors", as: ^union_all(initial, ^parents))
+      |> Repo.all()
+      |> Map.new(&{&1.id, &1})
+
+    build_ancestors(page, by_id, [page])
+  end
+
+  defp build_ancestors(%Page{parent_id: nil}, _by_id, acc), do: acc
+
+  defp build_ancestors(%Page{parent_id: pid}, by_id, acc) do
+    case by_id[pid] do
       nil -> acc
-      parent -> build_ancestors(parent, [parent | acc])
+      parent -> build_ancestors(parent, by_id, [parent | acc])
     end
   end
 
@@ -364,8 +388,14 @@ defmodule Bbh.Content do
   page first, then its published descendants in DFS order. Each entry is
   `%{path: canonical_path, title: title, depth: 0-based}`.
   """
-  def section_links(%Page{} = root, include_unpublished \\ false),
-    do: page_links(root, "/verein/" <> root.slug, 0, include_unpublished)
+  def section_links(%Page{id: root_id}, include_unpublished \\ false) do
+    include_unpublished
+    |> menu_page_tree()
+    |> Enum.drop_while(fn {page, _path, _depth} -> page.id != root_id end)
+    |> Enum.with_index()
+    |> Enum.take_while(fn {{_page, _path, depth}, i} -> i == 0 or depth > 0 end)
+    |> Enum.map(fn {entry, _i} -> menu_link(entry) end)
+  end
 
   @doc """
   Depth-annotated menu tree for the "Verein" dropdown: each published menu page
@@ -373,7 +403,20 @@ defmodule Bbh.Content do
   Entries are `%{path:, title:, depth:}`; top-level pages keep `depth: 0`. Built
   from a single query.
   """
-  def menu_tree(include_unpublished \\ false) do
+  def menu_tree(include_unpublished \\ false),
+    do: include_unpublished |> menu_page_tree() |> Enum.map(&menu_link/1)
+
+  defp menu_link({page, path, depth}),
+    do: %{path: path, title: page.title, depth: depth, status: page.status}
+
+  @doc """
+  Every page reachable under `/verein` as `{page, path, depth}`, in menu order: each menu
+  page (top-level, `placement: "menu"`) followed by its descendants depth-first. Without
+  `include_unpublished` only pages whose whole chain is published — a draft hides its
+  branch. Built from a single query; the menu, section sidebars, sitemap and search
+  index all walk this instead of querying per page.
+  """
+  def menu_page_tree(include_unpublished \\ false) do
     by_parent =
       from(p in Page, order_by: [asc: p.sort_order, asc: p.title])
       |> maybe_published(include_unpublished)
@@ -382,25 +425,14 @@ defmodule Bbh.Content do
 
     (by_parent[nil] || [])
     |> Enum.filter(&(&1.placement == "menu"))
-    |> Enum.flat_map(&menu_links(by_parent, &1, "/verein/" <> &1.slug, 0))
+    |> Enum.flat_map(&tree_entries(by_parent, &1, "/verein/" <> &1.slug, 0))
   end
 
-  defp menu_links(by_parent, %Page{} = page, path, depth) do
+  defp tree_entries(by_parent, %Page{} = page, path, depth) do
     [
-      %{path: path, title: page.title, depth: depth, status: page.status}
+      {page, path, depth}
       | (by_parent[page.id] || [])
-        |> Enum.flat_map(&menu_links(by_parent, &1, path <> "/" <> &1.slug, depth + 1))
-    ]
-  end
-
-  defp page_links(%Page{} = page, path, depth, include_unpublished) do
-    [
-      %{path: path, title: page.title, depth: depth, status: page.status}
-      | page.id
-        |> list_child_pages(include_unpublished)
-        |> Enum.flat_map(fn child ->
-          page_links(child, path <> "/" <> child.slug, depth + 1, include_unpublished)
-        end)
+        |> Enum.flat_map(&tree_entries(by_parent, &1, path <> "/" <> &1.slug, depth + 1))
     ]
   end
 

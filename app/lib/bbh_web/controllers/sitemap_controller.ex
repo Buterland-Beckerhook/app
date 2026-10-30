@@ -78,19 +78,11 @@ defmodule BbhWeb.SitemapController do
   end
 
   # Published, indexable pages reachable under /verein: whole ancestor chain
-  # published and rooted at a menu page.
+  # published and rooted at a menu page — exactly the published menu tree.
   defp page_entries(base) do
-    Repo.all(from p in Page, where: p.status == "published" and p.noindex == false)
-    |> Enum.flat_map(fn page ->
-      ancestors = Content.page_ancestors(page)
-
-      if match?(%Page{placement: "menu"}, List.first(ancestors)) and
-           Enum.all?(ancestors, &(&1.status == "published")) do
-        [{base <> Content.page_path(ancestors), page.updated_at}]
-      else
-        []
-      end
-    end)
+    for {page, path, _depth} <- Content.menu_page_tree(),
+        not page.noindex,
+        do: {base <> path, page.updated_at}
   end
 
   # Unlisted pages are link-only, not secret: they are listed unless marked noindex.
