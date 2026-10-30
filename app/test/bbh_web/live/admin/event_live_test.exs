@@ -131,4 +131,26 @@ defmodule BbhWeb.Admin.EventLiveTest do
       refute html =~ "Ansehen"
     end
   end
+
+  describe "plain (magic-link) session" do
+    setup %{conn: _conn} do
+      admin = Bbh.AccountsFixtures.admin_user_fixture()
+      %{conn: log_in_user(build_conn(), admin, auth_method: "magic_link")}
+    end
+
+    test "edits internal events but not public ones", %{conn: conn} do
+      public = event_fixture(title: "Sommerfest")
+      internal = event_fixture(title: "Vorstandssitzung", calendar: "vorstand")
+
+      assert {:ok, _lv, _html} = live(conn, ~p"/admin/termine/#{internal.id}/bearbeiten")
+
+      assert {:error, {:live_redirect, %{to: "/admin/termine"}}} =
+               live(conn, ~p"/admin/termine/#{public.id}/bearbeiten")
+    end
+
+    test "is not offered the public calendar for a new event", %{conn: conn} do
+      {:ok, _lv, html} = live(conn, ~p"/admin/termine/neu")
+      refute html =~ "Öffentlich</option>"
+    end
+  end
 end

@@ -317,6 +317,41 @@ defmodule BbhWeb.Admin.SettingsLiveTest do
     end
   end
 
+  describe "plain (magic-link) session" do
+    test "without a second factor may set up the first one", %{conn: conn} do
+      conn = log_in_user(conn, user_fixture(), auth_method: "magic_link")
+
+      assert {:ok, _lv, _html} = live(conn, ~p"/admin/einstellungen/passkeys")
+      assert {:ok, _lv, html} = live(conn, ~p"/admin/einstellungen/2fa")
+      assert html =~ "Aktivieren"
+    end
+
+    test "with a second factor is sent to log in with it", %{conn: conn} do
+      # Otherwise mailbox access alone would let an attacker enroll their own factor.
+      user = user_fixture()
+      passkey_fixture(user)
+      conn = log_in_user(conn, user, auth_method: "magic_link")
+
+      for path <- [
+            ~p"/admin/einstellungen",
+            ~p"/admin/einstellungen/passkeys",
+            ~p"/admin/einstellungen/2fa",
+            ~p"/users/security"
+          ] do
+        assert {:error, {:redirect, %{to: "/users/log-in"}}} = live(conn, path)
+      end
+    end
+
+    test "cannot reach the token section", %{conn: conn} do
+      conn = log_in_user(conn, user_fixture(), auth_method: "magic_link")
+
+      assert {:error, {:live_redirect, %{to: "/admin/einstellungen", flash: flash}}} =
+               live(conn, ~p"/admin/einstellungen/tokens")
+
+      assert flash["error"] =~ "Zugriffstoken"
+    end
+  end
+
   describe "Token section" do
     setup :register_and_log_in_admin
 

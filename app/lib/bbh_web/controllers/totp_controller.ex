@@ -21,7 +21,7 @@ defmodule BbhWeb.TotpController do
       |> delete_session(:totp_pending_user_id)
       |> delete_session(:totp_pending_remember)
       |> put_flash(:info, "Willkommen zurück!")
-      |> UserAuth.maybe_put_enrollment_return_to(user)
+      |> UserAuth.maybe_put_enrollment_return_to(user, "magic_link_totp")
       |> UserAuth.log_in_user(user, %{"remember_me" => to_string(remember)}, "magic_link_totp")
     else
       {:error, _retry_after} ->

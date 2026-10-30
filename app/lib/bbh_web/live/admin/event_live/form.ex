@@ -23,8 +23,12 @@ defmodule BbhWeb.Admin.EventLive.Form do
   defp apply_action(socket, :new, params) do
     user = socket.assigns.current_scope.user
 
+    # The first calendar the user may pick ("" = public).
     default_cal =
-      if Authz.can_manage_calendar?(user, nil), do: nil, else: List.first(user.calendars)
+      case Authz.assignable_calendar_options(user) do
+        [{_, cal} | _] when cal != "" -> cal
+        _ -> nil
+      end
 
     event = %Event{
       status: "draft",

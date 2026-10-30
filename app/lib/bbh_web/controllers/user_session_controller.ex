@@ -93,7 +93,7 @@ defmodule BbhWeb.UserSessionController do
     else
       conn
       |> put_flash(:info, info)
-      |> UserAuth.maybe_put_enrollment_return_to(user)
+      |> UserAuth.maybe_put_enrollment_return_to(user, "magic_link")
       |> UserAuth.log_in_user(user, params, "magic_link")
     end
   end

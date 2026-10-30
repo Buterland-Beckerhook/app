@@ -50,7 +50,7 @@ defmodule BbhWeb.ConnCase do
 
     opts =
       context
-      |> Map.take([:token_authenticated_at])
+      |> Map.take([:token_authenticated_at, :auth_method])
       |> Enum.into([])
 
     %{conn: log_in_user(conn, user, opts), user: user, scope: scope}
@@ -70,7 +70,7 @@ defmodule BbhWeb.ConnCase do
 
     opts =
       context
-      |> Map.take([:token_authenticated_at])
+      |> Map.take([:token_authenticated_at, :auth_method])
       |> Enum.into([])
 
     %{conn: log_in_user(conn, user, opts), user: user, scope: scope}
@@ -82,8 +82,10 @@ defmodule BbhWeb.ConnCase do
   It returns an updated `conn`.
   """
   def log_in_user(conn, user, opts \\ []) do
-    # `auth_method: "passkey"` (or "magic_link_totp") for areas behind :require_strong_auth.
-    token = Bbh.Accounts.generate_user_session_token(%{user | auth_method: opts[:auth_method]})
+    # Strong (passkey) by default, since every section but Termine needs it; pass
+    # `auth_method: "magic_link"` (or nil) to test a plain session.
+    method = Keyword.get(opts, :auth_method, "passkey")
+    token = Bbh.Accounts.generate_user_session_token(%{user | auth_method: method})
 
     maybe_set_token_authenticated_at(token, opts[:token_authenticated_at])
 
