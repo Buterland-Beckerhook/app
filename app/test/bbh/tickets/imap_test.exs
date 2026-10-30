@@ -1,8 +1,8 @@
-defmodule Bbh.ImapTest do
+defmodule Bbh.Tickets.ImapTest do
   use ExUnit.Case, async: true
 
   alias Bbh.FakeImap
-  alias Bbh.Imap
+  alias Bbh.Tickets.Imap
 
   defp connect(port, opts \\ []) do
     Imap.connect(

@@ -35,7 +35,7 @@ defmodule Bbh.Tickets.Mailbox do
     if enabled?() do
       c = config()
 
-      Bbh.Imap.connect(
+      Bbh.Tickets.Imap.connect(
         host: c[:host],
         port: c[:port],
         tls: Keyword.get(c, :tls, true),

@@ -468,8 +468,8 @@ defmodule Bbh.Tickets do
 
   ## Replies
 
-  @doc "Whether replies can be sent from the Postfach (`Bbh.TicketMailer` configured)."
-  def replies_enabled?, do: Bbh.TicketMailer.enabled?()
+  @doc "Whether replies can be sent from the Postfach (`Bbh.Tickets.Mailer` configured)."
+  def replies_enabled?, do: Bbh.Tickets.Mailer.enabled?()
 
   @doc """
   Answers the requester from the queue's address (`Bbh.Tickets.ReplyMail`). The reply
@@ -525,7 +525,7 @@ defmodule Bbh.Tickets do
 
       case Bbh.Mailer.deliver_logged(email, "ticket-reply",
              redact: true,
-             mailer: Bbh.TicketMailer
+             mailer: Bbh.Tickets.Mailer
            ) do
         {:ok, _} ->
           message |> Ecto.Changeset.change(sent_at: DateTime.utc_now(:second)) |> Repo.update!()
