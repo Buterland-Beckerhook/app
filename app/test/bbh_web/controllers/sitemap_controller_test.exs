@@ -20,6 +20,20 @@ defmodule BbhWeb.SitemapControllerTest do
     assert body =~ "/termine/#{event.year}/#{event.slug}"
   end
 
+  test "an article's lastmod is its modification date, else its publish date", %{conn: conn} do
+    published = article_fixture(date_published: ~U[2026-03-01 10:00:00Z])
+
+    modified =
+      article_fixture(date_published: ~U[2026-03-01 10:00:00Z])
+      |> Ecto.Changeset.change(date_modified: ~U[2026-04-02 10:00:00Z])
+      |> Bbh.Repo.update!()
+
+    body = conn |> get(~p"/sitemap.xml") |> response(200)
+
+    assert body =~ "/#{published.slug}</loc><lastmod>2026-03-01</lastmod>"
+    assert body =~ "/#{modified.slug}</loc><lastmod>2026-04-02</lastmod>"
+  end
+
   test "lists indexable pages by placement and leaves out noindex/system pages", %{conn: conn} do
     page_fixture(slug: "chronik", placement: "menu")
     page_fixture(slug: "anfahrt", placement: "unlisted")

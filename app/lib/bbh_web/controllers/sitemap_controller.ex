@@ -1,10 +1,6 @@
 defmodule BbhWeb.SitemapController do
   use BbhWeb, :controller
-  import Ecto.Query
   alias Bbh.Content
-  alias Bbh.Repo
-  alias Bbh.Content.{Article, Page}
-  alias Bbh.Calendar.Event
 
   @static ~w(/ /aktuell /termine /thron /verein /kontakt)
   @legal ~w(impressum datenschutz)
@@ -44,36 +40,18 @@ defmodule BbhWeb.SitemapController do
   end
 
   defp article_entries(base) do
-    Repo.all(
-      from a in Article,
-        where: a.status == "published" and a.no_article == false,
-        select: {a.year, a.slug, a.date_modified, a.date_published}
-    )
-    |> Enum.map(fn {year, slug, modified, published} ->
-      {"#{base}/aktuell/#{year}/#{slug}", modified || published}
-    end)
+    for {year, slug, modified} <- Content.list_published_article_refs(),
+        do: {"#{base}/aktuell/#{year}/#{slug}", modified}
   end
 
   defp event_entries(base) do
-    Repo.all(
-      from e in Event,
-        where:
-          is_nil(e.parent_id) and e.status == "published" and e.announce == true and
-            is_nil(e.calendar),
-        select: {e.year, e.slug, e.updated_at}
-    )
-    |> Enum.map(fn {year, slug, updated} -> {"#{base}/termine/#{year}/#{slug}", updated} end)
+    for {year, slug, updated} <- Bbh.Calendar.list_public_event_refs(),
+        do: {"#{base}/termine/#{year}/#{slug}", updated}
   end
 
   # Impressum/Datenschutz, unless an editor opted them out of indexing.
   defp legal_entries(base) do
-    indexable =
-      Repo.all(
-        from p in Page,
-          where: p.slug in @legal and p.status == "published" and p.noindex == false,
-          select: p.slug
-      )
-
+    indexable = Content.indexable_page_slugs(@legal)
     for slug <- @legal, slug in indexable, do: {"#{base}/#{slug}", nil}
   end
 

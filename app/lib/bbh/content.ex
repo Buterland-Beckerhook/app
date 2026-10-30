@@ -490,6 +490,21 @@ defmodule Bbh.Content do
 
   def count_articles, do: Repo.aggregate(Article, :count, :id)
 
+  @doc "Articles per status, e.g. `%{\"published\" => 12, \"draft\" => 3}`; empty statuses are absent."
+  def count_articles_by_status, do: count_by_status(Article)
+
+  @doc """
+  `{year, slug, last_modified}` of every published real article, for the sitemap.
+  `last_modified` is `date_modified`, else `date_published`.
+  """
+  def list_published_article_refs do
+    Repo.all(
+      from a in Article,
+        where: a.status == "published" and a.no_article == false,
+        select: {a.year, a.slug, coalesce(a.date_modified, a.date_published)}
+    )
+  end
+
   def get_article!(id),
     do: Article |> Repo.get!(id) |> Repo.preload([:image, throne: :image])
 
@@ -747,6 +762,25 @@ defmodule Bbh.Content do
   end
 
   def count_pages, do: Repo.aggregate(Page, :count, :id)
+
+  @doc "Pages per status; empty statuses are absent."
+  def count_pages_by_status, do: count_by_status(Page)
+
+  defp count_by_status(queryable) do
+    from(r in queryable, group_by: r.status, select: {r.status, count(r.id)})
+    |> Repo.all()
+    |> Map.new()
+  end
+
+  @doc "Which of the given legal-page slugs are published and indexable (not `noindex`)."
+  def indexable_page_slugs(slugs) do
+    Repo.all(
+      from p in Page,
+        where: p.slug in ^slugs and p.status == "published" and p.noindex == false,
+        select: p.slug
+    )
+  end
+
   def get_page!(id), do: Repo.get!(Page, id)
   def get_page(id), do: Repo.get(Page, id)
 

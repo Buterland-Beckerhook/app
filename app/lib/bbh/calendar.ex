@@ -182,6 +182,11 @@ defmodule Bbh.Calendar do
     Enum.sort_by(top ++ items, & &1.starts_at, DateTime)
   end
 
+  @doc "`{year, slug, updated_at}` of every public top-level event, for the sitemap."
+  def list_public_event_refs do
+    Repo.all(from e in public_top_level(), select: {e.year, e.slug, e.updated_at})
+  end
+
   @doc "Distinct years that have public events (for the year navigation)."
   def event_years do
     Repo.all(
@@ -271,6 +276,20 @@ defmodule Bbh.Calendar do
     do: from(e in query, where: e.calendar in ^(cals || []))
 
   def count_events, do: Repo.aggregate(Event, :count, :id)
+
+  @doc """
+  Top-level events per status. Programme items are left out: they show under their
+  festival, so counting them would promise drafts the admin list doesn't show.
+  """
+  def count_events_by_status do
+    from(e in Event,
+      where: is_nil(e.parent_id),
+      group_by: e.status,
+      select: {e.status, count(e.id)}
+    )
+    |> Repo.all()
+    |> Map.new()
+  end
 
   def get_event!(id) do
     Event

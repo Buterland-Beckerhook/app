@@ -687,6 +687,26 @@ defmodule Bbh.ContentTest do
     end
   end
 
+  describe "status counts" do
+    test "articles and pages per status, empty statuses absent" do
+      article_fixture()
+      article_fixture(status: "draft")
+      page_fixture()
+
+      assert %{"published" => a_pub, "draft" => a_draft} = Content.count_articles_by_status()
+      assert a_pub >= 1 and a_draft >= 1
+      assert %{"published" => _} = Content.count_pages_by_status()
+      refute Map.has_key?(Content.count_pages_by_status(), "archived")
+    end
+
+    test "indexable_page_slugs keeps published pages that are not noindex" do
+      page_fixture(slug: "impressum")
+      page_fixture(slug: "datenschutz", noindex: true)
+
+      assert Content.indexable_page_slugs(~w(impressum datenschutz agb)) == ["impressum"]
+    end
+  end
+
   describe "page tree in few queries" do
     test "page_ancestors returns the chain root → leaf" do
       root = page_fixture(%{placement: "menu"})

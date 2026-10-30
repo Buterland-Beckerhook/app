@@ -1,8 +1,6 @@
 defmodule BbhWeb.Admin.DashboardLive do
   use BbhWeb, :live_view
 
-  import Ecto.Query
-
   @ranges [7, 30, 90]
 
   @impl true
@@ -41,21 +39,12 @@ defmodule BbhWeb.Admin.DashboardLive do
     {:ok,
      %{
        stats: %{
-         articles: count_by_status(Bbh.Content.Article),
-         # Top-level only: programme items show under their festival in the list, so
-         # counting them here would promise drafts the filtered list doesn't show.
-         events: count_by_status(from(e in Bbh.Calendar.Event, where: is_nil(e.parent_id))),
-         people: Bbh.Repo.aggregate(Bbh.Club.Person, :count, :id),
-         pages: count_by_status(Bbh.Content.Page)
+         articles: Bbh.Content.count_articles_by_status(),
+         events: Bbh.Calendar.count_events_by_status(),
+         people: Bbh.Club.count_people(),
+         pages: Bbh.Content.count_pages_by_status()
        }
      }}
-  end
-
-  # %{"published" => 12, "draft" => 3} — a status with no rows is simply absent.
-  defp count_by_status(queryable) do
-    from(r in queryable, group_by: r.status, select: {r.status, count(r.id)})
-    |> Bbh.Repo.all()
-    |> Map.new()
   end
 
   defp load_analytics(socket) do
