@@ -78,7 +78,7 @@ defmodule Bbh.ContentFixtures do
         article_id: article.id
       })
 
-    {:ok, throne} = Content.create_throne(attrs)
+    {:ok, throne} = Content.Thrones.create_throne(attrs)
     throne
   end
 
@@ -90,7 +90,7 @@ defmodule Bbh.ContentFixtures do
         slug: "seite-#{System.unique_integer([:positive])}"
       })
 
-    {:ok, page} = Content.create_page(attrs)
+    {:ok, page} = Content.Pages.create_page(attrs)
     page
   end
 

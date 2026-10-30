@@ -15,7 +15,7 @@ defmodule BbhWeb.Layouts do
   # reign (rare — roughly every 25 years), and a filtered list per remaining type. A
   # Kaiser whose article is still a draft has no page to link to yet.
   defp thron_children do
-    %{kaiser: kaiser, types_present: types} = Bbh.Content.throne_menu()
+    %{kaiser: kaiser, types_present: types} = Bbh.Content.Thrones.throne_menu()
 
     kaiser_links =
       kaiser
@@ -45,7 +45,7 @@ defmodule BbhWeb.Layouts do
 
     verein =
       case Enum.map(
-             Bbh.Content.menu_tree(preview?),
+             Bbh.Content.Pages.menu_tree(preview?),
              &%{href: &1.path, label: &1.title, depth: &1.depth, draft: &1.status != "published"}
            ) do
         [] -> %{href: "/verein", label: "Verein"}

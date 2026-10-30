@@ -1,8 +1,11 @@
 defmodule Bbh.Content do
-  @moduledoc "Read/query API for articles, thrones, and block-based pages."
+  @moduledoc """
+  Articles and the content blocks pages and articles share. Pages, thrones and tags
+  have their own modules: `Bbh.Content.Pages`, `Bbh.Content.Thrones`, `Bbh.Content.Tags`.
+  """
   import Ecto.Query
   alias Bbh.{Authz, Repo}
-  alias Bbh.Content.{Article, ArticleBlock, Throne, Page, PageBlock, Blocks}
+  alias Bbh.Content.{Article, ArticleBlock, Page, PageBlock, Blocks, Tags}
 
   @doc """
   Published, real articles (excludes throne-only entries), newest first, paginated.
@@ -123,116 +126,6 @@ defmodule Bbh.Content do
     |> Repo.update()
   end
 
-  @doc "The currently reigning throne (latest by begin year), with its article + image."
-  def current_throne do
-    Repo.one(
-      from t in Throne,
-        order_by: [desc: t.begin_year],
-        limit: 1,
-        preload: [:image, article: :image]
-    )
-  end
-
-  @doc """
-  The currently reigning throne of each type for the homepage throne section, ordered
-  König → Kaiser → Stadtkaiser → Jungschützenkönig. Missing types are omitted.
-
-  König and Jungschützenkönig change yearly, so we take the most recent one. A
-  Kaiser/Stadtkaiser reigns until the next Kaiserthron/Stadtschützenfest — which the club
-  does not hold every year and may postpone — so the current one is the latest with an
-  *open* end year; once it has concluded and no successor exists, none is shown.
-  """
-  def current_thrones do
-    [
-      current_throne_of_type("koenig"),
-      current_open_throne_of_type("kaiser"),
-      current_open_throne_of_type("stadtkaiser"),
-      current_throne_of_type("jungschuetzenkoenig")
-    ]
-    |> Enum.reject(&is_nil/1)
-  end
-
-  defp current_throne_of_type(type) do
-    Repo.one(
-      from t in Throne,
-        where: t.type == ^type,
-        order_by: [desc: t.begin_year],
-        limit: 1,
-        preload: [:image, article: :image]
-    )
-  end
-
-  # Latest still-reigning throne of a type (no end year set yet).
-  defp current_open_throne_of_type(type) do
-    Repo.one(
-      from t in Throne,
-        where: t.type == ^type and is_nil(t.end_year),
-        order_by: [desc: t.begin_year],
-        limit: 1,
-        preload: [:image, article: :image]
-    )
-  end
-
-  @doc "Thrones of one type, newest first, paginated (the /thron gallery), with article + image."
-  def list_thrones(type, page \\ 1, per_page \\ 1) do
-    base = from t in Throne, where: t.type == ^type, order_by: [desc: t.begin_year]
-    paginate(base, page, per_page, preload: [:image, article: :image])
-  end
-
-  @doc """
-  The throne of `type` that began in `begin_year`, with article + image, or nil. Backs
-  the stable `/thron?jahr=` URLs. Should a year ever hold two thrones of one type, the
-  first-entered one wins, so the result stays deterministic.
-  """
-  def get_throne_by_year(type, begin_year) do
-    Repo.one(
-      from t in Throne,
-        where: t.type == ^type and t.begin_year == ^begin_year,
-        order_by: [asc: t.inserted_at, asc: t.id],
-        limit: 1,
-        preload: [:image, article: :image]
-    )
-  end
-
-  @doc "Schlanke Liste der Throne eines Typs (neueste zuerst) für den /thron-Pager."
-  def list_throne_nav(type) do
-    Repo.all(
-      from t in Throne,
-        where: t.type == ^type,
-        order_by: [desc: t.begin_year],
-        select: %{begin_year: t.begin_year, end_year: t.end_year, king: t.king, type: t.type}
-    )
-  end
-
-  @doc """
-  Data for the Thron dropdown menu: the Kaiser reigns (newest first, with their linked
-  article for direct links) and the set of throne types that have at least one record.
-  """
-  def throne_menu do
-    kaiser =
-      Repo.all(
-        from t in Throne,
-          where: t.type == "kaiser",
-          order_by: [desc: t.begin_year],
-          preload: [:article]
-      )
-
-    types = Repo.all(from t in Throne, distinct: true, select: t.type) |> MapSet.new()
-
-    %{kaiser: kaiser, types_present: types}
-  end
-
-  @doc """
-  A published page by slug together with its ordered, resolved content blocks:
-  a list of `{page_block, block_struct}` tuples.
-  """
-  def get_published_page(slug) do
-    case Repo.one(from p in Page, where: p.slug == ^slug and p.status == "published") do
-      nil -> nil
-      page -> {page, load_blocks(page)}
-    end
-  end
-
   @doc """
   Resolve an owner's polymorphic blocks into `{block_join, block_struct}` tuples, in order.
   The owner is a `%Page{}` (page_blocks) or an `%Article{}` (article_blocks); both order
@@ -284,204 +177,6 @@ defmodule Bbh.Content do
   defp preload_block(query, "event"), do: preload(query, [:event])
   defp preload_block(query, _), do: query
 
-  ## Public page navigation (the block-based "Verein" section)
-
-  @doc """
-  Published top-level pages (`parent_id` nil) flagged for the menu, ordered by
-  `sort_order`. Drives the dynamic "Verein" dropdown and the /verein overview.
-  Only `placement: "menu"` pages; unlisted and system pages never appear here.
-
-  With `include_unpublished` (logged-in editor) draft menu pages are listed too.
-  """
-  def list_menu_pages(include_unpublished \\ false) do
-    from(p in Page,
-      where: is_nil(p.parent_id) and p.placement == "menu",
-      order_by: [asc: p.sort_order, asc: p.title]
-    )
-    |> maybe_published(include_unpublished)
-    |> Repo.all()
-  end
-
-  @doc "Published direct children of `parent_id`, ordered by `sort_order`."
-  def list_child_pages(parent_id, include_unpublished \\ false) do
-    from(p in Page, where: p.parent_id == ^parent_id, order_by: [asc: p.sort_order, asc: p.title])
-    |> maybe_published(include_unpublished)
-    |> Repo.all()
-  end
-
-  # Restricts a page query to published rows, unless previewing (logged-in editor).
-  defp maybe_published(query, true), do: query
-  defp maybe_published(query, false), do: where(query, [p], p.status == "published")
-
-  @doc """
-  Resolve a nested `/verein/*path` (a list of slug segments) to
-  `{page, ancestors}` where `ancestors` runs root → leaf (inclusive).
-
-  Returns `nil` unless the whole chain is published, the ancestor slugs match
-  the requested segments exactly, and the root is a menu page (`placement: "menu"`).
-  This rejects wrong nesting (e.g. `/verein/vereinsgeschichte`) and legal pages
-  (e.g. `/verein/impressum`).
-  """
-  def get_page_by_path(segments, include_unpublished \\ false)
-
-  def get_page_by_path([_ | _] = segments, include_unpublished) do
-    case find_menu_page(List.last(segments), include_unpublished) do
-      {_leaf, ancestors} = result ->
-        if Enum.map(ancestors, & &1.slug) == segments, do: result, else: nil
-
-      nil ->
-        nil
-    end
-  end
-
-  def get_page_by_path(_, _), do: nil
-
-  @doc """
-  A published page by (globally unique) slug together with its root → leaf
-  ancestor chain, but only if the whole chain is published and its root is a
-  menu page. Returns `{page, ancestors}` or `nil`.
-
-  Used to build canonical `/verein/...` redirects for non-canonical paths.
-  """
-  def find_menu_page(slug, include_unpublished \\ false) do
-    with %Page{} = leaf <-
-           from(p in Page, where: p.slug == ^slug)
-           |> maybe_published(include_unpublished)
-           |> Repo.one(),
-         ancestors = page_ancestors(leaf),
-         true <- include_unpublished or Enum.all?(ancestors, &(&1.status == "published")),
-         %Page{placement: "menu"} <- List.first(ancestors) do
-      {leaf, ancestors}
-    else
-      _ -> nil
-    end
-  end
-
-  @doc "A page's ancestor chain, root → leaf (inclusive). One query, however deep."
-  def page_ancestors(%Page{parent_id: nil} = page), do: [page]
-
-  def page_ancestors(%Page{parent_id: pid} = page) do
-    initial = from(p in Page, where: p.id == ^pid)
-    parents = from(p in Page, join: a in "page_ancestors", on: p.id == a.parent_id)
-
-    by_id =
-      {"page_ancestors", Page}
-      |> recursive_ctes(true)
-      |> with_cte("page_ancestors", as: ^union_all(initial, ^parents))
-      |> Repo.all()
-      |> Map.new(&{&1.id, &1})
-
-    build_ancestors(page, by_id, [page])
-  end
-
-  defp build_ancestors(%Page{parent_id: nil}, _by_id, acc), do: acc
-
-  defp build_ancestors(%Page{parent_id: pid}, by_id, acc) do
-    case by_id[pid] do
-      nil -> acc
-      parent -> build_ancestors(parent, by_id, [parent | acc])
-    end
-  end
-
-  @doc """
-  Flat, depth-annotated links for a section's sidebar / mobile select: the root
-  page first, then its published descendants in DFS order. Each entry is
-  `%{path: canonical_path, title: title, depth: 0-based}`.
-  """
-  def section_links(%Page{id: root_id}, include_unpublished \\ false) do
-    include_unpublished
-    |> menu_page_tree()
-    |> Enum.drop_while(fn {page, _path, _depth} -> page.id != root_id end)
-    |> Enum.with_index()
-    |> Enum.take_while(fn {{_page, _path, depth}, i} -> i == 0 or depth > 0 end)
-    |> Enum.map(fn {entry, _i} -> menu_link(entry) end)
-  end
-
-  @doc """
-  Depth-annotated menu tree for the "Verein" dropdown: each published menu page
-  (top-level, `placement: "menu"`) followed by its published descendants in DFS order.
-  Entries are `%{path:, title:, depth:}`; top-level pages keep `depth: 0`. Built
-  from a single query.
-  """
-  def menu_tree(include_unpublished \\ false),
-    do: include_unpublished |> menu_page_tree() |> Enum.map(&menu_link/1)
-
-  defp menu_link({page, path, depth}),
-    do: %{path: path, title: page.title, depth: depth, status: page.status}
-
-  @doc """
-  Every page reachable under `/verein` as `{page, path, depth}`, in menu order: each menu
-  page (top-level, `placement: "menu"`) followed by its descendants depth-first. Without
-  `include_unpublished` only pages whose whole chain is published — a draft hides its
-  branch. Built from a single query; the menu, section sidebars, sitemap and search
-  index all walk this instead of querying per page.
-  """
-  def menu_page_tree(include_unpublished \\ false) do
-    by_parent =
-      from(p in Page, order_by: [asc: p.sort_order, asc: p.title])
-      |> maybe_published(include_unpublished)
-      |> Repo.all()
-      |> Enum.group_by(& &1.parent_id)
-
-    (by_parent[nil] || [])
-    |> Enum.filter(&(&1.placement == "menu"))
-    |> Enum.flat_map(&tree_entries(by_parent, &1, "/verein/" <> &1.slug, 0))
-  end
-
-  defp tree_entries(by_parent, %Page{} = page, path, depth) do
-    [
-      {page, path, depth}
-      | (by_parent[page.id] || [])
-        |> Enum.flat_map(&tree_entries(by_parent, &1, path <> "/" <> &1.slug, depth + 1))
-    ]
-  end
-
-  @doc "Canonical public path for a page given its root → leaf ancestor chain."
-  def page_path(ancestors) when is_list(ancestors),
-    do: "/verein/" <> Enum.map_join(ancestors, "/", & &1.slug)
-
-  @doc """
-  An unlisted page (top-level, `placement: "unlisted"`) by slug, served under
-  `/seite/:slug`. Returns `{page, blocks}` or `nil`.
-
-  With `include_unpublished` (logged-in editor) drafts resolve too.
-  """
-  def get_unlisted_page(slug, include_unpublished \\ false) do
-    Page
-    |> where([p], p.slug == ^slug and p.placement == "unlisted" and is_nil(p.parent_id))
-    |> maybe_published(include_unpublished)
-    |> Repo.one()
-    |> case do
-      nil -> nil
-      page -> {page, load_blocks(page)}
-    end
-  end
-
-  @doc "Published unlisted pages, for the sitemap and search index."
-  def list_unlisted_pages do
-    Repo.all(
-      from p in Page,
-        where: p.placement == "unlisted" and is_nil(p.parent_id) and p.status == "published",
-        order_by: [asc: p.slug]
-    )
-  end
-
-  @doc """
-  The public URL path of a page, or `nil` when it has none of its own: system
-  pages other than Impressum/Datenschutz are only embedded by the application.
-  Ignores publication status — used to show editors where a page will live.
-  """
-  def public_path(%Page{} = page) do
-    ancestors = page_ancestors(page)
-
-    case List.first(ancestors) do
-      %Page{placement: "menu"} -> page_path(ancestors)
-      %Page{placement: "unlisted", slug: slug} -> "/seite/" <> slug
-      %Page{placement: "system", slug: slug} when slug in ~w(impressum datenschutz) -> "/" <> slug
-      _ -> nil
-    end
-  end
-
   ## Admin CRUD — articles
 
   def list_articles do
@@ -491,7 +186,11 @@ defmodule Bbh.Content do
   def count_articles, do: Repo.aggregate(Article, :count, :id)
 
   @doc "Articles per status, e.g. `%{\"published\" => 12, \"draft\" => 3}`; empty statuses are absent."
-  def count_articles_by_status, do: count_by_status(Article)
+  def count_articles_by_status do
+    from(r in Article, group_by: r.status, select: {r.status, count(r.id)})
+    |> Repo.all()
+    |> Map.new()
+  end
 
   @doc """
   `{year, slug, last_modified}` of every published real article, for the sitemap.
@@ -561,115 +260,33 @@ defmodule Bbh.Content do
   Admin-only (`Bbh.Authz.can_delete?/2`): `{:error, :unauthorized}` otherwise.
   """
   def delete_article(scope, %Article{} = article) do
-    with :ok <- Authz.authorize_delete(scope, article) do
-      blocks = load_blocks(article)
+    with :ok <- Authz.authorize_delete(scope, article), do: delete_with_blocks(article)
+  end
 
-      Repo.transaction(fn ->
-        Enum.each(blocks, fn {pb, _} -> delete_block!(pb) end)
-        Repo.delete!(article)
-      end)
-      |> Bbh.Search.reindex_after()
-    end
+  @doc false
+  # Deletes a page or article with its blocks, in one transaction. Unchecked: shared by
+  # delete_article/2 and Bbh.Content.Pages.delete_page/2, which authorize first.
+  def delete_with_blocks(owner) do
+    blocks = load_blocks(owner)
+
+    Repo.transaction(fn ->
+      Enum.each(blocks, fn {pb, _} -> delete_block!(pb) end)
+      Repo.delete!(owner)
+    end)
+    |> Bbh.Search.reindex_after()
   end
 
   def change_article(%Article{} = article, attrs \\ %{}), do: Article.changeset(article, attrs)
 
-  ## Tags
-  #
-  # Tags stay a plain string list on the article; the tag list is derived from the
-  # articles, so a tag no article carries any more simply disappears.
-
-  @doc "Every tag in use (drafts included) with the number of its articles, A–Z."
-  def list_tags do
-    from(a in Article,
-      inner_lateral_join: t in fragment("SELECT unnest(?) AS name", a.tags),
-      on: true,
-      group_by: t.name,
-      select: %{name: t.name, count: count(a.id)},
-      order_by: [asc: fragment("lower(?)", t.name), asc: t.name]
-    )
-    |> Repo.all()
-  end
-
-  @doc """
-  The tags to suggest while typing, A–Z. `except` (an article id) leaves out tags only
-  that article carries — otherwise fixing a tag's spelling on its only article would
-  snap straight back to the old one.
-  """
-  def tag_names(except \\ nil) do
-    from(a in Article,
-      inner_lateral_join: t in fragment("SELECT unnest(?) AS name", a.tags),
-      on: true,
-      group_by: t.name,
-      select: t.name,
-      order_by: [desc: count(a.id), asc: t.name]
-    )
-    |> exclude_article(except)
-    |> Repo.all()
-    # Most used first above, so the common spelling wins among case variants.
-    |> Enum.uniq_by(&String.downcase/1)
-    |> Enum.sort_by(&String.downcase/1)
-  end
-
-  defp exclude_article(query, nil), do: query
-  defp exclude_article(query, id), do: where(query, [a], a.id != ^id)
-
-  @doc """
-  Spell each tag the way it is already in use (`"thron"` → `"Thron"`), so the same tag
-  doesn't split into case variants. `known` is a list from `tag_names/1`.
-  """
-  def canonical_tags(tags, known) do
-    index = Map.new(known, &{String.downcase(&1), &1})
-    Enum.map(tags, &Map.get(index, String.downcase(&1), &1))
-  end
-
   defp put_canonical_tags(changeset) do
     case Ecto.Changeset.fetch_change(changeset, :tags) do
       {:ok, tags} ->
-        known = tag_names(changeset.data.id)
-        Ecto.Changeset.put_change(changeset, :tags, canonical_tags(tags, known))
+        known = Tags.tag_names(changeset.data.id)
+        Ecto.Changeset.put_change(changeset, :tags, Tags.canonical_tags(tags, known))
 
       :error ->
         changeset
     end
-  end
-
-  @doc """
-  Rename a tag on every article carrying it (exact spelling). Renaming onto a tag that
-  already exists merges the two. Returns `{:ok, count}` of the articles changed.
-
-  Not an edit of the articles' content, so „Geändert am“ stays as it is.
-  """
-  def rename_tag(old, new) when is_binary(old) and is_binary(new) do
-    case Article.normalize_tags([new]) do
-      [new] ->
-        new = canonical_tags([new], List.delete(tag_names(), old)) |> hd()
-        retag(old, fn tags -> Enum.map(tags, &if(&1 == old, do: new, else: &1)) end)
-
-      _ ->
-        {:error, "Bitte genau ein Schlagwort angeben (ohne Komma)."}
-    end
-  end
-
-  @doc """
-  Remove a tag (exact spelling) from every article. Returns `{:ok, count}`; admin-only,
-  `{:error, :unauthorized}` otherwise.
-  """
-  def delete_tag(scope, tag) when is_binary(tag) do
-    with :ok <- Authz.authorize_delete(scope, :tag), do: retag(tag, &List.delete(&1, tag))
-  end
-
-  defp retag(tag, fun) do
-    Repo.transaction(fn ->
-      articles = Repo.all(from a in Article, where: ^tag in a.tags)
-
-      for a <- articles do
-        a |> Ecto.Changeset.change(tags: Article.normalize_tags(fun.(a.tags))) |> Repo.update!()
-      end
-
-      length(articles)
-    end)
-    |> Bbh.Search.reindex_after()
   end
 
   @doc "Set (or clear with `nil`) the article's single image (the hero + throne default)."
@@ -726,135 +343,6 @@ defmodule Bbh.Content do
 
   defp set_gallery_sort!(id, sort) do
     Repo.update_all(from(f in Blocks.GalleryFile, where: f.id == ^id), set: [sort: sort])
-  end
-
-  ## Admin — thrones (edited in the context of their article)
-
-  def create_throne(attrs),
-    do: %Throne{} |> Throne.changeset(attrs) |> Repo.insert() |> Bbh.Search.reindex_after()
-
-  def update_throne(%Throne{} = t, attrs),
-    do: t |> Throne.changeset(attrs) |> Repo.update() |> Bbh.Search.reindex_after()
-
-  def delete_throne(%Throne{} = t), do: t |> Repo.delete() |> Bbh.Search.reindex_after()
-  def change_throne(%Throne{} = t, attrs \\ %{}), do: Throne.changeset(t, attrs)
-
-  @doc "Set (or clear with `nil`) a throne's own picture. `nil` inherits the article image."
-  def set_throne_image(%Throne{} = throne, media_id) do
-    # force_change so a clear (nil) always writes even when the passed struct is stale —
-    # see set_article_image/2.
-    throne
-    |> Throne.changeset(%{})
-    |> Ecto.Changeset.force_change(:image_id, media_id)
-    |> Repo.update()
-    |> Bbh.Search.reindex_after()
-  end
-
-  ## Admin CRUD — pages
-
-  def list_pages, do: Repo.all(from p in Page, order_by: [asc: p.sort_order, asc: p.title])
-
-  @doc """
-  All pages in DFS/tree order — each parent immediately followed by its children,
-  siblings by `sort_order` then `title` (inherited from `list_pages/0`). Every page
-  carries `:depth` (0-based) for indented rendering. Built from a single query.
-  """
-  def list_pages_tree do
-    by_parent = list_pages() |> Enum.group_by(& &1.parent_id)
-    flatten_page_tree(by_parent, nil, 0)
-  end
-
-  defp flatten_page_tree(by_parent, parent_id, depth) do
-    (by_parent[parent_id] || [])
-    |> Enum.flat_map(fn p ->
-      [%{p | depth: depth} | flatten_page_tree(by_parent, p.id, depth + 1)]
-    end)
-  end
-
-  def count_pages, do: Repo.aggregate(Page, :count, :id)
-
-  @doc "Pages per status; empty statuses are absent."
-  def count_pages_by_status, do: count_by_status(Page)
-
-  defp count_by_status(queryable) do
-    from(r in queryable, group_by: r.status, select: {r.status, count(r.id)})
-    |> Repo.all()
-    |> Map.new()
-  end
-
-  @doc "Which of the given legal-page slugs are published and indexable (not `noindex`)."
-  def indexable_page_slugs(slugs) do
-    Repo.all(
-      from p in Page,
-        where: p.slug in ^slugs and p.status == "published" and p.noindex == false,
-        select: p.slug
-    )
-  end
-
-  def get_page!(id), do: Repo.get!(Page, id)
-  def get_page(id), do: Repo.get(Page, id)
-
-  def create_page(attrs),
-    do: %Page{} |> change_page(attrs) |> Repo.insert() |> Bbh.Search.reindex_after()
-
-  def update_page(%Page{} = page, attrs),
-    do: page |> change_page(attrs) |> Repo.update() |> Bbh.Search.reindex_after()
-
-  def change_page(%Page{} = page, attrs \\ %{}),
-    do: page |> Page.changeset(attrs) |> validate_page_tree()
-
-  # Only the menu tree nests: a page may hang below a menu-rooted page, and an
-  # unlisted/system page — or one that would become one — may not have children.
-  defp validate_page_tree(changeset) do
-    changeset
-    |> validate_parent_in_menu_tree()
-    |> validate_no_children_unless_menu()
-  end
-
-  defp validate_parent_in_menu_tree(changeset) do
-    with parent_id when is_binary(parent_id) <- Ecto.Changeset.get_field(changeset, :parent_id),
-         %Page{} = parent <- Repo.get(Page, parent_id),
-         %Page{placement: placement} when placement != "menu" <-
-           List.first(page_ancestors(parent)) do
-      Ecto.Changeset.add_error(
-        changeset,
-        :parent_id,
-        "Unterseiten sind nur unterhalb von Menüseiten möglich."
-      )
-    else
-      _ -> changeset
-    end
-  end
-
-  defp validate_no_children_unless_menu(changeset) do
-    id = changeset.data.id
-
-    if id && Ecto.Changeset.get_field(changeset, :placement) != "menu" &&
-         Repo.exists?(from p in Page, where: p.parent_id == ^id) do
-      Ecto.Changeset.add_error(
-        changeset,
-        :placement,
-        "Diese Seite hat Unterseiten und muss deshalb im Menü bleiben."
-      )
-    else
-      changeset
-    end
-  end
-
-  @doc """
-  Delete a page along with its page_blocks and the concrete (polymorphic) block rows.
-  Admin-only: `{:error, :unauthorized}` otherwise.
-  """
-  def delete_page(scope, %Page{} = page) do
-    with :ok <- Authz.authorize_delete(scope, page) do
-      blocks = load_blocks(page)
-
-      Repo.transaction(fn ->
-        Enum.each(blocks, fn {pb, _} -> delete_block!(pb) end)
-        Repo.delete!(page)
-      end)
-      |> Bbh.Search.reindex_after()
-    end
   end
 
   ## Admin — content blocks (pages and articles share the same block_* tables)
@@ -978,8 +466,10 @@ defmodule Bbh.Content do
     Repo.update_all(from(x in join, where: x.id == ^id), set: [position: position])
   end
 
+  @doc false
   # Minimal offset pagination returning a map the templates/Pagination component use.
-  defp paginate(query, page, per_page, opts) do
+  # Shared with Bbh.Content.Thrones.
+  def paginate(query, page, per_page, opts) do
     page = max(page, 1)
     total = Repo.aggregate(query, :count, :id)
 

@@ -26,21 +26,23 @@ defmodule BbhWeb.Admin.PageLive.Form do
     socket
     |> assign(page_title: "Neue Seite", page: page, blocks: [])
     |> assign(parent_options: parent_options(page))
-    |> assign_meta_form(Content.change_page(page))
+    |> assign_meta_form(Content.Pages.change_page(page))
   end
 
   defp apply_action(socket, :edit, %{"id" => id}) do
-    page = Content.get_page!(id)
+    page = Content.Pages.get_page!(id)
 
     socket
     |> assign(page_title: "Seite bearbeiten", page: page, blocks: Content.load_blocks(page))
     |> assign(parent_options: parent_options(page))
-    |> assign_meta_form(Content.change_page(page))
+    |> assign_meta_form(Content.Pages.change_page(page))
   end
 
   @impl true
   def handle_event("validate_page", %{"page" => params}, socket) do
-    changeset = socket.assigns.page |> Content.change_page(params) |> Map.put(:action, :validate)
+    changeset =
+      socket.assigns.page |> Content.Pages.change_page(params) |> Map.put(:action, :validate)
+
     {:noreply, assign_meta_form(socket, changeset)}
   end
 
@@ -56,7 +58,7 @@ defmodule BbhWeb.Admin.PageLive.Form do
         {:noreply, put_flash(socket, :error, "Keine Berechtigung zum Löschen.")}
 
       confirm == page.slug ->
-        {:ok, _} = Content.delete_page(socket.assigns.current_scope, page)
+        {:ok, _} = Content.Pages.delete_page(socket.assigns.current_scope, page)
 
         {:noreply,
          socket |> put_flash(:info, "Seite gelöscht.") |> push_navigate(to: ~p"/admin/seiten")}
@@ -151,7 +153,7 @@ defmodule BbhWeb.Admin.PageLive.Form do
   end
 
   defp save_page(socket, :new, params) do
-    case Content.create_page(params) do
+    case Content.Pages.create_page(params) do
       {:ok, page} ->
         {:noreply,
          socket
@@ -164,7 +166,7 @@ defmodule BbhWeb.Admin.PageLive.Form do
   end
 
   defp save_page(socket, :edit, params) do
-    case Content.update_page(socket.assigns.page, params) do
+    case Content.Pages.update_page(socket.assigns.page, params) do
       {:ok, page} ->
         {:noreply, socket |> assign(:page, page) |> put_flash(:info, "Seite gespeichert.")}
 
@@ -174,7 +176,7 @@ defmodule BbhWeb.Admin.PageLive.Form do
   end
 
   defp reload_blocks(socket) do
-    page = Content.get_page!(socket.assigns.page.id)
+    page = Content.Pages.get_page!(socket.assigns.page.id)
     assign(socket, page: page, blocks: Content.load_blocks(page))
   end
 
@@ -205,8 +207,8 @@ defmodule BbhWeb.Admin.PageLive.Form do
         nil
 
       parent_id not in [nil, ""] ->
-        with %Page{} = parent <- Content.get_page(parent_id),
-             path when is_binary(path) <- Content.public_path(parent) do
+        with %Page{} = parent <- Content.Pages.get_page(parent_id),
+             path when is_binary(path) <- Content.Pages.public_path(parent) do
           {:path, path <> "/" <> slug}
         else
           _ -> nil
@@ -215,7 +217,7 @@ defmodule BbhWeb.Admin.PageLive.Form do
       true ->
         page = Ecto.Changeset.apply_changes(changeset)
 
-        case Content.public_path(%{page | parent_id: nil}) do
+        case Content.Pages.public_path(%{page | parent_id: nil}) do
           nil -> :embedded
           path -> {:path, path}
         end
@@ -228,7 +230,7 @@ defmodule BbhWeb.Admin.PageLive.Form do
   # its descendants (so a page can't become its own ancestor) and anything outside
   # the menu tree (only menu pages nest).
   defp parent_options(page) do
-    pages = Content.list_pages()
+    pages = Content.Pages.list_pages()
     by_id = Map.new(pages, &{&1.id, &1})
     excluded = descendant_ids(page.id, pages)
 

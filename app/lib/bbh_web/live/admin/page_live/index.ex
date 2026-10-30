@@ -25,7 +25,7 @@ defmodule BbhWeb.Admin.PageLive.Index do
     do: {:noreply, AdminList.handle(action, params, socket, &load_list/1)}
 
   defp load_list(socket) do
-    tree = Content.list_pages_tree()
+    tree = Content.Pages.list_pages_tree()
     # DFS rank keeps the default "sort_order" sort in tree order (children under parents).
     ranks = tree |> Enum.with_index() |> Map.new(fn {p, i} -> {p.id, i} end)
 

@@ -28,7 +28,7 @@ defmodule BbhWeb.Admin.PageLiveTest do
         |> follow_redirect(conn, ~p"/admin/seiten")
 
       assert html =~ "Seite gelöscht"
-      assert_raise Ecto.NoResultsError, fn -> Content.get_page!(page.id) end
+      assert_raise Ecto.NoResultsError, fn -> Content.Pages.get_page!(page.id) end
     end
   end
 
@@ -99,17 +99,17 @@ defmodule BbhWeb.Admin.PageLiveTest do
 
       {:ok, lv, _html} = live(conn, ~p"/admin/seiten/#{page.id}/bearbeiten")
 
-      [{pb, _block}] = Content.load_blocks(Content.get_page!(page.id))
+      [{pb, _block}] = Content.load_blocks(Content.Pages.get_page!(page.id))
 
       open_picker(lv, "media_card", pb.id)
       pick(lv, upload.id)
 
-      [{_pb, block}] = Content.load_blocks(Content.get_page!(page.id))
+      [{_pb, block}] = Content.load_blocks(Content.Pages.get_page!(page.id))
       assert block.image_id == upload.id
 
       # And it can be cleared again.
       render_click(lv, "clear_block_image", %{"pb_id" => pb.id})
-      [{_pb, block}] = Content.load_blocks(Content.get_page!(page.id))
+      [{_pb, block}] = Content.load_blocks(Content.Pages.get_page!(page.id))
       assert is_nil(block.image_id)
     end
   end
@@ -118,13 +118,15 @@ defmodule BbhWeb.Admin.PageLiveTest do
     setup %{conn: conn} do
       page = page_fixture()
       {:ok, _} = Content.add_block(page, "image_gallery")
-      [{pb, _gallery}] = Content.load_blocks(Content.get_page!(page.id))
+      [{pb, _gallery}] = Content.load_blocks(Content.Pages.get_page!(page.id))
       {:ok, lv, _html} = live(conn, ~p"/admin/seiten/#{page.id}/bearbeiten")
 
       %{page: page, pb: pb, lv: lv}
     end
 
-    defp gallery_files(page), do: Content.load_blocks(Content.get_page!(page.id)) |> gallery_of()
+    defp gallery_files(page),
+      do: Content.load_blocks(Content.Pages.get_page!(page.id)) |> gallery_of()
+
     defp gallery_of([{_pb, gallery}]), do: gallery.files
 
     test "adds images from the library, in the order they were picked", ctx do
@@ -188,7 +190,7 @@ defmodule BbhWeb.Admin.PageLiveTest do
       })
       |> render_submit()
 
-      [{_pb, gallery}] = Content.load_blocks(Content.get_page!(ctx.page.id))
+      [{_pb, gallery}] = Content.load_blocks(Content.Pages.get_page!(ctx.page.id))
       assert gallery.layout == "slideshow"
       assert gallery.aspect_ratio == "3:4"
       assert gallery.autoplay == true
@@ -222,7 +224,7 @@ defmodule BbhWeb.Admin.PageLiveTest do
       |> form("#block-#{ctx.pb.id}", %{"block" => %{"grid_fit" => "original"}})
       |> render_submit()
 
-      [{_pb, gallery}] = Content.load_blocks(Content.get_page!(ctx.page.id))
+      [{_pb, gallery}] = Content.load_blocks(Content.Pages.get_page!(ctx.page.id))
       assert gallery.grid_fit == "original"
     end
   end
@@ -251,7 +253,7 @@ defmodule BbhWeb.Admin.PageLiveTest do
     setup %{conn: conn} do
       page = page_fixture()
       {:ok, _} = Content.add_block(page, "person_list")
-      [{pb, _block}] = Content.load_blocks(Content.get_page!(page.id))
+      [{pb, _block}] = Content.load_blocks(Content.Pages.get_page!(page.id))
       {:ok, lv, _html} = live(conn, ~p"/admin/seiten/#{page.id}/bearbeiten")
 
       %{page: page, pb: pb, lv: lv}
@@ -284,7 +286,7 @@ defmodule BbhWeb.Admin.PageLiveTest do
     test "a freshly added block matches its schema defaults", ctx do
       # 20260726170000 exists because a column default and @block_defaults had drifted for
       # the gallery's `layout`. Same trap, three copies: schema, column, @block_defaults.
-      [{_pb, block}] = Content.load_blocks(Content.get_page!(ctx.page.id))
+      [{_pb, block}] = Content.load_blocks(Content.Pages.get_page!(ctx.page.id))
       defaults = %Bbh.Content.Blocks.PersonList{}
 
       for field <- [:display_style, :filter_honorary, :filter_roles, :show_address, :only_active] do
@@ -300,7 +302,7 @@ defmodule BbhWeb.Admin.PageLiveTest do
       })
       |> render_submit()
 
-      [{_pb, block}] = Content.load_blocks(Content.get_page!(ctx.page.id))
+      [{_pb, block}] = Content.load_blocks(Content.Pages.get_page!(ctx.page.id))
       assert block.display_style == "cards"
       assert block.only_active == true
     end

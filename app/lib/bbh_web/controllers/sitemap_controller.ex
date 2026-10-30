@@ -32,7 +32,7 @@ defmodule BbhWeb.SitemapController do
   # Per-type throne list pages, only for types that actually have records.
   # /thron (König) is already covered by @static.
   defp throne_entries(base) do
-    %{types_present: types} = Content.throne_menu()
+    %{types_present: types} = Content.Thrones.throne_menu()
 
     for type <- ["stadtkaiser", "jungschuetzenkoenig"], MapSet.member?(types, type) do
       {"#{base}/thron/#{type}", nil}
@@ -51,21 +51,21 @@ defmodule BbhWeb.SitemapController do
 
   # Impressum/Datenschutz, unless an editor opted them out of indexing.
   defp legal_entries(base) do
-    indexable = Content.indexable_page_slugs(@legal)
+    indexable = Content.Pages.indexable_page_slugs(@legal)
     for slug <- @legal, slug in indexable, do: {"#{base}/#{slug}", nil}
   end
 
   # Published, indexable pages reachable under /verein: whole ancestor chain
   # published and rooted at a menu page — exactly the published menu tree.
   defp page_entries(base) do
-    for {page, path, _depth} <- Content.menu_page_tree(),
+    for {page, path, _depth} <- Content.Pages.menu_page_tree(),
         not page.noindex,
         do: {base <> path, page.updated_at}
   end
 
   # Unlisted pages are link-only, not secret: they are listed unless marked noindex.
   defp unlisted_entries(base) do
-    Content.list_unlisted_pages()
+    Content.Pages.list_unlisted_pages()
     |> Enum.reject(& &1.noindex)
     |> Enum.map(&{"#{base}/seite/#{&1.slug}", &1.updated_at})
   end

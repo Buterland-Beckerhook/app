@@ -3,7 +3,7 @@ defmodule BbhWeb.Admin.TagLive.Index do
   Schlagworte: every tag in use with its article count. Renaming fixes a typo on every
   article at once — onto an existing tag it merges the two; removing takes a tag off
   every article (admins only, like every delete). The list is derived from the
-  articles (`Bbh.Content.list_tags/0`), so there is nothing to create here: a new tag
+  articles (`Bbh.Content.Tags.list_tags/0`), so there is nothing to create here: a new tag
   comes into being in the article form.
   """
   use BbhWeb, :live_view
@@ -31,7 +31,7 @@ defmodule BbhWeb.Admin.TagLive.Index do
   def handle_event("cancel", _params, socket), do: {:noreply, assign(socket, :editing, nil)}
 
   def handle_event("rename", %{"old" => old, "new" => new}, socket) do
-    case Content.rename_tag(old, new) do
+    case Content.Tags.rename_tag(old, new) do
       {:ok, count} ->
         {:noreply,
          socket
@@ -46,7 +46,7 @@ defmodule BbhWeb.Admin.TagLive.Index do
 
   def handle_event("delete", %{"tag" => tag}, socket) do
     if Bbh.Authz.can_delete?(socket.assigns.current_scope.user, :tag) do
-      {:ok, count} = Content.delete_tag(socket.assigns.current_scope, tag)
+      {:ok, count} = Content.Tags.delete_tag(socket.assigns.current_scope, tag)
 
       {:noreply,
        socket |> put_flash(:info, "„#{tag}“ entfernt (#{articles(count)}).") |> load_list()}
@@ -59,7 +59,7 @@ defmodule BbhWeb.Admin.TagLive.Index do
   defp articles(n), do: "#{n} Artikel"
 
   defp load_list(socket) do
-    tags = Content.list_tags()
+    tags = Content.Tags.list_tags()
 
     meta =
       AdminList.process(tags, socket.assigns.list_state,

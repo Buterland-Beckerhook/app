@@ -217,9 +217,11 @@ defmodule Bbh.Search do
   end
 
   # The whole published /verein tree; a noindex page is skipped, its children are not.
-  defp menu_pages, do: Enum.map(Content.menu_page_tree(), fn {page, path, _} -> {page, path} end)
+  defp menu_pages,
+    do: Enum.map(Content.Pages.menu_page_tree(), fn {page, path, _} -> {page, path} end)
 
-  defp unlisted_pages, do: Enum.map(Content.list_unlisted_pages(), &{&1, "/seite/" <> &1.slug})
+  defp unlisted_pages,
+    do: Enum.map(Content.Pages.list_unlisted_pages(), &{&1, "/seite/" <> &1.slug})
 
   defp legal_pages do
     slugs = ~w(impressum datenschutz)

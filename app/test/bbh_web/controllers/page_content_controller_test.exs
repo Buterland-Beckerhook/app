@@ -69,7 +69,7 @@ defmodule BbhWeb.PageContentControllerTest do
   test "a gallery block renders its images in order, with lightbox metadata", %{conn: conn} do
     page = page_fixture(slug: "bilder", title: "Bilder", status: "published")
     {:ok, _} = Bbh.Content.add_block(page, "image_gallery")
-    [{_pb, gallery}] = Bbh.Content.load_blocks(Bbh.Content.get_page!(page.id))
+    [{_pb, gallery}] = Bbh.Content.load_blocks(Bbh.Content.Pages.get_page!(page.id))
 
     first = upload_fixture(%{caption: "Antreten", copyright: "BBH e.V."})
     second = upload_fixture(%{caption: "Fahnenschwenken"})
@@ -98,7 +98,7 @@ defmodule BbhWeb.PageContentControllerTest do
   test "a media_card block wears card chrome only when shadow is enabled", %{conn: conn} do
     page = page_fixture(slug: "karte", title: "Karte", status: "published")
     {:ok, _} = Bbh.Content.add_block(page, "media_card")
-    [{pb, _block}] = Bbh.Content.load_blocks(Bbh.Content.get_page!(page.id))
+    [{pb, _block}] = Bbh.Content.load_blocks(Bbh.Content.Pages.get_page!(page.id))
 
     chrome = "rounded-[18px] border border-base-300 bg-card p-6 shadow-lg sm:p-8"
 
@@ -115,7 +115,7 @@ defmodule BbhWeb.PageContentControllerTest do
   test "an inline media_card header aligns to the side opposite the image", %{conn: conn} do
     page = page_fixture(slug: "karte-titel", title: "Karte", status: "published")
     {:ok, _} = Bbh.Content.add_block(page, "media_card")
-    [{pb, _block}] = Bbh.Content.load_blocks(Bbh.Content.get_page!(page.id))
+    [{pb, _block}] = Bbh.Content.load_blocks(Bbh.Content.Pages.get_page!(page.id))
     {:ok, _} = Bbh.Content.update_block(pb, %{"title" => "Ehrenmal", "subtitle" => "Untertitel"})
 
     # Default (title beside the image), image right: header is left-aligned, never right.
@@ -134,7 +134,7 @@ defmodule BbhWeb.PageContentControllerTest do
        %{conn: conn} do
     page = page_fixture(slug: "karte-oben", title: "Karte", status: "published")
     {:ok, _} = Bbh.Content.add_block(page, "media_card")
-    [{pb, _block}] = Bbh.Content.load_blocks(Bbh.Content.get_page!(page.id))
+    [{pb, _block}] = Bbh.Content.load_blocks(Bbh.Content.Pages.get_page!(page.id))
 
     {:ok, _} =
       Bbh.Content.update_block(pb, %{
@@ -155,7 +155,7 @@ defmodule BbhWeb.PageContentControllerTest do
   test "media_card caption and copyright show only when enabled", %{conn: conn} do
     page = page_fixture(slug: "karte-credit", title: "Karte", status: "published")
     {:ok, _} = Bbh.Content.add_block(page, "media_card")
-    [{pb, _block}] = Bbh.Content.load_blocks(Bbh.Content.get_page!(page.id))
+    [{pb, _block}] = Bbh.Content.load_blocks(Bbh.Content.Pages.get_page!(page.id))
     # `description` drives the img alt text, so the caption itself only ever appears in
     # the (toggleable) figcaption — keeping the assertions unambiguous.
     upload =
@@ -179,7 +179,7 @@ defmodule BbhWeb.PageContentControllerTest do
     setup %{conn: conn} do
       page = page_fixture(slug: "raster", title: "Raster", status: "published")
       {:ok, _} = Bbh.Content.add_block(page, "image_gallery")
-      [{pb, gallery}] = Bbh.Content.load_blocks(Bbh.Content.get_page!(page.id))
+      [{pb, gallery}] = Bbh.Content.load_blocks(Bbh.Content.Pages.get_page!(page.id))
 
       add = fn attrs ->
         upload = upload_fixture(attrs)
@@ -261,7 +261,7 @@ defmodule BbhWeb.PageContentControllerTest do
     setup %{conn: conn} do
       page = page_fixture(slug: "bilder", title: "Bilder", status: "published")
       {:ok, _} = Bbh.Content.add_block(page, "image_gallery")
-      [{pb, gallery}] = Bbh.Content.load_blocks(Bbh.Content.get_page!(page.id))
+      [{pb, gallery}] = Bbh.Content.load_blocks(Bbh.Content.Pages.get_page!(page.id))
 
       upload = upload_fixture(%{caption: "Antreten", copyright: "BBH e.V."})
       {:ok, _} = Bbh.Content.add_gallery_file(gallery, upload.id)
@@ -387,7 +387,7 @@ defmodule BbhWeb.PageContentControllerTest do
     setup %{conn: conn} do
       page = page_fixture(slug: "pokale", title: "Pokale", status: "published")
       {:ok, _} = Bbh.Content.add_block(page, "trophy_table")
-      [{pb, _block}] = Bbh.Content.load_blocks(Bbh.Content.get_page!(page.id))
+      [{pb, _block}] = Bbh.Content.load_blocks(Bbh.Content.Pages.get_page!(page.id))
 
       html = fn attrs ->
         {:ok, _} = Bbh.Content.update_block(pb, attrs)
@@ -503,7 +503,7 @@ defmodule BbhWeb.PageContentControllerTest do
     setup %{conn: conn} do
       page = page_fixture(slug: "personen", title: "Personen", status: "published")
       {:ok, _} = Bbh.Content.add_block(page, "person_list")
-      [{pb, _block}] = Bbh.Content.load_blocks(Bbh.Content.get_page!(page.id))
+      [{pb, _block}] = Bbh.Content.load_blocks(Bbh.Content.Pages.get_page!(page.id))
 
       html = fn attrs ->
         {:ok, _} = Bbh.Content.update_block(pb, attrs)

@@ -20,7 +20,7 @@ defmodule BbhWeb.PageController do
       next_child: next_child && BbhWeb.PageHTML.next_child_shown?(next_child, now) && next_child,
       countdown: BbhWeb.PageHTML.countdown(next_event, first_child, countdown_child, now),
       now: now,
-      thrones: Bbh.Content.current_thrones()
+      thrones: Bbh.Content.Thrones.current_thrones()
     )
   end
 end

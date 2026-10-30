@@ -54,7 +54,7 @@ defmodule BbhWeb.Admin.TagLiveTest do
       refute has_element?(lv, "a[aria-label='„Corona“ aus allen Artikeln entfernen']")
 
       render_hook(lv, "delete", %{"tag" => "Corona"})
-      assert Bbh.Content.list_tags() == [%{name: "Corona", count: 1}]
+      assert Bbh.Content.Tags.list_tags() == [%{name: "Corona", count: 1}]
     end
   end
 end

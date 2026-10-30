@@ -24,7 +24,7 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
 
     socket
     |> assign(page_title: "Neuer Artikel", article: article, throne: nil)
-    |> assign(tag_suggestions: Content.tag_names())
+    |> assign(tag_suggestions: Content.Tags.tag_names())
     |> assign(blocks: [], show_throne: false)
     |> assign_form(Content.change_article(article))
   end
@@ -34,10 +34,10 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
 
     socket
     |> assign(page_title: "Artikel bearbeiten", article: article, throne: article.throne)
-    |> assign(tag_suggestions: Content.tag_names(article.id))
+    |> assign(tag_suggestions: Content.Tags.tag_names(article.id))
     |> assign(show_throne: not is_nil(article.throne))
     |> assign(blocks: Content.load_blocks(article))
-    |> assign_throne_form(Content.change_throne(throne_or_new(article)))
+    |> assign_throne_form(Content.Thrones.change_throne(throne_or_new(article)))
     |> assign_form(Content.change_article(article))
   end
 
@@ -77,7 +77,7 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
     added =
       [text]
       |> Article.normalize_tags()
-      |> Content.canonical_tags(socket.assigns.tag_suggestions)
+      |> Content.Tags.canonical_tags(socket.assigns.tag_suggestions)
 
     {:noreply, put_tags(socket, current_tags(socket) ++ added)}
   end
@@ -186,8 +186,8 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
 
     result =
       case article.throne do
-        %Throne{} = throne -> Content.update_throne(throne, params)
-        _ -> Content.create_throne(params)
+        %Throne{} = throne -> Content.Thrones.update_throne(throne, params)
+        _ -> Content.Thrones.create_throne(params)
       end
 
     case result do
@@ -197,13 +197,15 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
   end
 
   def handle_event("delete_throne", _params, socket) do
-    with %Throne{} = throne <- socket.assigns.article.throne, do: Content.delete_throne(throne)
+    with %Throne{} = throne <- socket.assigns.article.throne,
+         do: Content.Thrones.delete_throne(throne)
+
     {:noreply, socket |> put_flash(:info, "Thron entfernt.") |> reload_article()}
   end
 
   def handle_event("clear_throne_image", _params, socket) do
     with %Throne{} = throne <- socket.assigns.article.throne do
-      {:ok, _} = Content.set_throne_image(throne, nil)
+      {:ok, _} = Content.Thrones.set_throne_image(throne, nil)
     end
 
     {:noreply,
@@ -245,7 +247,7 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
   def handle_info({:media_selected, %{"context" => "throne_image"}, media_id}, socket) do
     case socket.assigns.article.throne do
       %Throne{} = throne ->
-        {:ok, _} = Content.set_throne_image(throne, media_id)
+        {:ok, _} = Content.Thrones.set_throne_image(throne, media_id)
         {:noreply, socket |> put_flash(:info, "Thronbild gesetzt.") |> reload_blocks()}
 
       _ ->
@@ -276,7 +278,7 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
     |> then(fn s ->
       s
       |> assign(show_throne: not is_nil(s.assigns.article.throne))
-      |> assign_throne_form(Content.change_throne(throne_or_new(s.assigns.article)))
+      |> assign_throne_form(Content.Thrones.change_throne(throne_or_new(s.assigns.article)))
     end)
   end
 
