@@ -280,12 +280,17 @@ defmodule Bbh.Accounts do
   Scoped to the "session" context so email-change / magic-link tokens are untouched.
   """
   def delete_all_user_session_tokens(%User{} = user) do
-    tokens =
-      Repo.all(from(t in UserToken, where: t.user_id == ^user.id and t.context == "session"))
-
+    tokens = list_user_session_tokens(user)
     Repo.delete_all(from(t in UserToken, where: t.id in ^Enum.map(tokens, & &1.id)))
     tokens
   end
+
+  @doc """
+  Lists a user's session tokens without deleting them, e.g. to drop their live sockets
+  via `UserAuth.disconnect_sessions/1` so they remount with fresh privileges.
+  """
+  def list_user_session_tokens(%User{} = user),
+    do: Repo.all(from(t in UserToken, where: t.user_id == ^user.id and t.context == "session"))
 
   ## Token helper
 

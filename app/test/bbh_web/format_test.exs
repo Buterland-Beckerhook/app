@@ -2,6 +2,7 @@ defmodule BbhWeb.FormatTest do
   use ExUnit.Case, async: true
 
   import Phoenix.HTML, only: [safe_to_string: 1]
+  import BbhWeb.MediaUrlHelpers
 
   alias Bbh.Media.Upload
   alias BbhWeb.Format
@@ -22,7 +23,7 @@ defmodule BbhWeb.FormatTest do
     end
 
     test "width/height become query params" do
-      assert Format.media_url(upload(), width: 640, height: 380) ==
+      assert unsigned(Format.media_url(upload(), width: 640, height: 380)) ==
                "/media/2026/x.jpg?w=640&h=380"
     end
 
@@ -44,7 +45,19 @@ defmodule BbhWeb.FormatTest do
     end
 
     test "an untouched image carries no revision — existing URLs stay byte-identical" do
-      assert Format.media_url(upload(%{revision: 0}), width: 640) == "/media/2026/x.jpg?w=640"
+      assert unsigned(Format.media_url(upload(%{revision: 0}), width: 640)) ==
+               "/media/2026/x.jpg?w=640"
+    end
+
+    test "a variant is signed over its parameters; the original is not" do
+      url = Format.media_url(upload(), width: 640, height: 380)
+      [_, query] = String.split(url, "?")
+      params = URI.decode_query(query)
+
+      assert BbhWeb.MediaSignature.valid?("2026/x.jpg", params)
+      refute BbhWeb.MediaSignature.valid?("2026/x.jpg", %{params | "w" => "641"})
+      refute BbhWeb.MediaSignature.valid?("2026/other.jpg", params)
+      refute Format.media_url(upload()) =~ "s="
     end
 
     test "a rotated image busts the browser cache with v=" do
@@ -58,14 +71,14 @@ defmodule BbhWeb.FormatTest do
       do: upload(Map.merge(%{width: 4000, height: 3000, content_type: "image/jpeg"}, attrs))
 
     test "offers the ladder widths below the requested one, plus that width" do
-      assert Format.media_srcset(photo(), width: 640) ==
+      assert unsigned(Format.media_srcset(photo(), width: 640)) ==
                "/media/2026/x.jpg?w=320 320w, /media/2026/x.jpg?w=480 480w, " <>
                  "/media/2026/x.jpg?w=640 640w"
     end
 
     test "a cover crop keeps its aspect ratio — and the focal point — at every width" do
       up = photo(%{focal_point_x: 0.25, focal_point_y: 0.75})
-      srcset = Format.media_srcset(up, width: 960, height: 720)
+      srcset = unsigned(Format.media_srcset(up, width: 960, height: 720))
 
       assert srcset =~ "w=320&h=240&fx=0.25&fy=0.75 320w"
       assert srcset =~ "w=640&h=480&fx=0.25&fy=0.75 640w"
@@ -83,7 +96,8 @@ defmodule BbhWeb.FormatTest do
     end
 
     test "never above the original's width, so the descriptor matches the file" do
-      srcset = Format.media_srcset(photo(%{width: 818, height: 900}), width: 960, height: 720)
+      srcset =
+        unsigned(Format.media_srcset(photo(%{width: 818, height: 900}), width: 960, height: 720))
 
       assert srcset =~ "w=800&h=600 800w"
       assert srcset =~ "w=818&h=614 818w"
@@ -91,7 +105,7 @@ defmodule BbhWeb.FormatTest do
     end
 
     test "carries the revision like media_url/2" do
-      assert Format.media_srcset(photo(%{revision: 2}), width: 480) =~ "w=320&v=2 320w"
+      assert unsigned(Format.media_srcset(photo(%{revision: 2}), width: 480)) =~ "w=320&v=2 320w"
     end
 
     test "nil when there is nothing to choose from" do

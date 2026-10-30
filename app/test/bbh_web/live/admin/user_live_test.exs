@@ -142,8 +142,61 @@ defmodule BbhWeb.Admin.UserLiveTest do
              admin.id
   end
 
+  describe "privilege changes reach open tabs" do
+    test "a role change disconnects the user's sockets but keeps the session", %{conn: conn} do
+      other = user_fixture()
+      token = watch_session(other)
+      {:ok, lv, _html} = live(conn, ~p"/admin/benutzer")
+
+      lv
+      |> element("#role-#{other.id}")
+      |> render_change(%{"user_id" => other.id, "role" => "admin"})
+
+      assert_receive %Phoenix.Socket.Broadcast{event: "disconnect"}
+      assert Accounts.get_user_by_session_token(token)
+    end
+
+    test "a queue grant change disconnects the user's sockets", %{conn: conn} do
+      other = user_fixture()
+      watch_session(other)
+      {:ok, lv, _html} = live(conn, ~p"/admin/benutzer")
+
+      lv
+      |> element("#queues-#{other.id}")
+      |> render_change(%{"user_id" => other.id, "queues" => ["", "info"]})
+
+      assert_receive %Phoenix.Socket.Broadcast{event: "disconnect"}
+    end
+
+    test "deleting a user disconnects their sockets", %{conn: conn} do
+      other = user_fixture()
+      watch_session(other)
+      {:ok, lv, _html} = live(conn, ~p"/admin/benutzer")
+
+      render_click(lv, "delete", %{"id" => other.id})
+
+      assert_receive %Phoenix.Socket.Broadcast{event: "disconnect"}
+    end
+
+    test "a refused role change disconnects nobody", %{conn: conn, user: admin} do
+      watch_session(admin)
+      {:ok, lv, _html} = live(conn, ~p"/admin/benutzer")
+
+      render_hook(lv, "set_role", %{"user_id" => admin.id, "role" => "editor"})
+
+      refute_receive %Phoenix.Socket.Broadcast{event: "disconnect"}
+    end
+  end
+
   test "offers the role Nur Postfach", %{conn: conn} do
     {:ok, _lv, html} = live(conn, ~p"/admin/benutzer")
     assert html =~ "Nur Postfach"
+  end
+
+  # Subscribes to the live-socket topic of a fresh session of `user`.
+  defp watch_session(user) do
+    token = Accounts.generate_user_session_token(user)
+    BbhWeb.Endpoint.subscribe("users_sessions:#{Base.url_encode64(token)}")
+    token
   end
 end

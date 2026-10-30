@@ -2,6 +2,7 @@ defmodule BbhWeb.ArticleControllerTest do
   use BbhWeb.ConnCase, async: true
 
   import Bbh.ContentFixtures
+  import BbhWeb.MediaUrlHelpers
 
   describe "GET /aktuell" do
     test "lists published articles and hides throne-only entries", %{conn: conn} do
@@ -87,6 +88,7 @@ defmodule BbhWeb.ArticleControllerTest do
         |> LazyHTML.query("figure button img")
 
       assert [srcset] = LazyHTML.attribute(img, "srcset")
+      srcset = unsigned(srcset)
       assert srcset =~ "w=480 480w"
       assert srcset =~ "w=1024 1024w"
       assert [sizes] = LazyHTML.attribute(img, "sizes")

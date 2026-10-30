@@ -4,6 +4,8 @@ defmodule BbhWeb.MediaControllerTest do
 
   alias Bbh.Media
 
+  import BbhWeb.MediaUrlHelpers
+
   @png Base.decode64!(
          "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
        )
@@ -53,7 +55,7 @@ defmodule BbhWeb.MediaControllerTest do
     test "a variant at the current revision is immutable for a year", %{conn: conn} do
       upload = store(@png, "bild.png")
 
-      assert cache_control(conn, "/media/#{upload.storage_key}?w=10&h=10") ==
+      assert cache_control(conn, signed_path(upload.storage_key, %{"w" => "10", "h" => "10"})) ==
                ["public, max-age=31536000, immutable"]
     end
 
@@ -61,14 +63,14 @@ defmodule BbhWeb.MediaControllerTest do
       {:ok, upload} = @png |> store("bild.png") |> Media.rotate_upload(90)
       assert upload.revision == 1
 
-      assert cache_control(conn, "/media/#{upload.storage_key}?w=10&v=1") ==
+      assert cache_control(conn, signed_path(upload.storage_key, %{"w" => "10", "v" => "1"})) ==
                ["public, max-age=31536000, immutable"]
 
       # The pre-rotation URL now serves the rotated picture — it must not be pinned.
-      assert cache_control(conn, "/media/#{upload.storage_key}?w=10") ==
+      assert cache_control(conn, signed_path(upload.storage_key, %{"w" => "10"})) ==
                ["public, max-age=86400"]
 
-      assert cache_control(conn, "/media/#{upload.storage_key}?w=10&v=junk") ==
+      assert cache_control(conn, signed_path(upload.storage_key, %{"w" => "10", "v" => "junk"})) ==
                ["public, max-age=86400"]
     end
 
@@ -83,11 +85,32 @@ defmodule BbhWeb.MediaControllerTest do
       # Corrupt the stored file: a variant can no longer be generated from it.
       File.write!(Path.join(ctx.tmp, upload.storage_key), "not a png")
 
-      conn = get(ctx.conn, "/media/#{upload.storage_key}?w=10")
+      conn = get(ctx.conn, signed_path(upload.storage_key, %{"w" => "10"}))
 
       assert response(conn, 200)
       assert response_content_type(conn, :png) =~ "image/png"
       assert get_resp_header(conn, "cache-control") == ["public, max-age=300"]
+    end
+  end
+
+  describe "variant signature" do
+    test "a signed variant is generated", %{conn: conn} do
+      upload = store(@png, "bild.png")
+      conn = get(conn, signed_path(upload.storage_key, %{"w" => "10", "h" => "10"}))
+
+      assert response_content_type(conn, :webp) =~ "image/webp"
+    end
+
+    test "unsigned or tampered parameters get the original, briefly cached", %{conn: conn} do
+      upload = store(@png, "bild.png")
+      key = upload.storage_key
+      tampered = signed_path(key, %{"w" => "10"}) |> String.replace("w=10", "w=11")
+
+      for path <- ["/media/#{key}?w=10", "/media/#{key}?fx=0.5", tampered] do
+        conn = get(conn, path)
+        assert response_content_type(conn, :png) =~ "image/png"
+        assert get_resp_header(conn, "cache-control") == ["public, max-age=300"]
+      end
     end
   end
 
