@@ -35,7 +35,7 @@ defmodule BbhWeb.ThroneController do
   # the newest throne is shown.
   defp render_list(conn, type, params) do
     meta = @list_types[type]
-    nav = Content.list_throne_nav(type)
+    nav = Content.Thrones.list_throne_nav(type)
 
     case resolve(type, nav, params) do
       {:show, throne, title} ->
@@ -59,7 +59,7 @@ defmodule BbhWeb.ThroneController do
 
   defp resolve(type, _nav, %{"jahr" => jahr}) do
     with {year, ""} <- Integer.parse(jahr),
-         %{} = throne <- Content.get_throne_by_year(type, year) do
+         %{} = throne <- Content.Thrones.get_throne_by_year(type, year) do
       {:show, throne, :with_years}
     else
       _ -> :not_found
@@ -75,7 +75,7 @@ defmodule BbhWeb.ThroneController do
 
   defp resolve(type, nav, _params) do
     case nav do
-      [%{begin_year: year} | _] -> {:show, Content.get_throne_by_year(type, year), :plain}
+      [%{begin_year: year} | _] -> {:show, Content.Thrones.get_throne_by_year(type, year), :plain}
       [] -> {:show, nil, :plain}
     end
   end

@@ -36,15 +36,15 @@ defmodule Bbh.Content.TagsTest do
       article_fixture(tags: ["Thron", "biwak"])
       article_fixture(tags: ["Thron"], status: "draft")
 
-      assert Content.list_tags() == [%{name: "biwak", count: 1}, %{name: "Thron", count: 2}]
+      assert Content.Tags.list_tags() == [%{name: "biwak", count: 1}, %{name: "Thron", count: 2}]
     end
 
     test "tag_names/1 leaves out tags only the given article carries" do
       article_fixture(tags: ["Thron"])
       article = article_fixture(tags: ["Thron", "Einzeln"])
 
-      assert Content.tag_names() == ["Einzeln", "Thron"]
-      assert Content.tag_names(article.id) == ["Thron"]
+      assert Content.Tags.tag_names() == ["Einzeln", "Thron"]
+      assert Content.Tags.tag_names(article.id) == ["Thron"]
     end
   end
 
@@ -54,7 +54,7 @@ defmodule Bbh.Content.TagsTest do
       b = article_fixture(tags: ["Biwak", "JHV"])
       c = article_fixture(tags: ["Jahreshauptversammlung"])
 
-      assert {:ok, 2} = Content.rename_tag("JHV", "jahreshauptversammlung")
+      assert {:ok, 2} = Content.Tags.rename_tag("JHV", "jahreshauptversammlung")
 
       assert tags(a) == ["Jahreshauptversammlung"]
       assert tags(b) == ["Biwak", "Jahreshauptversammlung"]
@@ -63,7 +63,7 @@ defmodule Bbh.Content.TagsTest do
 
     test "fixes the case of a tag" do
       a = article_fixture(tags: ["thron"])
-      assert {:ok, 1} = Content.rename_tag("thron", "Thron")
+      assert {:ok, 1} = Content.Tags.rename_tag("thron", "Thron")
       assert tags(a) == ["Thron"]
     end
 
@@ -71,14 +71,14 @@ defmodule Bbh.Content.TagsTest do
       a = article_fixture(tags: ["Tipfehler"])
       before = Repo.reload!(a).date_modified
 
-      {:ok, 1} = Content.rename_tag("Tipfehler", "Tippfehler")
+      {:ok, 1} = Content.Tags.rename_tag("Tipfehler", "Tippfehler")
       assert Repo.reload!(a).date_modified == before
     end
 
     test "refuses a blank name or several tags" do
       article_fixture(tags: ["Thron"])
-      assert {:error, _} = Content.rename_tag("Thron", "  ")
-      assert {:error, _} = Content.rename_tag("Thron", "Thron, Kaiser")
+      assert {:error, _} = Content.Tags.rename_tag("Thron", "  ")
+      assert {:error, _} = Content.Tags.rename_tag("Thron", "Thron, Kaiser")
     end
   end
 
@@ -87,7 +87,7 @@ defmodule Bbh.Content.TagsTest do
       a = article_fixture(tags: ["Corona"])
       editor = Bbh.Accounts.Scope.for_user(Bbh.AccountsFixtures.user_fixture())
 
-      assert {:error, :unauthorized} = Content.delete_tag(editor, "Corona")
+      assert {:error, :unauthorized} = Content.Tags.delete_tag(editor, "Corona")
       assert tags(a) == ["Corona"]
     end
 
@@ -96,7 +96,7 @@ defmodule Bbh.Content.TagsTest do
       b = article_fixture(tags: ["Corona"])
       admin = Bbh.Accounts.Scope.for_user(Bbh.AccountsFixtures.admin_user_fixture())
 
-      assert {:ok, 2} = Content.delete_tag(admin, "Corona")
+      assert {:ok, 2} = Content.Tags.delete_tag(admin, "Corona")
       assert tags(a) == ["Biwak"]
       assert tags(b) == []
     end

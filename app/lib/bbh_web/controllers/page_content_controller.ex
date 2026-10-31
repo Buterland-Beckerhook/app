@@ -11,7 +11,7 @@ defmodule BbhWeb.PageContentController do
     render(conn, :verein,
       page_title: "Verein",
       preview: preview?,
-      menu_pages: Content.list_menu_pages(preview?)
+      menu_pages: Content.Pages.list_menu_pages(preview?)
     )
   end
 
@@ -19,7 +19,7 @@ defmodule BbhWeb.PageContentController do
   def verein_page(conn, %{"path" => segments}) do
     preview? = Bbh.Authz.can_preview?(conn.assigns[:current_scope], :pages)
 
-    case Content.get_page_by_path(segments, preview?) do
+    case Content.Pages.get_page_by_path(segments, preview?) do
       {page, ancestors} ->
         conn
         |> maybe_noindex(page)
@@ -28,18 +28,18 @@ defmodule BbhWeb.PageContentController do
           page: page,
           preview: preview? and page.status != "published",
           ancestors: ancestors,
-          section_links: Content.section_links(List.first(ancestors), preview?),
+          section_links: Content.Pages.section_links(List.first(ancestors), preview?),
           current_path: conn.request_path,
           blocks: Content.load_blocks(page)
         )
 
       nil ->
         # The page may exist but was reached via a non-canonical path → 301.
-        case Content.find_menu_page(List.last(segments)) do
+        case Content.Pages.find_menu_page(List.last(segments)) do
           {_leaf, ancestors} ->
             conn
             |> put_status(:moved_permanently)
-            |> redirect(to: Content.page_path(ancestors))
+            |> redirect(to: Content.Pages.page_path(ancestors))
             |> halt()
 
           nil ->
@@ -52,7 +52,7 @@ defmodule BbhWeb.PageContentController do
   def unlisted(conn, %{"slug" => slug}) do
     preview? = Bbh.Authz.can_preview?(conn.assigns[:current_scope], :pages)
 
-    case Content.get_unlisted_page(slug, preview?) do
+    case Content.Pages.get_unlisted_page(slug, preview?) do
       {page, blocks} ->
         conn
         |> maybe_noindex(page)
@@ -73,7 +73,7 @@ defmodule BbhWeb.PageContentController do
   def datenschutz(conn, _params), do: render_static(conn, "datenschutz", "Datenschutz")
 
   defp render_static(conn, slug, title) do
-    case Content.get_published_page(slug) do
+    case Content.Pages.get_published_page(slug) do
       {page, blocks} ->
         conn
         |> maybe_noindex(page)

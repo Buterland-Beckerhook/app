@@ -42,7 +42,7 @@ defmodule BbhWeb.Admin.DashboardLive do
          articles: Bbh.Content.count_articles_by_status(),
          events: Bbh.Calendar.count_events_by_status(),
          people: Bbh.Club.count_people(),
-         pages: Bbh.Content.count_pages_by_status()
+         pages: Bbh.Content.Pages.count_pages_by_status()
        }
      }}
   end

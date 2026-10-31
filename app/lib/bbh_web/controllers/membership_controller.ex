@@ -158,7 +158,7 @@ defmodule BbhWeb.MembershipController do
 
   # Resolved content blocks of a published page, or [] if the page does not exist yet.
   defp blocks_for(slug) do
-    case Content.get_published_page(slug) do
+    case Content.Pages.get_published_page(slug) do
       {_page, blocks} -> blocks
       nil -> []
     end

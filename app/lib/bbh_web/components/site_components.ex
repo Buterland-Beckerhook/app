@@ -1410,7 +1410,7 @@ defmodule BbhWeb.SiteComponents do
       assigns.ancestors
       |> Enum.with_index(1)
       |> Enum.map(fn {p, i} ->
-        %{title: p.title, path: Bbh.Content.page_path(Enum.take(assigns.ancestors, i))}
+        %{title: p.title, path: Bbh.Content.Pages.page_path(Enum.take(assigns.ancestors, i))}
       end)
 
     assigns = assign(assigns, :crumbs, crumbs)
@@ -1438,7 +1438,7 @@ defmodule BbhWeb.SiteComponents do
   @doc "Desktop sidebar listing a section's pages (root first, then descendants), current highlighted."
   attr :links, :list,
     required: true,
-    doc: "flat `%{path, title, depth}` list from Content.section_links/1"
+    doc: "flat `%{path, title, depth}` list from Content.Pages.section_links/1"
 
   attr :current_path, :string, required: true
 

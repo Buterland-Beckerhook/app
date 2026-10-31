@@ -31,7 +31,7 @@ defmodule Bbh.Content.Page do
     field :placement, :string, default: "menu"
     field :noindex, :boolean, default: false
 
-    # Set by Content.list_pages_tree/0 for indented tree rendering; not persisted.
+    # Set by Content.Pages.list_pages_tree/0 for indented tree rendering; not persisted.
     field :depth, :integer, virtual: true
 
     belongs_to :parent, Bbh.Content.Page

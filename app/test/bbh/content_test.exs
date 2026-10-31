@@ -104,10 +104,10 @@ defmodule Bbh.ContentTest do
       throne_fixture(type: "stadtkaiser", begin_year: 2000, end_year: nil)
 
       assert %{id: ^id, article: %Bbh.Content.Article{}} =
-               Content.get_throne_by_year("koenig", 1995)
+               Content.Thrones.get_throne_by_year("koenig", 1995)
 
-      assert Content.get_throne_by_year("koenig", 2000) == nil
-      assert Content.get_throne_by_year("stadtkaiser", 1995) == nil
+      assert Content.Thrones.get_throne_by_year("koenig", 2000) == nil
+      assert Content.Thrones.get_throne_by_year("stadtkaiser", 1995) == nil
     end
   end
 
@@ -116,14 +116,14 @@ defmodule Bbh.ContentTest do
       _older = throne_fixture(begin_year: 2018, end_year: 2019)
       current = throne_fixture(begin_year: 2023, end_year: 2024)
 
-      assert Content.current_throne().id == current.id
+      assert Content.Thrones.current_throne().id == current.id
     end
 
     test "list_thrones paginates newest first" do
       _a = throne_fixture(begin_year: 2018, end_year: 2019)
       b = throne_fixture(begin_year: 2023, end_year: 2024)
 
-      result = Content.list_thrones("koenig", 1, 1)
+      result = Content.Thrones.list_thrones("koenig", 1, 1)
       assert [only] = result.entries
       assert only.id == b.id
       assert result.total == 2
@@ -141,7 +141,7 @@ defmodule Bbh.ContentTest do
           queen: nil
         )
 
-      types = Content.current_thrones() |> Enum.map(& &1.type)
+      types = Content.Thrones.current_thrones() |> Enum.map(& &1.type)
       assert "jungschuetzenkoenig" in types
       # König first, Jungschützenkönig last (Kaiser/Stadtkaiser absent here).
       assert types == ["koenig", "jungschuetzenkoenig"]
@@ -155,7 +155,7 @@ defmodule Bbh.ContentTest do
 
       throne_fixture(article: article, begin_year: 2023, end_year: 2024)
 
-      assert [entry] = Content.list_thrones("koenig", 1, 1).entries
+      assert [entry] = Content.Thrones.list_thrones("koenig", 1, 1).entries
       assert entry.article.image.id == media.id
     end
 
@@ -168,18 +168,18 @@ defmodule Bbh.ContentTest do
       assert [
                %{begin_year: 2023, king: "Jan-Bernd Droste"},
                %{begin_year: 2018, king: "Gerd Lübbers"}
-             ] = Content.list_throne_nav("koenig")
+             ] = Content.Thrones.list_throne_nav("koenig")
     end
 
     test "list_thrones and list_throne_nav filter by type" do
       koenig = throne_fixture(type: "koenig", begin_year: 2023, end_year: 2024)
       stadt = throne_fixture(type: "stadtkaiser", begin_year: 2020, king: "Anton Stadt")
 
-      assert [%{id: stadt_id}] = Content.list_thrones("stadtkaiser", 1, 1).entries
+      assert [%{id: stadt_id}] = Content.Thrones.list_thrones("stadtkaiser", 1, 1).entries
       assert stadt_id == stadt.id
-      assert [%{begin_year: 2020}] = Content.list_throne_nav("stadtkaiser")
+      assert [%{begin_year: 2020}] = Content.Thrones.list_throne_nav("stadtkaiser")
 
-      assert [%{id: koenig_id}] = Content.list_thrones("koenig", 1, 1).entries
+      assert [%{id: koenig_id}] = Content.Thrones.list_thrones("koenig", 1, 1).entries
       assert koenig_id == koenig.id
     end
 
@@ -189,7 +189,7 @@ defmodule Bbh.ContentTest do
       _kaiser =
         throne_fixture(type: "kaiser", begin_year: 2009, end_year: 2034, king: "Kaiser Karl")
 
-      %{kaiser: kaiser, types_present: types} = Content.throne_menu()
+      %{kaiser: kaiser, types_present: types} = Content.Thrones.throne_menu()
 
       assert [%{begin_year: 2009, type: "kaiser"}] = kaiser
       assert MapSet.member?(types, "koenig")
@@ -204,7 +204,7 @@ defmodule Bbh.ContentTest do
       {:ok, _} = Content.add_block(page, "richtext")
       {:ok, _} = Content.add_block(page, "alert")
 
-      {loaded_page, blocks} = Content.get_published_page("verein-info")
+      {loaded_page, blocks} = Content.Pages.get_published_page("verein-info")
 
       assert loaded_page.id == page.id
       assert Enum.map(blocks, fn {pb, _} -> pb.block_type end) == ["richtext", "alert"]
@@ -215,7 +215,7 @@ defmodule Bbh.ContentTest do
 
     test "returns nil for an unpublished page" do
       page_fixture(slug: "entwurf", status: "draft")
-      refute Content.get_published_page("entwurf")
+      refute Content.Pages.get_published_page("entwurf")
     end
   end
 
@@ -229,7 +229,7 @@ defmodule Bbh.ContentTest do
       page_fixture(slug: "entwurf", status: "draft")
       page_fixture(slug: "impressum", status: "published", placement: "system")
 
-      slugs = Content.list_menu_pages() |> Enum.map(& &1.slug)
+      slugs = Content.Pages.list_menu_pages() |> Enum.map(& &1.slug)
       assert slugs == ["a-seite", "b-seite", "root"]
     end
 
@@ -238,7 +238,7 @@ defmodule Bbh.ContentTest do
       child = page_fixture(slug: "geschichte", status: "published", parent_id: parent.id)
 
       assert {resolved, [ancestor, ^child]} =
-               Content.get_page_by_path(["ueber-uns", "geschichte"])
+               Content.Pages.get_page_by_path(["ueber-uns", "geschichte"])
 
       assert resolved.id == child.id
       assert ancestor.id == parent.id
@@ -249,8 +249,8 @@ defmodule Bbh.ContentTest do
       page_fixture(slug: "geschichte", status: "published", parent_id: parent.id)
 
       # Correct slug but missing/incorrect parent segment.
-      refute Content.get_page_by_path(["geschichte"])
-      refute Content.get_page_by_path(["falsch", "geschichte"])
+      refute Content.Pages.get_page_by_path(["geschichte"])
+      refute Content.Pages.get_page_by_path(["falsch", "geschichte"])
     end
 
     test "get_page_by_path/1 rejects a tree rooted at a non-menu (legal) page" do
@@ -265,7 +265,7 @@ defmodule Bbh.ContentTest do
         parent_id: legal.id
       })
 
-      refute Content.get_page_by_path(["impressum", "unterpunkt"])
+      refute Content.Pages.get_page_by_path(["impressum", "unterpunkt"])
     end
 
     test "get_unlisted_page/2 only resolves published, top-level unlisted pages" do
@@ -273,10 +273,10 @@ defmodule Bbh.ContentTest do
       page_fixture(slug: "entwurf", placement: "unlisted", status: "draft")
       page_fixture(slug: "chronik", placement: "menu")
 
-      assert {%{slug: "anfahrt"}, _blocks} = Content.get_unlisted_page("anfahrt")
-      refute Content.get_unlisted_page("entwurf")
-      assert {%{slug: "entwurf"}, _} = Content.get_unlisted_page("entwurf", true)
-      refute Content.get_unlisted_page("chronik")
+      assert {%{slug: "anfahrt"}, _blocks} = Content.Pages.get_unlisted_page("anfahrt")
+      refute Content.Pages.get_unlisted_page("entwurf")
+      assert {%{slug: "entwurf"}, _} = Content.Pages.get_unlisted_page("entwurf", true)
+      refute Content.Pages.get_unlisted_page("chronik")
     end
 
     test "public_path/1 follows the root's placement" do
@@ -287,10 +287,10 @@ defmodule Bbh.ContentTest do
       legal = page_fixture(slug: "impressum", placement: "system")
       snippet = page_fixture(slug: "baustein", placement: "system")
 
-      assert Content.public_path(child) == "/verein/ueber-uns/geschichte"
-      assert Content.public_path(unlisted) == "/seite/anfahrt"
-      assert Content.public_path(legal) == "/impressum"
-      refute Content.public_path(snippet)
+      assert Content.Pages.public_path(child) == "/verein/ueber-uns/geschichte"
+      assert Content.Pages.public_path(unlisted) == "/seite/anfahrt"
+      assert Content.Pages.public_path(legal) == "/impressum"
+      refute Content.Pages.public_path(snippet)
     end
   end
 
@@ -316,7 +316,7 @@ defmodule Bbh.ContentTest do
 
   describe "page placement validation" do
     test "rejects an unknown placement" do
-      assert {:error, cs} = Content.create_page(%{title: "X", slug: "x", placement: "foo"})
+      assert {:error, cs} = Content.Pages.create_page(%{title: "X", slug: "x", placement: "foo"})
       assert %{placement: [_]} = errors_on(cs)
     end
 
@@ -324,7 +324,7 @@ defmodule Bbh.ContentTest do
       root = page_fixture(slug: "ueber-uns")
 
       assert {:error, cs} =
-               Content.create_page(%{
+               Content.Pages.create_page(%{
                  title: "Kind",
                  slug: "kind",
                  parent_id: root.id,
@@ -339,7 +339,7 @@ defmodule Bbh.ContentTest do
         parent = page_fixture(placement: placement)
 
         assert {:error, cs} =
-                 Content.create_page(%{
+                 Content.Pages.create_page(%{
                    title: "Kind",
                    slug: "kind-#{placement}",
                    parent_id: parent.id
@@ -353,7 +353,7 @@ defmodule Bbh.ContentTest do
       root = page_fixture(slug: "ueber-uns")
       page_fixture(slug: "geschichte", parent_id: root.id)
 
-      assert {:error, cs} = Content.update_page(root, %{placement: "unlisted"})
+      assert {:error, cs} = Content.Pages.update_page(root, %{placement: "unlisted"})
       assert %{placement: [_]} = errors_on(cs)
     end
 
@@ -374,7 +374,7 @@ defmodule Bbh.ContentTest do
                %{path: "/verein/ueber-uns", title: "Über uns", depth: 0},
                %{path: "/verein/ueber-uns/geschichte", title: "Geschichte", depth: 1},
                %{path: "/verein/ueber-uns/geschichte/detail", title: "Detail", depth: 2}
-             ] = Content.section_links(root)
+             ] = Content.Pages.section_links(root)
     end
 
     test "include_unpublished: true surfaces draft pages for editor preview" do
@@ -383,16 +383,16 @@ defmodule Bbh.ContentTest do
       child = page_fixture(slug: "kind", status: "draft", parent_id: published.id)
 
       # Default (public) view excludes drafts.
-      assert Content.list_menu_pages() |> Enum.map(& &1.slug) == ["sichtbar"]
-      refute Content.get_page_by_path(["entwurf"])
-      refute Content.get_page_by_path(["sichtbar", "kind"])
+      assert Content.Pages.list_menu_pages() |> Enum.map(& &1.slug) == ["sichtbar"]
+      refute Content.Pages.get_page_by_path(["entwurf"])
+      refute Content.Pages.get_page_by_path(["sichtbar", "kind"])
 
       # Editor preview includes them.
-      preview_slugs = Content.list_menu_pages(true) |> Enum.map(& &1.slug)
+      preview_slugs = Content.Pages.list_menu_pages(true) |> Enum.map(& &1.slug)
       assert "entwurf" in preview_slugs
-      assert {%{id: id}, _} = Content.get_page_by_path(["entwurf"], true)
+      assert {%{id: id}, _} = Content.Pages.get_page_by_path(["entwurf"], true)
       assert id == draft.id
-      assert {%{id: cid}, _} = Content.get_page_by_path(["sichtbar", "kind"], true)
+      assert {%{id: cid}, _} = Content.Pages.get_page_by_path(["sichtbar", "kind"], true)
       assert cid == child.id
     end
 
@@ -401,7 +401,7 @@ defmodule Bbh.ContentTest do
       page_fixture(slug: "draft", status: "draft", sort_order: 2)
 
       by_slug =
-        Content.menu_tree(true)
+        Content.Pages.menu_tree(true)
         |> Map.new(&{Path.basename(&1.path), &1.status})
 
       assert by_slug["live"] == "published"
@@ -436,10 +436,10 @@ defmodule Bbh.ContentTest do
       editor = Bbh.Accounts.Scope.for_user(Bbh.AccountsFixtures.user_fixture())
 
       assert {:error, :unauthorized} = Content.delete_article(editor, article)
-      assert {:error, :unauthorized} = Content.delete_page(editor, page)
-      assert {:error, :unauthorized} = Content.delete_page(nil, page)
+      assert {:error, :unauthorized} = Content.Pages.delete_page(editor, page)
+      assert {:error, :unauthorized} = Content.Pages.delete_page(nil, page)
       assert Content.get_article!(article.id)
-      assert {:ok, _} = Content.delete_page(admin_scope(), page)
+      assert {:ok, _} = Content.Pages.delete_page(admin_scope(), page)
     end
 
     test "delete_article/2 removes the article's blocks and their concrete rows" do
@@ -473,10 +473,10 @@ defmodule Bbh.ContentTest do
       throne = throne_fixture(%{article: article})
       upload = upload_fixture()
 
-      {:ok, _} = Content.set_throne_image(throne, upload.id)
+      {:ok, _} = Content.Thrones.set_throne_image(throne, upload.id)
       assert Bbh.Repo.get!(Bbh.Content.Throne, throne.id).image_id == upload.id
 
-      {:ok, _} = Content.set_throne_image(throne, nil)
+      {:ok, _} = Content.Thrones.set_throne_image(throne, nil)
       assert is_nil(Bbh.Repo.get!(Bbh.Content.Throne, throne.id).image_id)
     end
   end
@@ -485,7 +485,7 @@ defmodule Bbh.ContentTest do
   defp gallery_block(_ctx) do
     page = page_fixture()
     {:ok, _} = Content.add_block(page, "image_gallery")
-    [{pb, gallery}] = Content.load_blocks(Content.get_page!(page.id))
+    [{pb, gallery}] = Content.load_blocks(Content.Pages.get_page!(page.id))
     %{page: page, pb: pb, gallery: gallery}
   end
 
@@ -650,7 +650,7 @@ defmodule Bbh.ContentTest do
     test "moving a file that is not in this gallery is refused, not a crash", ctx do
       other_page = page_fixture()
       {:ok, _} = Content.add_block(other_page, "image_gallery")
-      [{_pb, other_gallery}] = Content.load_blocks(Content.get_page!(other_page.id))
+      [{_pb, other_gallery}] = Content.load_blocks(Content.Pages.get_page!(other_page.id))
       {:ok, stranger} = Content.add_gallery_file(other_gallery, upload_fixture().id)
 
       assert {:error, :not_found} = Content.move_gallery_file(ctx.gallery.id, stranger, :up)
@@ -669,7 +669,7 @@ defmodule Bbh.ContentTest do
       {:ok, first} = Content.add_gallery_file(gallery, upload_fixture(filename: "a.webp").id)
       {:ok, _} = Content.move_gallery_file(gallery.id, first, :up)
 
-      [{_pb, loaded}] = Content.load_blocks(Content.get_page!(page.id))
+      [{_pb, loaded}] = Content.load_blocks(Content.Pages.get_page!(page.id))
       assert Enum.map(loaded.files, & &1.id) == [first.id, second.id]
       # media is preloaded for the renderer (caption/copyright/alt come from it)
       assert Enum.all?(loaded.files, &match?(%Bbh.Media.Upload{}, &1.media))
@@ -707,15 +707,15 @@ defmodule Bbh.ContentTest do
 
       assert %{"published" => a_pub, "draft" => a_draft} = Content.count_articles_by_status()
       assert a_pub >= 1 and a_draft >= 1
-      assert %{"published" => _} = Content.count_pages_by_status()
-      refute Map.has_key?(Content.count_pages_by_status(), "archived")
+      assert %{"published" => _} = Content.Pages.count_pages_by_status()
+      refute Map.has_key?(Content.Pages.count_pages_by_status(), "archived")
     end
 
     test "indexable_page_slugs keeps published pages that are not noindex" do
       page_fixture(slug: "impressum")
       page_fixture(slug: "datenschutz", noindex: true)
 
-      assert Content.indexable_page_slugs(~w(impressum datenschutz agb)) == ["impressum"]
+      assert Content.Pages.indexable_page_slugs(~w(impressum datenschutz agb)) == ["impressum"]
     end
   end
 
@@ -725,8 +725,8 @@ defmodule Bbh.ContentTest do
       mid = page_fixture(%{parent_id: root.id})
       leaf = page_fixture(%{parent_id: mid.id})
 
-      assert Enum.map(Content.page_ancestors(leaf), & &1.id) == [root.id, mid.id, leaf.id]
-      assert Content.page_ancestors(root) == [root]
+      assert Enum.map(Content.Pages.page_ancestors(leaf), & &1.id) == [root.id, mid.id, leaf.id]
+      assert Content.Pages.page_ancestors(root) == [root]
     end
 
     test "section_links lists one section's subtree, not the next section" do
@@ -735,7 +735,7 @@ defmodule Bbh.ContentTest do
       _draft = page_fixture(%{parent_id: root.id, status: "draft"})
       other = page_fixture(%{placement: "menu", sort_order: 2})
 
-      paths = root |> Content.section_links() |> Enum.map(& &1.path)
+      paths = root |> Content.Pages.section_links() |> Enum.map(& &1.path)
 
       assert paths == ["/verein/#{root.slug}", "/verein/#{root.slug}/#{child.slug}"]
       refute "/verein/#{other.slug}" in paths
