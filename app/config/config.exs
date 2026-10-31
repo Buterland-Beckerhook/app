@@ -151,11 +151,18 @@ config :bbh, Bbh.Map,
 # Background jobs (Oban). The cron plugin runs the publish notifier every five
 # minutes so scheduled ("vorveröffentlichte") articles get their push once their
 # publish date passes. Overridden to `testing: :manual` in test.exs.
+#
+# Queue limits stay well under the Repo pool (POOL_SIZE, default 10) so web requests
+# always find a connection. `heavy` runs one memory-hungry job at a time (mail import,
+# search rebuild, map extraction) on a host whose only safety net is the cgroup limit.
 config :bbh, Oban,
   repo: Bbh.Repo,
-  queues: [default: 10, notifications: 5],
+  queues: [default: 3, notifications: 2, heavy: 1],
   plugins: [
     {Oban.Plugins.Pruner, max_age: 60 * 60 * 24 * 7},
+    # A job whose node died (OOM kill, redeploy) stays `executing` forever otherwise;
+    # this hands it back to its queue. Longer than any job runs (map extraction).
+    {Oban.Plugins.Lifeline, rescue_after: :timer.minutes(30)},
     {Oban.Plugins.Cron,
      crontab: [
        {"*/5 * * * *", Bbh.Workers.ArticlePublishNotifier},

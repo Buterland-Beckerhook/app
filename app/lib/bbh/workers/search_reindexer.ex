@@ -8,7 +8,7 @@ defmodule Bbh.Workers.SearchReindexer do
   cheap, idempotent clear-and-insert (small data set), which makes it
   self-healing: a missed or crashed run is fully repaired by the next tick.
   """
-  use Oban.Worker, queue: :default, max_attempts: 3
+  use Oban.Worker, queue: :heavy, max_attempts: 3
 
   @impl Oban.Worker
   def perform(_job), do: Bbh.Search.reindex_all()

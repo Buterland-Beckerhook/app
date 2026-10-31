@@ -10,7 +10,7 @@ defmodule Bbh.Workers.MapTilesUpdater do
   `bin/bbh rpc "Bbh.Map.enqueue_update()"` on the server). Uniqueness collapses the
   triggers of one hour into a single extract.
   """
-  use Oban.Worker, queue: :default, max_attempts: 3, unique: [period: 3600]
+  use Oban.Worker, queue: :heavy, max_attempts: 3, unique: [period: 3600]
 
   require Logger
 

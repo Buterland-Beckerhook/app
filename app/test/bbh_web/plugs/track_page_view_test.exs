@@ -1,14 +1,22 @@
 defmodule BbhWeb.Plugs.TrackPageViewTest do
   # async: false — toggles the global tracking config for the duration.
-  use BbhWeb.ConnCase
+  use BbhWeb.ConnCase, async: false
 
   import Bbh.CalendarFixtures
 
   @browser_ua "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120 Safari"
 
   setup do
+    previous = Application.fetch_env(:bbh, BbhWeb.Plugs.TrackPageView)
     Application.put_env(:bbh, BbhWeb.Plugs.TrackPageView, enabled: true, async: false)
-    on_exit(fn -> Application.put_env(:bbh, BbhWeb.Plugs.TrackPageView, enabled: false) end)
+
+    on_exit(fn ->
+      case previous do
+        {:ok, value} -> Application.put_env(:bbh, BbhWeb.Plugs.TrackPageView, value)
+        :error -> Application.delete_env(:bbh, BbhWeb.Plugs.TrackPageView)
+      end
+    end)
+
     :ok
   end
 
