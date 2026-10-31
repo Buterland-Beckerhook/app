@@ -18,6 +18,7 @@ defmodule Bbh.Tickets do
   alias Bbh.Accounts.{Scope, User}
   alias Bbh.Repo
   alias Bbh.Tickets.{Attachment, Event, Grant, Message, Queue, Ticket}
+  alias Bbh.Tickets.ServerCopies
   alias Bbh.Vault
   alias Bbh.Authz
 
@@ -389,7 +390,7 @@ defmodule Bbh.Tickets do
             |> Ecto.Changeset.change(deleted_at: DateTime.utc_now(:second))
             |> Repo.update!()
             |> tap(&log_event(&1, user, "deleted", %{reason: "requester"}))
-            |> tap(&release_deleted_server_copy/1)
+            |> tap(&ServerCopies.release_deleted/1)
             |> tap(&broadcast/1)
           end)
         end
@@ -503,7 +504,7 @@ defmodule Bbh.Tickets do
                |> Ecto.Changeset.put_change(:assignee_id, ticket.assignee_id || user.id)
                |> Repo.update() do
           log_event(updated, user, "replied", %{status: status})
-          release_server_copy(ticket, updated)
+          ServerCopies.release_on_change(ticket, updated)
           %{message_id: message.id} |> Bbh.Workers.TicketReplySender.new() |> Oban.insert!()
           {:ok, updated}
         end
@@ -627,70 +628,6 @@ defmodule Bbh.Tickets do
     :ok
   end
 
-  @doc false
-  # Where the import filed an inbound mail on the server (`Bbh.Workers.ImapPoller`), so
-  # the copy can be deleted or moved later. Returns the message's ticket, or nil.
-  def record_server_copy(message_id_hash, mailbox, uidvalidity, uid) do
-    query =
-      from m in Message,
-        where:
-          m.direction == "in" and m.message_id == ^message_id_hash and
-            is_nil(m.server_copy_removed_at)
-
-    case Repo.one(query) do
-      nil ->
-        nil
-
-      message ->
-        message
-        |> Ecto.Changeset.change(
-          imap_mailbox: mailbox,
-          imap_uidvalidity: uidvalidity,
-          imap_uid: uid
-        )
-        |> Repo.update!()
-
-        Repo.get(Ticket, message.ticket_id)
-    end
-  end
-
-  @doc false
-  # The inbound messages of a ticket that still have a copy on the server.
-  def server_copies(%Ticket{id: id}) do
-    Repo.all(
-      from m in Message,
-        where:
-          m.ticket_id == ^id and m.direction == "in" and not is_nil(m.imap_uid) and
-            is_nil(m.server_copy_removed_at)
-    )
-  end
-
-  @doc false
-  def server_copy_moved(%Message{} = message, folder, uidvalidity, uid, action) do
-    message
-    |> Ecto.Changeset.change(imap_mailbox: folder, imap_uidvalidity: uidvalidity, imap_uid: uid)
-    |> Repo.update!()
-
-    with %Ticket{} = ticket <- Repo.get(Ticket, message.ticket_id) do
-      log_event(ticket, nil, "server_copy_moved", %{action: action})
-    end
-
-    :ok
-  end
-
-  @doc false
-  def server_copy_removed(%Message{} = message, action) do
-    message
-    |> Ecto.Changeset.change(server_copy_removed_at: DateTime.utc_now(:second))
-    |> Repo.update!()
-
-    with %Ticket{} = ticket <- Repo.get(Ticket, message.ticket_id) do
-      log_event(ticket, nil, "server_copy_removed", %{action: action})
-    end
-
-    :ok
-  end
-
   @doc "Adds an internal note. Notes never leave the system."
   def add_note(%Scope{user: user} = scope, %Ticket{} = ticket, body) do
     body = String.trim(body || "")
@@ -747,7 +684,7 @@ defmodule Bbh.Tickets do
       ticket
       |> Ecto.Changeset.change(status: status, last_activity_at: DateTime.utc_now(:second))
       |> update_and_log(scope, "unmarked_spam", %{to: status})
-      |> tap_ok(&release_from_junk/1)
+      |> tap_ok(&ServerCopies.release_from_junk/1)
     end
   end
 
@@ -759,7 +696,7 @@ defmodule Bbh.Tickets do
       ticket
       |> Ecto.Changeset.change(deleted_at: DateTime.utc_now(:second))
       |> update_and_log(scope, "deleted", %{})
-      |> tap_ok(&release_deleted_server_copy/1)
+      |> tap_ok(&ServerCopies.release_deleted/1)
     else
       {:error, :unauthorized}
     end
@@ -899,63 +836,10 @@ defmodule Bbh.Tickets do
     with {:ok, updated} <- Repo.update(changeset) do
       log_event(updated, user, action, meta)
       broadcast(updated)
-      release_server_copy(changeset.data, updated)
+      ServerCopies.release_on_change(changeset.data, updated)
       {:ok, updated}
     end
   end
-
-  # The mail's copy on the IMAP server goes once work starts (plan §6.2): on the first
-  # change away from `new`. Marked as spam, it moves to Junk instead, so rspamd learns.
-  # Form tickets have no server copy; the job is only queued when there is one.
-  defp release_server_copy(%Ticket{status: old}, %Ticket{status: new} = ticket) do
-    action =
-      cond do
-        new == "spam" and old != "spam" -> "junk"
-        old == "new" and new != "new" -> "delete"
-        true -> nil
-      end
-
-    if action && server_copy?(ticket) do
-      %{ticket_id: ticket.id, action: action}
-      |> Bbh.Workers.ImapCleanup.new()
-      |> Oban.insert!()
-    end
-
-    :ok
-  end
-
-  defp server_copy?(%Ticket{id: id}) do
-    Repo.exists?(
-      from m in Message,
-        where:
-          m.ticket_id == ^id and m.direction == "in" and not is_nil(m.imap_uid) and
-            is_nil(m.server_copy_removed_at)
-    )
-  end
-
-  # Taken back from spam: its mail leaves Junk again (rspamd learns "not spam").
-  defp release_from_junk(ticket) do
-    if server_copy?(ticket) do
-      %{ticket_id: ticket.id, action: "unjunk"} |> Bbh.Workers.ImapCleanup.new() |> Oban.insert!()
-    end
-  end
-
-  # A deleted ticket's mail has no reason to stay on the server.
-  defp release_deleted_server_copy(ticket) do
-    if server_copy?(ticket) do
-      %{ticket_id: ticket.id, action: "delete"} |> Bbh.Workers.ImapCleanup.new() |> Oban.insert!()
-    end
-  end
-
-  @doc false
-  # After an inbound mail of a ticket that is already in work was filed on the server:
-  # its copy can go right away.
-  def release_new_server_copy(%Ticket{status: status} = ticket)
-      when status not in ["new", "spam"] do
-    release_server_copy(%{ticket | status: "new"}, ticket)
-  end
-
-  def release_new_server_copy(_ticket), do: :ok
 
   # Someone else assigned it: tell the assignee (ids only in the job).
   defp notify_assignee(%Ticket{assignee_id: nil}, _by), do: :ok
