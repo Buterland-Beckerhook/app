@@ -32,6 +32,14 @@ defmodule Bbh.Authz do
   def admin?(%Scope{user: user}), do: User.admin?(user)
   def admin?(_), do: false
 
+  @doc """
+  Whether the scope may do what the admin-only areas allow outside of a LiveView
+  (e.g. the push device controllers): an admin with a strongly authenticated session,
+  the same bar `BbhWeb.UserAuth`'s `:require_admin` hook sets.
+  """
+  def strong_admin?(%Scope{user: user}), do: User.admin?(user) and User.strong_auth?(user)
+  def strong_admin?(_), do: false
+
   @doc "Whether the user may open a given admin section."
   def can_access_section?(%User{} = user, section) do
     cond do

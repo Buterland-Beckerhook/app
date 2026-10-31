@@ -42,6 +42,16 @@ defmodule BbhWeb.PushTesterControllerTest do
     end
   end
 
+  describe "as admin with a plain magic-link session" do
+    setup :register_and_log_in_admin
+
+    @tag auth_method: "magic_link"
+    test "is forbidden", %{conn: conn} do
+      assert conn |> post_tester(%{endpoint: @push_endpoint, tester: true}) |> json_response(403)
+      assert {:ok, %{tester: false}} = Notifications.subscription_status(@push_endpoint)
+    end
+  end
+
   describe "as editor" do
     setup :register_and_log_in_user
 

@@ -475,4 +475,41 @@ defmodule Bbh.AccountsTest do
       refute Accounts.valid_totp?(nil, "123456", now)
     end
   end
+
+  describe "use_user_totp/3" do
+    setup do
+      secret = Accounts.generate_totp_secret()
+      {:ok, user} = Accounts.enable_totp(user_fixture(), secret)
+      %{user: user, secret: secret, now: 1_800_000_015}
+    end
+
+    test "accepts a code once", %{user: user, secret: secret, now: now} do
+      code = NimbleTOTP.verification_code(secret, time: now)
+
+      assert :ok = Accounts.use_user_totp(user, code, now)
+      assert :error = Accounts.use_user_totp(user, code, now)
+      # Still refused later in its drift window.
+      assert :error = Accounts.use_user_totp(user, code, now + 30)
+    end
+
+    test "after a code, refuses the previous period's but takes the next", %{
+      user: user,
+      secret: secret,
+      now: now
+    } do
+      assert :ok =
+               Accounts.use_user_totp(user, NimbleTOTP.verification_code(secret, time: now), now)
+
+      previous = NimbleTOTP.verification_code(secret, time: now - 30)
+      assert :error = Accounts.use_user_totp(user, previous, now)
+
+      next = NimbleTOTP.verification_code(secret, time: now + 30)
+      assert :ok = Accounts.use_user_totp(user, next, now + 30)
+    end
+
+    test "refuses wrong codes and users without TOTP", %{user: user, now: now} do
+      assert :error = Accounts.use_user_totp(user, "", now)
+      assert :error = Accounts.use_user_totp(user_fixture(), "123456", now)
+    end
+  end
 end

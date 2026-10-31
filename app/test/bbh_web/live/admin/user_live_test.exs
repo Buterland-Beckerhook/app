@@ -168,6 +168,20 @@ defmodule BbhWeb.Admin.UserLiveTest do
       assert_receive %Phoenix.Socket.Broadcast{event: "disconnect"}
     end
 
+    test "a calendar grant change disconnects the user's sockets", %{conn: conn} do
+      other = user_fixture()
+      watch_session(other)
+      {:ok, lv, _html} = live(conn, ~p"/admin/benutzer")
+      [calendar | _] = Bbh.Calendar.Event.calendars()
+
+      lv
+      |> element("#cals-#{other.id}")
+      |> render_change(%{"user_id" => other.id, "calendars" => ["", calendar]})
+
+      assert_receive %Phoenix.Socket.Broadcast{event: "disconnect"}
+      assert Accounts.get_user!(other.id).calendars == [calendar]
+    end
+
     test "deleting a user disconnects their sockets", %{conn: conn} do
       other = user_fixture()
       watch_session(other)

@@ -50,6 +50,22 @@ defmodule BbhWeb.TotpControllerTest do
       assert get_session(conn, :user_token)
     end
 
+    test "refuses a code that already completed a login", %{user: user, secret: secret} do
+      code = NimbleTOTP.verification_code(secret)
+
+      first =
+        build_conn() |> pending(user) |> post(~p"/users/totp", %{"totp" => %{"code" => code}})
+
+      assert get_session(first, :user_token)
+
+      # Someone who watched the code types it into their own pending login.
+      replay =
+        build_conn() |> pending(user) |> post(~p"/users/totp", %{"totp" => %{"code" => code}})
+
+      assert html_response(replay, 200) =~ "Ungültiger Code"
+      refute get_session(replay, :user_token)
+    end
+
     test "re-renders with an error on an invalid code", %{conn: conn, user: user} do
       conn = conn |> pending(user) |> post(~p"/users/totp", %{"totp" => %{"code" => "000000"}})
       assert html_response(conn, 200) =~ "Ungültiger Code"

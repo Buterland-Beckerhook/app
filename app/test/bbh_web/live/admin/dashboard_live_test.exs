@@ -99,4 +99,29 @@ defmodule BbhWeb.Admin.DashboardLiveTest do
     assert html =~ "Apple Kalender"
     assert html =~ "Google Kalender"
   end
+
+  test "shows the Postfach widget to an admin with a strong session", %{conn: conn} do
+    {:ok, lv, _html} = live(conn, ~p"/admin")
+    render_async(lv, 2000)
+
+    assert has_element?(lv, "#tickets-widget")
+  end
+
+  describe "with a plain magic-link session" do
+    # The dashboard itself stays open (Termine editors land here), but ticket subjects
+    # and visitor analytics belong to the strong-auth areas.
+    @describetag auth_method: "magic_link"
+
+    test "hides the Postfach widget and the analytics", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, ~p"/admin")
+      html = render_async(lv, 2000)
+
+      refute has_element?(lv, "#tickets-widget")
+      refute html =~ "Zugriffe"
+
+      # A forced range change loads nothing either.
+      render_click(lv, "set_range", %{"days" => "7"})
+      refute render(lv) =~ "Zugriffe"
+    end
+  end
 end

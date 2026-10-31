@@ -79,7 +79,10 @@ defmodule BbhWeb.Admin.UserLive.Index do
 
   def handle_event("set_calendars", %{"user_id" => id} = params, socket) do
     calendars = params |> Map.get("calendars", []) |> Enum.reject(&(&1 == ""))
-    id |> Accounts.get_user!() |> Accounts.update_user_calendars(calendars)
+    # Like a role change: an open Termine tab must not keep a revoked calendar.
+    with {:ok, user} <- id |> Accounts.get_user!() |> Accounts.update_user_calendars(calendars),
+         do: remount_sessions(user)
+
     {:noreply, load_users(socket)}
   end
 

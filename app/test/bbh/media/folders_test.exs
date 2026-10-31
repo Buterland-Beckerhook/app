@@ -61,10 +61,18 @@ defmodule Bbh.Media.FoldersTest do
       {:ok, folder} = Media.Folders.create_folder(%{"name" => "Alt"})
       upload = upload_fixture(folder_id: folder.id)
 
-      {:ok, _} = Media.Folders.delete_folder(folder)
+      {:ok, _} = Media.Folders.delete_folder(admin_scope(), folder)
 
       assert Repo.get!(Upload, upload.id).folder_id == nil
       refute Repo.get(Folder, folder.id)
+    end
+
+    test "deleting a folder is admin-only" do
+      {:ok, folder} = Media.Folders.create_folder(%{"name" => "Alt"})
+      editor = Bbh.Accounts.Scope.for_user(Bbh.AccountsFixtures.user_fixture())
+
+      assert {:error, :unauthorized} = Media.Folders.delete_folder(editor, folder)
+      assert Repo.get(Folder, folder.id)
     end
 
     test "an unknown or malformed folder id is a miss, not a crash" do
@@ -335,4 +343,6 @@ defmodule Bbh.Media.FoldersTest do
                %{roots: [], counts: %{}, direct: %{}, total: 0, unfiled: 0}
     end
   end
+
+  defp admin_scope, do: Bbh.Accounts.Scope.for_user(Bbh.AccountsFixtures.admin_user_fixture())
 end

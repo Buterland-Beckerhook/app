@@ -186,17 +186,42 @@ defmodule BbhWeb.Admin.SettingsLiveTest do
     setup :register_and_log_in_admin
 
     setup %{user: user} do
-      {:ok, user} = Accounts.enable_totp(user, Accounts.generate_totp_secret())
-      %{user: user}
+      secret = Accounts.generate_totp_secret()
+      {:ok, user} = Accounts.enable_totp(user, secret)
+      %{user: user, secret: secret}
     end
 
-    test "shows the enabled state and disables it", %{conn: conn, user: user} do
+    test "disables it with a current code and ends the other sessions", %{
+      conn: conn,
+      user: user,
+      secret: secret
+    } do
+      other_token = Accounts.generate_user_session_token(user)
+      BbhWeb.Endpoint.subscribe("users_sessions:#{Base.url_encode64(other_token)}")
+
       {:ok, lv, html} = live(conn, ~p"/admin/einstellungen/2fa")
       assert html =~ "aktiviert"
 
-      html = render_click(lv, "disable")
+      html =
+        lv
+        |> form("#totp-disable-form", %{"code" => NimbleTOTP.verification_code(secret)})
+        |> render_submit()
+
       assert html =~ "Aktivieren"
       refute User.totp_enabled?(Accounts.get_user!(user.id))
+
+      # The other session is gone and its sockets dropped; this one stays.
+      refute Accounts.get_user_by_session_token(other_token)
+      assert_receive %Phoenix.Socket.Broadcast{event: "disconnect"}
+      assert Accounts.get_user_by_session_token(get_session(conn, :user_token))
+    end
+
+    test "refuses without a valid code", %{conn: conn, user: user} do
+      {:ok, lv, _html} = live(conn, ~p"/admin/einstellungen/2fa")
+
+      html = render_submit(lv, "disable", %{"code" => ""})
+      assert html =~ "Ungültiger Code"
+      assert User.totp_enabled?(Accounts.get_user!(user.id))
     end
   end
 

@@ -6,26 +6,34 @@ defmodule BbhWeb.Admin.DashboardLive do
   @impl true
   def mount(_params, _session, socket) do
     scope = socket.assigns.current_scope
-    is_admin = Bbh.Authz.admin?(scope)
+    # The dashboard is open to a plain magic-link session (it is where Termine editors
+    # land), so what it shows from the strong-auth areas — ticket subjects, visitor
+    # analytics — needs the strong session those areas do.
+    strong? = Bbh.Accounts.User.strong_auth?(scope.user)
+    show_analytics = strong? and Bbh.Authz.admin?(scope)
 
     socket =
       socket
-      |> assign(page_title: "Übersicht", is_admin: is_admin, range_days: 30)
+      |> assign(page_title: "Übersicht", show_analytics: show_analytics, range_days: 30)
       |> assign_async(:stats, &load_stats/0)
-      |> assign_tickets(scope)
+      |> assign_tickets(scope, strong?)
 
-    {:ok, if(is_admin, do: load_analytics(socket), else: socket)}
+    {:ok, if(show_analytics, do: load_analytics(socket), else: socket)}
   end
 
   @impl true
   def handle_event("set_range", %{"days" => days}, socket) do
-    days = if String.to_integer(days) in @ranges, do: String.to_integer(days), else: 30
-    {:noreply, socket |> assign(range_days: days) |> load_analytics()}
+    if socket.assigns.show_analytics do
+      days = if String.to_integer(days) in @ranges, do: String.to_integer(days), else: 30
+      {:noreply, socket |> assign(range_days: days) |> load_analytics()}
+    else
+      {:noreply, socket}
+    end
   end
 
   # The Postfach widget: new tickets in the user's queues and the ones assigned to them.
-  defp assign_tickets(socket, scope) do
-    if Bbh.Authz.can_access_tickets?(scope) do
+  defp assign_tickets(socket, scope, strong?) do
+    if strong? and Bbh.Authz.can_access_tickets?(scope) do
       assign(socket,
         tickets: %{new: Bbh.Tickets.count_new(scope), mine: Bbh.Tickets.list_assigned(scope)}
       )
@@ -144,7 +152,7 @@ defmodule BbhWeb.Admin.DashboardLive do
         </div>
       </.async_result>
 
-      <section :if={@is_admin} class="mt-10">
+      <section :if={@show_analytics} class="mt-10">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <h2 class="text-lg font-semibold">Zugriffe</h2>
           <div class="join">

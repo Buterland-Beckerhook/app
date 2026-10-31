@@ -183,6 +183,20 @@ defmodule BbhWeb.Admin.PageLiveTest do
       assert Enum.map(gallery_files(ctx.page), & &1.media.filename) == ["eins.webp"]
     end
 
+    test "ignores files of another page's gallery", ctx do
+      other = page_fixture()
+      {:ok, _} = Content.add_block(other, "image_gallery")
+      [{_pb, gallery}] = Content.load_blocks(Content.Pages.get_page!(other.id))
+      {:ok, _} = Content.add_gallery_file(gallery, upload_fixture(filename: "a.webp").id)
+      {:ok, _} = Content.add_gallery_file(gallery, upload_fixture(filename: "b.webp").id)
+      [_a, b] = gallery_files(other)
+
+      render_click(ctx.lv, "move_gallery_file", %{"file_id" => b.id, "dir" => "up"})
+      render_click(ctx.lv, "remove_gallery_file", %{"file_id" => b.id})
+
+      assert Enum.map(gallery_files(other), & &1.media.filename) == ["a.webp", "b.webp"]
+    end
+
     test "the Diashow settings are editable and saved", ctx do
       ctx.lv
       |> form("#block-#{ctx.pb.id}", %{
