@@ -1,4 +1,4 @@
-defmodule BbhWeb.EventPaths do
+defmodule Bbh.Calendar.Paths do
   @moduledoc """
   The one place public event URLs are built — pages, pushes, iCal, search, sitemap.
 
@@ -16,6 +16,6 @@ defmodule BbhWeb.EventPaths do
 
   def path(%Event{parent: %Event{} = parent, slug: slug}), do: "#{path(parent)}##{slug}"
 
-  @doc "Absolute URL of a public event, on `base` (default: the endpoint's URL)."
-  def url(%Event{} = event, base \\ BbhWeb.Endpoint.url()), do: base <> path(event)
+  @doc "Absolute URL of a public event, on `base` (default: `Bbh.Site.url/0`)."
+  def url(%Event{} = event, base \\ Bbh.Site.url()), do: base <> path(event)
 end

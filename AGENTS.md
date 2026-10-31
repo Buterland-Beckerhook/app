@@ -108,7 +108,7 @@ timed child event (`parent_id`, one level deep). Rules that constrain changes:
   homepage's "Jetzt / Als Nächstes" box (which drives the countdown) and in iCal (with
   `RELATED-TO`). An item is public when it is published or canceled *and* its festival
   is public; drafts let the programme be prepared ahead.
-- **Build event URLs with `BbhWeb.EventPaths`** — an item has no page of its own; its
+- **Build event URLs with `Bbh.Calendar.Paths`** — an item has no page of its own; its
   URL is an anchor on the festival page (`/termine/:year/:festival#:item`), and
   `/termine/:year/:festival/:item` only redirects there.
 - **"Neuer Termin" is bundled.** Events are published in bulk (the whole year after

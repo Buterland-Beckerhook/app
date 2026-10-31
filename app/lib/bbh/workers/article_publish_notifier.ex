@@ -34,7 +34,7 @@ defmodule Bbh.Workers.ArticlePublishNotifier do
       # Mark first so a retry after a crash mid-send doesn't double-notify.
       {:ok, article} = Content.mark_article_notified(article)
 
-      url = BbhWeb.Endpoint.url() <> "/aktuell/#{article.year}/#{article.slug}"
+      url = Bbh.Site.url() <> "/aktuell/#{article.year}/#{article.slug}"
       Bbh.Notifications.notify("news", %{title: "Neuer Artikel", body: article.title, url: url})
 
       :ok

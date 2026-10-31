@@ -170,7 +170,7 @@ defmodule BbhWeb.MCP.View do
       status: e.status,
       public: Bbh.Calendar.Event.public?(e),
       programme_items: e.child_count,
-      url: if(Bbh.Calendar.Event.public?(e), do: BbhWeb.EventPaths.url(e))
+      url: if(Bbh.Calendar.Event.public?(e), do: Bbh.Calendar.Paths.url(e))
     }
   end
 

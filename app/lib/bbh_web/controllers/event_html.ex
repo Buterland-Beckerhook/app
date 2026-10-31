@@ -36,7 +36,7 @@ defmodule BbhWeb.EventHTML do
   items, chronological, each with `location` loaded.
 
   `anchors` gives every item its slug as `id` — the festival page is where an item's
-  URL points (`BbhWeb.EventPaths`), so only it may claim them.
+  URL points (`Bbh.Calendar.Paths`), so only it may claim them.
   """
   attr :festival, :map, required: true
   attr :anchors, :boolean, default: true

@@ -2,7 +2,7 @@ defmodule BbhWeb.EventController do
   use BbhWeb, :controller
   import BbhWeb.ControllerHelpers
 
-  alias BbhWeb.EventPaths
+  alias Bbh.Calendar.Paths, as: EventPaths
 
   def index(conn, params) do
     current_year = Bbh.Time.now().year

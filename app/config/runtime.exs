@@ -167,6 +167,9 @@ if config_env() == :prod do
 
   config :logger, level: log_level
 
+  # Same URL as the endpoint, for the domain (`Bbh.Site`): push/mail links, passkeys.
+  config :bbh, Bbh.Site, url: "https://#{host}"
+
   config :bbh, BbhWeb.Endpoint,
     url: [host: host, port: 443, scheme: "https"],
     http: [

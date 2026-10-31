@@ -106,7 +106,7 @@ defmodule Bbh.Calendar do
 
   @doc """
   A single public top-level event by slug + year, with location and its visible
-  programme items (each with `parent` set, so `BbhWeb.EventPaths` can link it).
+  programme items (each with `parent` set, so `Bbh.Calendar.Paths` can link it).
   """
   def get_public_event(slug, year) do
     Repo.one(

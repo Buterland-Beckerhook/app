@@ -56,7 +56,7 @@
           <a
             :if={@next_child}
             id="next-programme-item"
-            href={BbhWeb.EventPaths.path(@next_child)}
+            href={Bbh.Calendar.Paths.path(@next_child)}
             class="mt-4 block rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-left transition-colors hover:bg-white/15"
           >
             <span class="text-[11px] font-bold tracking-widest uppercase opacity-80">
@@ -79,7 +79,7 @@
           </a>
           <div class="mt-5 flex flex-wrap justify-center gap-3.5 md:justify-start">
             <a
-              href={BbhWeb.EventPaths.path(@next_event)}
+              href={Bbh.Calendar.Paths.path(@next_event)}
               class="rounded-full bg-white px-5 py-2.5 font-bold text-[#0f4d2c] transition-shadow hover:shadow-md"
             >
               Zum Termin

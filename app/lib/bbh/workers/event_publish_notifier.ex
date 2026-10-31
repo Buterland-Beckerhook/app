@@ -62,7 +62,7 @@ defmodule Bbh.Workers.EventPublishNotifier do
 
   @doc "The push for a set of newly published events (chronological, as pending)."
   def payload([event]) do
-    %{title: "Neuer Termin", body: event.title, url: BbhWeb.EventPaths.url(event)}
+    %{title: "Neuer Termin", body: event.title, url: Bbh.Calendar.Paths.url(event)}
   end
 
   def payload(events) do
@@ -73,7 +73,7 @@ defmodule Bbh.Workers.EventPublishNotifier do
     %{
       title: "#{length(events)} neue Termine",
       body: body,
-      url: BbhWeb.Endpoint.url() <> list_path(events)
+      url: Bbh.Site.url() <> list_path(events)
     }
   end
 

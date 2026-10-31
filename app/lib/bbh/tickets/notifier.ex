@@ -90,7 +90,7 @@ defmodule Bbh.Tickets.Notifier do
 
     #{count_lines(counts)}
     #{section("Seit Tagen niemandem zugewiesen", escalations)}#{section("Überfällig", overdue)}
-    Postfach: #{BbhWeb.Endpoint.url()}/admin/postfach
+    Postfach: #{Bbh.Site.url()}/admin/postfach
     #{footer()}
     """)
   end
@@ -125,7 +125,7 @@ defmodule Bbh.Tickets.Notifier do
   defp line(ticket, suffix),
     do: "#{Ticket.reference(ticket)} · #{Queue.label(ticket.queue)}#{suffix}\n  #{url(ticket)}"
 
-  defp url(ticket), do: "#{BbhWeb.Endpoint.url()}/admin/postfach/#{Ticket.reference(ticket)}"
+  defp url(ticket), do: "#{Bbh.Site.url()}/admin/postfach/#{Ticket.reference(ticket)}"
 
   defp footer do
     """

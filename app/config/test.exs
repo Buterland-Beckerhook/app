@@ -21,6 +21,10 @@ config :bbh, BbhWeb.Endpoint,
   secret_key_base: "d5tc7Dn6tuztJq1qgdkbyfwRKOTTPN3fmPplqz9jPd8VW4AzEY8kBn8HaWxrsjU7",
   server: false
 
+# The endpoint's URL: host from config.exs, port from runtime.exs (PORT, default 4000,
+# which wins over the http port above). Bbh.SiteTest keeps the two in step.
+config :bbh, Bbh.Site, url: "http://localhost:4000"
+
 # Disable rate limiting in tests so it doesn't interfere
 config :bbh, BbhWeb.RateLimit, enabled: false
 
