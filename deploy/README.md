@@ -150,7 +150,9 @@ Merging to `main` (including Renovate's auto-merges) builds a fresh image. From 
   ```sh
   sudo install -m 0644 systemd/bbh-update@.service systemd/bbh-update@.timer /etc/systemd/system/
   sudo systemctl daemon-reload
-  sudo systemctl enable --now "bbh-update@$(systemd-escape -p /path/to/beta/deploy).timer"
+  BETA_DEPLOY=/opt/…/deploy   # absolute path of the Beta checkout's deploy/ dir
+  test -x "$BETA_DEPLOY/update.sh" || echo "wrong path: $BETA_DEPLOY"
+  sudo systemctl enable --now "bbh-update@$(systemd-escape -p "$BETA_DEPLOY").timer"
   journalctl -u "bbh-update@*" --since today      # what it did
   ```
   Each run is a plain `./update.sh`: `git pull`, `compose pull`, `up -d` — a no-op when
