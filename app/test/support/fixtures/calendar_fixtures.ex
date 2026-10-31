@@ -13,7 +13,7 @@ defmodule Bbh.CalendarFixtures do
         city: "Rheine"
       })
 
-    {:ok, location} = Calendar.create_location(attrs)
+    {:ok, location} = Calendar.Locations.create_location(attrs)
     location
   end
 
@@ -80,7 +80,7 @@ defmodule Bbh.CalendarFixtures do
   @doc "Like `calendar_share_fixture/1` but returns `{plaintext_token, share}`."
   def share_with_token(attrs \\ %{}) do
     {calendar, attrs} = Map.pop(Map.new(attrs), :calendar, "vorstand")
-    {:ok, {plaintext, share}} = Calendar.create_share(calendar, attrs, attrs[:created_by])
+    {:ok, {plaintext, share}} = Calendar.Shares.create_share(calendar, attrs, attrs[:created_by])
     {plaintext, share}
   end
 end

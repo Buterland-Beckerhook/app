@@ -18,7 +18,7 @@ defmodule Bbh.CalendarShareTest do
       user = user_fixture()
 
       assert {:ok, {plaintext, share}} =
-               Calendar.create_share("vorstand", %{recipient_label: "a@example.com"}, user)
+               Calendar.Shares.create_share("vorstand", %{recipient_label: "a@example.com"}, user)
 
       assert is_binary(plaintext)
       assert share.calendar == "vorstand"
@@ -32,22 +32,22 @@ defmodule Bbh.CalendarShareTest do
     end
 
     test "rejects an unknown calendar" do
-      assert {:error, changeset} = Calendar.create_share("nonexistent", %{}, nil)
+      assert {:error, changeset} = Calendar.Shares.create_share("nonexistent", %{}, nil)
       assert "ist kein gültiger Kalender" in errors_on(changeset).calendar
     end
 
     test "allows a nil creator (e.g. system-generated)" do
-      assert {:ok, {_plain, share}} = Calendar.create_share("offiziere", %{}, nil)
+      assert {:ok, {_plain, share}} = Calendar.Shares.create_share("offiziere", %{}, nil)
       assert is_nil(share.created_by_id)
     end
   end
 
   describe "verify_share_token/1" do
     test "returns the share for a valid token and stamps last_used_at" do
-      {:ok, {plaintext, share}} = Calendar.create_share("vorstand", %{}, nil)
+      {:ok, {plaintext, share}} = Calendar.Shares.create_share("vorstand", %{}, nil)
       assert is_nil(share.last_used_at)
 
-      assert {:ok, verified} = Calendar.verify_share_token(plaintext)
+      assert {:ok, verified} = Calendar.Shares.verify_share_token(plaintext)
       assert verified.id == share.id
       assert verified.last_used_at
 
@@ -56,76 +56,81 @@ defmodule Bbh.CalendarShareTest do
     end
 
     test "rejects a revoked token" do
-      {:ok, {plaintext, share}} = Calendar.create_share("vorstand", %{}, nil)
-      {:ok, _} = Calendar.revoke_share(share.id)
+      {:ok, {plaintext, share}} = Calendar.Shares.create_share("vorstand", %{}, nil)
+      {:ok, _} = Calendar.Shares.revoke_share(share.id)
 
-      assert Calendar.verify_share_token(plaintext) == :error
+      assert Calendar.Shares.verify_share_token(plaintext) == :error
     end
 
     test "rejects an expired token" do
       {:ok, {plaintext, _share}} =
-        Calendar.create_share("vorstand", %{expires_at: at(-1)}, nil)
+        Calendar.Shares.create_share("vorstand", %{expires_at: at(-1)}, nil)
 
-      assert Calendar.verify_share_token(plaintext) == :error
+      assert Calendar.Shares.verify_share_token(plaintext) == :error
     end
 
     test "accepts a token whose expiry is still in the future" do
       {:ok, {plaintext, _share}} =
-        Calendar.create_share("vorstand", %{expires_at: at(30)}, nil)
+        Calendar.Shares.create_share("vorstand", %{expires_at: at(30)}, nil)
 
-      assert {:ok, _verified} = Calendar.verify_share_token(plaintext)
+      assert {:ok, _verified} = Calendar.Shares.verify_share_token(plaintext)
     end
 
     test "rejects an unknown token" do
-      {:ok, {_plaintext, _share}} = Calendar.create_share("vorstand", %{}, nil)
+      {:ok, {_plaintext, _share}} = Calendar.Shares.create_share("vorstand", %{}, nil)
       {other, _hash} = CalendarShare.build_token()
 
-      assert Calendar.verify_share_token(other) == :error
+      assert Calendar.Shares.verify_share_token(other) == :error
     end
 
     test "rejects a malformed token" do
-      assert Calendar.verify_share_token("not base64!!") == :error
+      assert Calendar.Shares.verify_share_token("not base64!!") == :error
     end
   end
 
   describe "revoke_share/1" do
     test "sets revoked_at and is idempotent" do
-      {:ok, {_plaintext, share}} = Calendar.create_share("vorstand", %{}, nil)
+      {:ok, {_plaintext, share}} = Calendar.Shares.create_share("vorstand", %{}, nil)
 
-      assert {:ok, revoked} = Calendar.revoke_share(share.id)
+      assert {:ok, revoked} = Calendar.Shares.revoke_share(share.id)
       assert revoked.revoked_at
 
       # Revoking again keeps it revoked (does not error).
-      assert {:ok, again} = Calendar.revoke_share(share.id)
+      assert {:ok, again} = Calendar.Shares.revoke_share(share.id)
       assert again.revoked_at
     end
   end
 
   describe "rotate_share_token/1" do
     test "invalidates the old token and returns a fresh working one for the same share" do
-      {:ok, {old, share}} = Calendar.create_share("vorstand", %{recipient_label: "a@b.com"}, nil)
+      {:ok, {old, share}} =
+        Calendar.Shares.create_share("vorstand", %{recipient_label: "a@b.com"}, nil)
 
-      assert {:ok, {new, rotated}} = Calendar.rotate_share_token(share)
+      assert {:ok, {new, rotated}} = Calendar.Shares.rotate_share_token(share)
       assert new != old
       assert rotated.id == share.id
-      assert Calendar.verify_share_token(old) == :error
-      assert {:ok, _} = Calendar.verify_share_token(new)
+      assert Calendar.Shares.verify_share_token(old) == :error
+      assert {:ok, _} = Calendar.Shares.verify_share_token(new)
     end
 
     test "resets last_used_at so the fresh token reads as never used" do
-      {:ok, {old, share}} = Calendar.create_share("vorstand", %{}, nil)
-      {:ok, _} = Calendar.verify_share_token(old)
+      {:ok, {old, share}} = Calendar.Shares.create_share("vorstand", %{}, nil)
+      {:ok, _} = Calendar.Shares.verify_share_token(old)
       assert Repo.reload!(share).last_used_at
 
-      {:ok, {_new, rotated}} = Calendar.rotate_share_token(Repo.reload!(share))
+      {:ok, {_new, rotated}} = Calendar.Shares.rotate_share_token(Repo.reload!(share))
       assert is_nil(rotated.last_used_at)
     end
 
     test "keeps calendar, recipient and expiry" do
       {:ok, {_old, share}} =
-        Calendar.create_share("offiziere", %{recipient_label: "x@y.com", expires_at: at(30)}, nil)
+        Calendar.Shares.create_share(
+          "offiziere",
+          %{recipient_label: "x@y.com", expires_at: at(30)},
+          nil
+        )
 
-      {:ok, {_new, rotated}} = Calendar.rotate_share_token(share)
+      {:ok, {_new, rotated}} = Calendar.Shares.rotate_share_token(share)
       assert rotated.calendar == "offiziere"
       assert rotated.recipient_label == "x@y.com"
       assert rotated.expires_at == share.expires_at
@@ -134,11 +139,14 @@ defmodule Bbh.CalendarShareTest do
 
   describe "list_shares/1" do
     test "lists shares for a calendar, newest first" do
-      {:ok, {_p1, first}} = Calendar.create_share("vorstand", %{recipient_label: "1"}, nil)
-      {:ok, {_p2, second}} = Calendar.create_share("vorstand", %{recipient_label: "2"}, nil)
-      {:ok, {_p3, _other}} = Calendar.create_share("offiziere", %{}, nil)
+      {:ok, {_p1, first}} = Calendar.Shares.create_share("vorstand", %{recipient_label: "1"}, nil)
 
-      ids = Calendar.list_shares("vorstand") |> Enum.map(& &1.id)
+      {:ok, {_p2, second}} =
+        Calendar.Shares.create_share("vorstand", %{recipient_label: "2"}, nil)
+
+      {:ok, {_p3, _other}} = Calendar.Shares.create_share("offiziere", %{}, nil)
+
+      ids = Calendar.Shares.list_shares("vorstand") |> Enum.map(& &1.id)
       assert second.id in ids
       assert first.id in ids
       assert length(ids) == 2
@@ -159,10 +167,10 @@ defmodule Bbh.CalendarShareTest do
   describe "deliver_share_link/3" do
     test "emails both the webcal and https links when the recipient label is an address" do
       {:ok, {_plain, share}} =
-        Calendar.create_share("vorstand", %{recipient_label: "kassierer@example.com"}, nil)
+        Calendar.Shares.create_share("vorstand", %{recipient_label: "kassierer@example.com"}, nil)
 
       assert {:ok, _email} =
-               Calendar.deliver_share_link(
+               Calendar.Shares.deliver_share_link(
                  share,
                  "webcal://example.com/kalender/geteilt/abc",
                  "https://example.com/kalender/geteilt/abc"
@@ -179,9 +187,9 @@ defmodule Bbh.CalendarShareTest do
 
     test "skips delivery when the label is not an email" do
       {:ok, {_plain, share}} =
-        Calendar.create_share("vorstand", %{recipient_label: "Kassierer"}, nil)
+        Calendar.Shares.create_share("vorstand", %{recipient_label: "Kassierer"}, nil)
 
-      assert Calendar.deliver_share_link(
+      assert Calendar.Shares.deliver_share_link(
                share,
                "webcal://example.com/x",
                "https://example.com/x"
@@ -198,7 +206,7 @@ defmodule Bbh.CalendarShareTest do
       _other_cal = event_fixture(calendar: "offiziere", status: "published", starts_at: at(5))
       _public = event_fixture(starts_at: at(6))
 
-      events = Calendar.shared_calendar_events("vorstand")
+      events = Calendar.Shares.shared_calendar_events("vorstand")
       assert Enum.map(events, & &1.id) == [published.id]
     end
 
@@ -206,7 +214,7 @@ defmodule Bbh.CalendarShareTest do
       later = event_fixture(calendar: "vorstand", status: "published", starts_at: at(10))
       sooner = event_fixture(calendar: "vorstand", status: "published", starts_at: at(2))
 
-      events = Calendar.shared_calendar_events("vorstand")
+      events = Calendar.Shares.shared_calendar_events("vorstand")
       assert Enum.map(events, & &1.id) == [sooner.id, later.id]
     end
   end

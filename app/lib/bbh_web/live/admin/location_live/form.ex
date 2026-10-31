@@ -12,21 +12,23 @@ defmodule BbhWeb.Admin.LocationLive.Form do
   defp apply_action(socket, :new, _params) do
     socket
     |> assign(page_title: "Neuer Ort", location: %Location{})
-    |> assign_form(Calendar.change_location(%Location{}))
+    |> assign_form(Calendar.Locations.change_location(%Location{}))
   end
 
   defp apply_action(socket, :edit, %{"id" => id}) do
-    location = Calendar.get_location!(id)
+    location = Calendar.Locations.get_location!(id)
 
     socket
     |> assign(page_title: "Ort bearbeiten", location: location)
-    |> assign_form(Calendar.change_location(location))
+    |> assign_form(Calendar.Locations.change_location(location))
   end
 
   @impl true
   def handle_event("validate", %{"location" => params}, socket) do
     changeset =
-      socket.assigns.location |> Calendar.change_location(params) |> Map.put(:action, :validate)
+      socket.assigns.location
+      |> Calendar.Locations.change_location(params)
+      |> Map.put(:action, :validate)
 
     {:noreply, assign_form(socket, changeset)}
   end
@@ -43,7 +45,7 @@ defmodule BbhWeb.Admin.LocationLive.Form do
         {:noreply, put_flash(socket, :error, "Keine Berechtigung zum Löschen.")}
 
       confirm == location.key ->
-        {:ok, _} = Calendar.delete_location(location)
+        {:ok, _} = Calendar.Locations.delete_location(location)
 
         {:noreply,
          socket |> put_flash(:info, "Ort gelöscht.") |> push_navigate(to: ~p"/admin/orte")}
@@ -54,7 +56,7 @@ defmodule BbhWeb.Admin.LocationLive.Form do
   end
 
   defp save(socket, :new, params) do
-    case Calendar.create_location(params) do
+    case Calendar.Locations.create_location(params) do
       {:ok, _} ->
         {:noreply,
          socket |> put_flash(:info, "Ort erstellt.") |> push_navigate(to: ~p"/admin/orte")}
@@ -65,7 +67,7 @@ defmodule BbhWeb.Admin.LocationLive.Form do
   end
 
   defp save(socket, :edit, params) do
-    case Calendar.update_location(socket.assigns.location, params) do
+    case Calendar.Locations.update_location(socket.assigns.location, params) do
       {:ok, _} ->
         {:noreply,
          socket |> put_flash(:info, "Ort gespeichert.") |> push_navigate(to: ~p"/admin/orte")}

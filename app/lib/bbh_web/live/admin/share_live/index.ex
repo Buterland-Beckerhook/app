@@ -27,7 +27,7 @@ defmodule BbhWeb.Admin.ShareLive.Index do
         expires_at: parse_date(params["expires_at"])
       }
 
-      case Calendar.create_share(calendar, attrs, user) do
+      case Calendar.Shares.create_share(calendar, attrs, user) do
         {:ok, {plaintext, share}} ->
           https = url(~p"/kalender/geteilt/#{plaintext}")
           webcal = webcal_url(https)
@@ -63,7 +63,7 @@ defmodule BbhWeb.Admin.ShareLive.Index do
         {:noreply, put_flash(socket, :error, "Für diesen Kalender fehlt die Berechtigung.")}
 
       true ->
-        {:ok, _} = Calendar.revoke_share(id)
+        {:ok, _} = Calendar.Shares.revoke_share(id)
 
         {:noreply,
          socket
@@ -94,7 +94,7 @@ defmodule BbhWeb.Admin.ShareLive.Index do
          |> load_shares()}
 
       true ->
-        case Calendar.rotate_share_token(share) do
+        case Calendar.Shares.rotate_share_token(share) do
           {:ok, {plaintext, share}} ->
             https = url(~p"/kalender/geteilt/#{plaintext}")
             webcal = webcal_url(https)
@@ -121,7 +121,7 @@ defmodule BbhWeb.Admin.ShareLive.Index do
 
   # Resend rotates the token; on success the previously-issued link stops working.
   defp resend_flash(share, webcal, https) do
-    case Calendar.deliver_share_link(share, webcal, https) do
+    case Calendar.Shares.deliver_share_link(share, webcal, https) do
       {:ok, _} ->
         {:info,
          "Neuer Link per E-Mail an #{share.recipient_label} gesendet. Der bisherige Link ist ungültig."}
@@ -140,7 +140,7 @@ defmodule BbhWeb.Admin.ShareLive.Index do
   # the flash must reflect what actually happened with delivery — not just the
   # recipient-label heuristic.
   defp create_flash(share, webcal, https, "true") do
-    case Calendar.deliver_share_link(share, webcal, https) do
+    case Calendar.Shares.deliver_share_link(share, webcal, https) do
       {:ok, _} ->
         {:info, "Link erstellt und per E-Mail an #{share.recipient_label} gesendet."}
 
@@ -188,7 +188,7 @@ defmodule BbhWeb.Admin.ShareLive.Index do
     calendars = socket |> shareable_options() |> Enum.map(&elem(&1, 1))
 
     socket
-    |> assign(:shares, Calendar.list_shares(calendars))
+    |> assign(:shares, Calendar.Shares.list_shares(calendars))
     |> assign(:calendar_options, shareable_options(socket))
     |> assign(:now, Bbh.Time.now())
   end

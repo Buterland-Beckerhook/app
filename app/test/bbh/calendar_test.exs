@@ -221,7 +221,10 @@ defmodule Bbh.CalendarTest do
       b = location_fixture(name: "Bürgerhaus")
       a = location_fixture(name: "Altes Rathaus")
 
-      assert Calendar.location_options() == [{"Altes Rathaus", a.id}, {"Bürgerhaus", b.id}]
+      assert Calendar.Locations.location_options() == [
+               {"Altes Rathaus", a.id},
+               {"Bürgerhaus", b.id}
+             ]
     end
   end
 

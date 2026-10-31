@@ -28,7 +28,7 @@ defmodule BbhWeb.Admin.LocationLiveTest do
         |> follow_redirect(conn, ~p"/admin/orte")
 
       assert html =~ "Ort gelöscht"
-      assert_raise Ecto.NoResultsError, fn -> Calendar.get_location!(location.id) end
+      assert_raise Ecto.NoResultsError, fn -> Calendar.Locations.get_location!(location.id) end
     end
   end
 

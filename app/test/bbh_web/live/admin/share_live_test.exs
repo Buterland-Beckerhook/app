@@ -61,7 +61,7 @@ defmodule BbhWeb.Admin.ShareLiveTest do
       )
       |> render_submit()
 
-      share = Calendar.list_shares("vorstand") |> hd()
+      share = Calendar.Shares.list_shares("vorstand") |> hd()
       assert %DateTime{hour: 23, minute: 59, second: 59} = share.expires_at
       assert DateTime.to_date(share.expires_at) == ~D[2030-01-15]
     end
@@ -73,7 +73,7 @@ defmodule BbhWeb.Admin.ShareLiveTest do
       |> form("#share-form", share: %{calendar: "offiziere", recipient_label: "adjutant"})
       |> render_submit()
 
-      assert [share] = Calendar.list_shares("offiziere")
+      assert [share] = Calendar.Shares.list_shares("offiziere")
       assert share.recipient_label == "adjutant"
     end
 
@@ -105,7 +105,7 @@ defmodule BbhWeb.Admin.ShareLiveTest do
       # The button is gone (share no longer active) and the status badge flips.
       refute has_element?(lv, "#revoke-#{share.id}")
       assert html =~ "Widerrufen"
-      assert Calendar.list_shares("vorstand") |> hd() |> Map.get(:revoked_at)
+      assert Calendar.Shares.list_shares("vorstand") |> hd() |> Map.get(:revoked_at)
     end
   end
 
@@ -115,32 +115,34 @@ defmodule BbhWeb.Admin.ShareLiveTest do
     test "rotates the token, kills the old link, re-emails and shows the new one",
          %{conn: conn} do
       {:ok, {old, share}} =
-        Calendar.create_share("vorstand", %{recipient_label: "kassierer@example.com"}, nil)
+        Calendar.Shares.create_share("vorstand", %{recipient_label: "kassierer@example.com"}, nil)
 
       {:ok, lv, _html} = live(conn, ~p"/admin/termine/teilen")
       html = lv |> element("#resend-#{share.id}") |> render_click()
 
       assert html =~ "per E-Mail"
       assert html =~ "/kalender/geteilt/"
-      assert Calendar.verify_share_token(old) == :error
+      assert Calendar.Shares.verify_share_token(old) == :error
     end
 
     test "regenerates the link without emailing when the recipient is not an address",
          %{conn: conn} do
       {:ok, {old, share}} =
-        Calendar.create_share("vorstand", %{recipient_label: "Kassierer"}, nil)
+        Calendar.Shares.create_share("vorstand", %{recipient_label: "Kassierer"}, nil)
 
       {:ok, lv, _html} = live(conn, ~p"/admin/termine/teilen")
       html = lv |> element("#resend-#{share.id}") |> render_click()
 
       assert html =~ "ungültig"
       assert html =~ "/kalender/geteilt/"
-      assert Calendar.verify_share_token(old) == :error
+      assert Calendar.Shares.verify_share_token(old) == :error
     end
 
     test "refuses to resend a revoked share and does not rotate its token", %{conn: conn} do
-      {:ok, {old, share}} = Calendar.create_share("vorstand", %{recipient_label: "a@b.com"}, nil)
-      {:ok, _} = Calendar.revoke_share(share.id)
+      {:ok, {old, share}} =
+        Calendar.Shares.create_share("vorstand", %{recipient_label: "a@b.com"}, nil)
+
+      {:ok, _} = Calendar.Shares.revoke_share(share.id)
 
       {:ok, lv, _html} = live(conn, ~p"/admin/termine/teilen")
       html = render_click(lv, "resend", %{"id" => share.id})
@@ -173,13 +175,13 @@ defmodule BbhWeb.Admin.ShareLiveTest do
         |> render_submit(%{"share" => %{"calendar" => "offiziere", "recipient_label" => "y"}})
 
       assert html =~ "Berechtigung"
-      assert Calendar.list_shares("offiziere") == []
+      assert Calendar.Shares.list_shares("offiziere") == []
     end
 
     test "a calendar editor cannot rotate a share outside their grant", %{conn: conn} do
       # A share on a calendar this editor does NOT manage.
       {:ok, {old, offi_share}} =
-        Calendar.create_share("offiziere", %{recipient_label: "a@b.com"}, nil)
+        Calendar.Shares.create_share("offiziere", %{recipient_label: "a@b.com"}, nil)
 
       conn = log_in_user(conn, calendar_editor_fixture(["vorstand"]))
       {:ok, lv, _html} = live(conn, ~p"/admin/termine/teilen")
@@ -188,7 +190,7 @@ defmodule BbhWeb.Admin.ShareLiveTest do
       render_click(lv, "resend", %{"id" => offi_share.id})
 
       # The out-of-grant share is untouched — its original link still works.
-      assert {:ok, _} = Calendar.verify_share_token(old)
+      assert {:ok, _} = Calendar.Shares.verify_share_token(old)
     end
   end
 end
