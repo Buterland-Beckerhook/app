@@ -1,5 +1,7 @@
 # Hourly auto-update of one stack (Beta). Enable with:
-#   systemctl enable --now "bbh-update@$(systemd-escape -p /path/to/beta/deploy).timer"
+#   BETA_DEPLOY=/opt/…/deploy   # absolute path of the Beta checkout's deploy/ dir
+#   systemctl enable --now "bbh-update@$(systemd-escape -p "$BETA_DEPLOY").timer"
+# A wrong path shows up as status=203/EXEC (update.sh not found).
 # Output goes to the journal (30-day retention, see journald-bbh.conf):
 #   journalctl -u "bbh-update@*" --since today
 [Unit]
