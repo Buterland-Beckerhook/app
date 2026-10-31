@@ -36,7 +36,7 @@ defmodule Bbh.Workers.ImapCleanup do
   configured to remove them from, `{:error, reason}` on an IMAP error.
   """
   def clean_ticket(%Ticket{} = ticket, action) do
-    with [_ | _] = messages <- Tickets.server_copies(ticket),
+    with [_ | _] = messages <- Tickets.ServerCopies.list(ticket),
          {:ok, conn} <- Mailbox.connect() do
       try do
         messages
@@ -63,7 +63,7 @@ defmodule Bbh.Workers.ImapCleanup do
       else
         # The UID belongs to another mail now; leave it, forget ours.
         Logger.warning("Postfach cleanup: UIDVALIDITY of #{mailbox} changed, copy left alone")
-        Tickets.server_copy_removed(message, "uidvalidity_changed")
+        Tickets.ServerCopies.removed(message, "uidvalidity_changed")
       end
     end
   end
@@ -78,17 +78,17 @@ defmodule Bbh.Workers.ImapCleanup do
 
   defp apply_action(conn, _mailbox, message, _delete) do
     :ok = Imap.uid_delete(conn, message.imap_uid)
-    Tickets.server_copy_removed(message, "delete")
+    Tickets.ServerCopies.removed(message, "delete")
   end
 
   defp move(conn, message, folder, action) do
     case Imap.uid_move(conn, message.imap_uid, folder) do
       {:ok, %{uidvalidity: validity, uid: uid}} ->
-        Tickets.server_copy_moved(message, folder, validity, uid, action)
+        Tickets.ServerCopies.moved(message, folder, validity, uid, action)
 
       {:ok, nil} ->
         # Moved, but the server did not say where: we can no longer find it.
-        Tickets.server_copy_removed(message, action)
+        Tickets.ServerCopies.removed(message, action)
     end
   end
 end

@@ -125,8 +125,8 @@ defmodule Bbh.Workers.ImapPoller do
   # already in work drops the copy at once.
   defp file(conn, uid, hash, folder) do
     with {:ok, %{uidvalidity: validity, uid: new_uid}} <- Imap.uid_move(conn, uid, folder) do
-      with %{} = ticket <- Tickets.record_server_copy(hash, folder, validity, new_uid) do
-        Tickets.release_new_server_copy(ticket)
+      with %{} = ticket <- Tickets.ServerCopies.record(hash, folder, validity, new_uid) do
+        Tickets.ServerCopies.release_new(ticket)
       end
     end
   end
