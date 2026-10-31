@@ -48,6 +48,16 @@ defmodule BbhWeb.PushLabelControllerTest do
     end
   end
 
+  describe "as admin with a plain magic-link session" do
+    setup :register_and_log_in_admin
+
+    @tag auth_method: "magic_link"
+    test "is forbidden", %{conn: conn} do
+      assert conn |> post_label(%{endpoint: @push_endpoint, label: "X"}) |> json_response(403)
+      assert {:ok, %{label: nil}} = Notifications.subscription_status(@push_endpoint)
+    end
+  end
+
   describe "as editor" do
     setup :register_and_log_in_user
 

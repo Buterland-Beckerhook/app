@@ -13,8 +13,10 @@ defmodule BbhWeb.TotpController do
   def create(conn, %{"totp" => %{"code" => code}}) do
     user = conn.assigns.pending_user
 
+    # Per IP and per account: guessing from many addresses still hits the second bucket.
     with :ok <- RateLimit.check("totp", RateLimit.client_ip(conn), 10, :timer.minutes(5)),
-         true <- Accounts.valid_user_totp?(user, code) do
+         :ok <- RateLimit.check("totp_user", user.id, 10, :timer.minutes(5)),
+         :ok <- Accounts.use_user_totp(user, code) do
       remember = get_session(conn, :totp_pending_remember)
 
       conn
@@ -27,7 +29,7 @@ defmodule BbhWeb.TotpController do
       {:error, _retry_after} ->
         render(conn, :new, error: "Zu viele Versuche. Bitte später erneut versuchen.")
 
-      false ->
+      :error ->
         conn
         |> UserAuth.log_auth_event(user, "totp_failed", "magic_link_totp")
         |> render(:new, error: "Ungültiger Code. Bitte erneut versuchen.")

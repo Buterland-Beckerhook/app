@@ -40,6 +40,9 @@ config :bbh, BbhWeb.Endpoint,
     tailwind: {Tailwind, :install_and_run, [:bbh, ~w(--watch)]}
   ]
 
+# The endpoint's URL above, for links and the passkey origin built outside a request.
+config :bbh, Bbh.Site, url: "https://localhost"
+
 # ## SSL Support
 #
 # In order to use HTTPS in development, a self-signed

@@ -373,6 +373,11 @@ defmodule Bbh.Media.Folders do
   defp blank_to_nil(value) when value in [nil, ""], do: nil
   defp blank_to_nil(value), do: value
 
-  @doc "Delete a folder. Its media move back to unfiled; sub-folders are removed (cascade)."
-  def delete_folder(%Folder{} = folder), do: Repo.delete(folder)
+  @doc """
+  Delete a folder (admins only). Its media move back to unfiled; sub-folders are
+  removed (cascade).
+  """
+  def delete_folder(scope, %Folder{} = folder) do
+    with :ok <- Bbh.Authz.authorize_delete(scope, folder), do: Repo.delete(folder)
+  end
 end

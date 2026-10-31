@@ -326,6 +326,22 @@ defmodule Bbh.Content do
 
   def get_gallery_file!(id), do: Repo.get!(Blocks.GalleryFile, id)
 
+  @doc """
+  The gallery file `id` if it sits in one of `gallery_ids`, else nil. For events that
+  carry a raw file id: the editor of one article must not reach another's gallery.
+  """
+  def get_gallery_file_in(gallery_ids, id) do
+    case cast_uuid(id) do
+      {:ok, id} ->
+        Repo.one(
+          from(f in Blocks.GalleryFile, where: f.id == ^id and f.gallery_id in ^gallery_ids)
+        )
+
+      :error ->
+        nil
+    end
+  end
+
   def delete_gallery_file(%Blocks.GalleryFile{} = file),
     do: file |> Repo.delete() |> Bbh.Search.reindex_after()
 

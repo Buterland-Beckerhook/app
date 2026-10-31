@@ -11,7 +11,7 @@ defmodule BbhWeb.PushLabelController do
       when is_binary(endpoint) and is_binary(label) do
     scope = conn.assigns[:current_scope]
 
-    if Bbh.Authz.admin?(scope) do
+    if Bbh.Authz.strong_admin?(scope) do
       case Bbh.Notifications.set_label(endpoint, label) do
         {:ok, sub} -> json(conn, %{ok: true, label: sub.label})
         {:error, :too_long} -> conn |> put_status(:unprocessable_entity) |> json(%{ok: false})

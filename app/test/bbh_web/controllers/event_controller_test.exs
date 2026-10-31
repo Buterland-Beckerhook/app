@@ -198,6 +198,22 @@ defmodule BbhWeb.EventControllerTest do
       assert response(conn, 200) =~ "BEGIN:VCALENDAR"
     end
 
+    test "the feed carries an ETag and answers 304 while it is unchanged", %{conn: conn} do
+      event_fixture(title: "Königsschießen")
+      first = get(conn, ~p"/termine/abo.ics")
+      [etag] = get_resp_header(first, "etag")
+      assert get_resp_header(first, "cache-control") == ["public, max-age=3600"]
+
+      again = build_conn() |> put_req_header("if-none-match", etag) |> get(~p"/termine/abo.ics")
+      assert response(again, 304) == ""
+
+      # A change makes a new feed with a new tag.
+      event_fixture(title: "Schützenfest")
+      changed = build_conn() |> put_req_header("if-none-match", etag) |> get(~p"/termine/abo.ics")
+      assert response(changed, 200) =~ "Schützenfest"
+      refute get_resp_header(changed, "etag") == [etag]
+    end
+
     test "GET single event .ics", %{conn: conn} do
       event = event_fixture()
       conn = get(conn, ~p"/termine/#{event.year}/#{event.slug}/event.ics")

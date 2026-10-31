@@ -296,7 +296,7 @@ defmodule Bbh.CalendarProgrammeTest do
       assert reminder.event.id == item.id
       refute reminder.event.id == draft.id
 
-      assert BbhWeb.EventPaths.path(reminder.event) == "/termine/2030/#{fest.slug}#gottesdienst"
+      assert Bbh.Calendar.Paths.path(reminder.event) == "/termine/2030/#{fest.slug}#gottesdienst"
     end
 
     test "deleting a festival deletes its items and their reminders" do

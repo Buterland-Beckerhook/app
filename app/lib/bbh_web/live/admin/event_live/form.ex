@@ -4,7 +4,7 @@ defmodule BbhWeb.Admin.EventLive.Form do
   alias Bbh.Calendar
   alias Bbh.Calendar.Event
   alias Bbh.Authz
-  alias BbhWeb.EventPaths
+  alias Bbh.Calendar.Paths, as: EventPaths
 
   @statuses [{"Entwurf", "draft"}, {"Veröffentlicht", "published"}, {"Abgesagt", "canceled"}]
 

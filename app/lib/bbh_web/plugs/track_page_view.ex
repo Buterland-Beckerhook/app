@@ -54,7 +54,8 @@ defmodule BbhWeb.Plugs.TrackPageView do
 
         dispatch(fn -> Bbh.Analytics.record(attrs) end)
 
-      conn.status == 200 and ical_feed?(conn) ->
+      # A 304 is a poll too: the subscriber already had the current feed.
+      conn.status in [200, 304] and ical_feed?(conn) ->
         attrs = %{
           visitor_hash: visitor_hash(conn),
           client: Bbh.Analytics.IcalClient.classify(user_agent(conn))

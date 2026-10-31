@@ -21,6 +21,10 @@ config :bbh, BbhWeb.Endpoint,
   secret_key_base: "d5tc7Dn6tuztJq1qgdkbyfwRKOTTPN3fmPplqz9jPd8VW4AzEY8kBn8HaWxrsjU7",
   server: false
 
+# The endpoint's URL: host from config.exs, port from runtime.exs (PORT, default 4000,
+# which wins over the http port above). Bbh.SiteTest keeps the two in step.
+config :bbh, Bbh.Site, url: "http://localhost:4000"
+
 # Disable rate limiting in tests so it doesn't interfere
 config :bbh, BbhWeb.RateLimit, enabled: false
 
@@ -41,10 +45,15 @@ config :bbh, Oban, testing: :manual
 # borrow and outlive the SQL sandbox connection, flaking other async tests.
 config :bbh, Bbh.Notifications, async: false
 
+# No page-view tracking: its detached task would outlive the SQL sandbox of async
+# tests. track_page_view_test turns it on (inline) for its own module.
+config :bbh, BbhWeb.Plugs.TrackPageView, enabled: false
+
 # Redirects: no node-global rule cache (async tests use separate sandboxes), and the
 # 404 log is written inline so it stays inside the test's SQL sandbox.
 config :bbh, Bbh.Redirects, cache: false
 config :bbh, Bbh.Tickets.Queue, cache: false
+config :bbh, Bbh.Calendar.Feeds, cache: false
 config :bbh, BbhWeb.Redirector, async: false
 
 # Don't pre-warm image variants in tests: the detached task would outlive the

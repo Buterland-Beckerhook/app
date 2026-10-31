@@ -39,7 +39,7 @@ defmodule Bbh.Workers.EventReminderNotifier do
           t -> {event.title, t}
         end
 
-      url = BbhWeb.EventPaths.url(event)
+      url = Bbh.Calendar.Paths.url(event)
       Bbh.Notifications.notify("termine", %{title: title, body: body, url: url})
 
       :ok

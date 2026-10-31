@@ -57,6 +57,8 @@ defmodule Bbh.Accounts do
   # How far back a code may come from: one 30 s period, as RFC 6238 §5.2 suggests, so a
   # code read off the phone at :29 and submitted at :31 still counts.
   @totp_drift_seconds 30
+  # NimbleTOTP's default period, which the authenticator apps use too.
+  @totp_period 30
 
   @doc """
   Validate a TOTP code against a raw secret: the current period's code, or the
@@ -74,8 +76,41 @@ defmodule Bbh.Accounts do
 
   def valid_totp?(_secret, _code, _now), do: false
 
-  @doc "Validate a code against the user's stored TOTP secret."
-  def valid_user_totp?(%User{totp_secret: secret}, code), do: valid_totp?(secret, code)
+  @doc """
+  Spend a code from the user's authenticator: `:ok` once per code, `:error` when it is
+  wrong or was already accepted. Whoever watched or phished a code can therefore not
+  reuse it in their own login while it is still valid.
+
+  The accepted period is recorded with a conditional update, so of two concurrent
+  requests with the same code only one gets `:ok`.
+  """
+  def use_user_totp(user, code, now \\ System.os_time(:second))
+
+  def use_user_totp(%User{id: id, totp_secret: secret}, code, now)
+      when is_binary(secret) and is_binary(code) do
+    code = String.trim(code)
+
+    step =
+      code != "" &&
+        Enum.find_value([now, now - @totp_drift_seconds], fn time ->
+          NimbleTOTP.valid?(secret, code, time: time) && div(time, @totp_period)
+        end)
+
+    with step when is_integer(step) <- step,
+         {1, _} <-
+           Repo.update_all(
+             from(u in User,
+               where: u.id == ^id and (is_nil(u.totp_last_step) or u.totp_last_step < ^step)
+             ),
+             set: [totp_last_step: step]
+           ) do
+      :ok
+    else
+      _ -> :error
+    end
+  end
+
+  def use_user_totp(_user, _code, _now), do: :error
 
   @doc "Enable TOTP for a user with a verified secret. Ends a pending factor reset."
   def enable_totp(%User{} = user, secret) do
@@ -357,6 +392,17 @@ defmodule Bbh.Accounts do
   """
   def delete_all_user_session_tokens(%User{} = user) do
     tokens = list_user_session_tokens(user)
+    Repo.delete_all(from(t in UserToken, where: t.id in ^Enum.map(tokens, & &1.id)))
+    tokens
+  end
+
+  @doc """
+  Deletes every session token of the user except `keep` (the caller's own session) —
+  after a change to the sign-in methods, so no session established under the old ones
+  survives elsewhere. Returns the deleted tokens for `UserAuth.disconnect_sessions/1`.
+  """
+  def delete_other_user_session_tokens(%User{} = user, keep) when is_binary(keep) do
+    tokens = user |> list_user_session_tokens() |> Enum.reject(&(&1.token == keep))
     Repo.delete_all(from(t in UserToken, where: t.id in ^Enum.map(tokens, & &1.id)))
     tokens
   end

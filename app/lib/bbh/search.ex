@@ -186,7 +186,7 @@ defmodule Bbh.Search do
         source_type: "event",
         source_id: e.id,
         title: e.title,
-        url: BbhWeb.EventPaths.path(e),
+        url: Bbh.Calendar.Paths.path(e),
         content: Bbh.Html.to_text(e.body),
         document_date: e.starts_at
       }

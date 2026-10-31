@@ -232,7 +232,7 @@ defmodule BbhWeb.SiteComponents do
   def event_card(assigns) do
     ~H"""
     <a
-      href={BbhWeb.EventPaths.path(@event)}
+      href={Bbh.Calendar.Paths.path(@event)}
       class="flex flex-col rounded-lg border border-base-300 bg-card p-4 transition-shadow hover:shadow-md"
     >
       <div class="flex items-center gap-2">
@@ -623,7 +623,7 @@ defmodule BbhWeb.SiteComponents do
     """
   end
 
-  defp ics_path(event), do: BbhWeb.EventPaths.path(event) <> "/event.ics"
+  defp ics_path(event), do: Bbh.Calendar.Paths.path(event) <> "/event.ics"
 
   defp programme?(%{children: [_ | _]}), do: true
   defp programme?(_), do: false
@@ -885,7 +885,7 @@ defmodule BbhWeb.SiteComponents do
     <section :if={@event} class="rounded-[18px] border border-base-300 bg-card p-6 sm:p-8">
       <header :if={@block.show_header} class="mb-2">
         <h3 class="text-xl font-semibold">
-          <a href={BbhWeb.EventPaths.path(@event)} class="hover:underline">{@event.title}</a>
+          <a href={Bbh.Calendar.Paths.path(@event)} class="hover:underline">{@event.title}</a>
         </h3>
         <p class="mt-1 text-muted">
           {de_event_range(@event)}
@@ -904,7 +904,7 @@ defmodule BbhWeb.SiteComponents do
       <%!-- A <div>, not a <p>: the calendar link brings its <dialog>, which would close
             a paragraph early. --%>
       <div class="mt-6 flex flex-wrap gap-x-6 gap-y-1 text-sm">
-        <a href={BbhWeb.EventPaths.path(@event)} class="text-primary hover:underline">
+        <a href={Bbh.Calendar.Paths.path(@event)} class="text-primary hover:underline">
           Zum Termin &rarr;
         </a>
         <.calendar_link :if={@event.enable_ical} event={@event} />

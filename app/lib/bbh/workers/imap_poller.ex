@@ -17,7 +17,7 @@ defmodule Bbh.Workers.ImapPoller do
   (connection lost in between) is found as a duplicate next time and just moved.
   Logs carry UIDs and outcomes only, never addresses or subjects.
   """
-  use Oban.Worker, queue: :default, max_attempts: 1, unique: [period: 110]
+  use Oban.Worker, queue: :heavy, max_attempts: 1, unique: [period: 110]
 
   require Logger
 

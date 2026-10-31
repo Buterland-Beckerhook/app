@@ -6,8 +6,9 @@ defmodule BbhWeb.CalendarShareController do
   def feed(conn, %{"token" => token}) do
     case Bbh.Calendar.Shares.verify_share_token(token) do
       {:ok, share} ->
-        events = Bbh.Calendar.Shares.shared_calendar_events(share.calendar)
-        send_ical(conn, Bbh.ICal.feed(events, site_url()), "#{share.calendar}.ics")
+        # `private`: the URL is the credential, so no shared cache may keep the body.
+        feed = Bbh.Calendar.Feeds.shared(share.calendar, site_url())
+        send_ical_feed(conn, feed, "#{share.calendar}.ics", "private, max-age=3600")
 
       :error ->
         not_found(conn)

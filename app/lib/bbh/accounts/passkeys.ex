@@ -7,8 +7,8 @@ defmodule Bbh.Accounts.Passkeys do
   `%Wax.Challenge{}`, ships only `challenge.bytes` to the browser, and verifies
   the browser's response against the challenge held in the LiveView's assigns.
 
-  `origin`/`rp_id` are derived from the endpoint at call time so dev
-  (`localhost`), test and prod all work with no static configuration.
+  `origin`/`rp_id` come from `Bbh.Site`, configured per environment to the endpoint's
+  URL, so dev (`localhost`), test and prod each verify against their own origin.
   """
   import Ecto.Query, warn: false
 
@@ -19,8 +19,8 @@ defmodule Bbh.Accounts.Passkeys do
   # The WebAuthn library, indirected so tests can stub the crypto edge.
   defp wax, do: Application.get_env(:bbh, :wax_module, Wax)
 
-  defp rp_id, do: BbhWeb.Endpoint.host()
-  defp origin, do: BbhWeb.Endpoint.url()
+  defp rp_id, do: Bbh.Site.host()
+  defp origin, do: Bbh.Site.url()
 
   ## Registration (attestation)
 

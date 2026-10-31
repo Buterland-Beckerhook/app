@@ -80,7 +80,7 @@ defmodule Bbh.ICal do
         e.parent_id && "RELATED-TO;RELTYPE=PARENT:#{e.parent_id}@buterland-beckerhook.de",
         # Only public events have a page at /termine/:year/:slug; internal
         # (shared-calendar) events would 404, so omit the link for them.
-        is_nil(e.calendar) && "URL:#{BbhWeb.EventPaths.url(e, site_url)}",
+        is_nil(e.calendar) && "URL:#{Bbh.Calendar.Paths.url(e, site_url)}",
         "END:VEVENT"
       ]
       |> Enum.reject(&(&1 in [nil, false]))

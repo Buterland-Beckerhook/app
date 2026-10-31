@@ -45,12 +45,14 @@ defmodule BbhWeb.Admin.SettingsLive do
     {:ok, push_navigate(socket, to: ~p"/admin/einstellungen")}
   end
 
-  def mount(_params, _session, socket) do
+  def mount(_params, session, socket) do
     user = socket.assigns.current_scope.user
     email_changeset = Accounts.change_user_email(user, %{}, validate_unique: false)
 
     socket =
       socket
+      # This session survives turning off 2FA; the user's others are dropped.
+      |> assign(:session_token, session["user_token"])
       |> assign(:email_form, to_form(email_changeset))
       |> assign(challenge: nil, passkey_options: nil, error: nil)
       |> assign(enabled: false, secret: nil, qr: nil)
@@ -208,14 +210,30 @@ defmodule BbhWeb.Admin.SettingsLive do
     end
   end
 
-  def handle_event("disable", _params, socket) do
-    {:ok, user} = Accounts.disable_totp(socket.assigns.current_scope.user)
+  # Turning the second factor off takes a current code from it, like turning it on, so a
+  # hijacked session alone can't strip it. Sessions elsewhere — possibly established
+  # with that factor — are ended.
+  def handle_event("disable", params, socket) do
+    user = socket.assigns.current_scope.user
+    true = Accounts.sudo_mode?(user)
 
-    {:noreply,
-     socket
-     |> update_current_user(user)
-     |> put_flash(:info, "Zwei-Faktor deaktiviert.")
-     |> assign_totp_state(user)}
+    if Accounts.use_user_totp(user, params["code"] || "") == :ok do
+      {:ok, user} = Accounts.disable_totp(user)
+
+      if token = socket.assigns.session_token do
+        user
+        |> Accounts.delete_other_user_session_tokens(token)
+        |> BbhWeb.UserAuth.disconnect_sessions()
+      end
+
+      {:noreply,
+       socket
+       |> update_current_user(user)
+       |> put_flash(:info, "Zwei-Faktor deaktiviert.")
+       |> assign_totp_state(user)}
+    else
+      {:noreply, assign(socket, :error, "Ungültiger Code. Bitte erneut versuchen.")}
+    end
   end
 
   def handle_event("regenerate", _params, socket) do
@@ -560,13 +578,25 @@ defmodule BbhWeb.Admin.SettingsLive do
 
       <div :if={@enabled} class="mt-6 space-y-4">
         <div class="alert alert-success">Zwei-Faktor ist für dein Konto aktiviert.</div>
-        <button
-          class="btn btn-outline btn-error"
-          phx-click="disable"
-          data-confirm="Zwei-Faktor wirklich deaktivieren?"
-        >
-          Deaktivieren
-        </button>
+        <form id="totp-disable-form" phx-submit="disable" class="space-y-2">
+          <p class="text-sm">
+            Zum Deaktivieren den aktuellen Code aus der Authenticator-App eingeben. Deine
+            Anmeldungen auf anderen Geräten werden dabei beendet.
+          </p>
+          <input
+            type="text"
+            name="code"
+            inputmode="numeric"
+            maxlength="6"
+            autocomplete="one-time-code"
+            class="input input-bordered w-full text-center text-xl tracking-widest"
+            placeholder="000000"
+          />
+          <p :if={@error} class="text-sm text-error">{@error}</p>
+          <button class="btn btn-outline btn-error" data-confirm="Zwei-Faktor wirklich deaktivieren?">
+            Deaktivieren
+          </button>
+        </form>
       </div>
 
       <div :if={!@enabled} class="mt-6 space-y-4">

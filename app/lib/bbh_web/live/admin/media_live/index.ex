@@ -176,13 +176,16 @@ defmodule BbhWeb.Admin.MediaLive.Index do
   def handle_event("delete", %{"id" => id}, socket) do
     upload = Media.get_upload!(id)
 
-    case Media.delete_upload(upload) do
+    case Media.delete_upload(socket.assigns.current_scope, upload) do
       {:ok, _} ->
         {:noreply,
          socket
          |> put_flash(:info, "Datei gelöscht.")
          |> stream_delete(:items, upload)
          |> load_tree()}
+
+      {:error, :unauthorized} ->
+        {:noreply, put_flash(socket, :error, "Keine Berechtigung zum Löschen.")}
 
       {:error, :in_use} ->
         {:noreply, put_flash(socket, :error, in_use_message(upload))}
@@ -253,19 +256,20 @@ defmodule BbhWeb.Admin.MediaLive.Index do
   end
 
   def handle_event("delete_folder", _params, socket) do
-    case socket.assigns.scope do
-      %Folder{} = folder ->
-        {:ok, _} = Media.Folders.delete_folder(folder)
+    with %Folder{} = folder <- socket.assigns.scope,
+         {:ok, _} <- Media.Folders.delete_folder(socket.assigns.current_scope, folder) do
+      target =
+        if folder.parent_id,
+          do: ~p"/admin/medien?#{[folder: folder.parent_id]}",
+          else: ~p"/admin/medien"
 
-        target =
-          if folder.parent_id,
-            do: ~p"/admin/medien?#{[folder: folder.parent_id]}",
-            else: ~p"/admin/medien"
-
-        {:noreply,
-         socket
-         |> put_flash(:info, "Ordner gelöscht. Enthaltene Medien wurden verschoben.")
-         |> push_patch(to: target)}
+      {:noreply,
+       socket
+       |> put_flash(:info, "Ordner gelöscht. Enthaltene Medien wurden verschoben.")
+       |> push_patch(to: target)}
+    else
+      {:error, :unauthorized} ->
+        {:noreply, put_flash(socket, :error, "Keine Berechtigung zum Löschen.")}
 
       _ ->
         {:noreply, socket}
@@ -625,7 +629,7 @@ defmodule BbhWeb.Admin.MediaLive.Index do
       <div class="mt-8 flex flex-wrap items-center justify-between gap-2">
         <h2 class="text-lg font-semibold">{scope_title(@scope)}</h2>
         <button
-          :if={match?(%Folder{}, @scope)}
+          :if={match?(%Folder{}, @scope) and Bbh.Authz.can_delete?(@current_scope.user, @scope)}
           type="button"
           phx-click="delete_folder"
           data-confirm={"Ordner „#{@scope.name}“ löschen? Enthaltene Medien werden nach oben verschoben."}
@@ -715,6 +719,7 @@ defmodule BbhWeb.Admin.MediaLive.Index do
                 Bearbeiten
               </button>
               <.link
+                :if={Bbh.Authz.can_delete?(@current_scope.user, item)}
                 phx-click={JS.push("delete", value: %{id: item.id})}
                 data-confirm="Diese Datei wirklich löschen?"
                 class="link link-error text-xs"

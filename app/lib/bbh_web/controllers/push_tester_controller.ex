@@ -9,7 +9,7 @@ defmodule BbhWeb.PushTesterController do
   def update(conn, %{"endpoint" => endpoint, "tester" => tester}) when is_boolean(tester) do
     scope = conn.assigns[:current_scope]
 
-    if Bbh.Authz.admin?(scope) do
+    if Bbh.Authz.strong_admin?(scope) do
       case Bbh.Notifications.set_tester(endpoint, tester) do
         {:ok, _} -> json(conn, %{ok: true, tester: tester})
         {:error, _} -> conn |> put_status(:not_found) |> json(%{ok: false})

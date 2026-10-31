@@ -1017,6 +1017,32 @@ defmodule BbhWeb.Admin.MediaLiveTest do
     end
   end
 
+  describe "as an editor" do
+    # Deleting is admin-only; the buttons are hidden, and a forced event is refused.
+    setup %{conn: conn} do
+      editor = Bbh.AccountsFixtures.user_fixture()
+      %{conn: log_in_user(conn, editor)}
+    end
+
+    test "cannot delete an upload", %{conn: conn} do
+      upload = upload_fixture(%{})
+      {:ok, lv, _html} = live(conn, ~p"/admin/medien")
+      refute has_element?(lv, ~s([aria-label="Löschen"]))
+
+      assert render_click(lv, "delete", %{"id" => upload.id}) =~ "Keine Berechtigung zum Löschen."
+      assert Media.get_upload!(upload.id)
+    end
+
+    test "cannot delete a folder", %{conn: conn} do
+      {:ok, folder} = Media.Folders.create_folder(%{"name" => "Satzungen"})
+      {:ok, lv, _html} = live(conn, ~p"/admin/medien?#{[folder: folder.id]}")
+      refute has_element?(lv, ~s(button[phx-click="delete_folder"]))
+
+      assert render_click(lv, "delete_folder", %{}) =~ "Keine Berechtigung zum Löschen."
+      assert Media.Folders.get_folder(folder.id)
+    end
+  end
+
   defp count_tiles(html),
     do: html |> LazyHTML.from_fragment() |> LazyHTML.query("figure") |> Enum.count()
 end

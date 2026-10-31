@@ -183,14 +183,14 @@ defmodule Bbh.MediaTest do
     end
   end
 
-  describe "delete_upload/1" do
+  describe "delete_upload/2" do
     test "removes the row and the original file", %{tmp: tmp} do
       src = write_tmp(@png)
       {:ok, upload} = Media.store_file(src, %{filename: "x.png"})
       stored = Path.join(tmp, upload.storage_key)
       assert File.regular?(stored)
 
-      assert {:ok, _} = Media.delete_upload(upload)
+      assert {:ok, _} = Media.delete_upload(admin_scope(), upload)
       refute File.regular?(stored)
       refute Repo.get(Upload, upload.id)
     end
@@ -201,10 +201,22 @@ defmodule Bbh.MediaTest do
       assert {:ok, variant, _} = Media.resolve_variant(upload.storage_key, 20, 20)
       assert File.regular?(variant)
 
-      assert {:ok, _} = Media.delete_upload(upload)
+      assert {:ok, _} = Media.delete_upload(admin_scope(), upload)
       refute File.regular?(variant)
     end
+
+    test "is admin-only", %{tmp: tmp} do
+      {:ok, upload} = Media.store_file(write_tmp(@png), %{filename: "x.png"})
+      editor = Bbh.Accounts.Scope.for_user(Bbh.AccountsFixtures.user_fixture())
+
+      assert {:error, :unauthorized} = Media.delete_upload(editor, upload)
+      assert {:error, :unauthorized} = Media.delete_upload(nil, upload)
+      assert Repo.get(Upload, upload.id)
+      assert File.regular?(Path.join(tmp, upload.storage_key))
+    end
   end
+
+  defp admin_scope, do: Bbh.Accounts.Scope.for_user(Bbh.AccountsFixtures.admin_user_fixture())
 
   describe "rotate_upload/2" do
     test "turns a landscape image portrait and bumps the revision", %{tmp: tmp} do
@@ -438,7 +450,7 @@ defmodule Bbh.MediaTest do
 
       assert Media.in_use?(upload)
       assert [{:articles, 1}] = Media.usages(upload)
-      assert {:error, :in_use} = Media.delete_upload(upload)
+      assert {:error, :in_use} = Media.delete_upload(admin_scope(), upload)
       assert Media.get_upload!(upload.id)
     end
 
@@ -450,7 +462,7 @@ defmodule Bbh.MediaTest do
       # person's card with nothing to warn the editor.
       assert Media.in_use?(upload)
       assert [{:portraits, 1}] = Media.usages(upload)
-      assert {:error, :in_use} = Media.delete_upload(upload)
+      assert {:error, :in_use} = Media.delete_upload(admin_scope(), upload)
       assert Media.get_upload!(upload.id)
     end
   end

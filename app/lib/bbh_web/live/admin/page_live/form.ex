@@ -96,20 +96,22 @@ defmodule BbhWeb.Admin.PageLive.Form do
   end
 
   def handle_event("remove_gallery_file", %{"file_id" => file_id}, socket) do
-    {:ok, _} = file_id |> Content.get_gallery_file!() |> Content.delete_gallery_file()
-    {:noreply, reload_blocks(socket)}
+    case own_gallery_file(socket, file_id) do
+      nil ->
+        {:noreply, socket}
+
+      file ->
+        {:ok, _} = Content.delete_gallery_file(file)
+        {:noreply, reload_blocks(socket)}
+    end
   end
 
   def handle_event("move_gallery_file", %{"file_id" => file_id, "dir" => dir}, socket) do
-    file = Content.get_gallery_file!(file_id)
-    direction = move_direction(dir)
-
-    case Content.move_gallery_file(file.gallery_id, file, direction) do
-      {:ok, _} ->
-        {:noreply, reload_blocks(socket)}
-
-      {:error, _reason} ->
-        {:noreply, put_flash(socket, :error, "Bild konnte nicht verschoben werden.")}
+    with %{} = file <- own_gallery_file(socket, file_id),
+         {:ok, _} <- Content.move_gallery_file(file.gallery_id, file, move_direction(dir)) do
+      {:noreply, reload_blocks(socket)}
+    else
+      _ -> {:noreply, put_flash(socket, :error, "Bild konnte nicht verschoben werden.")}
     end
   end
 
@@ -178,6 +180,16 @@ defmodule BbhWeb.Admin.PageLive.Form do
   defp reload_blocks(socket) do
     page = Content.Pages.get_page!(socket.assigns.page.id)
     assign(socket, page: page, blocks: Content.load_blocks(page))
+  end
+
+  # A file of one of the galleries on this form, or nil — the event's file id is
+  # client-supplied and must not reach another article's or page's gallery.
+  defp own_gallery_file(socket, file_id) do
+    socket.assigns.blocks
+    |> Enum.flat_map(fn {pb, _} ->
+      if pb.block_type == "image_gallery", do: [pb.block_id], else: []
+    end)
+    |> Content.get_gallery_file_in(file_id)
   end
 
   defp find_pb(socket, pb_id) do

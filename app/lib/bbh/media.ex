@@ -385,20 +385,26 @@ defmodule Bbh.Media do
 
   @doc """
   Delete an upload record, its original file and its cached variants.
-  Refuses with `{:error, :in_use}` while the media is still referenced by an article,
-  media card, gallery, or a person's portrait.
+  Admins only (`{:error, :unauthorized}` otherwise). Refuses with `{:error, :in_use}`
+  while the media is still referenced by an article, media card, gallery, or a person's
+  portrait.
   """
   # sobelow_skip ["Traversal.FileModule"]
   # Path is uploads_dir/<db storage_key>; storage_key is set only at creation and
   # format-validated (Upload.changeset), and is not user-updatable
   # (Upload.update_changeset) — so it can never contain "..".
-  def delete_upload(%Upload{} = upload) do
-    if in_use?(upload) do
-      {:error, :in_use}
-    else
-      File.rm(Path.join(uploads_dir(), upload.storage_key))
-      purge_variants(upload)
-      Repo.delete(upload)
+  def delete_upload(scope, %Upload{} = upload) do
+    cond do
+      Bbh.Authz.authorize_delete(scope, upload) != :ok ->
+        {:error, :unauthorized}
+
+      in_use?(upload) ->
+        {:error, :in_use}
+
+      true ->
+        File.rm(Path.join(uploads_dir(), upload.storage_key))
+        purge_variants(upload)
+        Repo.delete(upload)
     end
   end
 

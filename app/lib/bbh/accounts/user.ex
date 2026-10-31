@@ -18,6 +18,8 @@ defmodule Bbh.Accounts.User do
     field :calendars, {:array, :string}, default: []
     field :totp_secret, :binary, redact: true
     field :totp_confirmed_at, :utc_datetime
+    # Period (Unix time div 30) of the last accepted code; see `Bbh.Accounts.use_user_totp/3`.
+    field :totp_last_step, :integer
 
     timestamps(type: :utc_datetime)
   end
