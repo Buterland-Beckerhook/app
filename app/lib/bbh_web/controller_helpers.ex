@@ -33,6 +33,31 @@ defmodule BbhWeb.ControllerHelpers do
     |> send_resp(200, body)
   end
 
+  @doc """
+  Send a subscription feed (`{etag, body}` from `Bbh.Calendar.Feeds`) with its ETag,
+  answering `304` when the client already has it. `cache_control` is the header value:
+  `public` for the open feed, `private` for a feed whose URL carries a share token.
+  """
+  def send_ical_feed(conn, {etag, body}, filename, cache_control) do
+    conn =
+      conn
+      |> put_resp_header("etag", etag)
+      |> put_resp_header("cache-control", cache_control)
+
+    if etag in if_none_match(conn) do
+      conn |> put_resp_content_type("text/calendar") |> send_resp(304, "")
+    else
+      send_ical(conn, body, filename)
+    end
+  end
+
+  defp if_none_match(conn) do
+    conn
+    |> get_req_header("if-none-match")
+    |> Enum.flat_map(&String.split(&1, ","))
+    |> Enum.map(&(&1 |> String.trim() |> String.replace_prefix("W/", "")))
+  end
+
   @doc "The public site URL, used to build absolute links in feeds."
   def site_url, do: Application.get_env(:bbh, :site_url, "https://buterland-beckerhook.de")
 

@@ -49,6 +49,7 @@ config :bbh, BbhWeb.Plugs.TrackPageView, enabled: false
 # 404 log is written inline so it stays inside the test's SQL sandbox.
 config :bbh, Bbh.Redirects, cache: false
 config :bbh, Bbh.Tickets.Queue, cache: false
+config :bbh, Bbh.Calendar.Feeds, cache: false
 config :bbh, BbhWeb.Redirector, async: false
 
 # Don't pre-warm image variants in tests: the detached task would outlive the

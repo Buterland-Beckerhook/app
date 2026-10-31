@@ -50,8 +50,9 @@ defmodule BbhWeb.EventController do
   end
 
   def feed(conn, _params) do
-    ical = Bbh.ICal.feed(Bbh.Calendar.all_public_events(), site_url())
-    send_ical(conn, ical, "termine.ics")
+    # Same hour the feed itself announces (REFRESH-INTERVAL / X-PUBLISHED-TTL).
+    feed = Bbh.Calendar.Feeds.public(site_url())
+    send_ical_feed(conn, feed, "termine.ics", "public, max-age=3600")
   end
 
   def ics(conn, %{"year" => year, "slug" => slug}) do
