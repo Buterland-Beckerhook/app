@@ -106,11 +106,13 @@ config :bbh, :tickets_enabled, true
 
 # The Postfach's mailbox: the Dovecot of the dev stack (compose.yml), plain IMAP inside
 # the compose network. Production uses IMAPS against mailcow (config/runtime.exs).
+# A dummy address on purpose: a real domain next to a literal password trips secret
+# scanners (GitGuardian "Company Email Password"), and Dovecot accepts any user here.
 config :bbh, :ticket_imap,
   host: "dovecot",
   port: 31143,
   tls: false,
-  username: "tickets@buterland-beckerhook.de",
+  username: "tickets@example.test",
   password: "postfach"
 
 # Postfach field encryption (Bbh.Vault). Fixed dev-only keys — never use them anywhere

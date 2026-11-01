@@ -40,7 +40,7 @@ reset-db: ## Drop, recreate and migrate the dev DB (in the phoenix container)
 
 mail-samples: ## Drop the sample mails (dev/dovecot/samples) into the dev Postfach mailbox
 	for f in dev/dovecot/samples/*.eml; do \
-	  docker compose exec -T dovecot doveadm save -u tickets@buterland-beckerhook.de < $$f || exit 1; \
+	  docker compose exec -T dovecot doveadm save -u tickets@example.test < $$f || exit 1; \
 	done
 	@echo "In INBOX now; the import picks them up within two minutes."
 
