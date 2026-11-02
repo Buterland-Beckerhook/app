@@ -187,6 +187,7 @@ defmodule Bbh.TicketsTest do
       assert same.assignee_id == user.id
       assert same.status == "open"
       assert Tickets.list_events(ticket) == events
+
       assert Tickets.move_queue(scope, ticket_fixture(queue: "vorstand"), "vorstand") ==
                {:error, :unauthorized}
     end
