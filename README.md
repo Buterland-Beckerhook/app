@@ -1,6 +1,13 @@
 # buterland-beckerhook.de
 
 Website for **Schützenverein Buterland-Beckerhook e.V.**, a German shooting club.
+
+"Shooting club" is the usual translation of *Schützenverein*, but don't take it too
+literally: founded in 1909, the club is first of all a local community that keeps
+regional traditions alive, above all the annual Schützenfest. As a non-profit it also
+supports young and older people, with a children's festival, the Jungschützen and
+outings for seniors. Sport shooting is only one part of what it does.
+
 The public site is server-rendered [Phoenix](https://www.phoenixframework.org/)
 (HEEx), the admin area is Phoenix LiveView, data lives in PostgreSQL, and uploaded
 media is stored on a local volume with libvips-generated responsive WebP variants.
