@@ -46,6 +46,15 @@ defmodule BbhWeb.Admin.UserLiveTest do
     assert Accounts.get_user_by_email(email)
   end
 
+  test "the forms that save on change opt out of form recovery", %{conn: conn} do
+    editor = user_fixture()
+    {:ok, lv, _html} = live(conn, ~p"/admin/benutzer")
+
+    for id <- ["role-#{editor.id}", "cals-#{editor.id}", "queues-#{editor.id}"] do
+      assert has_element?(lv, ~s|form##{id}[phx-auto-recover="ignore"]|)
+    end
+  end
+
   test "promotes an editor to admin via the role select", %{conn: conn} do
     editor = user_fixture()
     {:ok, lv, _html} = live(conn, ~p"/admin/benutzer")

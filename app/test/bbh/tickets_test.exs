@@ -169,6 +169,29 @@ defmodule Bbh.TicketsTest do
       assert Tickets.move_queue(scope, moved, "info") == {:error, :unauthorized}
     end
 
+    test "assigning the current assignee changes nothing", %{scope: scope, user: user} do
+      {:ok, ticket} = Tickets.take(scope, ticket_fixture())
+      events = Tickets.list_events(ticket)
+
+      assert {:ok, same} = Tickets.assign(scope, ticket, user.id)
+      assert same.assignee_id == user.id
+      assert same.last_activity_at == ticket.last_activity_at
+      assert Tickets.list_events(ticket) == events
+    end
+
+    test "moving to its own queue changes nothing", %{scope: scope, user: user} do
+      {:ok, ticket} = Tickets.take(scope, ticket_fixture())
+      events = Tickets.list_events(ticket)
+
+      assert {:ok, same} = Tickets.move_queue(scope, ticket, ticket.queue)
+      assert same.assignee_id == user.id
+      assert same.status == "open"
+      assert Tickets.list_events(ticket) == events
+
+      assert Tickets.move_queue(scope, ticket_fixture(queue: "vorstand"), "vorstand") ==
+               {:error, :unauthorized}
+    end
+
     test "delete and restore are admin-only; deleted tickets disappear", %{scope: scope} do
       ticket = ticket_fixture()
       admin_scope = Scope.for_user(admin_user_fixture())
