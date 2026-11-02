@@ -33,7 +33,9 @@ defmodule Bbh.TicketsTest do
     test "numbers tickets and logs the creation" do
       a = ticket_fixture()
       b = ticket_fixture()
-      assert b.number == a.number + 1
+      # ticket_number_seq is shared with concurrent tests and nextval is not rolled
+      # back by the sandbox, so numbers rise but need not be consecutive.
+      assert b.number > a.number
       assert Ticket.reference(a) =~ ~r/^BB-\d{4}-\d{4}$/
       assert Repo.get_by!(Event, ticket_id: a.id).action == "created"
     end
