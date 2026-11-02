@@ -24,25 +24,28 @@ defmodule Bbh.Workers.MapTilesUpdaterTest do
       Enum.each(~w(FAKE_PMTILES_SOURCE FAKE_PMTILES_ARGS FAKE_PMTILES_FAIL), &System.delete_env/1)
     end)
 
-    # Builds exist from two days back.
-    Req.Test.stub(Bbh.Map, fn conn ->
-      status =
-        if conn.request_path in ["/20261022.pmtiles", "/20261021.pmtiles"], do: 200, else: 404
+    # Builds exist from two days back. Relative to today, because run/0 looks back from
+    # the real date.
+    newest_build = Date.add(Date.utc_today(), -2)
+    builds = [build_path(newest_build), build_path(Date.add(newest_build, -1))]
 
+    Req.Test.stub(Bbh.Map, fn conn ->
+      status = if conn.request_path in builds, do: 200, else: 404
       Plug.Conn.send_resp(conn, status, "")
     end)
 
-    %{dir: dir, source: source, args_file: args_file}
+    %{dir: dir, source: source, args_file: args_file, newest_build: newest_build}
   end
 
   describe "latest_build/1" do
-    test "is the newest build that exists" do
-      assert MapTilesUpdater.latest_build(~D[2026-10-24]) ==
-               {:ok, "https://build.test/20261022.pmtiles"}
+    test "is the newest build that exists", %{newest_build: newest_build} do
+      assert MapTilesUpdater.latest_build(Date.add(newest_build, 2)) ==
+               {:ok, "https://build.test" <> build_path(newest_build)}
     end
 
     test "gives up after the retention window" do
-      assert MapTilesUpdater.latest_build(~D[2026-12-24]) == {:error, :no_build_found}
+      assert MapTilesUpdater.latest_build(Date.add(Date.utc_today(), 60)) ==
+               {:error, :no_build_found}
     end
   end
 
@@ -95,6 +98,8 @@ defmodule Bbh.Workers.MapTilesUpdaterTest do
       assert {:cancel, :pinned} = MapTilesUpdater.run()
     end
   end
+
+  defp build_path(date), do: "/#{Calendar.strftime(date, "%Y%m%d")}.pmtiles"
 
   defp leftovers do
     dir = Path.dirname(Bbh.Map.target_path())
