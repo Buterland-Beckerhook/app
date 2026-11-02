@@ -5,6 +5,9 @@ defmodule BbhWeb.Admin.TicketLive.Show do
   membership application, other tickets of the same sender and the history.
 
   Opening it writes a `viewed` event (throttled); changes elsewhere update it live.
+
+  The assign, status and move forms save on change, so they opt out of LiveView's form
+  recovery: after a reconnect it would resend what the old page showed, as if clicked.
   """
   use BbhWeb, :live_view
 
@@ -371,7 +374,7 @@ defmodule BbhWeb.Admin.TicketLive.Show do
               >
                 Übernehmen
               </.button>
-              <form phx-change="assign" id="assign-form">
+              <form phx-change="assign" phx-auto-recover="ignore" id="assign-form">
                 <label class="text-sm" for="assignee_id">Zugewiesen an</label>
                 <select
                   id="assignee_id"
@@ -393,7 +396,12 @@ defmodule BbhWeb.Admin.TicketLive.Show do
             <div :if={not @deleted}>
               <h2 class="text-sm font-semibold">Status</h2>
               <p class="mb-2"><.status_badge kind={:ticket} status={@ticket.status} /></p>
-              <form phx-change="status" id="status-form" class="space-y-2">
+              <form
+                phx-change="status"
+                phx-auto-recover="ignore"
+                id="status-form"
+                class="space-y-2"
+              >
                 <label class="sr-only" for="status-select">Status ändern</label>
                 <select
                   id="status-select"
@@ -430,7 +438,7 @@ defmodule BbhWeb.Admin.TicketLive.Show do
               </form>
             </div>
 
-            <form :if={not @deleted} phx-change="move" id="move-form">
+            <form :if={not @deleted} phx-change="move" phx-auto-recover="ignore" id="move-form">
               <label class="text-sm font-semibold" for="move-queue">Postfach</label>
               <select id="move-queue" name="queue" class="select select-bordered select-sm w-full">
                 <option

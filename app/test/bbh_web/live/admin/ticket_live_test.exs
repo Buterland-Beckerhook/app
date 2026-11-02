@@ -14,6 +14,18 @@ defmodule BbhWeb.Admin.TicketLiveTest do
     %{user: user, conn: log_in_user(conn, user, auth_method: "passkey")}
   end
 
+  # Form recovery resends a form's values after a reconnect, as if the user had changed it.
+  describe "forms that save on change" do
+    test "opt out of form recovery", %{conn: conn} do
+      ticket = ticket_fixture()
+      {:ok, lv, _html} = live(conn, ~p"/admin/postfach/#{Ticket.reference(ticket)}")
+
+      for id <- ~w(assign-form status-form move-form) do
+        assert has_element?(lv, ~s|form##{id}[phx-auto-recover="ignore"]|)
+      end
+    end
+  end
+
   describe "access" do
     test "needs a passkey or TOTP session", %{user: user} do
       conn = log_in_user(build_conn(), user, auth_method: "magic_link")

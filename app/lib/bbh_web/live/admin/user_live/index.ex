@@ -222,7 +222,7 @@ defmodule BbhWeb.Admin.UserLive.Index do
           <span class="font-medium">{u.email}</span>
         </:col>
         <:col :let={u} label="Rolle">
-          <form phx-change="set_role" id={"role-#{u.id}"}>
+          <form phx-change="set_role" phx-auto-recover="ignore" id={"role-#{u.id}"}>
             <input type="hidden" name="user_id" value={u.id} />
             <select name="role" class="select select-bordered select-sm">
               <option :for={{label, value} <- @roles} value={value} selected={u.role == value}>
@@ -235,6 +235,7 @@ defmodule BbhWeb.Admin.UserLive.Index do
           <form
             :if={u.role in ["editor", "calendar_editor"]}
             phx-change="set_calendars"
+            phx-auto-recover="ignore"
             id={"cals-#{u.id}"}
             class="flex flex-wrap gap-x-3 gap-y-1"
           >
@@ -256,7 +257,12 @@ defmodule BbhWeb.Admin.UserLive.Index do
           </span>
         </:col>
         <:col :let={u} label="Postfach">
-          <form phx-change="set_queues" id={"queues-#{u.id}"} class="flex flex-wrap gap-x-3 gap-y-1">
+          <form
+            phx-change="set_queues"
+            phx-auto-recover="ignore"
+            id={"queues-#{u.id}"}
+            class="flex flex-wrap gap-x-3 gap-y-1"
+          >
             <input type="hidden" name="user_id" value={u.id} />
             <input type="hidden" name="queues[]" value="" />
             <label :for={{label, key} <- Queue.options()} class="flex items-center gap-1 text-sm">

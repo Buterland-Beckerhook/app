@@ -120,6 +120,16 @@ defmodule Bbh.Tickets.NotificationsTest do
   end
 
   describe "assignment" do
+    test "reassigning the current assignee tells nobody again", %{scope: scope} do
+      colleague = user_fixture()
+      granted_scope(colleague, ["info"])
+
+      {:ok, ticket} = Tickets.assign(scope, ticket_fixture(), colleague.id)
+      {:ok, _} = Tickets.assign(scope, ticket, colleague.id)
+
+      assert [_only_one] = all_enqueued(worker: TicketAssignedNotifier)
+    end
+
     test "someone else assigning tells the assignee", %{scope: scope, user: user} do
       colleague = user_fixture()
       granted_scope(colleague, ["info"])

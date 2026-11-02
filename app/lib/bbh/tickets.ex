@@ -416,7 +416,10 @@ defmodule Bbh.Tickets do
   @doc "The scope's user takes the ticket: assigned to them, `new` becomes `open`."
   def take(%Scope{user: user} = scope, %Ticket{} = ticket), do: assign(scope, ticket, user.id)
 
-  @doc "Assigns the ticket (nil: nobody). The assignee must be able to see its queue."
+  @doc """
+  Assigns the ticket (nil: nobody). The assignee must be able to see its queue. Assigning
+  whoever already has it changes nothing: no event, no mail.
+  """
   def assign(%Scope{} = scope, %Ticket{} = ticket, assignee_id) do
     assignee_id = if assignee_id in [nil, ""], do: nil, else: assignee_id
 
@@ -424,14 +427,18 @@ defmodule Bbh.Tickets do
          :ok <- check_assignee(ticket, assignee_id) do
       status = if ticket.status == "new" and assignee_id, do: "open", else: ticket.status
 
-      ticket
-      |> Ecto.Changeset.change(
-        assignee_id: assignee_id,
-        status: status,
-        last_activity_at: DateTime.utc_now(:second)
-      )
-      |> update_and_log(scope, "assigned", %{assignee_id: assignee_id})
-      |> tap_ok(&notify_assignee(&1, scope.user))
+      if assignee_id == ticket.assignee_id and status == ticket.status do
+        {:ok, ticket}
+      else
+        ticket
+        |> Ecto.Changeset.change(
+          assignee_id: assignee_id,
+          status: status,
+          last_activity_at: DateTime.utc_now(:second)
+        )
+        |> update_and_log(scope, "assigned", %{assignee_id: assignee_id})
+        |> tap_ok(&notify_assignee(&1, scope.user))
+      end
     end
   end
 
@@ -645,7 +652,14 @@ defmodule Bbh.Tickets do
     end
   end
 
-  @doc "Moves the ticket to another queue (a request that landed in the wrong one)."
+  @doc """
+  Moves the ticket to another queue (a request that landed in the wrong one). Its own
+  queue is no move: the ticket keeps its assignee and status.
+  """
+  def move_queue(%Scope{} = scope, %Ticket{queue: queue} = ticket, queue) do
+    with :ok <- authorize(scope, ticket), do: {:ok, ticket}
+  end
+
   def move_queue(%Scope{} = scope, %Ticket{} = ticket, queue) do
     with :ok <- authorize(scope, ticket),
          true <- Queue.valid?(queue) || {:error, :invalid_queue} do
