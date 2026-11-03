@@ -187,10 +187,10 @@ defmodule Bbh.Tickets.NotificationsTest do
       flush(12)
 
       assert_email_sent(fn email ->
+        refute email.text_body =~ Ticket.reference(later)
         assert email.subject == "Postfach: 2 neue Anfragen"
         assert email.text_body =~ Ticket.reference(a)
         assert email.text_body =~ Ticket.reference(b)
-        refute email.text_body =~ Ticket.reference(later)
       end)
 
       flush(13)
