@@ -29,7 +29,7 @@ export function pushState({supported, iosNeedsInstall, permission, server}) {
       label: server.label || "",
     }
   }
-  return {kind: "off"}
+  return server && server.postfach ? {kind: "off", postfach: true} : {kind: "off"}
 }
 
 // The sentence shown in the settings dialog.
@@ -44,7 +44,9 @@ export function statusText(state) {
     case "on":
       return `Aktiv auf diesem Gerät für: ${state.categories.map(label).join(", ")}.`
     default:
-      return "Auf diesem Gerät sind keine Benachrichtigungen aktiv."
+      return state.postfach
+        ? "Auf diesem Gerät sind nur die Postfach-Benachrichtigungen aktiv."
+        : "Auf diesem Gerät sind keine Benachrichtigungen aktiv."
   }
 }
 

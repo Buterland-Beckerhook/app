@@ -243,6 +243,12 @@ defmodule Bbh.Tickets.RepliesTest do
 
       assert reopened.status == "open"
       assert message.direction == "in"
+
+      # It goes out with the next run of the worker, not while the mail is imported.
+      assert sent_emails() == []
+      {:ok, _} = Bbh.Settings.update(%{quiet_hours_enabled: false})
+      assert :ok = Bbh.Workers.TicketNewNotifier.perform(%Oban.Job{})
+
       assert [email] = sent_emails()
       assert email.to == [{"", user.email}]
       assert email.subject =~ "neue Antwort"

@@ -59,6 +59,15 @@ async function readState() {
 // Ask for permission if needed, (re)use the browser subscription and store the
 // chosen categories on the server. Returns the subscription, or null if declined.
 export async function subscribePush(categories = DEFAULT_CATEGORIES) {
+  const sub = await browserSubscription()
+  if (!sub) return null
+  await postJson("/api/push/subscribe", {...sub.toJSON(), categories})
+  return sub
+}
+
+// The browser's subscription, asking for permission and creating it if needed. A browser
+// has one per site, shared by the public categories and the Postfach.
+async function browserSubscription() {
   if (!supported()) return null
   const key = document.querySelector("meta[name='vapid-public-key']")?.getAttribute("content")
   if (!key) return null
@@ -66,22 +75,21 @@ export async function subscribePush(categories = DEFAULT_CATEGORIES) {
   const reg = await navigator.serviceWorker.register("/sw.js")
   if ((await Notification.requestPermission()) !== "granted") return null
 
-  const sub =
+  return (
     (await reg.pushManager.getSubscription()) ||
     (await reg.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(key),
     }))
-
-  await postJson("/api/push/subscribe", {...sub.toJSON(), categories})
-  return sub
+  )
 }
 
 async function unsubscribePush() {
   const sub = await currentSubscription()
   if (!sub) return
-  await postJson("/api/push/unsubscribe", {endpoint: sub.endpoint})
-  await sub.unsubscribe()
+  const {kept} = await postJson("/api/push/unsubscribe", {endpoint: sub.endpoint})
+  // Still a Postfach device: the server cleared the categories, the subscription stays.
+  if (!kept) await sub.unsubscribe()
 }
 
 // Admin-only: mark this browser as a test receiver (session + CSRF protected).
@@ -107,6 +115,44 @@ export const PushThisDevice = {
     } catch (e) {
       console.error("Push device lookup failed", e)
     }
+  },
+}
+
+// LiveView hook for /admin/postfach/benachrichtigungen: reports what this browser can do
+// and which endpoint it has (only compared, never displayed), and links it to the
+// signed-in user. The click handler stays on the hook's element, because asking for
+// permission needs the user's gesture.
+export const PostfachPush = {
+  mounted() {
+    this.report()
+    this.el.addEventListener("click", (e) => {
+      if (e.target.closest("[data-push-link]")) this.link()
+    })
+  },
+  async report() {
+    try {
+      const {kind} = await readState()
+      const sub = await currentSubscription()
+      this.pushEvent("browser_state", {kind, endpoint: sub ? sub.endpoint : null})
+    } catch (e) {
+      console.error("Push state check failed", e)
+    }
+  },
+  async link() {
+    try {
+      const sub = await browserSubscription()
+      if (sub) {
+        const csrf = document.querySelector("meta[name='csrf-token']")?.getAttribute("content")
+        await postJson("/push/postfach", sub.toJSON(), {"x-csrf-token": csrf})
+        this.pushEvent("device_linked", {})
+      } else {
+        this.pushEvent("device_link_failed", {})
+      }
+    } catch (e) {
+      console.error("Linking the push device failed", e)
+      this.pushEvent("device_link_failed", {})
+    }
+    await this.report()
   },
 }
 

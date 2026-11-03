@@ -36,6 +36,29 @@ defmodule Bbh.Tickets.Notifier do
     """)
   end
 
+  @doc """
+  Everything collected for the user: new requests, replies and reminders (`[{ticket,
+  reason}]`). One kind alone reads like its own mail.
+  """
+  def collected(user, new, [], []), do: new_tickets(user, new)
+  def collected(user, [], [ticket], []), do: reply_received(user, ticket)
+  def collected(user, [], [], items), do: reminders(user, items)
+
+  def collected(user, new, replies, items) do
+    subject =
+      if items == [],
+        do: "Postfach: #{length(new) + length(replies)} neue Eingänge",
+        else: "Postfach: Neues und Wartendes"
+
+    deliver(user, subject, """
+    Hallo,
+
+    in deinen Postfächern gibt es Neues:
+
+    #{section("Neue Anfragen", new)}#{section("Neue Antworten", replies)}#{section("Wartet auf dich", items)}#{footer()}
+    """)
+  end
+
   @doc "The requester answered on a ticket the user has (or whose queue they work)."
   def reply_received(user, ticket) do
     deliver(user, "Postfach: neue Antwort zu #{Ticket.reference(ticket)}", """
@@ -136,7 +159,8 @@ defmodule Bbh.Tickets.Notifier do
     lange aufbewahrt. Alle Details siehst du nach der Anmeldung im Postfach.
 
     Die Benachrichtigungen richten sich nach deinen Postfach-Freigaben in der
-    Benutzerverwaltung.
+    Benutzerverwaltung. Wie oft und auf welchem Weg du sie bekommst, stellst du hier ein:
+    #{Bbh.Site.url()}/admin/postfach/benachrichtigungen
     """
   end
 

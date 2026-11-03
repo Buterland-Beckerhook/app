@@ -136,6 +136,7 @@ defmodule BbhWeb.Admin.PushLive do
         <:col :let={s} label="Kategorien">
           {if s.categories == [], do: "—", else: Enum.join(s.categories, ", ")}
           <span :if={s.tester} class="badge badge-sm badge-info ml-1">Testgerät</span>
+          <span :if={s.user_id} class="badge badge-sm ml-1">Postfach</span>
         </:col>
         <:col :let={s} label="Zuletzt genutzt">
           {if s.last_used, do: Calendar.strftime(s.last_used, "%d.%m.%Y %H:%M"), else: "—"}

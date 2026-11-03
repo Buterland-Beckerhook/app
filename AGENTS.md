@@ -160,6 +160,10 @@ Rules that constrain changes:
   is logged with `Mailer.deliver_logged(…, redact: true)`; `ticket_events.meta` holds
   statuses and ids only; notifications name queue + reference + link, never subject,
   name or address. gen_smtp's debug logging is filtered for the same reason.
+- **Staff notifications go through `Bbh.Tickets.Alerts`** (`docs/adr/0017-postfach-notifications-per-user.md`):
+  per-user interval and channel, an outbox of ids, site-wide quiet hours for mail and
+  push. Don't send to staff directly. A browser has one push subscription, so a Postfach
+  device is the same row as its public one (`push_subscriptions.user_id`).
 - **Authorize with the scope.** Ticket checks are `BbhWeb.Authz.can_view_ticket?/2` etc.
   on `current_scope` (its `ticket_queues` are the grants). Every Postfach route — LiveView
   (`:require_tickets`) and controller (`UserAuth.require_strong_auth/2`) — needs a passkey

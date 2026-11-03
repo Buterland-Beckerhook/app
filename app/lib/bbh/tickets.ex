@@ -617,14 +617,13 @@ defmodule Bbh.Tickets do
   end
 
   defp notify_reply(%Ticket{assignee_id: nil, queue: queue} = ticket) do
-    for user <- Bbh.Tickets.Grants.notify_users(queue),
-        do: Bbh.Tickets.Notifier.reply_received(user, ticket)
+    Bbh.Tickets.Alerts.enqueue_reply(ticket, Bbh.Tickets.Grants.notify_users(queue))
   end
 
   defp notify_reply(%Ticket{assignee_id: id} = ticket) do
     case Repo.get(User, id) do
       nil -> notify_reply(%{ticket | assignee_id: nil})
-      user -> Bbh.Tickets.Notifier.reply_received(user, ticket)
+      user -> Bbh.Tickets.Alerts.enqueue_reply(ticket, [user])
     end
   end
 

@@ -2,7 +2,8 @@ defmodule Bbh.Workers.AuthPruner do
   @moduledoc """
   Nightly sweep of dead authentication artifacts: expired or long-revoked API tokens,
   spent or expired OAuth authorization codes, and login-log entries past their retention
-  (`Bbh.Accounts.AuthLog`, `AUTH_LOG_RETENTION_DAYS`).
+  (`Bbh.Accounts.AuthLog`, `AUTH_LOG_RETENTION_DAYS`), and push devices of a deleted user
+  that have nothing else to receive.
 
   Nightly rather than hourly because neither kind still works by the time it is swept —
   `Bbh.ApiTokens.verify/2` and `Bbh.OAuth.exchange_code/1` both refuse them on their own.
@@ -24,6 +25,7 @@ defmodule Bbh.Workers.AuthPruner do
     tokens = Bbh.ApiTokens.prune()
     codes = Bbh.OAuth.prune_codes()
     auth_events = Bbh.Accounts.AuthLog.prune()
+    Bbh.Notifications.prune_orphans()
 
     if tokens > 0 or codes > 0 or auth_events > 0 do
       Logger.info(
