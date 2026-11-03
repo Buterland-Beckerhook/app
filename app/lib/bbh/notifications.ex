@@ -109,7 +109,9 @@ defmodule Bbh.Notifications do
   """
   def subscription_status(endpoint) when is_binary(endpoint) do
     case Repo.get_by(PushSubscription, endpoint: endpoint) do
-      nil -> :error
+      nil ->
+        :error
+
       sub ->
         {:ok,
          %{
