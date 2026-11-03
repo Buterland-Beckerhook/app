@@ -27,8 +27,8 @@ defmodule BbhWeb.Api.PushController do
     case RateLimit.check("push_status", RateLimit.client_ip(conn), 60, :timer.minutes(1)) do
       :ok ->
         case Bbh.Notifications.subscription_status(endpoint) do
-          {:ok, %{categories: categories, tester: tester, label: label}} ->
-            json(conn, %{subscribed: true, categories: categories, tester: tester, label: label})
+          {:ok, status} ->
+            json(conn, Map.put(status, :subscribed, true))
 
           :error ->
             json(conn, %{subscribed: false})
@@ -42,8 +42,10 @@ defmodule BbhWeb.Api.PushController do
   def status(conn, _params), do: conn |> put_status(:bad_request) |> json(%{ok: false})
 
   def unsubscribe(conn, %{"endpoint" => endpoint}) do
-    Bbh.Notifications.unsubscribe(endpoint)
-    json(conn, %{ok: true})
+    case Bbh.Notifications.unsubscribe(endpoint) do
+      :kept -> json(conn, %{ok: true, kept: true})
+      :ok -> json(conn, %{ok: true})
+    end
   end
 
   def unsubscribe(conn, _params), do: conn |> put_status(:bad_request) |> json(%{ok: false})

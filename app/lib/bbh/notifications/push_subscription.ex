@@ -27,6 +27,9 @@ defmodule Bbh.Notifications.PushSubscription do
     # Name an admin gives the device from the device itself. Set only through
     # `Bbh.Notifications.set_label/2` (admin route), so not cast from params.
     field :label, :string
+    # The staff member this device tells about the Postfach. Set only through
+    # `Bbh.Notifications.link_device/3` (session route), so not cast from params.
+    belongs_to :user, Bbh.Accounts.User
 
     timestamps()
   end

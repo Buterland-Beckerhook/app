@@ -202,11 +202,11 @@ defmodule BbhWeb.Admin.SiteSettingsLive do
         </fieldset>
 
         <fieldset class="rounded-box border border-base-300 p-4">
-          <legend class="px-1 text-sm font-medium">Ruhezeiten (keine Push-Nachrichten)</legend>
+          <legend class="px-1 text-sm font-medium">Ruhezeiten (keine Benachrichtigungen)</legend>
           <.input
             field={@form[:quiet_hours_enabled]}
             type="checkbox"
-            label="Nachts keine Push-Nachrichten senden"
+            label="Nachts keine Push-Nachrichten und Postfach-Benachrichtigungen senden"
           />
           <div class="mt-3 grid gap-4 sm:grid-cols-2">
             <.input field={@form[:quiet_hours_start]} type="select" label="Von" options={@hours} />

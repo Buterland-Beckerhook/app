@@ -19,3 +19,4 @@ what (the code shows the what). One file per decision, numbered.
 - [0014](0014-self-hosted-osm-map.md) — The event map is a self-hosted PMTiles extract, fetched by the app itself
 - [0015](0015-media-folders-three-levels.md) — Media folders go three levels deep, and the cap is one number
 - [0016](0016-ticket-system.md) — Requests go into a Postfach in the app, encrypted, instead of being forwarded
+- [0017](0017-postfach-notifications-per-user.md) — Postfach notifications are per user: interval, channel and push devices

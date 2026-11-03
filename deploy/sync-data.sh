@@ -152,7 +152,7 @@ DECLARE
   wanted text[] := ARRAY['push_subscriptions','users_tokens','api_tokens',
                          'oauth_codes','oauth_clients','oban_jobs','oban_peers',
                          'ticket_attachments','ticket_messages','ticket_events',
-                         'tickets','auth_events'];
+                         'ticket_notifications','tickets','auth_events'];
   present text;
 BEGIN
   SELECT string_agg(format('%I', t), ', ') INTO present

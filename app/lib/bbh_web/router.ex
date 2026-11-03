@@ -103,6 +103,7 @@ defmodule BbhWeb.Router do
 
     post "/tester", PushTesterController, :update
     post "/label", PushLabelController, :update
+    post "/postfach", PushDeviceController, :create
   end
 
   # Consent. On the browser pipeline on purpose: the site's own login (magic link or
@@ -279,6 +280,7 @@ defmodule BbhWeb.Router do
     live_session :admin_tickets, on_mount: [{BbhWeb.UserAuth, :require_tickets}] do
       live "/postfach", TicketLive.Index, :index
       live "/postfach/auskunft", TicketLive.Requester, :index
+      live "/postfach/benachrichtigungen", TicketLive.Notifications, :index
       live "/postfach/:ref", TicketLive.Show, :show
     end
 

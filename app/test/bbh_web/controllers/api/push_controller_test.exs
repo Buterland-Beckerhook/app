@@ -95,6 +95,7 @@ defmodule BbhWeb.Api.PushControllerTest do
 
       assert json_response(conn, 200) == %{
                "subscribed" => true,
+               "postfach" => false,
                "categories" => ["news"],
                "tester" => false,
                "label" => nil

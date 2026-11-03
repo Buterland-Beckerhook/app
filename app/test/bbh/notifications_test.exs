@@ -5,6 +5,7 @@ defmodule Bbh.NotificationsTest do
   alias Bbh.Notifications
   alias Bbh.Notifications.PushSubscription
 
+  import Bbh.AccountsFixtures
   import Bbh.NotificationsFixtures
 
   describe "valid_push_endpoint?/1" do
@@ -26,6 +27,74 @@ defmodule Bbh.NotificationsTest do
       refute Notifications.valid_push_endpoint?("ftp://fcm.googleapis.com/x")
       refute Notifications.valid_push_endpoint?(nil)
       refute Notifications.valid_push_endpoint?(123)
+    end
+  end
+
+  describe "Postfach devices" do
+    @device %{
+      "endpoint" => "https://fcm.googleapis.com/fcm/send/device",
+      "keys" => %{"p256dh" => "pk", "auth" => "ak"}
+    }
+
+    test "a new device starts without public categories" do
+      user = user_fixture()
+      assert {:ok, sub} = Notifications.link_device(user, @device, user_agent: "Firefox/1")
+      assert sub.user_id == user.id
+      assert sub.categories == []
+      assert [%{id: id}] = Notifications.list_user_devices(user)
+      assert id == sub.id
+      assert {:ok, %{postfach: true}} = Notifications.subscription_status(sub.endpoint)
+    end
+
+    test "a device already subscribed keeps its categories" do
+      user = user_fixture()
+      {:ok, _} = Notifications.subscribe(Map.put(@device, "categories", ["news"]))
+      assert {:ok, sub} = Notifications.link_device(user, @device)
+      assert sub.categories == ["news"]
+    end
+
+    test "refuses an untrusted endpoint" do
+      device = %{@device | "endpoint" => "https://evil.example.com/x"}
+      assert {:error, :invalid_endpoint} = Notifications.link_device(user_fixture(), device)
+    end
+
+    test "turning off the public part keeps the device" do
+      {:ok, _} = Notifications.subscribe(Map.put(@device, "categories", ["news"]))
+      {:ok, sub} = Notifications.link_device(user_fixture(), @device)
+
+      assert :kept = Notifications.unsubscribe(sub.endpoint)
+      assert %{categories: []} = Repo.reload!(sub)
+    end
+
+    test "unlinking removes only the user's own, and keeps public categories" do
+      user = user_fixture()
+      {:ok, _} = Notifications.subscribe(Map.put(@device, "categories", ["news"]))
+      {:ok, sub} = Notifications.link_device(user, @device)
+
+      assert {:error, :not_found} = Notifications.unlink_device(user_fixture(), sub.id)
+      assert {:error, :not_found} = Notifications.unlink_device(user, "not-a-uuid")
+
+      assert {:ok, _} = Notifications.unlink_device(user, sub.id)
+      assert %{user_id: nil, categories: ["news"]} = Repo.reload!(sub)
+    end
+
+    test "unlinking a Postfach-only device deletes it" do
+      user = user_fixture()
+      {:ok, sub} = Notifications.link_device(user, @device)
+
+      assert {:ok, _} = Notifications.unlink_device(user, sub.id)
+      refute Repo.reload(sub)
+    end
+
+    test "a deleted user's Postfach-only device is pruned" do
+      user = user_fixture()
+      {:ok, sub} = Notifications.link_device(user, @device)
+      kept = push_subscription_fixture()
+
+      {:ok, _} = Bbh.Accounts.delete_user(user)
+      assert Notifications.prune_orphans() == 1
+      refute Repo.reload(sub)
+      assert Repo.reload(kept)
     end
   end
 

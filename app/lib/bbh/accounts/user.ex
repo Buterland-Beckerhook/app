@@ -20,6 +20,11 @@ defmodule Bbh.Accounts.User do
     field :totp_confirmed_at, :utc_datetime
     # Period (Unix time div 30) of the last accepted code; see `Bbh.Accounts.use_user_totp/3`.
     field :totp_last_step, :integer
+    # Postfach notifications, see `Bbh.Tickets.Alerts`. `ticket_reminded_on` is the local
+    # day of the last reminder — set by the system, so not cast from params.
+    field :ticket_notify_interval_minutes, :integer, default: 2
+    field :ticket_notify_channel, :string, default: "mail"
+    field :ticket_reminded_on, :date
 
     timestamps(type: :utc_datetime)
   end
@@ -54,6 +59,24 @@ defmodule Bbh.Accounts.User do
   @doc "Whether the user has enabled a TOTP second factor."
   def totp_enabled?(%__MODULE__{totp_confirmed_at: nil}), do: false
   def totp_enabled?(%__MODULE__{}), do: true
+
+  @ticket_notify_intervals [2, 15, 60, 120, 240, 480, 720, 1440]
+  @ticket_notify_channels ~w(mail push both)
+
+  @doc "The notification intervals a user can choose, in minutes (at least daily)."
+  def ticket_notify_intervals, do: @ticket_notify_intervals
+
+  @doc "The channels Postfach notifications can take."
+  def ticket_notify_channels, do: @ticket_notify_channels
+
+  @doc "Changeset for a user's own Postfach notification settings."
+  def ticket_notifications_changeset(user, attrs) do
+    user
+    |> cast(attrs, [:ticket_notify_interval_minutes, :ticket_notify_channel])
+    |> validate_required([:ticket_notify_interval_minutes, :ticket_notify_channel])
+    |> validate_inclusion(:ticket_notify_interval_minutes, @ticket_notify_intervals)
+    |> validate_inclusion(:ticket_notify_channel, @ticket_notify_channels)
+  end
 
   @doc "Changeset for an admin to set a user's role."
   def role_changeset(user, attrs) do

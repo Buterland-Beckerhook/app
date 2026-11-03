@@ -63,7 +63,7 @@ DECLARE
 BEGIN
   SELECT string_agg(format('%I', t), ', ') INTO present
     FROM unnest(ARRAY['ticket_attachments','ticket_messages','ticket_events',
-                      'tickets','auth_events']) AS t
+                      'ticket_notifications','tickets','auth_events']) AS t
    WHERE to_regclass(t) IS NOT NULL;
   IF present IS NOT NULL THEN
     EXECUTE 'TRUNCATE ' || present;

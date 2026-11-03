@@ -1,12 +1,12 @@
 defmodule Bbh.Workers.TicketReminder do
   @moduledoc """
-  The Postfach's daily mails: reminders to the people who should act
-  (`Bbh.Tickets.Reminders`) — at most one per person and day — and the admin digest.
+  The Postfach's daily admin digest. The reminders themselves travel with each user's
+  notifications (`Bbh.Tickets.Alerts`).
 
   Runs hourly; sends once the local hour reaches `ticket_reminder_hour` (site settings,
   tab "Postfach"), and only once per day: `Bbh.Settings.claim_ticket_reminders/1` marks
   the day before anything goes out. A run that was missed at that hour (deploy, restart)
-  is made up by the next one the same day.
+  is made up by the next one the same day. Quiet hours hold it back the same way.
   """
   use Oban.Worker, queue: :notifications, max_attempts: 3
 
@@ -22,22 +22,12 @@ defmodule Bbh.Workers.TicketReminder do
     settings = Settings.get()
     local = Bbh.Time.real_now()
 
-    if local.hour >= settings.ticket_reminder_hour and
+    if local.hour >= settings.ticket_reminder_hour and not Settings.quiet_now?(local) and
          Settings.claim_ticket_reminders(DateTime.to_date(local)) do
-      send_reminders(settings)
       if settings.ticket_admin_digest_enabled, do: send_digest(settings)
     end
 
     :ok
-  end
-
-  defp send_reminders(settings) do
-    due = Reminders.due(settings)
-    users = Repo.all(from u in User, where: u.id in ^Map.keys(due)) |> Map.new(&{&1.id, &1})
-
-    for {user_id, items} <- due, user = users[user_id] do
-      Notifier.reminders(user, items)
-    end
   end
 
   # Admins get no per-ticket mails for queues they don't work; this is their overview.

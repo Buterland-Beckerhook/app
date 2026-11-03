@@ -168,8 +168,8 @@ config :bbh, Oban,
        {"*/5 * * * *", Bbh.Workers.ArticlePublishNotifier},
        {"*/5 * * * *", Bbh.Workers.EventPublishNotifier},
        {"*/5 * * * *", Bbh.Workers.EventReminderNotifier},
-       # Postfach: announce new tickets (bundled, two minutes after they came in) and the
-       # daily reminders + admin digest (the hour is a site setting, checked hourly).
+       # Postfach: announce new tickets and reminders by each user's settings, and the
+       # daily admin digest (the hour is a site setting, checked hourly).
        {"*/2 * * * *", Bbh.Workers.TicketNewNotifier},
        {"5 * * * *", Bbh.Workers.TicketReminder},
        # Fetch mail from the Postfach mailbox (a no-op without TICKET_IMAP_HOST).

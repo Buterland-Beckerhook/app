@@ -38,7 +38,7 @@ import "./mail.js"
 // Grows the membership form's "Kinder unter 15 Jahren" rows on demand.
 import "./membership.js"
 // Web Push: opt-in banner, footer link and settings dialog.
-import {PushThisDevice} from "./push.js"
+import {PostfachPush, PushThisDevice} from "./push.js"
 // Gallery block in "Diashow" layout: index arithmetic for the controller further down.
 import {step, nearestSlide} from "./slideshow.js"
 // URL slug generation from a title — mirrors Mix.Tasks.Bbh.Import.slugify/1.
@@ -94,6 +94,7 @@ document.addEventListener(
 )
 
 const Hooks = {
+  PostfachPush,
   PushThisDevice,
 
   // Bound to an editing <form>; see "Unsaved changes" above. A submit marks it clean,

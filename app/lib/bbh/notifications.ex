@@ -2,6 +2,7 @@ defmodule Bbh.Notifications do
   @moduledoc "Web Push subscriptions and sending (VAPID via web_push_elixir)."
   import Ecto.Query
   require Logger
+  alias Bbh.Accounts.User
   alias Bbh.Repo
   alias Bbh.Notifications.PushSubscription
 
@@ -103,13 +104,22 @@ defmodule Bbh.Notifications do
 
   @doc """
   What the server knows about the subscription for `endpoint`: `{:ok, %{categories:,
-  tester:, label:}}` or `:error` when there is none. Lets a browser show its real state after
-  a reload — the endpoint is a secret capability URL, so knowing it is the proof.
+  tester:, label:, postfach:}}` or `:error` when there is none. Lets a browser show its
+  real state after a reload — the endpoint is a secret capability URL, so knowing it is the proof.
   """
   def subscription_status(endpoint) when is_binary(endpoint) do
     case Repo.get_by(PushSubscription, endpoint: endpoint) do
-      nil -> :error
-      sub -> {:ok, %{categories: sub.categories, tester: sub.tester, label: sub.label}}
+      nil ->
+        :error
+
+      sub ->
+        {:ok,
+         %{
+           categories: sub.categories,
+           tester: sub.tester,
+           label: sub.label,
+           postfach: not is_nil(sub.user_id)
+         }}
     end
   end
 
@@ -151,10 +161,85 @@ defmodule Bbh.Notifications do
 
   def set_label(_endpoint, _label), do: {:error, :not_found}
 
-  @doc "Remove a subscription by endpoint."
+  @doc """
+  Turn off the public notifications of a browser. Returns `:ok` when its subscription is
+  gone, or `:kept` when the device still gets the Postfach: then only its categories are
+  cleared, and the browser must keep its subscription.
+  """
   def unsubscribe(endpoint) do
-    Repo.delete_all(from s in PushSubscription, where: s.endpoint == ^endpoint)
-    :ok
+    case Repo.get_by(PushSubscription, endpoint: endpoint) do
+      %PushSubscription{user_id: user_id} = sub when not is_nil(user_id) ->
+        sub |> Ecto.Changeset.change(categories: [], tester: false) |> Repo.update!()
+        :kept
+
+      _ ->
+        Repo.delete_all(from s in PushSubscription, where: s.endpoint == ^endpoint)
+        :ok
+    end
+  end
+
+  @doc """
+  Make this browser's subscription one of the user's Postfach devices. A browser has
+  exactly one subscription per site, so a device already subscribed to Termine or news
+  keeps those; a new one starts without categories. Knowing the endpoint proves the
+  device; the caller must have checked the user's session. A device that changes hands
+  moves to the new user. Staff are not subject to the public capacity limit.
+  """
+  def link_device(user, params, opts \\ [])
+
+  def link_device(%User{id: user_id}, %{"endpoint" => endpoint} = params, opts) do
+    if valid_push_endpoint?(endpoint) do
+      attrs = %{
+        "endpoint" => endpoint,
+        "keys_p256dh" => get_in(params, ["keys", "p256dh"]),
+        "keys_auth" => get_in(params, ["keys", "auth"])
+      }
+
+      (Repo.get_by(PushSubscription, endpoint: endpoint) || %PushSubscription{})
+      |> PushSubscription.changeset(attrs)
+      |> Ecto.Changeset.put_change(:user_id, user_id)
+      |> put_device(opts[:user_agent])
+      |> Repo.insert_or_update()
+    else
+      {:error, :invalid_endpoint}
+    end
+  end
+
+  def link_device(_user, _params, _opts), do: {:error, :invalid_endpoint}
+
+  @doc "The user's Postfach devices, newest first."
+  def list_user_devices(%User{id: user_id}) do
+    Repo.all(
+      from s in PushSubscription, where: s.user_id == ^user_id, order_by: [desc: s.inserted_at]
+    )
+  end
+
+  @doc """
+  Stop telling this device about the Postfach. Only the user's own devices; one that
+  also has public categories keeps them. Idempotent.
+  """
+  def unlink_device(%User{id: user_id}, id) do
+    with {:ok, id} <- Ecto.UUID.cast(id),
+         %PushSubscription{} = sub <- Repo.get_by(PushSubscription, id: id, user_id: user_id) do
+      if sub.categories == [] do
+        Repo.delete(sub)
+      else
+        sub |> Ecto.Changeset.change(user_id: nil) |> Repo.update()
+      end
+    else
+      _ -> {:error, :not_found}
+    end
+  end
+
+  @doc "Deletes devices with no owner and no categories left. Returns how many."
+  def prune_orphans do
+    {count, _} =
+      Repo.delete_all(
+        from s in PushSubscription,
+          where: is_nil(s.user_id) and fragment("cardinality(?) = 0", s.categories)
+      )
+
+    count
   end
 
   @doc "Number of stored (active) push subscriptions."
@@ -198,8 +283,25 @@ defmodule Bbh.Notifications do
     |> send_to(payload)
   end
 
-  # Send to every subscription regardless of category (admin "all" broadcast).
-  defp notify_all(%{} = payload), do: send_to(PushSubscription, payload)
+  @doc """
+  Send a notification to all of a user's Postfach devices. Returns how many took it, so
+  the caller can fall back to mail on 0.
+  """
+  def notify_user(%User{id: user_id}, %{} = payload) do
+    message = Jason.encode!(payload)
+
+    from(s in PushSubscription, where: s.user_id == ^user_id)
+    |> Repo.all()
+    |> Task.async_stream(&send_one(&1, message), max_concurrency: 10, on_timeout: :kill_task)
+    |> Enum.count(&(&1 == {:ok, true}))
+  end
+
+  # Send to everyone who subscribed to something (admin "all" broadcast). A device that
+  # only gets the Postfach never asked for club news.
+  defp notify_all(%{} = payload) do
+    from(s in PushSubscription, where: fragment("cardinality(?) > 0", s.categories))
+    |> send_to(payload)
+  end
 
   defp send_to(query, payload) do
     message = Jason.encode!(payload)
@@ -217,9 +319,11 @@ defmodule Bbh.Notifications do
       # Reject/prune any stored endpoint that isn't a known push service (SSRF guard).
       Logger.warning("Dropping push subscription with untrusted endpoint: #{sub.endpoint}")
       Repo.delete(sub)
+      false
     end
   end
 
+  # Whether the push service took the message.
   defp do_send(sub, message) do
     json =
       Jason.encode!(%{
@@ -227,9 +331,10 @@ defmodule Bbh.Notifications do
         "keys" => %{"p256dh" => sub.keys_p256dh, "auth" => sub.keys_auth}
       })
 
-    case WebPushElixir.send_notification(json, message) do
+    case sender().(json, message) do
       {:error, :expired} ->
         Repo.delete(sub)
+        false
 
       {:error, reason} ->
         Logger.warning("Web push failed for #{sub.endpoint}: #{inspect(reason)}")
@@ -241,6 +346,8 @@ defmodule Bbh.Notifications do
         )
         |> Repo.update()
 
+        false
+
       _ok ->
         sub
         |> Ecto.Changeset.change(
@@ -249,9 +356,18 @@ defmodule Bbh.Notifications do
           last_error_at: nil
         )
         |> Repo.update()
+
+        true
     end
   rescue
-    e -> Logger.warning("Web push error for #{sub.endpoint}: #{inspect(e)}")
+    e ->
+      Logger.warning("Web push error for #{sub.endpoint}: #{inspect(e)}")
+      false
+  end
+
+  # Tests set `config :bbh, Bbh.Notifications, sender: fun`; nothing else should.
+  defp sender do
+    Application.get_env(:bbh, __MODULE__, [])[:sender] || (&WebPushElixir.send_notification/2)
   end
 
   defp normalize_categories(cats) when is_list(cats), do: Enum.filter(cats, &(&1 in @categories))

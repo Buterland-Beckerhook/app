@@ -63,3 +63,14 @@ test("no Push API is unsupported", () => {
   assert.equal(pushState({...base, supported: false}).kind, "unsupported")
   assert.equal(footerLabel({kind: "unsupported"}), "Benachrichtigungen")
 })
+
+test("a device that only gets the Postfach is off for the public part, and says so", () => {
+  const state = pushState({
+    ...base,
+    permission: "granted",
+    server: {subscribed: true, categories: [], tester: false, label: null, postfach: true},
+  })
+
+  assert.deepEqual(state, {kind: "off", postfach: true})
+  assert.match(statusText(state), /Postfach/)
+})

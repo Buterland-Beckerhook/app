@@ -1,7 +1,9 @@
 defmodule Bbh.Workers.TicketNewNotifier do
   @moduledoc """
   Tells the users granted a queue about new Postfach tickets — bundled: a ticket waits
-  two minutes, then everyone gets one mail listing all new tickets of their queues.
+  two minutes, then goes into the outbox of everyone working its queue. Each run also
+  sends what is due from that outbox, new tickets and replies alike, by each user's own
+  interval and channel (`Bbh.Tickets.Alerts`).
 
   Cron plus a marker column (`tickets.notified_at`), like the other notifiers: each run
   picks the due, unannounced tickets, so a missed run is repaired by the next. A ticket
@@ -13,7 +15,7 @@ defmodule Bbh.Workers.TicketNewNotifier do
   import Ecto.Query
 
   alias Bbh.Repo
-  alias Bbh.Tickets.{Grants, Notifier, Ticket}
+  alias Bbh.Tickets.{Alerts, Ticket}
 
   @delay_minutes 2
 
@@ -30,20 +32,21 @@ defmodule Bbh.Workers.TicketNewNotifier do
           order_by: t.number
       )
 
-    # Mark first: a crash mid-way must not announce the same ticket twice.
-    {_, _} =
-      Repo.update_all(
-        from(t in Ticket, where: t.id in ^Enum.map(tickets, & &1.id) and is_nil(t.notified_at)),
-        set: [notified_at: DateTime.utc_now(:second)]
-      )
+    # One transaction: a ticket marked as told is in the outbox, and only once.
+    {:ok, :ok} =
+      Repo.transact(fn ->
+        {_, _} =
+          Repo.update_all(
+            from(t in Ticket,
+              where: t.id in ^Enum.map(tickets, & &1.id) and is_nil(t.notified_at)
+            ),
+            set: [notified_at: DateTime.utc_now(:second)]
+          )
 
-    tickets
-    |> Enum.flat_map(fn ticket ->
-      for user <- Grants.notify_users(ticket.queue), do: {user, ticket}
-    end)
-    |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
-    |> Enum.each(fn {user, tickets} -> Notifier.new_tickets(user, tickets) end)
+        {:ok, Alerts.enqueue_new(tickets)}
+      end)
 
+    Alerts.flush()
     :ok
   end
 end
