@@ -427,13 +427,21 @@ defmodule BbhWeb.Admin.TicketLive.Show do
                 </select>
                 <div :if={@status_choice == "follow_up"}>
                   <label class="text-sm" for="follow_up_on">Wiedervorlage am</label>
-                  <input
-                    type="date"
-                    id="follow_up_on"
-                    name="follow_up_on"
-                    value={@ticket.follow_up_on && Date.to_iso8601(@ticket.follow_up_on)}
-                    class="input input-bordered input-sm w-full"
-                  />
+                  <%!-- flatpickr instead of a native date input, which renders in the
+                       browser's locale (e.g. MM/DD/YYYY) rather than DD.MM.YYYY. --%>
+                  <div id="dp-follow_up_on" phx-update="ignore">
+                    <input
+                      type="text"
+                      id="follow_up_on"
+                      name="follow_up_on"
+                      value={@ticket.follow_up_on && Date.to_iso8601(@ticket.follow_up_on)}
+                      autocomplete="off"
+                      placeholder="TT.MM.JJJJ"
+                      phx-hook="DatePicker"
+                      data-enable-time="false"
+                      class="input input-bordered input-sm w-full"
+                    />
+                  </div>
                 </div>
               </form>
             </div>
