@@ -235,9 +235,6 @@ defmodule Bbh.Calendar do
 
   ## Admin CRUD — events
 
-  def list_events,
-    do: Repo.all(from e in Event, order_by: [desc: e.starts_at], preload: [:location])
-
   @doc """
   Events a staff user may manage: admins see all; editors see public events plus any
   calendars granted to them; everyone else (calendar editors) sees only granted calendars.
@@ -255,8 +252,6 @@ defmodule Bbh.Calendar do
 
   defp scope_events(query, %{calendars: cals}),
     do: from(e in query, where: e.calendar in ^(cals || []))
-
-  def count_events, do: Repo.aggregate(Event, :count, :id)
 
   @doc """
   Top-level events per status. Programme items are left out: they show under their
