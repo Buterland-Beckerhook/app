@@ -29,6 +29,9 @@ defmodule Bbh.Html.RichScrubber do
   allow_tag_with_these_attributes("span", ["class"])
   allow_tag_with_these_attributes("a", ["class"])
 
+  # Quill's strike button writes <s>; basic_html only knows <del>.
+  allow_tag_with_these_attributes("s", [])
+
   # Image size lives as a class (bbh-img-*); src/width/height/alt/title already
   # come from basic_html.
   allow_tag_with_these_attributes("img", ["class"])

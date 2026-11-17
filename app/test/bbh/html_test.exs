@@ -12,6 +12,7 @@ defmodule Bbh.HtmlTest do
     test "keeps Quill's semantic formatting (headings, lists, marks, links)" do
       html =
         "<h2>Titel</h2><p><strong>fett</strong> und <em>kursiv</em></p>" <>
+          "<p><u>unterstrichen</u> und <s>durchgestrichen</s></p>" <>
           "<ul><li>a</li></ul><ol><li>b</li></ol>" <>
           ~s(<a href="https://example.com">link</a>)
 
@@ -20,6 +21,9 @@ defmodule Bbh.HtmlTest do
       assert out =~ "<h2>Titel</h2>"
       assert out =~ "<strong>fett</strong>"
       assert out =~ "<em>kursiv</em>"
+      assert out =~ "<u>unterstrichen</u>"
+      # Quill's strike button writes <s>, which basic_html alone would strip.
+      assert out =~ "<s>durchgestrichen</s>"
       assert out =~ "<ul><li>a</li></ul>"
       assert out =~ "<ol><li>b</li></ol>"
       assert out =~ ~s(<a href="https://example.com")
