@@ -56,8 +56,8 @@ defmodule Bbh.Media do
   # open against a warm cache instead of a cold-cache decode burst.
   @prewarm_variants [{120, 120}, {200, 200}, {300, 300}]
 
-  @doc "True for a stored content type we treat as a displayable image (not a PDF/document)."
-  def image_type?(type), do: type in @image_types
+  # A stored content type we treat as a displayable image (not a PDF/document).
+  defp image_type?(type), do: type in @image_types
 
   @doc "True if the upload is a displayable image (has an image thumbnail)."
   def image?(%Upload{content_type: type}), do: image_type?(type)
@@ -65,13 +65,8 @@ defmodule Bbh.Media do
   @doc "True if the upload's original may be rewritten by a rotation."
   def rotatable?(%Upload{content_type: type}), do: type in @rotatable_types
 
-  @doc "The rotation angles the editor offers (quarter turns, clockwise)."
-  def rotations, do: @rotations
-
   def uploads_dir, do: Application.fetch_env!(:bbh, :uploads_dir)
-  def cache_dir, do: Application.fetch_env!(:bbh, :media_cache_dir)
-
-  def get_by_key(key), do: Repo.get_by(Upload, storage_key: key)
+  defp cache_dir, do: Application.fetch_env!(:bbh, :media_cache_dir)
 
   @doc """
   The uploads for `keys` in one query, as `%{storage_key => upload}`. Keys without a
@@ -450,17 +445,16 @@ defmodule Bbh.Media do
 
   defp frac(value), do: Float.round(value * 1.0, 4)
 
-  @doc """
-  Drop every cached variant of one upload.
-
-  Variants live in a per-upload directory (named after a hash of the storage key)
-  precisely so they can be discarded as a unit: their file names are content hashes of
-  the requested size, so there is no other way to find them all. Called after a
-  rotation and when the upload is deleted.
-  """
+  # Drops every cached variant of one upload.
+  #
+  # Variants live in a per-upload directory (named after a hash of the storage key)
+  # precisely so they can be discarded as a unit: their file names are content hashes of
+  # the requested size, so there is no other way to find them all. Called after a
+  # rotation, a focal-point edit, and when the upload is deleted.
+  #
   # sobelow_skip ["Traversal.FileModule"]
   # The path is media_cache_dir/<hex sha256> — no user input reaches it.
-  def purge_variants(%Upload{storage_key: key}), do: File.rm_rf(variant_dir(key))
+  defp purge_variants(%Upload{storage_key: key}), do: File.rm_rf(variant_dir(key))
 
   defp variant_dir(key), do: Path.join(cache_dir(), hash(key))
 
