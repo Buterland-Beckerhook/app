@@ -150,6 +150,13 @@ defmodule Bbh.AuthzTest do
       assert Authz.visible_queues(scope(admin(), [])) == Bbh.Tickets.Queue.keys()
     end
 
+    test "the granted queues come back in queue order, whatever order they were loaded in" do
+      keys = Bbh.Tickets.Queue.keys()
+      granted = scope(%User{role: "tickets"}, Enum.reverse(Enum.take(keys, 2)))
+
+      assert Authz.visible_queues(granted) == Enum.take(keys, 2)
+    end
+
     test "deleting is admin-only" do
       assert Authz.can_delete_ticket?(scope(admin(), []))
       refute Authz.can_delete_ticket?(scope(editor(), Bbh.Tickets.Queue.keys()))

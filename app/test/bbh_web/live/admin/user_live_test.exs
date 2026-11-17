@@ -147,7 +147,7 @@ defmodule BbhWeb.Admin.UserLiveTest do
 
     assert Bbh.Tickets.Grants.list_queue_keys(other) == ["info", "vorstand"]
 
-    assert Bbh.Repo.get_by!(Bbh.Tickets.Grant, user_id: other.id, queue_key: "info").granted_by_id ==
+    assert Bbh.Repo.get_by!(Bbh.Accounts.QueueGrant, user_id: other.id, queue_key: "info").granted_by_id ==
              admin.id
   end
 

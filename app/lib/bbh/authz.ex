@@ -129,12 +129,12 @@ defmodule Bbh.Authz do
 
   def can_access_tickets?(_), do: false
 
-  @doc "The queues the scope sees: all for admins, else the granted ones."
+  @doc "The queues the scope sees, in queue order: all for admins, else the granted ones."
   def visible_queues(%Scope{user: user, ticket_queues: queues}) do
     cond do
       User.admin?(user) -> Queue.keys()
       user.role == "none" -> []
-      true -> queues
+      true -> Enum.filter(Queue.keys(), &(&1 in queues))
     end
   end
 
