@@ -118,6 +118,18 @@ defmodule Bbh.Media do
   @doc "How many uploads `list_uploads/1` finds for the same filters, ignoring paging."
   def count_uploads(opts \\ []), do: opts |> uploads_query() |> Repo.aggregate(:count)
 
+  @doc """
+  The ids `list_uploads/1` would list for the same filters, in the same order and
+  unpaged — what "Alle auswählen" selects, including the tiles not scrolled in yet.
+  """
+  def list_upload_ids(opts \\ []) do
+    opts
+    |> uploads_query()
+    |> sort_uploads(opts[:sort] || "newest")
+    |> select([u], u.id)
+    |> Repo.all()
+  end
+
   defp uploads_query(opts) do
     from(u in Upload)
     |> filter_search(opts[:search])
@@ -160,13 +172,17 @@ defmodule Bbh.Media do
   defp filter_images_only(query, true), do: where(query, [u], u.content_type in ^@image_types)
   defp filter_images_only(query, _), do: query
 
+  # Timestamps have second precision, so one upload batch mostly shares an `inserted_at`.
+  # Within it the filename decides, not the random UUID: the camera's IMG_0001, IMG_0002 …
+  # is the order the pictures were taken in, and the bulk editor numbers titles by this
+  # order (bulk_update_uploads/3). The id stays last so paging remains stable.
   defp sort_uploads(query, "oldest"),
-    do: from(u in query, order_by: [asc: u.inserted_at, asc: u.id])
+    do: from(u in query, order_by: [asc: u.inserted_at, asc: u.filename, asc: u.id])
 
   defp sort_uploads(query, "name"), do: from(u in query, order_by: [asc: u.filename, asc: u.id])
 
   defp sort_uploads(query, _newest),
-    do: from(u in query, order_by: [desc: u.inserted_at, desc: u.id])
+    do: from(u in query, order_by: [desc: u.inserted_at, asc: u.filename, desc: u.id])
 
   def get_upload!(id), do: Repo.get!(Upload, id)
 
@@ -218,6 +234,93 @@ defmodule Bbh.Media do
     do: Map.update!(attrs, :folder_id, &blank_to_nil/1)
 
   defp normalize_folder_id(attrs), do: attrs
+
+  ## Bulk metadata
+
+  # The text fields the bulk editor sets on many files at once. The focal point is left
+  # out on purpose: it belongs to one picture's framing, never to an album.
+  @bulk_fields [:title, :caption, :description, :copyright]
+
+  # Replaced by the file's position (1, 2, …) in the chosen order.
+  @counter "{n}"
+
+  @doc "The text fields `bulk_update_uploads/3` may set."
+  def bulk_fields, do: @bulk_fields
+
+  @doc "The placeholder `bulk_update_uploads/3` replaces with the running number."
+  def counter_placeholder, do: @counter
+
+  @doc """
+  What the uploads in `ids` have in common: for each bulk field and `:folder_id` the
+  value they all share (`nil` included), or `:mixed` when they differ.
+  """
+  def common_metadata(ids) when is_list(ids) do
+    rows =
+      from(u in Upload,
+        where: u.id in ^valid_uuids(ids),
+        select: map(u, [:title, :caption, :description, :copyright, :folder_id])
+      )
+      |> Repo.all()
+
+    Map.new([:folder_id | @bulk_fields], fn field ->
+      case rows |> Enum.map(&Map.get(&1, field)) |> Enum.uniq() do
+        [value] -> {field, value}
+        _ -> {field, :mixed}
+      end
+    end)
+  end
+
+  @doc """
+  Set the same metadata on every upload in `ids`, in one transaction.
+
+  `changes` holds only the fields to overwrite — any of `bulk_fields/0` plus `:folder_id`;
+  a field that is absent stays as each file has it, `nil` clears it. In text values,
+  `{n}` becomes the file's running number, counted in the order `sort:` lists the files
+  (the media library passes its current sort), so "Jugendbiwak 2005 ({n})" numbers an
+  album the way the grid shows it.
+
+  Ids that are no longer there are skipped. Returns `{:ok, updated}` in that order, or
+  `{:error, changeset}` for the first file that failed — nothing is saved then.
+  """
+  def bulk_update_uploads(ids, changes, opts \\ []) when is_list(ids) and is_map(changes) do
+    changes =
+      changes
+      |> Map.take([:folder_id | @bulk_fields])
+      |> normalize_folder_id()
+
+    uploads =
+      from(u in Upload, where: u.id in ^valid_uuids(ids))
+      |> sort_uploads(opts[:sort] || "newest")
+      |> Repo.all()
+
+    Repo.transaction(fn ->
+      uploads
+      |> Enum.with_index(1)
+      |> Enum.map(fn {upload, n} ->
+        case upload |> Upload.update_changeset(number(changes, n)) |> Repo.update() do
+          {:ok, saved} -> saved
+          {:error, changeset} -> Repo.rollback(changeset)
+        end
+      end)
+    end)
+    |> Bbh.Search.reindex_after()
+  end
+
+  defp number(changes, n) do
+    Map.new(changes, fn
+      {field, value} when is_binary(value) and field != :folder_id ->
+        {field, String.replace(value, @counter, Integer.to_string(n))}
+
+      pair ->
+        pair
+    end)
+  end
+
+  # The ids come from the browser (a tile's checkbox), and a non-UUID in an `in` query
+  # raises instead of matching nothing.
+  defp valid_uuids(ids) do
+    for id <- ids, {:ok, uuid} <- [Bbh.Schema.cast_id(id)], do: uuid
+  end
 
   @doc """
   Move an upload into a folder. `nil` — or the `""` the "Ohne Ordner" drop target sends —
