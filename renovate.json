@@ -62,9 +62,18 @@
       "groupName": "github-actions"
     },
     {
-      "description": "Group the Elixir/OTP toolchain (Dockerfiles + CI) together",
+      "description": "Hex deps: raise the mix.exs constraint on every release, so in-range updates open a PR instead of waiting for lock-file maintenance",
+      "matchManagers": ["mix"],
+      "rangeStrategy": "bump"
+    },
+    {
+      "description": "Group the Elixir/OTP toolchain (Dockerfiles + CI) together. Never auto-merged: PR CI uses setup-beam, not the image, and the matching hexpm/elixir image tag can lag behind a new Elixir/OTP release",
       "matchDatasources": ["hexpm-bob"],
-      "groupName": "elixir-otp toolchain"
+      "groupName": "elixir-otp toolchain",
+      "automerge": false,
+      "prBodyNotes": [
+        "⚠️ Check that `docker.io/hexpm/elixir:<elixir>-erlang-<otp>-debian-<debian>` exists on Docker Hub before merging — the image build on main fails otherwise."
+      ]
     },
     {
       "description": "Elixir/OTP/Debian versions come from the `# renovate:` annotations (custom manager below); ignore the composite Dockerfile image tags the docker manager can't decompose",
@@ -130,7 +139,7 @@
         "/(^|/)app/config/config\\.exs$/"
       ],
       "matchStrings": [
-        "# renovate: datasource=(?<datasource>[a-z-]+?) depName=(?<depName>[^\\s]+?)(?: versioning=(?<versioning>[^\\s]+?))?[ \\t]*\\r?\\n[^\\n]*?[:=]\\s*[\"']?(?<currentValue>[^\\s\"'\\n]+)"
+        "# renovate: datasource=(?<datasource>[a-z-]+?) depName=(?<depName>[^\\s]+?)(?: packageName=(?<packageName>[^\\s]+?))?(?: versioning=(?<versioning>[^\\s]+?))?[ \\t]*\\r?\\n[^\\n]*?[:=]\\s*[\"']?(?<currentValue>[^\\s\"'\\n]+)"
       ]
     },
     {
