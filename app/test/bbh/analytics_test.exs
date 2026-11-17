@@ -82,6 +82,38 @@ defmodule Bbh.AnalyticsTest do
              ]
     end
 
+    test "caps new terms per day but keeps counting known ones" do
+      now = DateTime.utc_now(:second)
+
+      rows =
+        for i <- 1..500,
+            do: %{day: @today, term: "t#{i}", searches: 1, inserted_at: now, updated_at: now}
+
+      Repo.insert_all(Bbh.Analytics.DailySearch, rows)
+
+      assert :ok = Analytics.record_search(%{term: "neu", hits: 0, day: @today})
+      assert :ok = Analytics.record_search(%{term: "t1", hits: 2, day: @today})
+
+      top = Analytics.top_searches(@today, @today, 600)
+      refute Enum.any?(top, &(&1.term == "neu"))
+      assert %{searches: 2} = Enum.find(top, &(&1.term == "t1"))
+
+      # Another day has room again.
+      assert :ok = Analytics.record_search(%{term: "neu", hits: 0, day: Date.add(@today, -1)})
+      assert [%{term: "neu"}] = Analytics.top_searches(Date.add(@today, -1), Date.add(@today, -1))
+    end
+
+    test "prune_searches/1 drops days past the retention" do
+      today = Date.utc_today()
+      Analytics.record_search(%{term: "alt", hits: 1, day: Date.add(today, -401)})
+      Analytics.record_search(%{term: "grenze", hits: 1, day: Date.add(today, -400)})
+
+      assert Analytics.prune_searches() == 1
+
+      assert [%{term: "grenze"}] =
+               Analytics.top_searches(Date.add(today, -401), today)
+    end
+
     test "ignores blank terms" do
       assert :ok = Analytics.record_search(%{term: "   ", hits: 0})
       assert :ok = Analytics.record_search(%{})
