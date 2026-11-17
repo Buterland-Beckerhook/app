@@ -150,6 +150,22 @@ defmodule Bbh.ApiTokens do
   end
 
   @doc """
+  Revokes a token unless something already did — a conditional `UPDATE`, so of two
+  simultaneous callers exactly one gets `:ok` and the other `{:error, :revoked}`. For a
+  rotation, where the revocation is what may be spent only once.
+  """
+  def revoke_if_active(%ApiToken{id: id}) do
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    case Repo.update_all(from(t in ApiToken, where: t.id == ^id and is_nil(t.revoked_at)),
+           set: [revoked_at: now]
+         ) do
+      {1, _} -> :ok
+      {0, _} -> {:error, :revoked}
+    end
+  end
+
+  @doc """
   Deletes tokens that expired or were revoked more than `days` ago.
 
   Revoked rows are kept for a grace period so `last_used_at` stays inspectable after an
