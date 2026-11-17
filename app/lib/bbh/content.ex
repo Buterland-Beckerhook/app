@@ -105,6 +105,24 @@ defmodule Bbh.Content do
   end
 
   @doc """
+  The articles among `{year, slug}` pairs, any publish state, as
+  `%{{year, slug} => %{id:, title:}}`. Pairs without an article are absent. For
+  attributing page views (`Bbh.Analytics`), which only knows the URLs.
+  """
+  def articles_by_year_slug([]), do: %{}
+
+  def articles_by_year_slug(pairs) do
+    wanted = MapSet.new(pairs)
+    slugs = pairs |> Enum.map(&elem(&1, 1)) |> Enum.uniq()
+
+    # By slug alone (indexed), then the exact pairs: a slug recurs across years.
+    from(a in Article, where: a.slug in ^slugs, select: {a.year, a.slug, a.id, a.title})
+    |> Repo.all()
+    |> Enum.filter(fn {year, slug, _, _} -> {year, slug} in wanted end)
+    |> Map.new(fn {year, slug, id, title} -> {{year, slug}, %{id: id, title: title}} end)
+  end
+
+  @doc """
   Published, real articles whose publish date has passed but which have not yet
   had their "Neuer Artikel" push sent. Drives the publish-notifier cron.
   """

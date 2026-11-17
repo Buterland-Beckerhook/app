@@ -61,6 +61,26 @@ defmodule Bbh.AnalyticsTest do
       assert Analytics.article_views(@today, @today) == %{popular.id => 2, quiet.id => 1}
     end
 
+    test "tells a slug's years apart and only counts the URL as it is built" do
+      this_year = article_fixture(slug: "schuetzenfest")
+
+      last_year =
+        article_fixture(
+          slug: "schuetzenfest",
+          date_published: DateTime.add(DateTime.utc_now(:second), -400, :day)
+        )
+
+      refute last_year.year == this_year.year
+
+      Analytics.record(%{path: article_path(this_year), day: @today})
+      Analytics.record(%{path: article_path(last_year), day: @today})
+      Analytics.record(%{path: article_path(last_year), day: @today})
+      # Not the article's URL, though it would parse to the same year.
+      Analytics.record(%{path: "/aktuell/0#{this_year.year}/schuetzenfest", day: @today})
+
+      assert Analytics.article_views(@today, @today) == %{this_year.id => 1, last_year.id => 2}
+    end
+
     test "only counts views inside the range" do
       article = article_fixture()
       Analytics.record(%{path: article_path(article), day: Date.add(@today, -40)})

@@ -6,9 +6,7 @@ defmodule Bbh.Workers.TicketAssignedNotifier do
   """
   use Oban.Worker, queue: :notifications, max_attempts: 3
 
-  alias Bbh.Accounts
-  alias Bbh.Repo
-  alias Bbh.Tickets.{Alerts, Ticket}
+  alias Bbh.Tickets.Alerts
 
   @quiet_snooze_seconds 15 * 60
 
@@ -19,19 +17,7 @@ defmodule Bbh.Workers.TicketAssignedNotifier do
     if Bbh.Settings.quiet_now?() do
       {:snooze, @quiet_snooze_seconds}
     else
-      tell(ticket_id, assignee_id, by_id)
+      Alerts.assigned_by_ids(ticket_id, assignee_id, by_id)
     end
-  end
-
-  defp tell(ticket_id, assignee_id, by_id) do
-    with %Ticket{assignee_id: ^assignee_id, deleted_at: nil} = ticket <-
-           Repo.get(Ticket, ticket_id),
-         %{} = assignee <- Accounts.get_user(assignee_id),
-         %{} = by <- Accounts.get_user(by_id) do
-      Alerts.assigned(assignee, ticket, by)
-    end
-
-    # Reassigned again, deleted, or a user gone: nothing to say.
-    :ok
   end
 end

@@ -294,8 +294,7 @@ defmodule Bbh.Content.Blocks do
     # festival anyway; pick the festival instead.
     defp validate_top_level_event(changeset) do
       with id when is_binary(id) <- get_change(changeset, :event_id),
-           %{parent_id: parent_id} when not is_nil(parent_id) <-
-             Bbh.Repo.get(Bbh.Calendar.Event, id) do
+           %{parent_id: parent_id} when not is_nil(parent_id) <- Bbh.Calendar.get_event(id) do
         add_error(changeset, :event_id, "Programmpunkte zeigt der Block über ihr Fest.")
       else
         _ -> changeset
