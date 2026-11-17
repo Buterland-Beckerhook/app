@@ -80,6 +80,31 @@ defmodule Bbh.Tickets.RepliesTest do
       assert Tickets.Replies.reply(scope, loaded(scope, spam), "x") == {:error, :spam}
     end
 
+    test "is refused outside the replier's queues and on a deleted ticket", %{scope: scope} do
+      ticket = loaded(scope, ticket_fixture())
+      outsider = granted_scope(user_fixture(), ["mitgliedschaft"])
+
+      assert Tickets.Replies.reply(outsider, ticket, "x") == {:error, :unauthorized}
+
+      admin = Bbh.Accounts.Scope.for_user(admin_user_fixture())
+      {:ok, deleted} = Tickets.delete_ticket(admin, ticket)
+      assert Tickets.Replies.reply(scope, deleted, "x") == {:error, :unauthorized}
+
+      # Nothing was stored or queued on the way.
+      assert [_inbound] = loaded(admin, ticket).messages
+      refute_enqueued(worker: TicketReplySender)
+    end
+
+    test "refuses a ticket without requester address and an unknown status", %{scope: scope} do
+      ticket = loaded(scope, ticket_fixture())
+
+      assert Tickets.Replies.reply(scope, %{ticket | requester_email: nil}, "x") ==
+               {:error, :no_recipient}
+
+      assert Tickets.Replies.reply(scope, ticket, "x", "spam") == {:error, :invalid_status}
+      assert Tickets.Replies.reply(scope, ticket, "x", "new") == {:error, :invalid_status}
+    end
+
     test "is refused while the reply mailbox is not configured", %{scope: scope} do
       previous = Application.get_env(:bbh, Bbh.Tickets.Mailer)
       Application.put_env(:bbh, Bbh.Tickets.Mailer, adapter: nil)
