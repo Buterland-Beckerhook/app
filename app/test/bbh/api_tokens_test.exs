@@ -138,6 +138,14 @@ defmodule Bbh.ApiTokensTest do
       assert revoked.revoked_at == again.revoked_at
     end
 
+    test "revoke_if_active/1 succeeds exactly once", %{user: user} do
+      {:ok, plaintext, token} = ApiTokens.create_pat(user, "iPhone", ["mcp:read"])
+
+      assert :ok = ApiTokens.revoke_if_active(token)
+      assert {:error, :revoked} = ApiTokens.revoke_if_active(token)
+      assert {:error, :revoked} = ApiTokens.verify(plaintext, :any)
+    end
+
     test "listing hides revoked tokens and other users' tokens", %{user: user} do
       other = user_fixture()
       {:ok, _, keep} = ApiTokens.create_pat(user, "keep", ["mcp:read"])

@@ -86,6 +86,11 @@ defmodule Bbh.OAuth do
   Unknown scopes are dropped rather than rejected: a client asking for something we do not
   have should get a working connection with less, which is what `scopes_supported` in the
   metadata told it to expect.
+
+  No scope, or none we know, means all of them — deliberately. Registration is open, so a
+  client that wants `mcp:write` can always ask for it; a narrower default would only
+  cripple honest clients that send no `scope`. The control is consent: the user sees
+  every scope spelled out before approving (ADR 0010).
   """
   def requested_scopes(nil), do: ApiToken.scopes()
 
@@ -237,9 +242,13 @@ defmodule Bbh.OAuth do
           not audience_matches?(token.resource, params[:resource]) ->
             {:error, :invalid_target}
 
-          true ->
-            {:ok, _} = ApiTokens.revoke(token)
+          # Two simultaneous refreshes with the same token: only one may rotate it, the
+          # other is a replay like any later one.
+          ApiTokens.revoke_if_active(token) == :ok ->
             issue_tokens(user, token.oauth_client_id, token.scopes, token.resource)
+
+          true ->
+            replayed_refresh_token(params)
         end
 
       {:ok, _user, _other_kind} ->

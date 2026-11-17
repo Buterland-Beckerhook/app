@@ -60,6 +60,17 @@ POST re-validates every parameter from scratch for the same reason — its value
 hidden form fields, so trusting them because they came from our own markup would let a
 crafted form swap the redirect URI after the user has read the original one.
 
+### A missing scope means every scope; consent is the control
+
+An authorization request without a `scope`, or with none we know, is granted all scopes,
+`mcp:write` included. A narrower default would buy nothing: registration is open, so a
+client that wants write access can simply ask for it, and limiting it to the scopes it
+registered fails for the same reason. A read-only default would only cripple honest
+clients that send no `scope`. What actually stands between a client and write access is
+the consent screen, which spells out every scope in plain words to a user who is logged
+in on a strong session and has to approve. (Audit 2026-11-17, R1-5: considered and
+kept.)
+
 ### Replay takes the family down
 
 An authorization code may be spent once, and spending it is a conditional `UPDATE` so two
@@ -68,7 +79,9 @@ client is broken; both revoke every token that client holds for that user.
 
 Refresh tokens rotate: the presented token is revoked whether or not the client ever uses
 the new one, so a refresh token that shows up after rotation is a copy. It also revokes
-the whole family. After a replay we cannot tell the thief from the client, and the
+the whole family. The rotation is a conditional `UPDATE` like the code redemption, so of
+two simultaneous refreshes with the same token only one is issued a new pair; the other
+counts as a replay. After a replay we cannot tell the thief from the client, and the
 recoverable outcome — the real client walks through consent again — is much better than
 the alternative.
 
