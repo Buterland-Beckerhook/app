@@ -65,6 +65,11 @@ defmodule Bbh.MixProject do
       {:phoenix, "~> 1.8.9"},
       {:phoenix_ecto, "~> 4.5"},
       {:ecto_sql, "~> 3.13"},
+      # Transitive (via ecto_sql / phoenix), listed on purpose: Renovate only sees deps
+      # declared here, so a security advisory on a lock-only package gets no PR until the
+      # weekly lock-file maintenance. Keep security-relevant transitives in this list.
+      {:ecto, "~> 3.14"},
+      {:plug, "~> 1.20"},
       {:postgrex, ">= 0.0.0"},
       {:phoenix_html, "~> 4.4"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
