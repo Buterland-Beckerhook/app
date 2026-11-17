@@ -63,9 +63,48 @@ defmodule BbhWeb.Admin.TicketLiveTest do
       assert html =~ Ticket.reference(mine)
       refute html =~ "Vorstandssache"
 
-      # A new ticket shows up without a reload.
+      # A new ticket shows up without a reload — at once, or when the reload interval
+      # ends if another test's ticket just used it up (they share the PubSub topic).
       ticket_fixture(subject: "Noch eine Frage")
+      send(lv.pid, :interval_over)
       assert render(lv) =~ "Noch eine Frage"
+    end
+
+    # The throttle on its own, without a mounted page: async tests elsewhere broadcast on
+    # the same topic, so a live page's throttle state is not ours to predict.
+    test "changes within the reload interval coalesce into one reload", %{user: user} do
+      alias BbhWeb.Admin.TicketLive.Index
+
+      socket = %Phoenix.LiveView.Socket{
+        assigns: %{
+          __changed__: %{},
+          current_scope: Bbh.Accounts.Scope.for_user(user),
+          view: "open",
+          queue: nil,
+          page: 1,
+          throttled: false,
+          stale: false
+        }
+      }
+
+      # The first change reloads at once and starts the interval.
+      {:noreply, socket} = Index.handle_info({:tickets_changed, "a"}, socket)
+      assert %{throttled: true, stale: false, result: %{total: 0}} = socket.assigns
+      assert_receive :interval_over, 1_500
+
+      # Further ones only mark the list stale…
+      ticket_fixture()
+      {:noreply, socket} = Index.handle_info({:tickets_changed, "b"}, socket)
+      {:noreply, socket} = Index.handle_info({:tickets_changed, "c"}, socket)
+      assert %{stale: true, result: %{total: 0}} = socket.assigns
+
+      # …and the end of the interval reloads once, starting the next one.
+      {:noreply, socket} = Index.handle_info(:interval_over, socket)
+      assert %{throttled: true, stale: false, result: %{total: 1}} = socket.assigns
+
+      # A quiet interval ends the throttle.
+      {:noreply, socket} = Index.handle_info(:interval_over, socket)
+      assert %{throttled: false} = socket.assigns
     end
 
     test "a taken ticket leaves Offen; the tabs count", %{conn: conn, user: user} do
