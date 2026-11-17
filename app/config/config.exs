@@ -179,6 +179,8 @@ config :bbh, Oban,
        # Reclaim dead MCP tokens and spent OAuth codes. Nightly is plenty — neither still
        # works by then, this only deletes the rows.
        {"30 3 * * *", Bbh.Workers.AuthPruner},
+       # Delete the accounts whose „Löschen am" date has come.
+       {"10 3 * * *", Bbh.Workers.UserDeleter},
        # Forget 404-log entries nobody has hit for 90 days.
        {"45 3 * * *", Bbh.Workers.NotFoundPruner},
        # Postfach retention: soft-delete closed tickets, purge deleted ones and old spam.

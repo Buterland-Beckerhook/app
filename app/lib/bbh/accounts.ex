@@ -4,6 +4,7 @@ defmodule Bbh.Accounts do
   """
 
   import Ecto.Query, warn: false
+  require Logger
   alias Bbh.Repo
 
   alias Bbh.Accounts.{User, UserPasskey, UserToken, UserNotifier}
@@ -206,6 +207,48 @@ defmodule Bbh.Accounts do
   def count_admins, do: Repo.aggregate(from(u in User, where: u.role == "admin"), :count)
 
   def delete_user(%User{} = user), do: Repo.delete(user)
+
+  @doc "Today in the site's time zone (`Bbh.Time`), never shifted by the dev clock."
+  def local_today, do: Bbh.Time.real_now() |> DateTime.to_date()
+
+  @doc """
+  Schedule the user's deletion for `date` (a `Date`, an ISO-8601 string, or nil/""
+  to cancel). The date must lie in the future.
+  """
+  def schedule_user_deletion(%User{} = user, date) do
+    date = if date == "", do: nil, else: date
+
+    user
+    |> User.delete_on_changeset(%{delete_on: date}, local_today())
+    |> Repo.update()
+  end
+
+  @doc """
+  Delete every user whose `delete_on` is `today` or earlier. The last admin is kept
+  (and logged), so the site can't lock itself out. Returns `[{user, session_tokens}]`
+  of the deleted users — the caller drops their live sockets.
+  """
+  def delete_due_users(%Date{} = today) do
+    from(u in User, where: u.delete_on <= ^today, order_by: u.email)
+    |> Repo.all()
+    |> Enum.flat_map(fn user ->
+      if user.role == "admin" and count_admins() <= 1 do
+        Logger.warning("Scheduled deletion of #{user.email} skipped: last admin")
+        []
+      else
+        tokens = list_user_session_tokens(user)
+
+        case delete_user(user) do
+          {:ok, _} ->
+            [{user, tokens}]
+
+          {:error, changeset} ->
+            Logger.error("Scheduled deletion of #{user.email} failed: #{inspect(changeset)}")
+            []
+        end
+      end
+    end)
+  end
 
   def update_user_role(%User{} = user, role),
     do: user |> User.role_changeset(%{role: role}) |> Repo.update()

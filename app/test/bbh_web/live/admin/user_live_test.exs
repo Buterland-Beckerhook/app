@@ -211,6 +211,72 @@ defmodule BbhWeb.Admin.UserLiveTest do
     end
   end
 
+  describe "role Kein Zugriff" do
+    test "revokes queue and calendar grants with the role", %{conn: conn, user: admin} do
+      editor = user_fixture()
+      {:ok, _} = Accounts.update_user_calendars(editor, ["vorstand"])
+      {:ok, _} = Bbh.Tickets.Grants.set_grants(admin, editor, ["info"])
+      {:ok, lv, html} = live(conn, ~p"/admin/benutzer")
+
+      assert html =~ "Kein Zugriff"
+
+      lv
+      |> element("#role-#{editor.id}")
+      |> render_change(%{"user_id" => editor.id, "role" => "none"})
+
+      editor = Accounts.get_user!(editor.id)
+      assert editor.role == "none"
+      assert editor.calendars == []
+      assert Bbh.Tickets.Grants.list_queue_keys(editor) == []
+      refute has_element?(lv, "#queues-#{editor.id}")
+    end
+  end
+
+  describe "scheduled deletion" do
+    test "sets and clears the deletion date", %{conn: conn} do
+      other = user_fixture()
+      date = Date.add(Accounts.local_today(), 14)
+      {:ok, lv, _html} = live(conn, ~p"/admin/benutzer")
+
+      assert has_element?(lv, ~s|form#delete-on-#{other.id}[phx-auto-recover="ignore"]|)
+
+      html =
+        lv
+        |> element("#delete-on-#{other.id}")
+        |> render_change(%{"user_id" => other.id, "delete_on" => Date.to_iso8601(date)})
+
+      assert html =~ "wird am"
+      assert Accounts.get_user!(other.id).delete_on == date
+
+      lv
+      |> element("#delete-on-#{other.id}")
+      |> render_change(%{"user_id" => other.id, "delete_on" => ""})
+
+      assert Accounts.get_user!(other.id).delete_on == nil
+    end
+
+    test "refuses a date that is not in the future", %{conn: conn} do
+      other = user_fixture()
+      today = Date.to_iso8601(Accounts.local_today())
+      {:ok, lv, _html} = live(conn, ~p"/admin/benutzer")
+
+      html = render_hook(lv, "set_delete_on", %{"user_id" => other.id, "delete_on" => today})
+
+      assert html =~ "in der Zukunft"
+      assert Accounts.get_user!(other.id).delete_on == nil
+    end
+
+    test "is not offered for the own account", %{conn: conn, user: admin} do
+      tomorrow = Date.to_iso8601(Date.add(Accounts.local_today(), 1))
+      {:ok, lv, _html} = live(conn, ~p"/admin/benutzer")
+
+      refute has_element?(lv, "#delete-on-#{admin.id}")
+      html = render_hook(lv, "set_delete_on", %{"user_id" => admin.id, "delete_on" => tomorrow})
+      assert html =~ "eigene Konto"
+      assert Accounts.get_user!(admin.id).delete_on == nil
+    end
+  end
+
   test "offers the role Nur Postfach", %{conn: conn} do
     {:ok, _lv, html} = live(conn, ~p"/admin/benutzer")
     assert html =~ "Nur Postfach"

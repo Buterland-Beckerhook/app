@@ -10,6 +10,9 @@ defmodule Bbh.Authz do
       `user.calendars`.
     * `tickets` ("Nur Postfach") — no content, no Termine; only the Postfach queues
       granted to them.
+    * `none` ("Kein Zugriff") — nothing at all, not even granted queues or calendars:
+      for people who keep their account after leaving an office. They see only a
+      notice on the dashboard (`no_access?/1`).
 
   The Postfach is independent of the role: anyone with a queue grant
   (`Bbh.Tickets.Grants`, carried on the scope as `ticket_queues`) works those queues,
@@ -45,13 +48,31 @@ defmodule Bbh.Authz do
     cond do
       User.admin?(user) -> true
       section == :dashboard -> true
-      section in [:events, :shares] -> user.role != "tickets"
+      section in [:events, :shares] -> user.role not in ["tickets", "none"]
       section in @content_sections -> user.role == "editor"
       true -> false
     end
   end
 
   def can_access_section?(_, _), do: false
+
+  @doc """
+  Whether the scope has nothing to work on in the admin area: the role "none", or a
+  role whose only access comes from grants that are all empty ("Nur Postfach" without
+  queues, "Kalender" without calendars and queues). The dashboard then shows a notice
+  instead of its widgets, and the nav drops „Übersicht".
+  """
+  def no_access?(%Scope{user: %User{role: role} = user, ticket_queues: queues}) do
+    case role do
+      "admin" -> false
+      "editor" -> false
+      "tickets" -> queues == []
+      "calendar_editor" -> (user.calendars || []) == [] and queues == []
+      _ -> true
+    end
+  end
+
+  def no_access?(_), do: true
 
   @doc """
   Whether this (possibly nil) scope may preview unpublished content of a section.
@@ -67,6 +88,7 @@ defmodule Bbh.Authz do
   """
   def can_manage_calendar?(%User{} = user, calendar) do
     cond do
+      user.role == "none" -> false
       is_nil(calendar) -> (User.admin?(user) or user.role == "editor") and User.strong_auth?(user)
       User.admin?(user) -> true
       true -> User.manages_calendar?(user, calendar)
@@ -83,7 +105,7 @@ defmodule Bbh.Authz do
     do: User.admin?(user) and User.strong_auth?(user)
 
   def can_delete_event?(%User{} = user, %Event{calendar: calendar}),
-    do: User.admin?(user) or User.manages_calendar?(user, calendar)
+    do: User.admin?(user) or can_manage_calendar?(user, calendar)
 
   def can_delete_event?(_, _), do: false
 
@@ -103,13 +125,17 @@ defmodule Bbh.Authz do
 
   @doc "Whether the scope may open the Postfach: admins, and anyone with a queue grant."
   def can_access_tickets?(%Scope{user: user, ticket_queues: queues}),
-    do: User.admin?(user) or queues != []
+    do: User.admin?(user) or (user.role != "none" and queues != [])
 
   def can_access_tickets?(_), do: false
 
   @doc "The queues the scope sees: all for admins, else the granted ones."
   def visible_queues(%Scope{user: user, ticket_queues: queues}) do
-    if User.admin?(user), do: Queue.keys(), else: queues
+    cond do
+      User.admin?(user) -> Queue.keys()
+      user.role == "none" -> []
+      true -> queues
+    end
   end
 
   def visible_queues(_), do: []

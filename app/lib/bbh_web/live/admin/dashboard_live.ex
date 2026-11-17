@@ -10,20 +10,23 @@ defmodule BbhWeb.Admin.DashboardLive do
     # land), so what it shows from the strong-auth areas — ticket subjects, visitor
     # analytics — needs the strong session those areas do. Every staff member then sees
     # the basic access figures; referrers, search terms, iCal and push stay with admins.
+    # Without any access (e.g. after leaving the board) the page is only a notice.
+    no_access = Bbh.Authz.no_access?(scope)
     strong? = Bbh.Accounts.User.strong_auth?(scope.user)
-    show_analytics = strong?
-    full_analytics = strong? and Bbh.Authz.admin?(scope)
+    show_analytics = strong? and not no_access
+    full_analytics = show_analytics and Bbh.Authz.admin?(scope)
 
     socket =
       socket
       |> assign(
         page_title: "Übersicht",
+        no_access: no_access,
         show_analytics: show_analytics,
         full_analytics: full_analytics,
         range_days: 30
       )
       |> assign_async(:stats, &load_stats/0)
-      |> assign_tickets(scope, strong?)
+      |> assign_tickets(scope, strong? and not no_access)
 
     {:ok, if(show_analytics, do: load_analytics(socket), else: socket)}
   end
@@ -103,6 +106,26 @@ defmodule BbhWeb.Admin.DashboardLive do
         <:subtitle>Willkommen im Verwaltungsbereich.</:subtitle>
       </.header>
 
+      <div :if={@no_access} id="no-access" role="status" class="alert mt-6 max-w-2xl items-start">
+        <.icon name="hero-information-circle" class="size-5 shrink-0" />
+        <div class="space-y-2">
+          <p>
+            Du hast im Verwaltungsbereich zurzeit keine Berechtigungen – zum Beispiel, weil
+            dein Amt im Vorstand geendet hat.
+          </p>
+          <p>Wenn du Fragen hast oder meinst, dass das nicht stimmt, melde dich bitte bei uns:</p>
+          <p><.link href={~p"/kontakt"} class="link">Zum Kontaktformular</.link></p>
+        </div>
+      </div>
+
+      <p
+        :if={@current_scope.user.delete_on}
+        id="delete-on-notice"
+        class="mt-4 max-w-2xl text-sm text-base-content/70"
+      >
+        Dein Zugang wird am {de_date(@current_scope.user.delete_on)} gelöscht.
+      </p>
+
       <section :if={@tickets} id="tickets-widget" class="mt-6 rounded-box border border-base-300 p-4">
         <div class="flex flex-wrap items-baseline justify-between gap-2">
           <h2 class="text-lg font-semibold">Postfach</h2>
@@ -127,7 +150,7 @@ defmodule BbhWeb.Admin.DashboardLive do
         </ul>
       </section>
 
-      <.async_result :let={stats} assign={@stats}>
+      <.async_result :let={stats} :if={!@no_access} assign={@stats}>
         <:loading>
           <div class="mt-6 grid grid-cols-2 gap-4 md:grid-cols-4">
             <div :for={_ <- 1..4} class="h-20 animate-pulse rounded-box bg-base-200"></div>

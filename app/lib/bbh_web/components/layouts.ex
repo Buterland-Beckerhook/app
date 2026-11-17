@@ -549,6 +549,8 @@ defmodule BbhWeb.Layouts do
     do:
       Enum.filter(@admin_nav, fn
         {:tickets, _href, _label} -> Bbh.Authz.can_access_tickets?(scope)
+        # Without any access the dashboard only holds the notice — no menu entry for it.
+        {:dashboard, _href, _label} -> not Bbh.Authz.no_access?(scope)
         {key, _href, _label} -> Bbh.Authz.can_access_section?(user, key)
       end)
 
