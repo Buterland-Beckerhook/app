@@ -7,6 +7,15 @@
     ":dependencyDashboard",
     ":semanticCommits"
   ],
+  "ignorePaths": [
+    "**/node_modules/**",
+    "**/bower_components/**",
+    "**/examples/**",
+    "**/__tests__/**",
+    "**/test/**",
+    "**/tests/**",
+    "**/__fixtures__/**"
+  ],
   "timezone": "Europe/Berlin",
   "schedule": ["before 6am on monday"],
   "labels": ["dependencies"],
@@ -62,6 +71,12 @@
       "matchDatasources": ["docker"],
       "matchUpdateTypes": ["pin", "digest"],
       "groupName": "container image digests"
+    },
+    {
+      "description": "No digest for these: DEBIAN_VERSION is spliced into the hexpm/elixir builder tag, where an @sha256 suffix breaks it; the app image is rolled forward on the server by `docker compose pull` of the beta tag",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["debian", "ghcr.io/buterland-beckerhook/app"],
+      "pinDigests": false
     },
     {
       "description": "Group GitHub Actions digest bumps into one PR",

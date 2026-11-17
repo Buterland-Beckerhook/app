@@ -5,7 +5,6 @@ defmodule Bbh.ScopedWritesTest do
   """
   use Bbh.DataCase, async: true
 
-  import Bbh.AccountsFixtures
   import Bbh.CalendarFixtures
   import Bbh.ContentFixtures
 
