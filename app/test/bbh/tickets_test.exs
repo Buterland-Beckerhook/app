@@ -36,8 +36,15 @@ defmodule Bbh.TicketsTest do
       # ticket_number_seq is shared with concurrent tests and nextval is not rolled
       # back by the sandbox, so numbers rise but need not be consecutive.
       assert b.number > a.number
-      assert Ticket.reference(a) =~ ~r/^BB-\d{4}-\d{4}$/
+      # Padded to four digits, not cut: a reused test DB's sequence passes 9999.
+      assert Ticket.reference(a) =~ ~r/^BB-\d{4}-\d{4,}$/
       assert Repo.get_by!(Event, ticket_id: a.id).action == "created"
+    end
+
+    test "reference pads short numbers and keeps long ones whole" do
+      at = ~U[2026-03-01 10:00:00Z]
+      assert Ticket.reference(%Ticket{number: 42, inserted_at: at}) == "BB-2026-0042"
+      assert Ticket.reference(%Ticket{number: 12_345, inserted_at: at}) == "BB-2026-12345"
     end
 
     test "refuses an unknown queue" do
