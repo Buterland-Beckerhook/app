@@ -323,12 +323,24 @@ defmodule Bbh.TicketsTest do
       assert Enum.map(Tickets.related_tickets(scope, a), & &1.id) == [b.id]
     end
 
-    test "changes are broadcast", %{scope: scope} do
+    test "changes are broadcast to other processes", %{scope: scope} do
+      Tickets.subscribe()
+      ticket = Task.async(fn -> ticket_fixture() end) |> Task.await()
+      id = ticket.id
+      assert_receive {:tickets_changed, ^id}
+
+      {:ok, _} = Task.async(fn -> Tickets.take(scope, ticket) end) |> Task.await()
+      assert_receive {:tickets_changed, ^id}
+    end
+
+    test "the writer is not told about its own change", %{scope: scope} do
       Tickets.subscribe()
       ticket = ticket_fixture()
-      assert_receive {:tickets_changed, id} when id == ticket.id
       {:ok, _} = Tickets.take(scope, ticket)
-      assert_receive {:tickets_changed, ^id}
+
+      # Pinned: async tests elsewhere broadcast on the same topic.
+      id = ticket.id
+      refute_received {:tickets_changed, ^id}
     end
 
     test "events never carry personal data", %{scope: scope} do
