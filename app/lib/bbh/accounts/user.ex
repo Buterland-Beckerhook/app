@@ -18,7 +18,8 @@ defmodule Bbh.Accounts.User do
     field :calendars, {:array, :string}, default: []
     field :totp_secret, :binary, redact: true
     field :totp_confirmed_at, :utc_datetime
-    # Period (Unix time div 30) of the last accepted code; see `Bbh.Accounts.use_user_totp/3`.
+
+    # Period (Unix time div 30) of the last accepted code; see `Bbh.Accounts.SecondFactor.use_user_totp/3`.
     field :totp_last_step, :integer
     # Postfach notifications, see `Bbh.Tickets.Alerts`. `ticket_reminded_on` is the local
     # day of the last reminder — set by the system, so not cast from params.

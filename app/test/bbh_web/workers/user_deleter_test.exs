@@ -11,7 +11,7 @@ defmodule BbhWeb.Workers.UserDeleterTest do
   defp due_on(user, date), do: user |> Ecto.Changeset.change(delete_on: date) |> Repo.update!()
 
   test "deletes the users whose date has come and keeps the others" do
-    today = Accounts.local_today()
+    today = Bbh.Time.real_today()
     due = user_fixture() |> due_on(today)
     overdue = user_fixture() |> due_on(Date.add(today, -3))
     later = user_fixture() |> due_on(Date.add(today, 1))
@@ -27,7 +27,7 @@ defmodule BbhWeb.Workers.UserDeleterTest do
   end
 
   test "never deletes the last admin" do
-    admin = admin_user_fixture() |> due_on(Accounts.local_today())
+    admin = admin_user_fixture() |> due_on(Bbh.Time.real_today())
 
     assert :ok = UserDeleter.perform(%Oban.Job{})
 

@@ -35,9 +35,9 @@ defmodule Bbh.AccountsTest do
       user = user_fixture()
       today = ~D[2026-11-17]
 
-      assert Accounts.claim_ticket_reminder(user, today)
-      refute Accounts.claim_ticket_reminder(user, today)
-      assert Accounts.claim_ticket_reminder(user, Date.add(today, 1))
+      assert Accounts.Postfach.claim_ticket_reminder(user, today)
+      refute Accounts.Postfach.claim_ticket_reminder(user, today)
+      assert Accounts.Postfach.claim_ticket_reminder(user, Date.add(today, 1))
     end
   end
 
@@ -412,13 +412,16 @@ defmodule Bbh.AccountsTest do
     setup do
       user = user_fixture()
       passkey_fixture(user)
-      {:ok, user} = Accounts.enable_totp(user, Accounts.generate_totp_secret())
+
+      {:ok, user} =
+        Accounts.SecondFactor.enable_totp(user, Accounts.SecondFactor.generate_totp_secret())
+
       session = Accounts.generate_user_session_token(user)
       %{user: user, session: session}
     end
 
     test "removes passkeys, TOTP and sessions and issues a code", %{user: user, session: session} do
-      assert {:ok, {code, [_session]}} = Accounts.reset_second_factors(user)
+      assert {:ok, {code, [_session]}} = Accounts.SecondFactor.reset_second_factors(user)
 
       user = Accounts.get_user!(user.id)
       refute Bbh.Accounts.Passkeys.has_passkey?(user)
@@ -426,39 +429,41 @@ defmodule Bbh.AccountsTest do
       refute Accounts.get_user_by_session_token(session)
 
       assert code =~ ~r/^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/
-      assert Accounts.factor_reset_pending?(user)
-      assert Accounts.valid_factor_reset_code?(user, code)
+      assert Accounts.SecondFactor.factor_reset_pending?(user)
+      assert Accounts.SecondFactor.valid_factor_reset_code?(user, code)
     end
 
     test "accepts the code regardless of case, dash and spaces", %{user: user} do
-      {:ok, {code, _}} = Accounts.reset_second_factors(user)
+      {:ok, {code, _}} = Accounts.SecondFactor.reset_second_factors(user)
       sloppy = code |> String.replace("-", " ") |> String.downcase()
 
-      assert Accounts.valid_factor_reset_code?(user, sloppy)
-      refute Accounts.valid_factor_reset_code?(user, "AAAA-AAAA")
+      assert Accounts.SecondFactor.valid_factor_reset_code?(user, sloppy)
+      refute Accounts.SecondFactor.valid_factor_reset_code?(user, "AAAA-AAAA")
     end
 
     test "the code expires after 24 hours but the reset stays pending", %{user: user} do
-      {:ok, {code, _}} = Accounts.reset_second_factors(user)
+      {:ok, {code, _}} = Accounts.SecondFactor.reset_second_factors(user)
       age_tokens(user, "factor_reset", 25, :hour)
 
-      refute Accounts.valid_factor_reset_code?(user, code)
-      assert Accounts.factor_reset_pending?(user)
+      refute Accounts.SecondFactor.valid_factor_reset_code?(user, code)
+      assert Accounts.SecondFactor.factor_reset_pending?(user)
     end
 
     test "a second reset replaces the first code", %{user: user} do
-      {:ok, {first, _}} = Accounts.reset_second_factors(user)
-      {:ok, {second, _}} = Accounts.reset_second_factors(user)
+      {:ok, {first, _}} = Accounts.SecondFactor.reset_second_factors(user)
+      {:ok, {second, _}} = Accounts.SecondFactor.reset_second_factors(user)
 
-      refute Accounts.valid_factor_reset_code?(user, first)
-      assert Accounts.valid_factor_reset_code?(user, second)
+      refute Accounts.SecondFactor.valid_factor_reset_code?(user, first)
+      assert Accounts.SecondFactor.valid_factor_reset_code?(user, second)
     end
 
     test "enrolling TOTP ends the pending reset", %{user: user} do
-      {:ok, _} = Accounts.reset_second_factors(user)
-      {:ok, user} = Accounts.enable_totp(user, Accounts.generate_totp_secret())
+      {:ok, _} = Accounts.SecondFactor.reset_second_factors(user)
 
-      refute Accounts.factor_reset_pending?(user)
+      {:ok, user} =
+        Accounts.SecondFactor.enable_totp(user, Accounts.SecondFactor.generate_totp_secret())
+
+      refute Accounts.SecondFactor.factor_reset_pending?(user)
     end
   end
 
@@ -470,50 +475,54 @@ defmodule Bbh.AccountsTest do
 
   describe "valid_totp?/3" do
     setup do
-      %{secret: Accounts.generate_totp_secret(), now: 1_800_000_015}
+      %{secret: Accounts.SecondFactor.generate_totp_secret(), now: 1_800_000_015}
     end
 
     test "accepts the current period's code", %{secret: secret, now: now} do
-      assert Accounts.valid_totp?(secret, NimbleTOTP.verification_code(secret, time: now), now)
+      assert Accounts.SecondFactor.valid_totp?(
+               secret,
+               NimbleTOTP.verification_code(secret, time: now),
+               now
+             )
     end
 
     test "accepts the previous period's code, across the boundary", %{secret: secret, now: now} do
       code = NimbleTOTP.verification_code(secret, time: now - 30)
-      assert Accounts.valid_totp?(secret, " #{code} ", now)
+      assert Accounts.SecondFactor.valid_totp?(secret, " #{code} ", now)
     end
 
     test "rejects older codes, future codes and junk", %{secret: secret, now: now} do
-      refute Accounts.valid_totp?(
+      refute Accounts.SecondFactor.valid_totp?(
                secret,
                NimbleTOTP.verification_code(secret, time: now - 60),
                now
              )
 
-      refute Accounts.valid_totp?(
+      refute Accounts.SecondFactor.valid_totp?(
                secret,
                NimbleTOTP.verification_code(secret, time: now + 30),
                now
              )
 
-      refute Accounts.valid_totp?(secret, "", now)
-      refute Accounts.valid_totp?(nil, "123456", now)
+      refute Accounts.SecondFactor.valid_totp?(secret, "", now)
+      refute Accounts.SecondFactor.valid_totp?(nil, "123456", now)
     end
   end
 
   describe "use_user_totp/3" do
     setup do
-      secret = Accounts.generate_totp_secret()
-      {:ok, user} = Accounts.enable_totp(user_fixture(), secret)
+      secret = Accounts.SecondFactor.generate_totp_secret()
+      {:ok, user} = Accounts.SecondFactor.enable_totp(user_fixture(), secret)
       %{user: user, secret: secret, now: 1_800_000_015}
     end
 
     test "accepts a code once", %{user: user, secret: secret, now: now} do
       code = NimbleTOTP.verification_code(secret, time: now)
 
-      assert :ok = Accounts.use_user_totp(user, code, now)
-      assert :error = Accounts.use_user_totp(user, code, now)
+      assert :ok = Accounts.SecondFactor.use_user_totp(user, code, now)
+      assert :error = Accounts.SecondFactor.use_user_totp(user, code, now)
       # Still refused later in its drift window.
-      assert :error = Accounts.use_user_totp(user, code, now + 30)
+      assert :error = Accounts.SecondFactor.use_user_totp(user, code, now + 30)
     end
 
     test "after a code, refuses the previous period's but takes the next", %{
@@ -522,18 +531,22 @@ defmodule Bbh.AccountsTest do
       now: now
     } do
       assert :ok =
-               Accounts.use_user_totp(user, NimbleTOTP.verification_code(secret, time: now), now)
+               Accounts.SecondFactor.use_user_totp(
+                 user,
+                 NimbleTOTP.verification_code(secret, time: now),
+                 now
+               )
 
       previous = NimbleTOTP.verification_code(secret, time: now - 30)
-      assert :error = Accounts.use_user_totp(user, previous, now)
+      assert :error = Accounts.SecondFactor.use_user_totp(user, previous, now)
 
       next = NimbleTOTP.verification_code(secret, time: now + 30)
-      assert :ok = Accounts.use_user_totp(user, next, now + 30)
+      assert :ok = Accounts.SecondFactor.use_user_totp(user, next, now + 30)
     end
 
     test "refuses wrong codes and users without TOTP", %{user: user, now: now} do
-      assert :error = Accounts.use_user_totp(user, "", now)
-      assert :error = Accounts.use_user_totp(user_fixture(), "123456", now)
+      assert :error = Accounts.SecondFactor.use_user_totp(user, "", now)
+      assert :error = Accounts.SecondFactor.use_user_totp(user_fixture(), "123456", now)
     end
   end
 end

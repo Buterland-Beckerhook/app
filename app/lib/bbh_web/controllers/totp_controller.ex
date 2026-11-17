@@ -16,7 +16,7 @@ defmodule BbhWeb.TotpController do
     # Per IP and per account: guessing from many addresses still hits the second bucket.
     with :ok <- RateLimit.check("totp", RateLimit.client_ip(conn), 10, :timer.minutes(5)),
          :ok <- RateLimit.check("totp_user", user.id, 10, :timer.minutes(5)),
-         :ok <- Accounts.use_user_totp(user, code) do
+         :ok <- Accounts.SecondFactor.use_user_totp(user, code) do
       remember = get_session(conn, :totp_pending_remember)
 
       conn

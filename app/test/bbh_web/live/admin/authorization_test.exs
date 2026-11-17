@@ -65,7 +65,10 @@ defmodule BbhWeb.Admin.AuthorizationTest do
 
     test "an admin who has TOTP is asked to log in again with it", %{conn: conn} do
       {:ok, admin} =
-        Bbh.Accounts.enable_totp(admin_user_fixture(), Bbh.Accounts.generate_totp_secret())
+        Bbh.Accounts.SecondFactor.enable_totp(
+          admin_user_fixture(),
+          Bbh.Accounts.SecondFactor.generate_totp_secret()
+        )
 
       conn = log_in_user(conn, admin, auth_method: "magic_link")
 

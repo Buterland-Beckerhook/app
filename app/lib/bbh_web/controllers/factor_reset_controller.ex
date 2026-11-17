@@ -1,7 +1,7 @@
 defmodule BbhWeb.FactorResetController do
   @moduledoc """
   Entry of the one-time code an admin hands over after resetting a user's second
-  factors (`Bbh.Accounts.reset_second_factors/1`). A correct code marks the session so
+  factors (`Bbh.Accounts.SecondFactor.reset_second_factors/1`). A correct code marks the session so
   it may enroll a new passkey or TOTP; without it, a magic-link login (i.e. mailbox
   access) is not enough.
   """
@@ -23,7 +23,7 @@ defmodule BbhWeb.FactorResetController do
     with :ok <- RateLimit.check("factor_reset_user", user.id, 5, :timer.minutes(15)),
          :ok <-
            RateLimit.check("factor_reset_ip", RateLimit.client_ip(conn), 10, :timer.minutes(15)),
-         true <- Accounts.valid_factor_reset_code?(user, code) do
+         true <- Accounts.SecondFactor.valid_factor_reset_code?(user, code) do
       conn
       |> UserAuth.put_factor_reset_verified(user)
       |> put_flash(:info, "Code bestätigt. Bitte richte jetzt einen Passkey oder 2FA ein.")
@@ -42,7 +42,7 @@ defmodule BbhWeb.FactorResetController do
   def create(conn, _params), do: render(conn, :new, error: "Bitte den Code eingeben.")
 
   defp require_pending_reset(conn, _opts) do
-    if Accounts.factor_reset_pending?(conn.assigns.current_scope.user) do
+    if Accounts.SecondFactor.factor_reset_pending?(conn.assigns.current_scope.user) do
       conn
     else
       conn |> redirect(to: ~p"/users/security") |> halt()

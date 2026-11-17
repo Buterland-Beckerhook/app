@@ -61,7 +61,7 @@ defmodule Bbh.Accounts.Passkeys do
       })
       |> Repo.insert()
       |> tap(fn
-        {:ok, _passkey} -> Accounts.clear_factor_reset(user)
+        {:ok, _passkey} -> Accounts.SecondFactor.clear_factor_reset(user)
         _error -> :ok
       end)
     end

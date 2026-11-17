@@ -197,8 +197,12 @@ defmodule BbhWeb.Admin.SettingsLive do
   ## TOTP (2FA) --------------------------------------------------------------
 
   def handle_event("enable", %{"code" => code}, socket) do
-    if Accounts.valid_totp?(socket.assigns.secret, code) do
-      {:ok, user} = Accounts.enable_totp(socket.assigns.current_scope.user, socket.assigns.secret)
+    if Accounts.SecondFactor.valid_totp?(socket.assigns.secret, code) do
+      {:ok, user} =
+        Accounts.SecondFactor.enable_totp(
+          socket.assigns.current_scope.user,
+          socket.assigns.secret
+        )
 
       {:noreply,
        socket
@@ -219,8 +223,8 @@ defmodule BbhWeb.Admin.SettingsLive do
     true = Accounts.sudo_mode?(user)
 
     with :ok <- BbhWeb.RateLimit.check("totp_user", user.id, 10, :timer.minutes(5)),
-         :ok <- Accounts.use_user_totp(user, params["code"] || "") do
-      {:ok, user} = Accounts.disable_totp(user)
+         :ok <- Accounts.SecondFactor.use_user_totp(user, params["code"] || "") do
+      {:ok, user} = Accounts.SecondFactor.disable_totp(user)
 
       if token = socket.assigns.session_token do
         user
@@ -339,11 +343,11 @@ defmodule BbhWeb.Admin.SettingsLive do
         error: nil
       )
     else
-      secret = Accounts.generate_totp_secret()
+      secret = Accounts.SecondFactor.generate_totp_secret()
 
       qr =
         secret
-        |> then(&Accounts.totp_uri(user, &1))
+        |> then(&Accounts.SecondFactor.totp_uri(user, &1))
         |> BbhWeb.Format.qr_code(200)
 
       assign(socket,

@@ -30,7 +30,9 @@ defmodule BbhWeb.UserLive.SecuritySetupTest do
 
   test "redirects to the admin area when nothing is missing", %{conn: conn, user: user} do
     passkey_fixture(user)
-    {:ok, _user} = Accounts.enable_totp(user, Accounts.generate_totp_secret())
+
+    {:ok, _user} =
+      Accounts.SecondFactor.enable_totp(user, Accounts.SecondFactor.generate_totp_secret())
 
     assert {:error, {:live_redirect, %{to: "/admin"}}} = live(conn, ~p"/users/security")
   end

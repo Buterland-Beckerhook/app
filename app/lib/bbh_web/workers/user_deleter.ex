@@ -17,7 +17,7 @@ defmodule BbhWeb.Workers.UserDeleter do
 
   @impl Oban.Worker
   def perform(_job) do
-    for {user, tokens} <- Bbh.Accounts.delete_due_users(Bbh.Accounts.local_today()) do
+    for {user, tokens} <- Bbh.Accounts.delete_due_users(Bbh.Time.real_today()) do
       UserAuth.disconnect_sessions(tokens)
       Logger.info("Deleted user #{user.email} (scheduled for #{user.delete_on})")
     end

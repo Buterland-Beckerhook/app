@@ -45,7 +45,10 @@ defmodule BbhWeb.UserSessionControllerTest do
 
     test "sends a fully enrolled user straight to the admin area", %{conn: conn, user: user} do
       passkey_fixture(user)
-      {:ok, user} = Accounts.enable_totp(user, Accounts.generate_totp_secret())
+
+      {:ok, user} =
+        Accounts.SecondFactor.enable_totp(user, Accounts.SecondFactor.generate_totp_secret())
+
       {token, _hashed_token} = generate_user_magic_link_token(user)
 
       # This user has TOTP, so the magic-link login funnels through the 2FA
@@ -114,7 +117,9 @@ defmodule BbhWeb.UserSessionControllerTest do
     end
 
     test "bypasses TOTP even when the user has it enabled", %{conn: conn, user: user} do
-      {:ok, user} = Accounts.enable_totp(user, Accounts.generate_totp_secret())
+      {:ok, user} =
+        Accounts.SecondFactor.enable_totp(user, Accounts.SecondFactor.generate_totp_secret())
+
       token = Phoenix.Token.sign(BbhWeb.Endpoint, "passkey_session", user.id)
 
       conn = post(conn, ~p"/users/log-in", %{"user" => %{"passkey_token" => token}})

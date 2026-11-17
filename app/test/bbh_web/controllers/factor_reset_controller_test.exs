@@ -10,7 +10,7 @@ defmodule BbhWeb.FactorResetControllerTest do
   setup %{conn: conn} do
     user = user_fixture()
     passkey_fixture(user)
-    {:ok, {code, _}} = Accounts.reset_second_factors(user)
+    {:ok, {code, _}} = Accounts.SecondFactor.reset_second_factors(user)
     %{user: user, code: code, conn: log_in_user(conn, user, auth_method: "magic_link")}
   end
 
@@ -58,7 +58,7 @@ defmodule BbhWeb.FactorResetControllerTest do
 
     assert html =~ "Zwei-Faktor ist für dein Konto aktiviert"
 
-    refute Accounts.factor_reset_pending?(user)
+    refute Accounts.SecondFactor.factor_reset_pending?(user)
   end
 
   test "without a pending reset the page is not needed" do

@@ -28,7 +28,7 @@ defmodule Bbh.Accounts.Scope do
   Returns nil if no user is given.
   """
   def for_user(%User{} = user) do
-    %__MODULE__{user: user, ticket_queues: Bbh.Accounts.list_queue_keys(user)}
+    %__MODULE__{user: user, ticket_queues: Bbh.Accounts.Postfach.list_queue_keys(user)}
   end
 
   def for_user(nil), do: nil

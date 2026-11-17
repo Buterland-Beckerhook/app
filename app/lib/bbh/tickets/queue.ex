@@ -208,7 +208,7 @@ defmodule Bbh.Tickets.Queue do
     cond do
       protected?(key) -> {:error, :protected}
       Repo.exists?(from t in Ticket, where: t.queue == ^key) -> {:error, :has_tickets}
-      Bbh.Accounts.queue_granted?(key) -> {:error, :has_grants}
+      Bbh.Accounts.Postfach.queue_granted?(key) -> {:error, :has_grants}
       true -> queue |> Repo.delete() |> refreshed()
     end
   end

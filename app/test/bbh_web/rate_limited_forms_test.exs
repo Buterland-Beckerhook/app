@@ -110,8 +110,8 @@ defmodule BbhWeb.RateLimitedFormsTest do
       conn: conn,
       user: user
     } do
-      secret = Bbh.Accounts.generate_totp_secret()
-      {:ok, _user} = Bbh.Accounts.enable_totp(user, secret)
+      secret = Bbh.Accounts.SecondFactor.generate_totp_secret()
+      {:ok, _user} = Bbh.Accounts.SecondFactor.enable_totp(user, secret)
       {:ok, lv, _html} = live(conn, ~p"/admin/einstellungen/2fa")
 
       for _ <- 1..10,

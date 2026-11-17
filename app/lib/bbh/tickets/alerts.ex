@@ -36,11 +36,13 @@ defmodule Bbh.Tickets.Alerts do
 
   @doc "A changeset for the user's notification settings."
   defdelegate change_preferences(user, attrs \\ %{}),
-    to: Accounts,
+    to: Accounts.Postfach,
     as: :change_ticket_notifications
 
   @doc "Saves the user's notification settings."
-  defdelegate update_preferences(user, attrs), to: Accounts, as: :update_ticket_notifications
+  defdelegate update_preferences(user, attrs),
+    to: Accounts.Postfach,
+    as: :update_ticket_notifications
 
   @doc "Queues the announcement of new tickets for everyone who works their queues."
   def enqueue_new(tickets) do
@@ -175,7 +177,7 @@ defmodule Bbh.Tickets.Alerts do
     reminder_time = at(today, settings.ticket_reminder_hour * 60)
 
     if DateTime.compare(slot, reminder_time) != :lt and
-         Accounts.claim_ticket_reminder(user, today),
+         Accounts.Postfach.claim_ticket_reminder(user, today),
        do: items,
        else: []
   end
