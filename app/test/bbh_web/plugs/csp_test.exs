@@ -1,5 +1,5 @@
 defmodule BbhWeb.Plugs.CSPTest do
-  use BbhWeb.ConnCase
+  use BbhWeb.ConnCase, async: true
 
   # These pin the one guarantee the front-end code leans on: every bit of JavaScript in
   # this app is either the nonced bundle or something it loaded, never an inline `on*`

@@ -195,6 +195,66 @@ defmodule BbhWeb.Admin.TicketLiveTest do
       assert Bbh.Repo.get!(Ticket, ticket.id).status == "new"
     end
 
+    test "assign hands the ticket to another queue member, or to nobody", %{conn: conn} do
+      colleague = user_fixture()
+      granted_scope(colleague, ["info"])
+      ticket = ticket_fixture()
+      {:ok, lv, _html} = live(conn, ~p"/admin/postfach/#{Ticket.reference(ticket)}")
+
+      html = lv |> form("#assign-form") |> render_change(%{"assignee_id" => colleague.id})
+      assert html =~ "Zugewiesen."
+      assert %{assignee_id: id, status: "open"} = Bbh.Repo.get!(Ticket, ticket.id)
+      assert id == colleague.id
+
+      lv |> form("#assign-form") |> render_change(%{"assignee_id" => ""})
+      assert Bbh.Repo.get!(Ticket, ticket.id).assignee_id == nil
+    end
+
+    test "assign refuses someone without access to the queue", %{conn: conn} do
+      outsider = user_fixture()
+      ticket = ticket_fixture()
+      {:ok, lv, _html} = live(conn, ~p"/admin/postfach/#{Ticket.reference(ticket)}")
+
+      html = render_change(lv, "assign", %{"assignee_id" => outsider.id})
+      assert html =~ "keinen Zugriff auf das Postfach"
+      assert Bbh.Repo.get!(Ticket, ticket.id).assignee_id == nil
+    end
+
+    test "move puts the ticket into another queue", %{conn: conn} do
+      ticket = ticket_fixture()
+      {:ok, lv, _html} = live(conn, ~p"/admin/postfach/#{Ticket.reference(ticket)}")
+
+      lv |> form("#move-form") |> render_change(%{"queue" => "vorstand"})
+      assert %{queue: "vorstand", assignee_id: nil} = Bbh.Repo.get!(Ticket, ticket.id)
+    end
+
+    test "spam marks the ticket", %{conn: conn} do
+      ticket = ticket_fixture()
+      {:ok, lv, _html} = live(conn, ~p"/admin/postfach/#{Ticket.reference(ticket)}")
+
+      lv |> element(~s(button[phx-click="spam"])) |> render_click()
+      assert Bbh.Repo.get!(Ticket, ticket.id).status == "spam"
+    end
+
+    test "delete and restore are admin-only", %{conn: conn} do
+      ticket = ticket_fixture()
+      {:ok, lv, _html} = live(conn, ~p"/admin/postfach/#{Ticket.reference(ticket)}")
+
+      # No buttons for a queue member, and a forged event changes nothing.
+      refute has_element?(lv, ~s(button[phx-click="delete"]))
+      assert render_click(lv, "delete", %{}) =~ "Das hat nicht geklappt."
+      assert Bbh.Repo.get!(Ticket, ticket.id).deleted_at == nil
+
+      admin_conn = log_in_user(build_conn(), admin_user_fixture(), auth_method: "passkey")
+      {:ok, lv, _html} = live(admin_conn, ~p"/admin/postfach/#{Ticket.reference(ticket)}")
+
+      lv |> element(~s(button[phx-click="delete"])) |> render_click()
+      assert %DateTime{} = Bbh.Repo.get!(Ticket, ticket.id).deleted_at
+
+      lv |> element(~s(button[phx-click="restore"])) |> render_click()
+      assert Bbh.Repo.get!(Ticket, ticket.id).deleted_at == nil
+    end
+
     test "shows a membership application in structure", %{user: user} do
       scope = granted_scope(user, ["mitgliedschaft"])
       conn = log_in_user(build_conn(), user, auth_method: "passkey")

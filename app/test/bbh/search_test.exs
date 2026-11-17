@@ -124,6 +124,18 @@ defmodule Bbh.SearchTest do
       assert length(all_enqueued(worker: Bbh.Workers.SearchReindexer)) == 1
     end
 
+    test "the enqueued reindex job makes new content findable" do
+      article_fixture(%{
+        status: "published",
+        title: "Kranzbinden am Festplatz",
+        slug: "kranzbinden"
+      })
+
+      assert Search.search("Kranzbinden").entries == []
+      assert :ok = perform_job(Bbh.Workers.SearchReindexer, %{})
+      assert [%{title: "Kranzbinden am Festplatz"}] = Search.search("Kranzbinden").entries
+    end
+
     test "paginates results" do
       for i <- 1..25 do
         article_fixture(%{title: "Ummeldung #{i}", slug: "ummeldung-#{i}", body: "<p>Termin</p>"})
