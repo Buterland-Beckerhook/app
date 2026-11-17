@@ -1,2700 +1,7746 @@
-/* Altcha widget v1.5.1 — self-hosted proof-of-work spam protection.
- * Source: https://cdn.jsdelivr.net/npm/altcha@1.5.1/dist/altcha.js
+/* Altcha widget v3.6.0 — self-hosted proof-of-work spam protection.
+ * Source: https://cdn.jsdelivr.net/npm/altcha@3.6.0/dist/main/altcha.js
  * License: MIT (https://github.com/altcha-org/altcha)
- * Vendored (no build-time npm); imported from assets/js/app.js. Registers the
- * <altcha-widget> custom element. Uses an inline blob Web Worker to solve the
- * SHA-256 proof of work (see CSP worker-src in lib/bbh_web/plugs/csp.ex).
+ * Vendored (no build-time npm); imported from assets/js/lazy/altcha.js. Registers the
+ * <altcha-widget> custom element. Solves in an inline blob Web Worker (see CSP
+ * worker-src in lib/bbh_web/plugs/csp.ex). v3 detects our v1 challenge (it has a
+ * `challenge` field) and submits the v1 payload `Bbh.Altcha.verify/1` checks.
  */
-var Ri = Object.defineProperty;
-var Vr = (e) => {
-  throw TypeError(e);
+const DEV = false;
+var is_array = Array.isArray;
+var index_of = Array.prototype.indexOf;
+var includes = Array.prototype.includes;
+var array_from = Array.from;
+var object_keys = Object.keys;
+var define_property = Object.defineProperty;
+var get_descriptor = Object.getOwnPropertyDescriptor;
+var get_descriptors = Object.getOwnPropertyDescriptors;
+var object_prototype = Object.prototype;
+var array_prototype = Array.prototype;
+var get_prototype_of = Object.getPrototypeOf;
+var is_extensible = Object.isExtensible;
+const noop = () => {
 };
-var Ii = (e, t, r) => t in e ? Ri(e, t, { enumerable: !0, configurable: !0, writable: !0, value: r }) : e[t] = r;
-var le = (e, t, r) => Ii(e, typeof t != "symbol" ? t + "" : t, r), Br = (e, t, r) => t.has(e) || Vr("Cannot " + r);
-var G = (e, t, r) => (Br(e, t, "read from private field"), r ? r.call(e) : t.get(e)), Vt = (e, t, r) => t.has(e) ? Vr("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, r), Bt = (e, t, r, i) => (Br(e, t, "write to private field"), i ? i.call(e, r) : t.set(e, r), r);
-const ln = `(function(){"use strict";const d=new TextEncoder;function p(e){return[...new Uint8Array(e)].map(t=>t.toString(16).padStart(2,"0")).join("")}async function b(e,t,r){if(typeof crypto>"u"||!("subtle"in crypto)||!("digest"in crypto.subtle))throw new Error("Web Crypto is not available. Secure context is required (https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts).");return p(await crypto.subtle.digest(r.toUpperCase(),d.encode(e+t)))}function w(e,t,r="SHA-256",n=1e6,s=0){const o=new AbortController,a=Date.now();return{promise:(async()=>{for(let c=s;c<=n;c+=1){if(o.signal.aborted)return null;if(await b(t,c,r)===e)return{number:c,took:Date.now()-a}}return null})(),controller:o}}function h(e){const t=atob(e),r=new Uint8Array(t.length);for(let n=0;n<t.length;n++)r[n]=t.charCodeAt(n);return r}function g(e,t=12){const r=new Uint8Array(t);for(let n=0;n<t;n++)r[n]=e%256,e=Math.floor(e/256);return r}async function m(e,t="",r=1e6,n=0){const s="AES-GCM",o=new AbortController,a=Date.now(),l=async()=>{for(let u=n;u<=r;u+=1){if(o.signal.aborted||!c||!y)return null;try{const f=await crypto.subtle.decrypt({name:s,iv:g(u)},c,y);if(f)return{clearText:new TextDecoder().decode(f),took:Date.now()-a}}catch{}}return null};let c=null,y=null;try{y=h(e);const u=await crypto.subtle.digest("SHA-256",d.encode(t));c=await crypto.subtle.importKey("raw",u,s,!1,["decrypt"])}catch{return{promise:Promise.reject(),controller:o}}return{promise:l(),controller:o}}let i;onmessage=async e=>{const{type:t,payload:r,start:n,max:s}=e.data;let o=null;if(t==="abort")i==null||i.abort(),i=void 0;else if(t==="work"){if("obfuscated"in r){const{key:a,obfuscated:l}=r||{};o=await m(l,a,s,n)}else{const{algorithm:a,challenge:l,salt:c}=r||{};o=w(l,c,a,s,n)}i=o.controller,o.promise.then(a=>{self.postMessage(a&&{...a,worker:!0})})}}})();
-`, qr = typeof self < "u" && self.Blob && new Blob([ln], { type: "text/javascript;charset=utf-8" });
-function Si(e) {
-  let t;
-  try {
-    if (t = qr && (self.URL || self.webkitURL).createObjectURL(qr), !t) throw "";
-    const r = new Worker(t, {
-      name: e == null ? void 0 : e.name
-    });
-    return r.addEventListener("error", () => {
-      (self.URL || self.webkitURL).revokeObjectURL(t);
-    }), r;
-  } catch {
-    return new Worker(
-      "data:text/javascript;charset=utf-8," + encodeURIComponent(ln),
-      {
-        name: e == null ? void 0 : e.name
-      }
-    );
-  } finally {
-    t && (self.URL || self.webkitURL).revokeObjectURL(t);
+function run_all(arr) {
+  for (var i = 0; i < arr.length; i++) {
+    arr[i]();
   }
 }
-const Ti = "5";
-var an;
-typeof window < "u" && ((an = window.__svelte ?? (window.__svelte = {})).v ?? (an.v = /* @__PURE__ */ new Set())).add(Ti);
-const Ni = 1, Li = 4, Di = 8, Pi = 16, Oi = 1, Fi = 2, zt = "[", sn = "[!", fn = "]", Je = {}, Z = Symbol(), Mi = "http://www.w3.org/1999/xhtml", Hr = !1;
-function un(e) {
-  throw new Error("https://svelte.dev/e/lifecycle_outside_component");
+function deferred() {
+  var resolve;
+  var reject;
+  var promise = new Promise((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
 }
-var cn = Array.isArray, Ui = Array.prototype.indexOf, ji = Array.from, yt = Object.keys, Et = Object.defineProperty, Oe = Object.getOwnPropertyDescriptor, Vi = Object.getOwnPropertyDescriptors, Bi = Object.prototype, qi = Array.prototype, dn = Object.getPrototypeOf, Wr = Object.isExtensible;
-function hn(e) {
-  for (var t = 0; t < e.length; t++)
-    e[t]();
+const DERIVED = 1 << 1;
+const EFFECT = 1 << 2;
+const RENDER_EFFECT = 1 << 3;
+const MANAGED_EFFECT = 1 << 24;
+const BLOCK_EFFECT = 1 << 4;
+const BRANCH_EFFECT = 1 << 5;
+const ROOT_EFFECT = 1 << 6;
+const BOUNDARY_EFFECT = 1 << 7;
+const PAUSED = 1 << 8;
+const CONNECTED = 1 << 9;
+const CLEAN = 1 << 10;
+const DIRTY = 1 << 11;
+const MAYBE_DIRTY = 1 << 12;
+const INERT = 1 << 13;
+const DESTROYED = 1 << 14;
+const REACTION_RAN = 1 << 15;
+const DESTROYING = 1 << 25;
+const EFFECT_TRANSPARENT = 1 << 16;
+const EAGER_EFFECT = 1 << 17;
+const HEAD_EFFECT = 1 << 18;
+const EFFECT_PRESERVED = 1 << 19;
+const USER_EFFECT = 1 << 20;
+const WAS_MARKED = 1 << 16;
+const REACTION_IS_UPDATING = 1 << 21;
+const ASYNC = 1 << 22;
+const ERROR_VALUE = 1 << 23;
+const STATE_SYMBOL = /* @__PURE__ */ Symbol("$state");
+const COMPONENT_SYMBOL = /* @__PURE__ */ Symbol("component");
+const LEGACY_PROPS = /* @__PURE__ */ Symbol("legacy props");
+const LOADING_ATTR_SYMBOL = /* @__PURE__ */ Symbol("");
+const ATTRIBUTES_CACHE = /* @__PURE__ */ Symbol("attributes");
+const CLASS_CACHE = /* @__PURE__ */ Symbol("class");
+const STYLE_CACHE = /* @__PURE__ */ Symbol("style");
+const TEXT_CACHE = /* @__PURE__ */ Symbol("text");
+const FORM_RESET_HANDLER = /* @__PURE__ */ Symbol("form reset");
+const STALE_REACTION = new class StaleReactionError extends Error {
+  name = "StaleReactionError";
+  message = "The reaction that called `getAbortSignal()` was re-run or destroyed";
+}();
+const IS_XHTML = (
+  // We gotta write it like this because after downleveling the pure comment may end up in the wrong location
+  !!globalThis.document?.contentType && /* @__PURE__ */ globalThis.document.contentType.includes("xml")
+);
+const TEXT_NODE = 3;
+const COMMENT_NODE = 8;
+function equals(value) {
+  return value === this.v;
 }
-const fe = 2, vn = 4, It = 8, Xt = 16, be = 32, Me = 64, xt = 128, ee = 256, $t = 512, K = 1024, he = 2048, Ue = 4096, Ke = 8192, St = 16384, Hi = 32768, Qt = 65536, Wi = 1 << 19, gn = 1 << 20, Ht = 1 << 21, ut = Symbol("$state"), _n = Symbol("legacy props"), Yi = Symbol("");
-function Gi(e) {
-  throw new Error("https://svelte.dev/e/effect_in_teardown");
+function safe_not_equal(a, b) {
+  return a != a ? b == b : a !== b || a !== null && typeof a === "object" || typeof a === "function";
 }
-function Zi() {
-  throw new Error("https://svelte.dev/e/effect_in_unowned_derived");
+function safe_equals(value) {
+  return !safe_not_equal(value, this.v);
 }
-function Ji(e) {
-  throw new Error("https://svelte.dev/e/effect_orphan");
+function lifecycle_outside_component(name) {
+  {
+    throw new Error(`https://svelte.dev/e/lifecycle_outside_component`);
+  }
 }
-function Ki() {
-  throw new Error("https://svelte.dev/e/effect_update_depth_exceeded");
+function async_derived_orphan() {
+  {
+    throw new Error(`https://svelte.dev/e/async_derived_orphan`);
+  }
 }
-function zi() {
-  throw new Error("https://svelte.dev/e/hydration_failed");
+function effect_in_teardown(rune) {
+  {
+    throw new Error(`https://svelte.dev/e/effect_in_teardown`);
+  }
 }
-function Xi(e) {
-  throw new Error("https://svelte.dev/e/props_invalid_value");
+function effect_in_unowned_derived() {
+  {
+    throw new Error(`https://svelte.dev/e/effect_in_unowned_derived`);
+  }
 }
-function Qi() {
-  throw new Error("https://svelte.dev/e/state_descriptors_fixed");
+function effect_orphan(rune) {
+  {
+    throw new Error(`https://svelte.dev/e/effect_orphan`);
+  }
 }
-function eo() {
-  throw new Error("https://svelte.dev/e/state_prototype_fixed");
+function effect_update_depth_exceeded() {
+  {
+    throw new Error(`https://svelte.dev/e/effect_update_depth_exceeded`);
+  }
 }
-function to() {
-  throw new Error("https://svelte.dev/e/state_unsafe_mutation");
+function hydration_failed() {
+  {
+    throw new Error(`https://svelte.dev/e/hydration_failed`);
+  }
 }
-function Tt(e) {
-  console.warn("https://svelte.dev/e/hydration_mismatch");
+function state_descriptors_fixed() {
+  {
+    throw new Error(`https://svelte.dev/e/state_descriptors_fixed`);
+  }
 }
-let L = !1;
-function Ze(e) {
-  L = e;
+function state_prototype_fixed() {
+  {
+    throw new Error(`https://svelte.dev/e/state_prototype_fixed`);
+  }
 }
-let P;
-function Re(e) {
-  if (e === null)
-    throw Tt(), Je;
-  return P = e;
+function state_unsafe_mutation() {
+  {
+    throw new Error(`https://svelte.dev/e/state_unsafe_mutation`);
+  }
 }
-function ze() {
-  return Re(
-    /** @type {TemplateNode} */
-    /* @__PURE__ */ Te(P)
+function svelte_boundary_reset_onerror() {
+  {
+    throw new Error(`https://svelte.dev/e/svelte_boundary_reset_onerror`);
+  }
+}
+let tracing_mode_flag = false;
+const TEMPLATE_FRAGMENT = 1;
+const TEMPLATE_USE_IMPORT_NODE = 1 << 1;
+const HYDRATION_START = "[";
+const HYDRATION_START_ELSE = "[!";
+const HYDRATION_START_FAILED = "[?";
+const HYDRATION_END = "]";
+const HYDRATION_ERROR = {};
+const UNINITIALIZED = /* @__PURE__ */ Symbol("uninitialized");
+const NAMESPACE_HTML = "http://www.w3.org/1999/xhtml";
+const NAMESPACE_SVG = "http://www.w3.org/2000/svg";
+const NAMESPACE_MATHML = "http://www.w3.org/1998/Math/MathML";
+const ATTACHMENT_KEY = "@attach";
+let component_context = null;
+function set_component_context(context) {
+  component_context = context;
+}
+function push(props, runes = false, fn) {
+  component_context = {
+    p: component_context,
+    i: false,
+    c: null,
+    e: null,
+    s: props,
+    x: null,
+    r: (
+      /** @type {Effect} */
+      active_effect
+    ),
+    l: null
+  };
+}
+function pop(component2) {
+  var context = (
+    /** @type {ComponentContext} */
+    component_context
+  );
+  var effects = context.e;
+  if (effects !== null) {
+    context.e = null;
+    for (var fn of effects) {
+      create_user_effect(fn);
+    }
+  }
+  if (component2 !== void 0) {
+    context.x = component2;
+  }
+  context.i = true;
+  component_context = context.p;
+  return mark_as_component(component2);
+}
+function mark_as_component(component2 = {}) {
+  define_property(component2, COMPONENT_SYMBOL, { value: true });
+  return component2;
+}
+function is_runes() {
+  return true;
+}
+let micro_tasks = [];
+function run_micro_tasks() {
+  var tasks = micro_tasks;
+  micro_tasks = [];
+  run_all(tasks);
+}
+function queue_micro_task(fn) {
+  if (micro_tasks.length === 0 && !is_flushing_sync) {
+    var tasks = micro_tasks;
+    queueMicrotask(() => {
+      if (tasks === micro_tasks) run_micro_tasks();
+    });
+  }
+  micro_tasks.push(fn);
+}
+function flush_tasks() {
+  while (micro_tasks.length > 0) {
+    run_micro_tasks();
+  }
+}
+function derived_inert() {
+  {
+    console.warn(`https://svelte.dev/e/derived_inert`);
+  }
+}
+function hydration_mismatch(location2) {
+  {
+    console.warn(`https://svelte.dev/e/hydration_mismatch`);
+  }
+}
+function select_multiple_invalid_value() {
+  {
+    console.warn(`https://svelte.dev/e/select_multiple_invalid_value`);
+  }
+}
+function svelte_boundary_reset_noop() {
+  {
+    console.warn(`https://svelte.dev/e/svelte_boundary_reset_noop`);
+  }
+}
+let hydrating = false;
+function set_hydrating(value) {
+  hydrating = value;
+}
+let hydrate_node;
+function set_hydrate_node(node) {
+  if (node === null) {
+    hydration_mismatch();
+    throw HYDRATION_ERROR;
+  }
+  return hydrate_node = node;
+}
+function hydrate_next() {
+  return set_hydrate_node(/* @__PURE__ */ get_next_sibling(hydrate_node));
+}
+function reset(node) {
+  if (!hydrating) return;
+  if (/* @__PURE__ */ get_next_sibling(hydrate_node) !== null) {
+    hydration_mismatch();
+    throw HYDRATION_ERROR;
+  }
+  hydrate_node = node;
+}
+function next(count = 1) {
+  if (hydrating) {
+    var i = count;
+    var node = hydrate_node;
+    while (i--) {
+      node = /** @type {TemplateNode} */
+      /* @__PURE__ */ get_next_sibling(node);
+    }
+    hydrate_node = node;
+  }
+}
+function skip_nodes(remove = true) {
+  var depth = 0;
+  var node = hydrate_node;
+  while (true) {
+    if (node.nodeType === COMMENT_NODE) {
+      var data = (
+        /** @type {Comment} */
+        node.data
+      );
+      if (data === HYDRATION_END) {
+        if (depth === 0) return node;
+        depth -= 1;
+      } else if (data === HYDRATION_START || data === HYDRATION_START_ELSE || // "[1", "[2", etc. for if blocks
+      data[0] === "[" && !isNaN(Number(data.slice(1)))) {
+        depth += 1;
+      }
+    }
+    var next2 = (
+      /** @type {TemplateNode} */
+      /* @__PURE__ */ get_next_sibling(node)
+    );
+    if (remove) node.remove();
+    node = next2;
+  }
+}
+function read_hydration_instruction(node) {
+  if (!node || node.nodeType !== COMMENT_NODE) {
+    hydration_mismatch();
+    throw HYDRATION_ERROR;
+  }
+  return (
+    /** @type {Comment} */
+    node.data
   );
 }
-function z(e) {
-  if (L) {
-    if (/* @__PURE__ */ Te(P) !== null)
-      throw Tt(), Je;
-    P = e;
+function proxy(value) {
+  if (typeof value !== "object" || value === null || STATE_SYMBOL in value || COMPONENT_SYMBOL in value) {
+    return value;
   }
-}
-function ro() {
-  for (var e = 0, t = P; ; ) {
-    if (t.nodeType === 8) {
-      var r = (
-        /** @type {Comment} */
-        t.data
-      );
-      if (r === fn) {
-        if (e === 0) return t;
-        e -= 1;
-      } else (r === zt || r === sn) && (e += 1);
+  const prototype = get_prototype_of(value);
+  if (prototype !== object_prototype && prototype !== array_prototype) {
+    return value;
+  }
+  var sources = /* @__PURE__ */ new Map();
+  var is_proxied_array = is_array(value);
+  var version = /* @__PURE__ */ state(0);
+  var parent_version = update_version;
+  var with_parent = (fn) => {
+    if (update_version === parent_version) {
+      return fn();
     }
-    var i = (
-      /** @type {TemplateNode} */
-      /* @__PURE__ */ Te(t)
-    );
-    t.remove(), t = i;
-  }
-}
-let no = !1;
-function ke(e) {
-  if (typeof e != "object" || e === null || ut in e)
-    return e;
-  const t = dn(e);
-  if (t !== Bi && t !== qi)
-    return e;
-  var r = /* @__PURE__ */ new Map(), i = cn(e), o = /* @__PURE__ */ J(0), a = R, l = (s) => {
-    var f = R;
-    ve(a);
-    var d = s();
-    return ve(f), d;
+    var reaction = active_reaction;
+    var version2 = update_version;
+    set_active_reaction(null);
+    set_update_version(parent_version);
+    var result = fn();
+    set_active_reaction(reaction);
+    set_update_version(version2);
+    return result;
   };
-  return i && r.set("length", /* @__PURE__ */ J(
-    /** @type {any[]} */
-    e.length
-  )), new Proxy(
+  if (is_proxied_array) {
+    sources.set("length", /* @__PURE__ */ state(
+      /** @type {any[]} */
+      value.length
+    ));
+  }
+  return new Proxy(
     /** @type {any} */
-    e,
+    value,
     {
-      defineProperty(s, f, d) {
-        (!("value" in d) || d.configurable === !1 || d.enumerable === !1 || d.writable === !1) && Qi();
-        var v = r.get(f);
-        return v === void 0 ? (v = l(() => /* @__PURE__ */ J(d.value)), r.set(f, v)) : D(
-          v,
-          l(() => ke(d.value))
-        ), !0;
+      defineProperty(_, prop2, descriptor) {
+        if (!("value" in descriptor) || descriptor.configurable === false || descriptor.enumerable === false || descriptor.writable === false) {
+          state_descriptors_fixed();
+        }
+        var s = sources.get(prop2);
+        if (s === void 0) {
+          with_parent(() => {
+            var s2 = /* @__PURE__ */ state(descriptor.value);
+            sources.set(prop2, s2);
+            return s2;
+          });
+        } else {
+          set(s, descriptor.value, true);
+        }
+        return true;
       },
-      deleteProperty(s, f) {
-        var d = r.get(f);
-        if (d === void 0)
-          f in s && (r.set(
-            f,
-            l(() => /* @__PURE__ */ J(Z))
-          ), qt(o));
-        else {
-          if (i && typeof f == "string") {
-            var v = (
-              /** @type {Source<number>} */
-              r.get("length")
-            ), h = Number(f);
-            Number.isInteger(h) && h < v.v && D(v, h);
+      deleteProperty(target, prop2) {
+        var s = sources.get(prop2);
+        if (s === void 0) {
+          if (prop2 in target) {
+            const s2 = with_parent(() => /* @__PURE__ */ state(UNINITIALIZED));
+            sources.set(prop2, s2);
+            increment(version);
           }
-          D(d, Z), qt(o);
+        } else {
+          set(s, UNINITIALIZED);
+          increment(version);
         }
-        return !0;
+        return true;
       },
-      get(s, f, d) {
-        var m;
-        if (f === ut)
-          return e;
-        var v = r.get(f), h = f in s;
-        if (v === void 0 && (!h || (m = Oe(s, f)) != null && m.writable) && (v = l(() => /* @__PURE__ */ J(ke(h ? s[f] : Z))), r.set(f, v)), v !== void 0) {
-          var g = c(v);
-          return g === Z ? void 0 : g;
+      get(target, prop2, receiver) {
+        if (prop2 === STATE_SYMBOL) {
+          return value;
         }
-        return Reflect.get(s, f, d);
+        var s = sources.get(prop2);
+        var exists = prop2 in target;
+        if (s === void 0 && (!exists || get_descriptor(target, prop2)?.writable)) {
+          s = with_parent(() => {
+            var p = proxy(exists ? target[prop2] : UNINITIALIZED);
+            var s2 = /* @__PURE__ */ state(p);
+            return s2;
+          });
+          sources.set(prop2, s);
+        }
+        if (s !== void 0) {
+          var v = get(s);
+          return v === UNINITIALIZED ? void 0 : v;
+        }
+        return Reflect.get(target, prop2, receiver);
       },
-      getOwnPropertyDescriptor(s, f) {
-        var d = Reflect.getOwnPropertyDescriptor(s, f);
-        if (d && "value" in d) {
-          var v = r.get(f);
-          v && (d.value = c(v));
-        } else if (d === void 0) {
-          var h = r.get(f), g = h == null ? void 0 : h.v;
-          if (h !== void 0 && g !== Z)
+      getOwnPropertyDescriptor(target, prop2) {
+        var descriptor = Reflect.getOwnPropertyDescriptor(target, prop2);
+        if (descriptor && "value" in descriptor) {
+          var s = sources.get(prop2);
+          if (s) descriptor.value = get(s);
+        } else if (descriptor === void 0) {
+          var source2 = sources.get(prop2);
+          var value2 = source2?.v;
+          if (source2 !== void 0 && value2 !== UNINITIALIZED) {
             return {
-              enumerable: !0,
-              configurable: !0,
-              value: g,
-              writable: !0
+              enumerable: true,
+              configurable: true,
+              value: value2,
+              writable: true
             };
-        }
-        return d;
-      },
-      has(s, f) {
-        var g;
-        if (f === ut)
-          return !0;
-        var d = r.get(f), v = d !== void 0 && d.v !== Z || Reflect.has(s, f);
-        if (d !== void 0 || I !== null && (!v || (g = Oe(s, f)) != null && g.writable)) {
-          d === void 0 && (d = l(() => /* @__PURE__ */ J(v ? ke(s[f]) : Z)), r.set(f, d));
-          var h = c(d);
-          if (h === Z)
-            return !1;
-        }
-        return v;
-      },
-      set(s, f, d, v) {
-        var U;
-        var h = r.get(f), g = f in s;
-        if (i && f === "length")
-          for (var m = d; m < /** @type {Source<number>} */
-          h.v; m += 1) {
-            var k = r.get(m + "");
-            k !== void 0 ? D(k, Z) : m in s && (k = l(() => /* @__PURE__ */ J(Z)), r.set(m + "", k));
           }
-        h === void 0 ? (!g || (U = Oe(s, f)) != null && U.writable) && (h = l(() => /* @__PURE__ */ J(void 0)), D(
-          h,
-          l(() => ke(d))
-        ), r.set(f, h)) : (g = h.v !== Z, D(
-          h,
-          l(() => ke(d))
-        ));
-        var N = Reflect.getOwnPropertyDescriptor(s, f);
-        if (N != null && N.set && N.set.call(v, d), !g) {
-          if (i && typeof f == "string") {
-            var F = (
+        }
+        return descriptor;
+      },
+      has(target, prop2) {
+        if (prop2 === STATE_SYMBOL) {
+          return true;
+        }
+        var s = sources.get(prop2);
+        var has = s !== void 0 && s.v !== UNINITIALIZED || Reflect.has(target, prop2);
+        if (s !== void 0 || active_effect !== null && (!has || get_descriptor(target, prop2)?.writable)) {
+          if (s === void 0) {
+            s = with_parent(() => {
+              var p = has ? proxy(target[prop2]) : UNINITIALIZED;
+              var s2 = /* @__PURE__ */ state(p);
+              return s2;
+            });
+            sources.set(prop2, s);
+          }
+          var value2 = get(s);
+          if (value2 === UNINITIALIZED) {
+            return false;
+          }
+        }
+        return has;
+      },
+      set(target, prop2, value2, receiver) {
+        var s = sources.get(prop2);
+        var has = prop2 in target;
+        if (is_proxied_array && prop2 === "length") {
+          for (var i = value2; i < /** @type {Source<number>} */
+          s.v; i += 1) {
+            var other_s = sources.get(i + "");
+            if (other_s !== void 0) {
+              set(other_s, UNINITIALIZED);
+            } else if (i in target) {
+              other_s = with_parent(() => /* @__PURE__ */ state(UNINITIALIZED));
+              sources.set(i + "", other_s);
+            }
+          }
+        }
+        if (s === void 0) {
+          if (!has || get_descriptor(target, prop2)?.writable) {
+            s = with_parent(() => /* @__PURE__ */ state(void 0));
+            set(s, proxy(value2));
+            sources.set(prop2, s);
+          }
+        } else {
+          has = s.v !== UNINITIALIZED;
+          var p = with_parent(() => proxy(value2));
+          set(s, p);
+        }
+        var descriptor = Reflect.getOwnPropertyDescriptor(target, prop2);
+        if (descriptor?.set) {
+          descriptor.set.call(receiver, value2);
+        }
+        if (!has) {
+          if (is_proxied_array && typeof prop2 === "string") {
+            var ls = (
               /** @type {Source<number>} */
-              r.get("length")
-            ), V = Number(f);
-            Number.isInteger(V) && V >= F.v && D(F, V + 1);
+              sources.get("length")
+            );
+            var n = Number(prop2);
+            if (Number.isInteger(n) && n >= ls.v) {
+              set(ls, n + 1);
+            }
           }
-          qt(o);
+          increment(version);
         }
-        return !0;
+        return true;
       },
-      ownKeys(s) {
-        c(o);
-        var f = Reflect.ownKeys(s).filter((h) => {
-          var g = r.get(h);
-          return g === void 0 || g.v !== Z;
+      ownKeys(target) {
+        get(version);
+        var own_keys = Reflect.ownKeys(target).filter((key3) => {
+          var source3 = sources.get(key3);
+          return source3 === void 0 || source3.v !== UNINITIALIZED;
         });
-        for (var [d, v] of r)
-          v.v !== Z && !(d in s) && f.push(d);
-        return f;
+        for (var [key2, source2] of sources) {
+          if (source2.v !== UNINITIALIZED && !(key2 in target)) {
+            own_keys.push(key2);
+          }
+        }
+        return own_keys;
       },
       setPrototypeOf() {
-        eo();
+        state_prototype_fixed();
       }
     }
   );
 }
-function qt(e, t = 1) {
-  D(e, e.v + t);
+function get_proxied_value(value) {
+  try {
+    if (value !== null && typeof value === "object" && STATE_SYMBOL in value) {
+      return value[STATE_SYMBOL];
+    }
+  } catch {
+  }
+  return value;
 }
-var Yr, mn, wn, pn;
-function Wt() {
-  if (Yr === void 0) {
-    Yr = window, mn = /Firefox/.test(navigator.userAgent);
-    var e = Element.prototype, t = Node.prototype, r = Text.prototype;
-    wn = Oe(t, "firstChild").get, pn = Oe(t, "nextSibling").get, Wr(e) && (e.__click = void 0, e.__className = void 0, e.__attributes = null, e.__style = void 0, e.__e = void 0), Wr(r) && (r.__t = void 0);
+function is(a, b) {
+  return Object.is(get_proxied_value(a), get_proxied_value(b));
+}
+var $window;
+var $document;
+var is_firefox;
+var first_child_getter;
+var next_sibling_getter;
+function init_operations() {
+  if ($window !== void 0) {
+    return;
+  }
+  $window = window;
+  $document = document;
+  is_firefox = /Firefox/.test(navigator.userAgent);
+  var element_prototype = Element.prototype;
+  var node_prototype = Node.prototype;
+  var text_prototype = Text.prototype;
+  first_child_getter = get_descriptor(node_prototype, "firstChild").get;
+  next_sibling_getter = get_descriptor(node_prototype, "nextSibling").get;
+  if (is_extensible(element_prototype)) {
+    element_prototype[CLASS_CACHE] = void 0;
+    element_prototype[ATTRIBUTES_CACHE] = null;
+    element_prototype[STYLE_CACHE] = void 0;
+    element_prototype.__e = void 0;
+  }
+  if (is_extensible(text_prototype)) {
+    text_prototype[TEXT_CACHE] = void 0;
   }
 }
-function er(e = "") {
-  return document.createTextNode(e);
+function create_text(value = "") {
+  return document.createTextNode(value);
 }
 // @__NO_SIDE_EFFECTS__
-function ae(e) {
-  return wn.call(e);
-}
-// @__NO_SIDE_EFFECTS__
-function Te(e) {
-  return pn.call(e);
-}
-function X(e, t) {
-  if (!L)
-    return /* @__PURE__ */ ae(e);
-  var r = (
-    /** @type {TemplateNode} */
-    /* @__PURE__ */ ae(P)
+function get_first_child(node) {
+  return (
+    /** @type {TemplateNode | null} */
+    first_child_getter.call(node)
   );
-  return r === null && (r = P.appendChild(er())), Re(r), r;
-}
-function Gr(e, t) {
-  if (!L) {
-    var r = (
-      /** @type {DocumentFragment} */
-      /* @__PURE__ */ ae(
-        /** @type {Node} */
-        e
-      )
-    );
-    return r instanceof Comment && r.data === "" ? /* @__PURE__ */ Te(r) : r;
-  }
-  return P;
-}
-function we(e, t = 1, r = !1) {
-  let i = L ? P : e;
-  for (var o; t--; )
-    o = i, i = /** @type {TemplateNode} */
-    /* @__PURE__ */ Te(i);
-  if (!L)
-    return i;
-  var a = i == null ? void 0 : i.nodeType;
-  if (r && a !== 3) {
-    var l = er();
-    return i === null ? o == null || o.after(l) : i.before(l), Re(l), l;
-  }
-  return Re(i), /** @type {TemplateNode} */
-  i;
-}
-function io(e) {
-  e.textContent = "";
-}
-function bn(e) {
-  return e === this.v;
-}
-function oo(e, t) {
-  return e != e ? t == t : e !== t || e !== null && typeof e == "object" || typeof e == "function";
-}
-function yn(e) {
-  return !oo(e, this.v);
 }
 // @__NO_SIDE_EFFECTS__
-function tr(e) {
-  var t = fe | he, r = R !== null && (R.f & fe) !== 0 ? (
-    /** @type {Derived} */
-    R
-  ) : null;
-  return I === null || r !== null && (r.f & ee) !== 0 ? t |= ee : I.f |= gn, {
-    ctx: W,
+function get_next_sibling(node) {
+  return (
+    /** @type {TemplateNode | null} */
+    next_sibling_getter.call(node)
+  );
+}
+function child(node, is_text) {
+  if (!hydrating) {
+    return /* @__PURE__ */ get_first_child(node);
+  }
+  var child2 = /* @__PURE__ */ get_first_child(hydrate_node);
+  if (child2 === null) {
+    child2 = hydrate_node.appendChild(create_text());
+  } else if (is_text && child2.nodeType !== TEXT_NODE) {
+    var text2 = create_text();
+    child2?.before(text2);
+    set_hydrate_node(text2);
+    return text2;
+  }
+  if (is_text) {
+    merge_text_nodes(
+      /** @type {Text} */
+      child2
+    );
+  }
+  set_hydrate_node(child2);
+  return child2;
+}
+function first_child(node, is_text = false) {
+  if (!hydrating) {
+    var first = /* @__PURE__ */ get_first_child(node);
+    if (first instanceof Comment && first.data === "") return /* @__PURE__ */ get_next_sibling(first);
+    return first;
+  }
+  if (is_text) {
+    if (hydrate_node?.nodeType !== TEXT_NODE) {
+      var text2 = create_text();
+      hydrate_node?.before(text2);
+      set_hydrate_node(text2);
+      return text2;
+    }
+    merge_text_nodes(
+      /** @type {Text} */
+      hydrate_node
+    );
+  }
+  return hydrate_node;
+}
+function only_child(node, is_text = false) {
+  if (!hydrating) {
+    return /* @__PURE__ */ get_first_child(node);
+  }
+  var first = child(node, is_text);
+  reset(node);
+  return first;
+}
+function sibling(node, count = 1, is_text = false) {
+  let next_sibling = hydrating ? hydrate_node : node;
+  var last_sibling;
+  while (count--) {
+    last_sibling = next_sibling;
+    next_sibling = /** @type {TemplateNode} */
+    /* @__PURE__ */ get_next_sibling(next_sibling);
+  }
+  if (!hydrating) {
+    return next_sibling;
+  }
+  if (is_text) {
+    if (next_sibling?.nodeType !== TEXT_NODE) {
+      var text2 = create_text();
+      if (next_sibling === null) {
+        last_sibling?.after(text2);
+      } else {
+        next_sibling.before(text2);
+      }
+      set_hydrate_node(text2);
+      return text2;
+    }
+    merge_text_nodes(
+      /** @type {Text} */
+      next_sibling
+    );
+  }
+  set_hydrate_node(next_sibling);
+  return next_sibling;
+}
+function clear_text_content(node) {
+  node.textContent = "";
+}
+function should_defer_append() {
+  return false;
+}
+function create_element(tag, namespace, is2) {
+  if (namespace == null || namespace === NAMESPACE_HTML) {
+    return (
+      /** @type {T extends keyof HTMLElementTagNameMap ? HTMLElementTagNameMap[T] : Element} */
+      is2 ? document.createElement(tag, { is: is2 }) : document.createElement(tag)
+    );
+  }
+  return (
+    /** @type {T extends keyof HTMLElementTagNameMap ? HTMLElementTagNameMap[T] : Element} */
+    is2 ? document.createElementNS(namespace, tag, { is: is2 }) : document.createElementNS(namespace, tag)
+  );
+}
+function merge_text_nodes(text2) {
+  if (
+    /** @type {string} */
+    text2.nodeValue.length < 65536
+  ) {
+    return;
+  }
+  let next2 = text2.nextSibling;
+  while (next2 !== null && next2.nodeType === TEXT_NODE) {
+    next2.remove();
+    text2.nodeValue += /** @type {string} */
+    next2.nodeValue;
+    next2 = text2.nextSibling;
+  }
+}
+function handle_error(error) {
+  var effect2 = active_effect;
+  if (effect2 === null) {
+    active_reaction.f |= ERROR_VALUE;
+    return error;
+  }
+  if ((effect2.f & REACTION_RAN) === 0 && (effect2.f & EFFECT) === 0) {
+    throw error;
+  }
+  invoke_error_boundary(error, effect2);
+}
+function invoke_error_boundary(error, effect2) {
+  if (effect2 !== null && (effect2.f & DESTROYED) !== 0) {
+    return;
+  }
+  while (effect2 !== null) {
+    if ((effect2.f & BOUNDARY_EFFECT) !== 0 && (effect2.f & (DESTROYED | DESTROYING)) === 0) {
+      if ((effect2.f & REACTION_RAN) === 0) {
+        throw error;
+      }
+      try {
+        effect2.b.error(error);
+        return;
+      } catch (e) {
+        error = e;
+      }
+    }
+    effect2 = effect2.parent;
+  }
+  throw error;
+}
+const STATUS_MASK = -7169;
+function set_signal_status(signal, status) {
+  signal.f = signal.f & STATUS_MASK | status;
+}
+function update_derived_status(derived2) {
+  if ((derived2.f & CONNECTED) !== 0 || derived2.deps === null) {
+    set_signal_status(derived2, CLEAN);
+  } else {
+    set_signal_status(derived2, MAYBE_DIRTY);
+  }
+}
+function clear_marked(deps) {
+  if (deps === null) return;
+  for (const dep of deps) {
+    if ((dep.f & DERIVED) === 0 || (dep.f & WAS_MARKED) === 0) {
+      continue;
+    }
+    dep.f ^= WAS_MARKED;
+    clear_marked(
+      /** @type {Derived} */
+      dep.deps
+    );
+  }
+}
+function defer_effect(effect2, dirty_effects, maybe_dirty_effects) {
+  if ((effect2.f & DIRTY) !== 0) {
+    dirty_effects.add(effect2);
+  } else if ((effect2.f & MAYBE_DIRTY) !== 0) {
+    maybe_dirty_effects.add(effect2);
+  }
+  clear_marked(effect2.deps);
+  set_signal_status(effect2, CLEAN);
+}
+function subscribe_to_store(store2, run, invalidate) {
+  if (store2 == null) {
+    run(void 0);
+    return noop;
+  }
+  const unsub = untrack(
+    () => store2.subscribe(
+      run,
+      // @ts-expect-error
+      invalidate
+    )
+  );
+  return unsub.unsubscribe ? () => unsub.unsubscribe() : unsub;
+}
+const subscriber_queue = [];
+function writable(value, start = noop) {
+  let stop = null;
+  const subscribers = /* @__PURE__ */ new Set();
+  function set2(new_value) {
+    if (safe_not_equal(value, new_value)) {
+      value = new_value;
+      if (stop) {
+        const run_queue = !subscriber_queue.length;
+        for (const subscriber of subscribers) {
+          subscriber[1]();
+          subscriber_queue.push(subscriber, value);
+        }
+        if (run_queue) {
+          for (let i = 0; i < subscriber_queue.length; i += 2) {
+            subscriber_queue[i][0](subscriber_queue[i + 1]);
+          }
+          subscriber_queue.length = 0;
+        }
+      }
+    }
+  }
+  function update(fn) {
+    set2(fn(
+      /** @type {T} */
+      value
+    ));
+  }
+  function subscribe(run, invalidate = noop) {
+    const subscriber = [run, invalidate];
+    subscribers.add(subscriber);
+    if (subscribers.size === 1) {
+      stop = start(set2, update) || noop;
+    }
+    run(
+      /** @type {T} */
+      value
+    );
+    return () => {
+      subscribers.delete(subscriber);
+      if (subscribers.size === 0 && stop) {
+        stop();
+        stop = null;
+      }
+    };
+  }
+  return { set: set2, update, subscribe };
+}
+function get$1(store2) {
+  let value;
+  subscribe_to_store(store2, (_) => value = _)();
+  return value;
+}
+let IS_UNMOUNTED = /* @__PURE__ */ Symbol("unmounted");
+function store_get(store2, store_name, stores) {
+  const entry = stores[store_name] ??= {
+    store: null,
+    source: /* @__PURE__ */ mutable_source(void 0),
+    unsubscribe: noop
+  };
+  if (entry.store !== store2 && !(IS_UNMOUNTED in stores)) {
+    entry.unsubscribe();
+    entry.store = store2 ?? null;
+    if (store2 == null) {
+      entry.source.v = void 0;
+      entry.unsubscribe = noop;
+    } else {
+      var is_synchronous_callback = true;
+      entry.unsubscribe = subscribe_to_store(store2, (v) => {
+        if (is_synchronous_callback) {
+          entry.source.v = v;
+        } else {
+          set(entry.source, v);
+        }
+      });
+      is_synchronous_callback = false;
+    }
+  }
+  if (store2 && IS_UNMOUNTED in stores) {
+    return get$1(store2);
+  }
+  return get(entry.source);
+}
+function setup_stores() {
+  const stores = {};
+  function cleanup() {
+    teardown(() => {
+      for (var store_name in stores) {
+        const ref = stores[store_name];
+        ref.unsubscribe();
+      }
+      define_property(stores, IS_UNMOUNTED, {
+        enumerable: false,
+        value: true
+      });
+    });
+  }
+  return [stores, cleanup];
+}
+function autofocus(dom, value) {
+  if (value) {
+    const body = document.body;
+    dom.autofocus = true;
+    queue_micro_task(() => {
+      if (document.activeElement === body) {
+        dom.focus();
+      }
+    });
+  }
+}
+let listening_to_form_reset = false;
+function add_form_reset_listener() {
+  if (!listening_to_form_reset) {
+    listening_to_form_reset = true;
+    document.addEventListener(
+      "reset",
+      (evt) => {
+        Promise.resolve().then(() => {
+          if (!evt.defaultPrevented) {
+            for (
+              const e of
+              /**@type {HTMLFormElement} */
+              evt.target.elements
+            ) {
+              e[FORM_RESET_HANDLER]?.();
+            }
+          }
+        });
+      },
+      // In the capture phase to guarantee we get noticed of it (no possibility of stopPropagation)
+      { capture: true }
+    );
+  }
+}
+function without_reactive_context(fn) {
+  var previous_reaction = active_reaction;
+  var previous_effect = active_effect;
+  set_active_reaction(null);
+  set_active_effect(null);
+  try {
+    return fn();
+  } finally {
+    set_active_reaction(previous_reaction);
+    set_active_effect(previous_effect);
+  }
+}
+function listen_to_event_and_reset_event(element, event2, handler, on_reset = handler) {
+  element.addEventListener(event2, () => without_reactive_context(handler));
+  const prev = (
+    /** @type {any} */
+    element[FORM_RESET_HANDLER]
+  );
+  if (prev) {
+    element[FORM_RESET_HANDLER] = () => {
+      prev();
+      on_reset(true);
+    };
+  } else {
+    element[FORM_RESET_HANDLER] = () => on_reset(true);
+  }
+  add_form_reset_listener();
+}
+function flatten(blockers, sync, async, fn) {
+  const d = derived;
+  var pending = blockers.filter((b) => !b.settled);
+  var deriveds = sync.map(d);
+  if (async.length === 0 && pending.length === 0) {
+    fn(deriveds);
+    return;
+  }
+  var parent = (
+    /** @type {Effect} */
+    active_effect
+  );
+  var restore = capture();
+  var blocker_promise = pending.length === 1 ? pending[0].promise : pending.length > 1 ? Promise.all(pending.map((b) => b.promise)) : null;
+  function finish(async2) {
+    if ((parent.f & DESTROYED) !== 0) {
+      return;
+    }
+    restore();
+    try {
+      fn([...deriveds, ...async2]);
+    } catch (error) {
+      invoke_error_boundary(error, parent);
+    }
+    unset_context();
+  }
+  var decrement_pending = increment_pending();
+  if (async.length === 0) {
+    blocker_promise.then(() => finish([])).finally(decrement_pending);
+    return;
+  }
+  function run() {
+    Promise.all(async.map((expression) => /* @__PURE__ */ async_derived(expression))).then(finish).catch((error) => invoke_error_boundary(error, parent)).finally(decrement_pending);
+  }
+  if (blocker_promise) {
+    blocker_promise.then(() => {
+      restore();
+      run();
+      unset_context();
+    });
+  } else {
+    run();
+  }
+}
+function capture() {
+  var previous_effect = (
+    /** @type {Effect} */
+    active_effect
+  );
+  var previous_reaction = active_reaction;
+  var previous_component_context = component_context;
+  var previous_batch2 = (
+    /** @type {Batch} */
+    current_batch
+  );
+  return function restore(activate_batch = true) {
+    set_active_effect(previous_effect);
+    set_active_reaction(previous_reaction);
+    set_component_context(previous_component_context);
+    if (activate_batch && (previous_effect.f & DESTROYED) === 0) {
+      previous_batch2?.activate();
+      previous_batch2?.apply();
+    }
+  };
+}
+function unset_context(deactivate_batch = true) {
+  set_active_effect(null);
+  set_active_reaction(null);
+  set_component_context(null);
+  if (deactivate_batch) current_batch?.deactivate();
+}
+function increment_pending() {
+  var effect2 = (
+    /** @type {Effect} */
+    active_effect
+  );
+  var boundary2 = effect2.b;
+  var batch = (
+    /** @type {Batch} */
+    current_batch
+  );
+  var blocking = !!boundary2?.is_rendered();
+  boundary2?.update_pending_count(1, batch);
+  batch.increment(blocking, effect2);
+  return () => {
+    boundary2?.update_pending_count(-1, batch);
+    batch.decrement(blocking, effect2);
+  };
+}
+// @__NO_SIDE_EFFECTS__
+function derived(fn) {
+  var flags2 = DERIVED | DIRTY;
+  if (active_effect !== null) {
+    active_effect.f |= EFFECT_PRESERVED;
+  }
+  const signal = {
+    ctx: component_context,
     deps: null,
     effects: null,
-    equals: bn,
-    f: t,
-    fn: e,
+    equals,
+    f: flags2,
+    fn,
     reactions: null,
     rv: 0,
     v: (
       /** @type {V} */
-      null
+      UNINITIALIZED
     ),
     wv: 0,
-    parent: r ?? I
+    parent: active_effect,
+    ac: null
   };
+  return signal;
+}
+const OBSOLETE = /* @__PURE__ */ Symbol("obsolete");
+// @__NO_SIDE_EFFECTS__
+function async_derived(fn, label, location2) {
+  let parent = (
+    /** @type {Effect | null} */
+    active_effect
+  );
+  if (parent === null) {
+    async_derived_orphan();
+  }
+  var promise = (
+    /** @type {Promise<V>} */
+    /** @type {unknown} */
+    void 0
+  );
+  var signal = source(
+    /** @type {V} */
+    UNINITIALIZED
+  );
+  var should_suspend = !active_reaction;
+  var deferreds = /* @__PURE__ */ new Set();
+  async_effect(() => {
+    var effect2 = (
+      /** @type {Effect} */
+      active_effect
+    );
+    var d = deferred();
+    promise = d.promise;
+    try {
+      Promise.resolve(fn()).then(d.resolve, (e) => {
+        if (e !== STALE_REACTION) d.reject(e);
+      }).finally(unset_context);
+    } catch (error) {
+      d.reject(error);
+      unset_context();
+    }
+    var batch = (
+      /** @type {Batch} */
+      current_batch
+    );
+    if (should_suspend) {
+      if ((effect2.f & REACTION_RAN) !== 0) {
+        var decrement_pending = increment_pending();
+      }
+      if (
+        // boundary can be null if the async derived is inside an $effect.root not connected to the component render tree
+        parent.b?.is_rendered()
+      ) {
+        batch.async_deriveds.get(effect2)?.reject(OBSOLETE);
+      } else {
+        for (const d2 of deferreds.values()) {
+          d2.reject(OBSOLETE);
+        }
+      }
+      deferreds.add(d);
+      batch.async_deriveds.set(effect2, d);
+    }
+    const handler = (value, error = void 0) => {
+      decrement_pending?.();
+      deferreds.delete(d);
+      if (error === OBSOLETE) return;
+      batch.activate();
+      if (error) {
+        signal.f |= ERROR_VALUE;
+        internal_set(signal, error);
+      } else {
+        if ((signal.f & ERROR_VALUE) !== 0) {
+          signal.f ^= ERROR_VALUE;
+        }
+        internal_set(signal, value);
+      }
+      batch.deactivate();
+    };
+    d.promise.then(handler, (e) => handler(null, e || "unknown"));
+  });
+  teardown(() => {
+    for (const d of deferreds) {
+      d.reject(OBSOLETE);
+    }
+  });
+  return new Promise((fulfil) => {
+    function next2(p) {
+      function go() {
+        if (p === promise) {
+          fulfil(signal);
+        } else {
+          next2(promise);
+        }
+      }
+      p.then(go, go);
+    }
+    next2(promise);
+  });
 }
 // @__NO_SIDE_EFFECTS__
-function st(e) {
-  const t = /* @__PURE__ */ tr(e);
-  return On(t), t;
+function user_derived(fn) {
+  const d = /* @__PURE__ */ derived(fn);
+  push_reaction_value(d);
+  return d;
 }
-function En(e) {
-  var t = e.effects;
-  if (t !== null) {
-    e.effects = null;
-    for (var r = 0; r < t.length; r += 1)
-      Ie(
+function destroy_derived_effects(derived2) {
+  var effects = derived2.effects;
+  if (effects !== null) {
+    derived2.effects = null;
+    for (var i = 0; i < effects.length; i += 1) {
+      destroy_effect(
         /** @type {Effect} */
-        t[r]
+        effects[i]
       );
-  }
-}
-function ao(e) {
-  for (var t = e.parent; t !== null; ) {
-    if ((t.f & fe) === 0)
-      return (
-        /** @type {Effect} */
-        t
-      );
-    t = t.parent;
-  }
-  return null;
-}
-function xn(e) {
-  var t, r = I;
-  Se(ao(e));
-  try {
-    En(e), t = jn(e);
-  } finally {
-    Se(r);
-  }
-  return t;
-}
-function $n(e) {
-  var t = xn(e), r = (Ce || (e.f & ee) !== 0) && e.deps !== null ? Ue : K;
-  ue(e, r), e.equals(t) || (e.v = t, e.wv = Mn());
-}
-function lo(e) {
-  I === null && R === null && Ji(), R !== null && (R.f & ee) !== 0 && I === null && Zi(), gt && Gi();
-}
-function so(e, t) {
-  var r = t.last;
-  r === null ? t.last = t.first = e : (r.next = e, e.prev = r, t.last = e);
-}
-function je(e, t, r, i = !0) {
-  var o = I, a = {
-    ctx: W,
-    deps: null,
-    nodes_start: null,
-    nodes_end: null,
-    f: e | he,
-    first: null,
-    fn: t,
-    last: null,
-    next: null,
-    parent: o,
-    prev: null,
-    teardown: null,
-    transitions: null,
-    wv: 0
-  };
-  if (r)
-    try {
-      ir(a), a.f |= Hi;
-    } catch (f) {
-      throw Ie(a), f;
     }
-  else t !== null && Lt(a);
-  var l = r && a.deps === null && a.first === null && a.nodes_start === null && a.teardown === null && (a.f & (gn | xt)) === 0;
-  if (!l && i && (o !== null && so(a, o), R !== null && (R.f & fe) !== 0)) {
-    var s = (
-      /** @type {Derived} */
-      R
-    );
-    (s.effects ?? (s.effects = [])).push(a);
-  }
-  return a;
-}
-function kn(e) {
-  const t = je(It, null, !1);
-  return ue(t, K), t.teardown = e, t;
-}
-function Yt(e) {
-  lo();
-  var t = I !== null && (I.f & be) !== 0 && W !== null && !W.m;
-  if (t) {
-    var r = (
-      /** @type {ComponentContext} */
-      W
-    );
-    (r.e ?? (r.e = [])).push({
-      fn: e,
-      effect: I,
-      reaction: R
-    });
-  } else {
-    var i = rr(e);
-    return i;
   }
 }
-function fo(e) {
-  const t = je(Me, e, !0);
-  return () => {
-    Ie(t);
-  };
-}
-function uo(e) {
-  const t = je(Me, e, !0);
-  return (r = {}) => new Promise((i) => {
-    r.outro ? Zt(t, () => {
-      Ie(t), i(void 0);
-    }) : (Ie(t), i(void 0));
-  });
-}
-function rr(e) {
-  return je(vn, e, !1);
-}
-function nr(e) {
-  return je(It, e, !0);
-}
-function Pe(e, t = [], r = tr) {
-  const i = t.map(r);
-  return Cn(() => e(...i.map(c)));
-}
-function Cn(e, t = 0) {
-  return je(It | Xt | t, e, !0);
-}
-function Gt(e, t = !0) {
-  return je(It | be, e, !0, t);
-}
-function An(e) {
-  var t = e.teardown;
-  if (t !== null) {
-    const r = gt, i = R;
-    Jr(!0), ve(null);
+function execute_derived(derived2) {
+  var value;
+  var prev_active_effect = active_effect;
+  var parent = derived2.parent;
+  if (!is_destroying_effect && parent !== null && derived2.v !== UNINITIALIZED && // if it was never evaluated before, it's guaranteed to fail downstream, so we try to execute instead
+  (parent.f & (DESTROYED | INERT)) !== 0) {
+    derived_inert();
+    return derived2.v;
+  }
+  set_active_effect(parent);
+  {
     try {
-      t.call(null);
+      derived2.f &= ~WAS_MARKED;
+      destroy_derived_effects(derived2);
+      value = update_reaction(derived2);
     } finally {
-      Jr(r), ve(i);
+      set_active_effect(prev_active_effect);
     }
   }
+  return value;
 }
-function Rn(e, t = !1) {
-  var r = e.first;
-  for (e.first = e.last = null; r !== null; ) {
-    var i = r.next;
-    (r.f & Me) !== 0 ? r.parent = null : Ie(r, t), r = i;
-  }
-}
-function co(e) {
-  for (var t = e.first; t !== null; ) {
-    var r = t.next;
-    (t.f & be) === 0 && Ie(t), t = r;
-  }
-}
-function Ie(e, t = !0) {
-  var r = !1;
-  (t || (e.f & Wi) !== 0) && e.nodes_start !== null && (In(
-    e.nodes_start,
-    /** @type {TemplateNode} */
-    e.nodes_end
-  ), r = !0), Rn(e, t && !r), Rt(e, 0), ue(e, St);
-  var i = e.transitions;
-  if (i !== null)
-    for (const a of i)
-      a.stop();
-  An(e);
-  var o = e.parent;
-  o !== null && o.first !== null && Sn(e), e.next = e.prev = e.teardown = e.ctx = e.deps = e.fn = e.nodes_start = e.nodes_end = null;
-}
-function In(e, t) {
-  for (; e !== null; ) {
-    var r = e === t ? null : (
-      /** @type {TemplateNode} */
-      /* @__PURE__ */ Te(e)
-    );
-    e.remove(), e = r;
-  }
-}
-function Sn(e) {
-  var t = e.parent, r = e.prev, i = e.next;
-  r !== null && (r.next = i), i !== null && (i.prev = r), t !== null && (t.first === e && (t.first = i), t.last === e && (t.last = r));
-}
-function Zt(e, t) {
-  var r = [];
-  Tn(e, r, !0), ho(r, () => {
-    Ie(e), t && t();
-  });
-}
-function ho(e, t) {
-  var r = e.length;
-  if (r > 0) {
-    var i = () => --r || t();
-    for (var o of e)
-      o.out(i);
-  } else
-    t();
-}
-function Tn(e, t, r) {
-  if ((e.f & Ke) === 0) {
-    if (e.f ^= Ke, e.transitions !== null)
-      for (const l of e.transitions)
-        (l.is_global || r) && t.push(l);
-    for (var i = e.first; i !== null; ) {
-      var o = i.next, a = (i.f & Qt) !== 0 || (i.f & be) !== 0;
-      Tn(i, t, a ? r : !1), i = o;
-    }
-  }
-}
-function Zr(e) {
-  Nn(e, !0);
-}
-function Nn(e, t) {
-  if ((e.f & Ke) !== 0) {
-    e.f ^= Ke, (e.f & K) === 0 && (e.f ^= K), _t(e) && (ue(e, he), Lt(e));
-    for (var r = e.first; r !== null; ) {
-      var i = r.next, o = (r.f & Qt) !== 0 || (r.f & be) !== 0;
-      Nn(r, o ? t : !1), r = i;
-    }
-    if (e.transitions !== null)
-      for (const a of e.transitions)
-        (a.is_global || t) && a.in();
-  }
-}
-const vo = typeof requestIdleCallback > "u" ? (e) => setTimeout(e, 1) : requestIdleCallback;
-let dt = [], ht = [];
-function Ln() {
-  var e = dt;
-  dt = [], hn(e);
-}
-function Dn() {
-  var e = ht;
-  ht = [], hn(e);
-}
-function Pn(e) {
-  dt.length === 0 && queueMicrotask(Ln), dt.push(e);
-}
-function go(e) {
-  ht.length === 0 && vo(Dn), ht.push(e);
-}
-function _o() {
-  dt.length > 0 && Ln(), ht.length > 0 && Dn();
-}
-let pt = !1, kt = !1, Ct = null, Fe = !1, gt = !1;
-function Jr(e) {
-  gt = e;
-}
-let ct = [];
-let R = null, de = !1;
-function ve(e) {
-  R = e;
-}
-let I = null;
-function Se(e) {
-  I = e;
-}
-let H = null;
-function On(e) {
-  R !== null && R.f & Ht && (H === null ? H = [e] : H.push(e));
-}
-let q = null, Q = 0, ie = null;
-function mo(e) {
-  ie = e;
-}
-let Fn = 1, At = 0, Ce = !1;
-function Mn() {
-  return ++Fn;
-}
-function _t(e) {
-  var h;
-  var t = e.f;
-  if ((t & he) !== 0)
-    return !0;
-  if ((t & Ue) !== 0) {
-    var r = e.deps, i = (t & ee) !== 0;
-    if (r !== null) {
-      var o, a, l = (t & $t) !== 0, s = i && I !== null && !Ce, f = r.length;
-      if (l || s) {
-        var d = (
-          /** @type {Derived} */
-          e
-        ), v = d.parent;
-        for (o = 0; o < f; o++)
-          a = r[o], (l || !((h = a == null ? void 0 : a.reactions) != null && h.includes(d))) && (a.reactions ?? (a.reactions = [])).push(d);
-        l && (d.f ^= $t), s && v !== null && (v.f & ee) === 0 && (d.f ^= ee);
+function update_derived(derived2) {
+  var value = execute_derived(derived2);
+  if (!derived2.equals(value)) {
+    derived2.wv = increment_write_version();
+    if (!current_batch?.is_fork || derived2.deps === null) {
+      if (current_batch !== null) {
+        current_batch.capture(derived2, value, true);
+        previous_batch?.capture(derived2, value, true);
+      } else {
+        derived2.v = value;
       }
-      for (o = 0; o < f; o++)
-        if (a = r[o], _t(
-          /** @type {Derived} */
-          a
-        ) && $n(
-          /** @type {Derived} */
-          a
-        ), a.wv > e.wv)
-          return !0;
-    }
-    (!i || I !== null && !Ce) && ue(e, K);
-  }
-  return !1;
-}
-function wo(e, t) {
-  for (var r = t; r !== null; ) {
-    if ((r.f & xt) !== 0)
-      try {
-        r.fn(e);
+      if (derived2.deps === null) {
+        set_signal_status(derived2, CLEAN);
         return;
-      } catch {
-        r.f ^= xt;
       }
-    r = r.parent;
+    }
   }
-  throw pt = !1, e;
-}
-function Kr(e) {
-  return (e.f & St) === 0 && (e.parent === null || (e.parent.f & xt) === 0);
-}
-function Nt(e, t, r, i) {
-  if (pt) {
-    if (r === null && (pt = !1), Kr(t))
-      throw e;
+  if (is_destroying_effect) {
     return;
   }
-  if (r !== null && (pt = !0), wo(e, t), Kr(t))
-    throw e;
-}
-function Un(e, t, r = !0) {
-  var i = e.reactions;
-  if (i !== null)
-    for (var o = 0; o < i.length; o++) {
-      var a = i[o];
-      H != null && H.includes(e) || ((a.f & fe) !== 0 ? Un(
-        /** @type {Derived} */
-        a,
-        t,
-        !1
-      ) : t === a && (r ? ue(a, he) : (a.f & K) !== 0 && ue(a, Ue), Lt(
-        /** @type {Effect} */
-        a
-      )));
+  if (batch_values !== null) {
+    if (effect_tracking() || current_batch?.is_fork) {
+      batch_values.set(derived2, value);
     }
-}
-function jn(e) {
-  var m;
-  var t = q, r = Q, i = ie, o = R, a = Ce, l = H, s = W, f = de, d = e.f;
-  q = /** @type {null | Value[]} */
-  null, Q = 0, ie = null, Ce = (d & ee) !== 0 && (de || !Fe || R === null), R = (d & (be | Me)) === 0 ? e : null, H = null, zr(e.ctx), de = !1, At++, e.f |= Ht;
-  try {
-    var v = (
-      /** @type {Function} */
-      (0, e.fn)()
-    ), h = e.deps;
-    if (q !== null) {
-      var g;
-      if (Rt(e, Q), h !== null && Q > 0)
-        for (h.length = Q + q.length, g = 0; g < q.length; g++)
-          h[Q + g] = q[g];
-      else
-        e.deps = h = q;
-      if (!Ce)
-        for (g = Q; g < h.length; g++)
-          ((m = h[g]).reactions ?? (m.reactions = [])).push(e);
-    } else h !== null && Q < h.length && (Rt(e, Q), h.length = Q);
-    if (Gn() && ie !== null && !de && h !== null && (e.f & (fe | Ue | he)) === 0)
-      for (g = 0; g < /** @type {Source[]} */
-      ie.length; g++)
-        Un(
-          ie[g],
-          /** @type {Effect} */
-          e
-        );
-    return o !== null && o !== e && (At++, ie !== null && (i === null ? i = ie : i.push(.../** @type {Source[]} */
-    ie))), v;
-  } finally {
-    q = t, Q = r, ie = i, R = o, Ce = a, H = l, zr(s), de = f, e.f ^= Ht;
+  } else {
+    update_derived_status(derived2);
   }
 }
-function po(e, t) {
-  let r = t.reactions;
-  if (r !== null) {
-    var i = Ui.call(r, e);
-    if (i !== -1) {
-      var o = r.length - 1;
-      o === 0 ? r = t.reactions = null : (r[i] = r[o], r.pop());
+function freeze_derived_effects(derived2) {
+  if (derived2.effects === null) return;
+  for (const e of derived2.effects) {
+    if (e.teardown || e.ac) {
+      e.teardown?.();
+      if (e.ac !== null) {
+        without_reactive_context(() => {
+          e.ac.abort(STALE_REACTION);
+          e.ac = null;
+        });
+      }
+      if (e.fn !== null) e.teardown = noop;
+      remove_reactions(e, 0);
+      destroy_effect_children(e);
     }
   }
-  r === null && (t.f & fe) !== 0 && // Destroying a child effect while updating a parent effect can cause a dependency to appear
-  // to be unused, when in fact it is used by the currently-updating parent. Checking `new_deps`
-  // allows us to skip the expensive work of disconnecting and immediately reconnecting it
-  (q === null || !q.includes(t)) && (ue(t, Ue), (t.f & (ee | $t)) === 0 && (t.f ^= $t), En(
-    /** @type {Derived} **/
-    t
-  ), Rt(
-    /** @type {Derived} **/
-    t,
-    0
-  ));
 }
-function Rt(e, t) {
-  var r = e.deps;
-  if (r !== null)
-    for (var i = t; i < r.length; i++)
-      po(e, r[i]);
+function unfreeze_derived_effects(derived2) {
+  if (derived2.effects === null) return;
+  for (const e of derived2.effects) {
+    if (e.teardown && e.fn !== null) {
+      update_effect(e);
+    }
+  }
 }
-function ir(e) {
-  var t = e.f;
-  if ((t & St) === 0) {
-    ue(e, K);
-    var r = I, i = W, o = Fe;
-    I = e, Fe = !0;
+let first_batch = null;
+let last_batch = null;
+let current_batch = null;
+let previous_batch = null;
+let batch_values = null;
+let last_scheduled_effect = null;
+let is_flushing_sync = false;
+let is_processing = false;
+let collected_effects = null;
+let legacy_updates = null;
+var flush_count = 0;
+var source_stacks = /* @__PURE__ */ new Set();
+let uid = 1;
+class Batch {
+  id = uid++;
+  /** True as soon as `#process` was called */
+  #started = false;
+  linked = true;
+  /** @type {Batch | null} */
+  #prev = null;
+  /** @type {Batch | null} */
+  #next = null;
+  /** @type {Map<Effect, ReturnType<typeof deferred<any>>>} */
+  async_deriveds = /* @__PURE__ */ new Map();
+  /**
+   * The current values of any signals that are updated in this batch.
+   * Tuple format: [value, is_derived] (note: is_derived is false for deriveds, too, if they were overridden via assignment)
+   * They keys of this map are identical to `this.#previous`
+   * @type {Map<Value, [any, boolean]>}
+   */
+  current = /* @__PURE__ */ new Map();
+  /**
+   * The values of any signals (sources and deriveds) that are updated in this batch _before_ those updates took place.
+   * They keys of this map are identical to `this.#current`
+   * @type {Map<Value, any>}
+   */
+  previous = /* @__PURE__ */ new Map();
+  /**
+   * When the batch is committed (and the DOM is updated), we need to remove old branches
+   * and append new ones by calling the functions added inside (if/each/key/etc) blocks
+   * @type {Set<(batch: Batch) => void>}
+   */
+  #commit_callbacks = /* @__PURE__ */ new Set();
+  /**
+   * If a fork is discarded, we need to destroy any effects that are no longer needed
+   * @type {Set<(batch: Batch) => void>}
+   */
+  #discard_callbacks = /* @__PURE__ */ new Set();
+  /**
+   * The number of async effects that are currently in flight
+   */
+  #pending = 0;
+  /**
+   * Async effects that are currently in flight, _not_ inside a pending boundary
+   * @type {Map<Effect, number>}
+   */
+  #blocking_pending = /* @__PURE__ */ new Map();
+  /**
+   * A deferred that resolves when the batch is committed, used with `settled()`
+   * TODO replace with Promise.withResolvers once supported widely enough
+   * @type {{ promise: Promise<void>, resolve: (value?: any) => void, reject: (reason: unknown) => void } | null}
+   */
+  #deferred = null;
+  /**
+   * The root effects that need to be flushed
+   * @type {Effect[]}
+   */
+  #roots = [];
+  /**
+   * Effects created while this batch was active.
+   * @type {Effect[]}
+   */
+  #new_effects = [];
+  /**
+   * Deferred effects (which run after async work has completed) that are DIRTY
+   * @type {Set<Effect>}
+   */
+  #dirty_effects = /* @__PURE__ */ new Set();
+  /**
+   * Deferred effects that are MAYBE_DIRTY
+   * @type {Set<Effect>}
+   */
+  #maybe_dirty_effects = /* @__PURE__ */ new Set();
+  /**
+   * A map of branches that still exist, but will be destroyed when this batch
+   * is committed — we skip over these during `process`.
+   * The value contains child effects that were dirty/maybe_dirty before being reset,
+   * so they can be rescheduled if the branch survives.
+   * @type {Map<Effect, { d: Effect[], m: Effect[] }>}
+   */
+  #skipped_branches = /* @__PURE__ */ new Map();
+  /**
+   * Inverse of #skipped_branches which we need to tell prior batches to unskip them when committing
+   * @type {Set<Effect>}
+   */
+  #unskipped_branches = /* @__PURE__ */ new Set();
+  is_fork = false;
+  #decrement_queued = false;
+  constructor() {
+    if (last_batch === null) {
+      first_batch = last_batch = this;
+    } else {
+      last_batch.#next = this;
+      this.#prev = last_batch;
+    }
+    last_batch = this;
+  }
+  #is_deferred() {
+    if (this.is_fork) return true;
+    for (const effect2 of this.#blocking_pending.keys()) {
+      var e = effect2;
+      var skipped = false;
+      while (e.parent !== null) {
+        if (this.#skipped_branches.has(e)) {
+          skipped = true;
+          break;
+        }
+        e = e.parent;
+      }
+      if (!skipped) {
+        return true;
+      }
+    }
+    return false;
+  }
+  /**
+   * Add an effect to the #skipped_branches map and reset its children
+   * @param {Effect} effect
+   */
+  skip_effect(effect2) {
+    if (!this.#skipped_branches.has(effect2)) {
+      this.#skipped_branches.set(effect2, { d: [], m: [] });
+    }
+    this.#unskipped_branches.delete(effect2);
+  }
+  /**
+   * Remove an effect from the #skipped_branches map and reschedule
+   * any tracked dirty/maybe_dirty child effects
+   * @param {Effect} effect
+   * @param {(e: Effect) => void} callback
+   */
+  unskip_effect(effect2, callback = (e) => this.schedule(e)) {
+    var tracked = this.#skipped_branches.get(effect2);
+    if (tracked) {
+      this.#skipped_branches.delete(effect2);
+      for (var e of tracked.d) {
+        set_signal_status(e, DIRTY);
+        callback(e);
+      }
+      for (e of tracked.m) {
+        set_signal_status(e, MAYBE_DIRTY);
+        callback(e);
+      }
+    }
+    this.#unskipped_branches.add(effect2);
+  }
+  #process() {
+    this.#started = true;
+    if (flush_count++ > 1e3) {
+      this.#unlink();
+      infinite_loop_guard();
+    }
+    for (const e of this.#dirty_effects) {
+      this.#maybe_dirty_effects.delete(e);
+      set_signal_status(e, DIRTY);
+      this.schedule(e);
+    }
+    for (const e of this.#maybe_dirty_effects) {
+      set_signal_status(e, MAYBE_DIRTY);
+      this.schedule(e);
+    }
+    const roots = this.#roots;
+    this.#roots = [];
+    this.apply();
+    var effects = collected_effects = [];
+    var render_effects = [];
+    var updates = legacy_updates = [];
+    for (const root2 of roots) {
+      try {
+        this.#traverse(root2, effects, render_effects);
+      } catch (e) {
+        reset_all(root2);
+        if (!this.#is_deferred()) this.discard();
+        throw e;
+      }
+    }
+    current_batch = null;
+    if (updates.length > 0) {
+      var batch = Batch.ensure();
+      for (const e of updates) {
+        batch.schedule(e);
+      }
+    }
+    collected_effects = null;
+    legacy_updates = null;
+    if (this.#is_deferred()) {
+      this.#defer_effects(render_effects);
+      this.#defer_effects(effects);
+      for (const [e, t] of this.#skipped_branches) {
+        reset_branch(e, t);
+      }
+      if (updates.length > 0) {
+        /** @type {unknown} */
+        current_batch.#process();
+      }
+      return;
+    }
+    const earlier_batch = this.#find_earlier_batch();
+    if (earlier_batch) {
+      this.#defer_effects(render_effects);
+      this.#defer_effects(effects);
+      earlier_batch.#merge(this);
+      return;
+    }
+    this.#dirty_effects.clear();
+    this.#maybe_dirty_effects.clear();
+    for (const fn of this.#commit_callbacks) fn(this);
+    this.#commit_callbacks.clear();
+    previous_batch = this;
+    flush_queued_effects(render_effects);
+    flush_queued_effects(effects);
+    previous_batch = null;
+    this.#deferred?.resolve();
+    var next_batch = (
+      /** @type {Batch | null} */
+      /** @type {unknown} */
+      current_batch
+    );
+    if (this.#pending === 0 && (this.#roots.length === 0 || next_batch !== null)) {
+      this.#unlink();
+    }
+    if (this.#roots.length > 0) {
+      if (next_batch !== null) {
+        const batch2 = next_batch;
+        batch2.#roots.push(...this.#roots.filter((r2) => !batch2.#roots.includes(r2)));
+      } else {
+        next_batch = this;
+      }
+    }
+    if (next_batch !== null) {
+      old_values.clear();
+      next_batch.#process();
+    }
+  }
+  /**
+   * Traverse the effect tree, executing effects or stashing
+   * them for later execution as appropriate
+   * @param {Effect} root
+   * @param {Effect[]} effects
+   * @param {Effect[]} render_effects
+   */
+  #traverse(root2, effects, render_effects) {
+    root2.f ^= CLEAN;
+    var effect2 = root2.first;
+    while (effect2 !== null) {
+      var flags2 = effect2.f;
+      var is_branch = (flags2 & (BRANCH_EFFECT | ROOT_EFFECT)) !== 0;
+      var is_skippable_branch = is_branch && (flags2 & CLEAN) !== 0;
+      var skip = is_skippable_branch || (flags2 & INERT) !== 0 || this.#skipped_branches.has(effect2);
+      if (!skip && effect2.fn !== null) {
+        if (is_branch) {
+          effect2.f ^= CLEAN;
+        } else if ((flags2 & EFFECT) !== 0) {
+          effects.push(effect2);
+        } else if (is_dirty(effect2)) {
+          if ((flags2 & BLOCK_EFFECT) !== 0) this.#maybe_dirty_effects.add(effect2);
+          update_effect(effect2);
+        }
+        var child2 = effect2.first;
+        if (child2 !== null) {
+          effect2 = child2;
+          continue;
+        }
+      }
+      while (effect2 !== null) {
+        var next2 = effect2.next;
+        if (next2 !== null) {
+          effect2 = next2;
+          break;
+        }
+        effect2 = effect2.parent;
+      }
+    }
+  }
+  #find_earlier_batch() {
+    var batch = this.#prev;
+    while (batch !== null) {
+      if (!batch.is_fork) {
+        for (const [value, [, is_derived]] of this.current) {
+          if (batch.current.has(value) && !is_derived) {
+            return batch;
+          }
+        }
+      }
+      batch = batch.#prev;
+    }
+    return null;
+  }
+  /**
+   * @param {Batch} batch
+   */
+  #merge(batch) {
+    for (const [source2, value] of batch.current) {
+      if (!this.previous.has(source2) && batch.previous.has(source2)) {
+        this.previous.set(source2, batch.previous.get(source2));
+      }
+      this.current.set(source2, value);
+    }
+    for (const [effect2, deferred2] of batch.async_deriveds) {
+      const d = this.async_deriveds.get(effect2);
+      if (d) deferred2.promise.then(d.resolve).catch(d.reject);
+    }
+    batch.async_deriveds.clear();
+    this.transfer_effects(batch.#dirty_effects, batch.#maybe_dirty_effects);
+    const mark = (value) => {
+      var reactions = value.reactions;
+      if (reactions === null) return;
+      if ((value.f & DERIVED) !== 0 && (value.f & (DIRTY | MAYBE_DIRTY)) === 0) {
+        return;
+      }
+      for (const reaction of reactions) {
+        var flags2 = reaction.f;
+        if ((flags2 & DERIVED) !== 0) {
+          mark(
+            /** @type {Derived} */
+            reaction
+          );
+        } else {
+          var effect2 = (
+            /** @type {Effect} */
+            reaction
+          );
+          if (flags2 & (ASYNC | BLOCK_EFFECT) && !this.async_deriveds.has(effect2)) {
+            this.#maybe_dirty_effects.delete(effect2);
+            set_signal_status(effect2, DIRTY);
+            this.schedule(effect2);
+          }
+        }
+      }
+    };
+    for (const source2 of this.current.keys()) {
+      mark(source2);
+    }
+    this.oncommit(() => batch.discard());
+    batch.#unlink();
+    current_batch = this;
+    this.#process();
+  }
+  /**
+   * @param {Effect[]} effects
+   */
+  #defer_effects(effects) {
+    for (var i = 0; i < effects.length; i += 1) {
+      defer_effect(effects[i], this.#dirty_effects, this.#maybe_dirty_effects);
+    }
+  }
+  /**
+   * Associate a change to a given source with the current
+   * batch, noting its previous and current values
+   * @param {Value} source
+   * @param {any} value
+   * @param {boolean} [is_derived]
+   */
+  capture(source2, value, is_derived = false) {
+    if (source2.v !== UNINITIALIZED && !this.previous.has(source2)) {
+      this.previous.set(source2, source2.v);
+    }
+    if ((source2.f & ERROR_VALUE) === 0) {
+      this.current.set(source2, [value, is_derived]);
+      batch_values?.set(source2, value);
+    }
+    if (!this.is_fork) {
+      source2.v = value;
+    }
+  }
+  activate() {
+    current_batch = this;
+  }
+  deactivate() {
+    current_batch = null;
+    batch_values = null;
+  }
+  flush() {
     try {
-      (t & Xt) !== 0 ? co(e) : Rn(e), An(e);
-      var a = jn(e);
-      e.teardown = typeof a == "function" ? a : null, e.wv = Fn;
-      var l = e.deps, s;
-      Hr && no && e.f & he;
-    } catch (f) {
-      Nt(f, e, r, i || e.ctx);
+      if (DEV) ;
+      is_processing = true;
+      current_batch = this;
+      this.#process();
     } finally {
-      Fe = o, I = r;
+      flush_count = 0;
+      last_scheduled_effect = null;
+      collected_effects = null;
+      legacy_updates = null;
+      is_processing = false;
+      current_batch = null;
+      batch_values = null;
+      old_values.clear();
     }
   }
-}
-function bo() {
-  try {
-    Ki();
-  } catch (e) {
-    if (Ct !== null)
-      Nt(e, Ct, null);
-    else
-      throw e;
-  }
-}
-function Vn() {
-  var e = Fe;
-  try {
-    var t = 0;
-    for (Fe = !0; ct.length > 0; ) {
-      t++ > 1e3 && bo();
-      var r = ct, i = r.length;
-      ct = [];
-      for (var o = 0; o < i; o++) {
-        var a = Eo(r[o]);
-        yo(a);
-      }
-      vt.clear();
+  discard() {
+    for (const fn of this.#discard_callbacks) fn(this);
+    this.#discard_callbacks.clear();
+    for (const deferred2 of this.async_deriveds.values()) {
+      deferred2.reject(OBSOLETE);
     }
-  } finally {
-    kt = !1, Fe = e, Ct = null;
+    this.#unlink();
+    this.#deferred?.resolve();
   }
-}
-function yo(e) {
-  var t = e.length;
-  if (t !== 0)
-    for (var r = 0; r < t; r++) {
-      var i = e[r];
-      if ((i.f & (St | Ke)) === 0)
-        try {
-          _t(i) && (ir(i), i.deps === null && i.first === null && i.nodes_start === null && (i.teardown === null ? Sn(i) : i.fn = null));
-        } catch (o) {
-          Nt(o, i, null, i.ctx);
+  /**
+   * @param {Effect} effect
+   */
+  register_created_effect(effect2) {
+    this.#new_effects.push(effect2);
+  }
+  #commit() {
+    for (let batch = first_batch; batch !== null; batch = batch.#next) {
+      var is_earlier = batch.id < this.id;
+      var sources = [];
+      for (const [source3, [value, is_derived]] of this.current) {
+        if (batch.current.has(source3)) {
+          var batch_value = (
+            /** @type {[any, boolean]} */
+            batch.current.get(source3)[0]
+          );
+          if (is_earlier && value !== batch_value) {
+            batch.current.set(source3, [value, is_derived]);
+          } else {
+            continue;
+          }
         }
-    }
-}
-function Lt(e) {
-  kt || (kt = !0, queueMicrotask(Vn));
-  for (var t = Ct = e; t.parent !== null; ) {
-    t = t.parent;
-    var r = t.f;
-    if ((r & (Me | be)) !== 0) {
-      if ((r & K) === 0) return;
-      t.f ^= K;
-    }
-  }
-  ct.push(t);
-}
-function Eo(e) {
-  for (var t = [], r = e; r !== null; ) {
-    var i = r.f, o = (i & (be | Me)) !== 0, a = o && (i & K) !== 0;
-    if (!a && (i & Ke) === 0) {
-      if ((i & vn) !== 0)
-        t.push(r);
-      else if (o)
-        r.f ^= K;
-      else
-        try {
-          _t(r) && ir(r);
-        } catch (f) {
-          Nt(f, r, null, r.ctx);
-        }
-      var l = r.first;
-      if (l !== null) {
-        r = l;
-        continue;
+        sources.push(source3);
       }
-    }
-    var s = r.parent;
-    for (r = r.next; r === null && s !== null; )
-      r = s.next, s = s.parent;
-  }
-  return t;
-}
-function $(e) {
-  for (var t; ; ) {
-    if (_o(), ct.length === 0)
-      return (
-        /** @type {T} */
-        t
+      if (is_earlier) {
+        for (const [effect2, deferred2] of this.async_deriveds) {
+          const d = batch.async_deriveds.get(effect2);
+          if (d) deferred2.promise.then(d.resolve).catch(d.reject);
+        }
+      }
+      var current = [...batch.current.keys()].filter(
+        (source3) => !/** @type {[any, boolean]} */
+        batch.current.get(source3)[1]
       );
-    kt = !0, Vn();
-  }
-}
-async function xo() {
-  await Promise.resolve(), $();
-}
-function c(e) {
-  var t = e.f, r = (t & fe) !== 0;
-  if (R !== null && !de) {
-    if (!(H != null && H.includes(e))) {
-      var i = R.deps;
-      e.rv < At && (e.rv = At, q === null && i !== null && i[Q] === e ? Q++ : q === null ? q = [e] : (!Ce || !q.includes(e)) && q.push(e));
+      if (!batch.#started || current.length === 0) continue;
+      var others = current.filter((source3) => !this.current.has(source3));
+      if (others.length === 0) {
+        if (is_earlier) {
+          batch.discard();
+        }
+      } else if (sources.length > 0) {
+        if (is_earlier) {
+          for (const unskipped of this.#unskipped_branches) {
+            batch.unskip_effect(unskipped, (e) => {
+              if ((e.f & (BLOCK_EFFECT | ASYNC)) !== 0) {
+                batch.schedule(e);
+              } else {
+                batch.#defer_effects([e]);
+              }
+            });
+          }
+        }
+        batch.activate();
+        var marked = /* @__PURE__ */ new Set();
+        var checked = /* @__PURE__ */ new Map();
+        for (var source2 of sources) {
+          mark_effects(source2, others, marked, checked);
+        }
+        checked = /* @__PURE__ */ new Map();
+        var current_unequal = [...batch.current].filter(([c, v1]) => {
+          const v2 = this.current.get(c);
+          if (!v2) return true;
+          return v2[0] !== v1[0] || v2[1] !== v1[1];
+        }).map(([c]) => c);
+        if (current_unequal.length > 0) {
+          for (const effect2 of this.#new_effects) {
+            if ((effect2.f & (DESTROYED | INERT | EAGER_EFFECT)) === 0 && depends_on(effect2, current_unequal, checked)) {
+              if ((effect2.f & (ASYNC | BLOCK_EFFECT)) !== 0) {
+                set_signal_status(effect2, DIRTY);
+                batch.schedule(effect2);
+              } else {
+                batch.#dirty_effects.add(effect2);
+              }
+            }
+          }
+        }
+        if (batch.#roots.length > 0 && !batch.#decrement_queued) {
+          batch.apply();
+          for (var root2 of batch.#roots) {
+            batch.#traverse(root2, [], []);
+          }
+          batch.#roots = [];
+        }
+        batch.deactivate();
+      }
     }
-  } else if (r && /** @type {Derived} */
-  e.deps === null && /** @type {Derived} */
-  e.effects === null) {
-    var o = (
-      /** @type {Derived} */
-      e
-    ), a = o.parent;
-    a !== null && (a.f & ee) === 0 && (o.f ^= ee);
   }
-  return r && (o = /** @type {Derived} */
-  e, _t(o) && $n(o)), gt && vt.has(e) ? vt.get(e) : e.v;
+  /**
+   * @param {boolean} blocking
+   * @param {Effect} effect
+   */
+  increment(blocking, effect2) {
+    this.#pending += 1;
+    if (blocking) {
+      let blocking_pending_count = this.#blocking_pending.get(effect2) ?? 0;
+      this.#blocking_pending.set(effect2, blocking_pending_count + 1);
+    }
+  }
+  /**
+   * @param {boolean} blocking
+   * @param {Effect} effect
+   */
+  decrement(blocking, effect2) {
+    this.#pending -= 1;
+    if (blocking) {
+      let blocking_pending_count = this.#blocking_pending.get(effect2) ?? 0;
+      if (blocking_pending_count === 1) {
+        this.#blocking_pending.delete(effect2);
+      } else {
+        this.#blocking_pending.set(effect2, blocking_pending_count - 1);
+      }
+    }
+    if (this.#decrement_queued) return;
+    this.#decrement_queued = true;
+    queue_micro_task(() => {
+      this.#decrement_queued = false;
+      if (this.linked) {
+        this.flush();
+      }
+    });
+  }
+  /**
+   * @param {Set<Effect>} dirty_effects
+   * @param {Set<Effect>} maybe_dirty_effects
+   */
+  transfer_effects(dirty_effects, maybe_dirty_effects) {
+    for (const e of dirty_effects) {
+      this.#dirty_effects.add(e);
+    }
+    for (const e of maybe_dirty_effects) {
+      this.#maybe_dirty_effects.add(e);
+    }
+    dirty_effects.clear();
+    maybe_dirty_effects.clear();
+  }
+  /** @param {(batch: Batch) => void} fn */
+  oncommit(fn) {
+    this.#commit_callbacks.add(fn);
+  }
+  /** @param {(batch: Batch) => void} fn */
+  ondiscard(fn) {
+    this.#discard_callbacks.add(fn);
+  }
+  settled() {
+    return (this.#deferred ??= deferred()).promise;
+  }
+  static ensure() {
+    if (current_batch === null) {
+      const batch = current_batch = new Batch();
+      if (!is_processing && !is_flushing_sync) {
+        queue_micro_task(() => {
+          if (!batch.#started) {
+            batch.flush();
+          }
+        });
+      }
+    }
+    return current_batch;
+  }
+  apply() {
+    {
+      batch_values = null;
+      return;
+    }
+  }
+  /**
+   *
+   * @param {Effect} effect
+   */
+  schedule(effect2) {
+    last_scheduled_effect = effect2;
+    if (effect2.b?.is_pending && (effect2.f & (EFFECT | RENDER_EFFECT | MANAGED_EFFECT)) !== 0 && (effect2.f & REACTION_RAN) === 0) {
+      effect2.b.defer_effect(effect2);
+      return;
+    }
+    var e = effect2;
+    while (e.parent !== null) {
+      e = e.parent;
+      var flags2 = e.f;
+      if (collected_effects !== null && e === active_effect) {
+        if ((active_reaction === null || (active_reaction.f & DERIVED) === 0) && true) {
+          return;
+        }
+      }
+      if ((flags2 & (ROOT_EFFECT | BRANCH_EFFECT)) !== 0) {
+        if ((flags2 & CLEAN) === 0) {
+          return;
+        }
+        e.f ^= CLEAN;
+      }
+    }
+    this.#roots.push(e);
+  }
+  #unlink() {
+    if (!this.linked) return;
+    var prev = this.#prev;
+    var next2 = this.#next;
+    if (prev === null) {
+      first_batch = next2;
+    } else {
+      prev.#next = next2;
+    }
+    if (next2 === null) {
+      last_batch = prev;
+    } else {
+      next2.#prev = prev;
+    }
+    this.linked = false;
+  }
 }
-function Xe(e) {
-  var t = de;
+function flushSync(fn) {
+  var was_flushing_sync = is_flushing_sync;
+  is_flushing_sync = true;
   try {
-    return de = !0, e();
+    var result;
+    if (fn) ;
+    while (true) {
+      flush_tasks();
+      if (current_batch === null) {
+        return (
+          /** @type {T} */
+          result
+        );
+      }
+      current_batch.flush();
+    }
   } finally {
-    de = t;
+    is_flushing_sync = was_flushing_sync;
   }
 }
-const $o = -7169;
-function ue(e, t) {
-  e.f = e.f & $o | t;
+function infinite_loop_guard() {
+  try {
+    effect_update_depth_exceeded();
+  } catch (error) {
+    invoke_error_boundary(error, last_scheduled_effect);
+  }
 }
-const vt = /* @__PURE__ */ new Map();
-function Bn(e, t) {
-  var r = {
+let eager_block_effects = null;
+function flush_queued_effects(effects) {
+  var length = effects.length;
+  if (length === 0) return;
+  var i = 0;
+  while (i < length) {
+    var effect2 = effects[i++];
+    if ((effect2.f & (DESTROYED | INERT)) === 0 && is_dirty(effect2)) {
+      eager_block_effects = /* @__PURE__ */ new Set();
+      update_effect(effect2);
+      if (effect2.deps === null && effect2.first === null && effect2.nodes === null && effect2.teardown === null && effect2.ac === null) {
+        unlink_effect(effect2);
+      }
+      if (eager_block_effects?.size > 0) {
+        old_values.clear();
+        for (const e of eager_block_effects) {
+          if ((e.f & (DESTROYED | INERT)) !== 0) continue;
+          const ordered_effects = [e];
+          let ancestor = e.parent;
+          while (ancestor !== null) {
+            if (eager_block_effects.has(ancestor)) {
+              eager_block_effects.delete(ancestor);
+              ordered_effects.push(ancestor);
+            }
+            ancestor = ancestor.parent;
+          }
+          for (let j = ordered_effects.length - 1; j >= 0; j--) {
+            const e2 = ordered_effects[j];
+            if ((e2.f & (DESTROYED | INERT)) !== 0) continue;
+            update_effect(e2);
+          }
+        }
+        eager_block_effects.clear();
+      }
+    }
+  }
+  eager_block_effects = null;
+}
+function mark_effects(value, sources, marked, checked) {
+  if (marked.has(value)) return;
+  marked.add(value);
+  if (value.reactions !== null) {
+    for (const reaction of value.reactions) {
+      const flags2 = reaction.f;
+      if ((flags2 & DERIVED) !== 0) {
+        mark_effects(
+          /** @type {Derived} */
+          reaction,
+          sources,
+          marked,
+          checked
+        );
+      } else if ((flags2 & (ASYNC | BLOCK_EFFECT)) !== 0 && (flags2 & DIRTY) === 0 && depends_on(reaction, sources, checked)) {
+        set_signal_status(reaction, DIRTY);
+        schedule_effect(
+          /** @type {Effect} */
+          reaction
+        );
+      }
+    }
+  }
+}
+function depends_on(reaction, sources, checked) {
+  const depends = checked.get(reaction);
+  if (depends !== void 0) return depends;
+  if (reaction.deps !== null) {
+    for (const dep of reaction.deps) {
+      if (includes.call(sources, dep)) {
+        return true;
+      }
+      if ((dep.f & DERIVED) !== 0 && depends_on(
+        /** @type {Derived} */
+        dep,
+        sources,
+        checked
+      )) {
+        checked.set(
+          /** @type {Derived} */
+          dep,
+          true
+        );
+        return true;
+      }
+    }
+  }
+  checked.set(reaction, false);
+  return false;
+}
+function schedule_effect(effect2) {
+  current_batch.schedule(effect2);
+}
+function reset_branch(effect2, tracked) {
+  if ((effect2.f & BRANCH_EFFECT) !== 0 && (effect2.f & CLEAN) !== 0) {
+    return;
+  }
+  if ((effect2.f & DIRTY) !== 0) {
+    tracked.d.push(effect2);
+  } else if ((effect2.f & MAYBE_DIRTY) !== 0) {
+    tracked.m.push(effect2);
+  }
+  set_signal_status(effect2, CLEAN);
+  var e = effect2.first;
+  while (e !== null) {
+    reset_branch(e, tracked);
+    e = e.next;
+  }
+}
+function reset_all(effect2) {
+  set_signal_status(effect2, CLEAN);
+  var e = effect2.first;
+  while (e !== null) {
+    reset_all(e);
+    e = e.next;
+  }
+}
+let eager_effects = /* @__PURE__ */ new Set();
+const old_values = /* @__PURE__ */ new Map();
+let eager_effects_deferred = false;
+function source(v, stack) {
+  var signal = {
     f: 0,
     // TODO ideally we could skip this altogether, but it causes type errors
-    v: e,
+    v,
     reactions: null,
-    equals: bn,
+    equals,
     rv: 0,
     wv: 0
   };
-  return r;
+  return signal;
 }
 // @__NO_SIDE_EFFECTS__
-function J(e, t) {
-  const r = Bn(e);
-  return On(r), r;
+function state(v, stack) {
+  const s = source(v);
+  push_reaction_value(s);
+  return s;
 }
 // @__NO_SIDE_EFFECTS__
-function qn(e, t = !1) {
-  const r = Bn(e);
-  return t || (r.equals = yn), r;
-}
-function D(e, t, r = !1) {
-  R !== null && !de && Gn() && (R.f & (fe | Xt)) !== 0 && !(H != null && H.includes(e)) && to();
-  let i = r ? ke(t) : t;
-  return ko(e, i);
-}
-function ko(e, t) {
-  if (!e.equals(t)) {
-    var r = e.v;
-    gt ? vt.set(e, t) : vt.set(e, r), e.v = t, (e.f & fe) !== 0 && ((e.f & he) !== 0 && xn(
-      /** @type {Derived} */
-      e
-    ), ue(e, (e.f & ee) === 0 ? K : Ue)), e.wv = Mn(), Hn(e, he), I !== null && (I.f & K) !== 0 && (I.f & (be | Me)) === 0 && (ie === null ? mo([e]) : ie.push(e));
+function mutable_source(initial_value, immutable = false, trackable = true) {
+  const s = source(initial_value);
+  if (!immutable) {
+    s.equals = safe_equals;
   }
-  return t;
+  return s;
 }
-function Hn(e, t) {
-  var r = e.reactions;
-  if (r !== null)
-    for (var i = r.length, o = 0; o < i; o++) {
-      var a = r[o], l = a.f;
-      (l & he) === 0 && (ue(a, t), (l & (K | ee)) !== 0 && ((l & fe) !== 0 ? Hn(
+function set(source2, value, should_proxy = false) {
+  if (active_reaction !== null && // since we are untracking the function inside `$inspect.with` we need to add this check
+  // to ensure we error if state is set inside an inspect effect
+  (!untracking || (active_reaction.f & EAGER_EFFECT) !== 0) && is_runes() && (active_reaction.f & (DERIVED | BLOCK_EFFECT | ASYNC | EAGER_EFFECT)) !== 0 && (current_sources === null || !current_sources.has(source2))) {
+    state_unsafe_mutation();
+  }
+  let new_value = should_proxy ? proxy(value) : value;
+  return internal_set(source2, new_value, legacy_updates);
+}
+function internal_set(source2, value, updated_during_traversal = null) {
+  if (!source2.equals(value)) {
+    if (is_destroying_effect) {
+      old_values.set(source2, value);
+    } else if (!old_values.has(source2)) {
+      old_values.set(source2, source2.v);
+    }
+    var batch = Batch.ensure();
+    batch.capture(source2, value);
+    if ((source2.f & DERIVED) !== 0) {
+      const derived2 = (
         /** @type {Derived} */
-        a,
-        Ue
-      ) : Lt(
-        /** @type {Effect} */
-        a
-      )));
-    }
-}
-let W = null;
-function zr(e) {
-  W = e;
-}
-function Wn(e, t = !1, r) {
-  var i = W = {
-    p: W,
-    c: null,
-    d: !1,
-    e: null,
-    m: !1,
-    s: e,
-    x: null,
-    l: null
-  };
-  kn(() => {
-    i.d = !0;
-  });
-}
-function Yn(e) {
-  const t = W;
-  if (t !== null) {
-    e !== void 0 && (t.x = e);
-    const l = t.e;
-    if (l !== null) {
-      var r = I, i = R;
-      t.e = null;
-      try {
-        for (var o = 0; o < l.length; o++) {
-          var a = l[o];
-          Se(a.effect), ve(a.reaction), rr(a.fn);
-        }
-      } finally {
-        Se(r), ve(i);
+        source2
+      );
+      if ((source2.f & DIRTY) !== 0) {
+        execute_derived(derived2);
+      }
+      if (batch_values === null) {
+        update_derived_status(derived2);
       }
     }
-    W = t.p, t.m = !0;
-  }
-  return e || /** @type {T} */
-  {};
-}
-function Gn() {
-  return !0;
-}
-const Co = ["touchstart", "touchmove"];
-function Ao(e) {
-  return Co.includes(e);
-}
-let Xr = !1;
-function Zn() {
-  Xr || (Xr = !0, document.addEventListener(
-    "reset",
-    (e) => {
-      Promise.resolve().then(() => {
-        var t;
-        if (!e.defaultPrevented)
-          for (
-            const r of
-            /**@type {HTMLFormElement} */
-            e.target.elements
-          )
-            (t = r.__on_r) == null || t.call(r);
-      });
-    },
-    // In the capture phase to guarantee we get noticed of it (no possiblity of stopPropagation)
-    { capture: !0 }
-  ));
-}
-function Jn(e) {
-  var t = R, r = I;
-  ve(null), Se(null);
-  try {
-    return e();
-  } finally {
-    ve(t), Se(r);
-  }
-}
-function Ro(e, t, r, i = r) {
-  e.addEventListener(t, () => Jn(r));
-  const o = e.__on_r;
-  o ? e.__on_r = () => {
-    o(), i(!0);
-  } : e.__on_r = () => i(!0), Zn();
-}
-const Kn = /* @__PURE__ */ new Set(), Jt = /* @__PURE__ */ new Set();
-function Io(e, t, r, i = {}) {
-  function o(a) {
-    if (i.capture || ft.call(t, a), !a.cancelBubble)
-      return Jn(() => r == null ? void 0 : r.call(this, a));
-  }
-  return e.startsWith("pointer") || e.startsWith("touch") || e === "wheel" ? Pn(() => {
-    t.addEventListener(e, o, i);
-  }) : t.addEventListener(e, o, i), o;
-}
-function So(e, t, r, i, o) {
-  var a = { capture: i, passive: o }, l = Io(e, t, r, a);
-  (t === document.body || t === window || t === document) && kn(() => {
-    t.removeEventListener(e, l, a);
-  });
-}
-function To(e) {
-  for (var t = 0; t < e.length; t++)
-    Kn.add(e[t]);
-  for (var r of Jt)
-    r(e);
-}
-function ft(e) {
-  var U;
-  var t = this, r = (
-    /** @type {Node} */
-    t.ownerDocument
-  ), i = e.type, o = ((U = e.composedPath) == null ? void 0 : U.call(e)) || [], a = (
-    /** @type {null | Element} */
-    o[0] || e.target
-  ), l = 0, s = e.__root;
-  if (s) {
-    var f = o.indexOf(s);
-    if (f !== -1 && (t === document || t === /** @type {any} */
-    window)) {
-      e.__root = t;
-      return;
-    }
-    var d = o.indexOf(t);
-    if (d === -1)
-      return;
-    f <= d && (l = f);
-  }
-  if (a = /** @type {Element} */
-  o[l] || e.target, a !== t) {
-    Et(e, "currentTarget", {
-      configurable: !0,
-      get() {
-        return a || r;
+    source2.wv = increment_write_version();
+    mark_reactions(source2, DIRTY, updated_during_traversal);
+    if (active_effect !== null && (active_effect.f & CLEAN) !== 0 && (active_effect.f & (BRANCH_EFFECT | ROOT_EFFECT)) === 0) {
+      if (untracked_writes === null) {
+        set_untracked_writes([source2]);
+      } else {
+        untracked_writes.push(source2);
       }
-    });
-    var v = R, h = I;
-    ve(null), Se(null);
+    }
+    if (!batch.is_fork && eager_effects.size > 0 && !eager_effects_deferred) {
+      flush_eager_effects();
+    }
+  }
+  return value;
+}
+function flush_eager_effects() {
+  eager_effects_deferred = false;
+  for (const effect2 of eager_effects) {
+    if ((effect2.f & CLEAN) !== 0) {
+      set_signal_status(effect2, MAYBE_DIRTY);
+    }
+    let dirty;
     try {
-      for (var g, m = []; a !== null; ) {
-        var k = a.assignedSlot || a.parentNode || /** @type {any} */
-        a.host || null;
-        try {
-          var N = a["__" + i];
-          if (N != null && (!/** @type {any} */
-          a.disabled || // DOM could've been updated already by the time this is reached, so we check this as well
-          // -> the target could not have been disabled because it emits the event in the first place
-          e.target === a))
-            if (cn(N)) {
-              var [F, ...V] = N;
-              F.apply(a, [e, ...V]);
-            } else
-              N.call(a, e);
-        } catch (Y) {
-          g ? m.push(Y) : g = Y;
+      dirty = is_dirty(effect2);
+    } catch {
+      dirty = true;
+    }
+    if (dirty) {
+      update_effect(effect2);
+    }
+  }
+  eager_effects.clear();
+}
+function increment(source2) {
+  set(source2, source2.v + 1);
+}
+function mark_reactions(signal, status, updated_during_traversal) {
+  var reactions = signal.reactions;
+  if (reactions === null) return;
+  var length = reactions.length;
+  for (var i = 0; i < length; i++) {
+    var reaction = reactions[i];
+    var flags2 = reaction.f;
+    var not_dirty = (flags2 & DIRTY) === 0;
+    if (not_dirty) {
+      set_signal_status(reaction, status);
+    }
+    if ((flags2 & EAGER_EFFECT) !== 0) {
+      eager_effects.add(
+        /** @type {Effect} */
+        reaction
+      );
+    } else if ((flags2 & DERIVED) !== 0) {
+      var derived2 = (
+        /** @type {Derived} */
+        reaction
+      );
+      batch_values?.delete(derived2);
+      if ((flags2 & WAS_MARKED) === 0) {
+        if (flags2 & CONNECTED && (active_effect === null || (active_effect.f & REACTION_IS_UPDATING) === 0)) {
+          reaction.f |= WAS_MARKED;
         }
-        if (e.cancelBubble || k === t || k === null)
-          break;
-        a = k;
+        mark_reactions(derived2, MAYBE_DIRTY, updated_during_traversal);
       }
-      if (g) {
-        for (let Y of m)
-          queueMicrotask(() => {
-            throw Y;
-          });
-        throw g;
+    } else if (not_dirty) {
+      var effect2 = (
+        /** @type {Effect} */
+        reaction
+      );
+      if ((flags2 & BLOCK_EFFECT) !== 0 && eager_block_effects !== null) {
+        eager_block_effects.add(effect2);
       }
-    } finally {
-      e.__root = t, delete e.currentTarget, ve(v), Se(h);
+      if (updated_during_traversal !== null) {
+        updated_during_traversal.push(effect2);
+      } else {
+        schedule_effect(effect2);
+      }
     }
   }
 }
-function or(e) {
-  var t = document.createElement("template");
-  return t.innerHTML = e, t.content;
+let is_updating_effect = false;
+let is_destroying_effect = false;
+function set_is_destroying_effect(value) {
+  is_destroying_effect = value;
 }
-function Ae(e, t) {
-  var r = (
-    /** @type {Effect} */
-    I
-  );
-  r.nodes_start === null && (r.nodes_start = e, r.nodes_end = t);
+let active_reaction = null;
+let untracking = false;
+function set_active_reaction(reaction) {
+  active_reaction = reaction;
 }
-// @__NO_SIDE_EFFECTS__
-function ge(e, t) {
-  var r = (t & Oi) !== 0, i = (t & Fi) !== 0, o, a = !e.startsWith("<!>");
-  return () => {
-    if (L)
-      return Ae(P, null), P;
-    o === void 0 && (o = or(a ? e : "<!>" + e), r || (o = /** @type {Node} */
-    /* @__PURE__ */ ae(o)));
-    var l = (
-      /** @type {TemplateNode} */
-      i || mn ? document.importNode(o, !0) : o.cloneNode(!0)
+let active_effect = null;
+function set_active_effect(effect2) {
+  active_effect = effect2;
+}
+let current_sources = null;
+function push_reaction_value(value) {
+  if (active_reaction !== null && true) {
+    (current_sources ??= /* @__PURE__ */ new Set()).add(value);
+  }
+}
+let new_deps = null;
+let skipped_deps = 0;
+let untracked_writes = null;
+function set_untracked_writes(value) {
+  untracked_writes = value;
+}
+let write_version = 1;
+let read_version = 0;
+let update_version = read_version;
+function set_update_version(value) {
+  update_version = value;
+}
+function increment_write_version() {
+  return ++write_version;
+}
+function is_dirty(reaction) {
+  var flags2 = reaction.f;
+  if ((flags2 & DIRTY) !== 0) {
+    return true;
+  }
+  if (flags2 & DERIVED) {
+    reaction.f &= ~WAS_MARKED;
+  }
+  if ((flags2 & MAYBE_DIRTY) !== 0) {
+    var dependencies = (
+      /** @type {Value[]} */
+      reaction.deps
     );
-    if (r) {
-      var s = (
-        /** @type {TemplateNode} */
-        /* @__PURE__ */ ae(l)
-      ), f = (
-        /** @type {TemplateNode} */
-        l.lastChild
-      );
-      Ae(s, f);
-    } else
-      Ae(l, l);
-    return l;
-  };
-}
-// @__NO_SIDE_EFFECTS__
-function No(e, t, r = "svg") {
-  var i = !e.startsWith("<!>"), o = `<${r}>${i ? e : "<!>" + e}</${r}>`, a;
-  return () => {
-    if (L)
-      return Ae(P, null), P;
-    if (!a) {
-      var l = (
-        /** @type {DocumentFragment} */
-        or(o)
-      ), s = (
-        /** @type {Element} */
-        /* @__PURE__ */ ae(l)
-      );
-      a = /** @type {Element} */
-      /* @__PURE__ */ ae(s);
+    var length = dependencies.length;
+    for (var i = 0; i < length; i++) {
+      var dependency = dependencies[i];
+      if (is_dirty(
+        /** @type {Derived} */
+        dependency
+      )) {
+        update_derived(
+          /** @type {Derived} */
+          dependency
+        );
+      }
+      if (dependency.wv > reaction.wv) {
+        return true;
+      }
     }
-    var f = (
-      /** @type {TemplateNode} */
-      a.cloneNode(!0)
-    );
-    return Ae(f, f), f;
-  };
+    if ((flags2 & CONNECTED) !== 0 && // During time traveling we don't want to reset the status so that
+    // traversal of the graph in the other batches still happens
+    batch_values === null) {
+      set_signal_status(reaction, CLEAN);
+    }
+  }
+  return false;
 }
-function ne(e, t) {
-  if (L) {
-    I.nodes_end = P, ze();
+function schedule_possible_effect_self_invalidation(signal, effect2, root2 = true) {
+  var reactions = signal.reactions;
+  if (reactions === null) return;
+  if (current_sources !== null && current_sources.has(signal)) {
     return;
   }
-  e !== null && e.before(
-    /** @type {Node} */
-    t
-  );
-}
-function zn(e, t) {
-  return Xn(e, t);
-}
-function Lo(e, t) {
-  Wt(), t.intro = t.intro ?? !1;
-  const r = t.target, i = L, o = P;
-  try {
-    for (var a = (
-      /** @type {TemplateNode} */
-      /* @__PURE__ */ ae(r)
-    ); a && (a.nodeType !== 8 || /** @type {Comment} */
-    a.data !== zt); )
-      a = /** @type {TemplateNode} */
-      /* @__PURE__ */ Te(a);
-    if (!a)
-      throw Je;
-    Ze(!0), Re(
-      /** @type {Comment} */
-      a
-    ), ze();
-    const l = Xn(e, { ...t, anchor: a });
-    if (P === null || P.nodeType !== 8 || /** @type {Comment} */
-    P.data !== fn)
-      throw Tt(), Je;
-    return Ze(!1), /**  @type {Exports} */
-    l;
-  } catch (l) {
-    if (l === Je)
-      return t.recover === !1 && zi(), Wt(), io(r), Ze(!1), zn(e, t);
-    throw l;
-  } finally {
-    Ze(i), Re(o);
+  for (var i = 0; i < reactions.length; i++) {
+    var reaction = reactions[i];
+    if ((reaction.f & DERIVED) !== 0) {
+      schedule_possible_effect_self_invalidation(
+        /** @type {Derived} */
+        reaction,
+        effect2,
+        false
+      );
+    } else if (effect2 === reaction) {
+      if (root2) {
+        set_signal_status(reaction, DIRTY);
+      } else if ((reaction.f & CLEAN) !== 0) {
+        set_signal_status(reaction, MAYBE_DIRTY);
+      }
+      schedule_effect(
+        /** @type {Effect} */
+        reaction
+      );
+    }
   }
 }
-const Ye = /* @__PURE__ */ new Map();
-function Xn(e, { target: t, anchor: r, props: i = {}, events: o, context: a, intro: l = !0 }) {
-  Wt();
-  var s = /* @__PURE__ */ new Set(), f = (h) => {
-    for (var g = 0; g < h.length; g++) {
-      var m = h[g];
-      if (!s.has(m)) {
-        s.add(m);
-        var k = Ao(m);
-        t.addEventListener(m, ft, { passive: k });
-        var N = Ye.get(m);
-        N === void 0 ? (document.addEventListener(m, ft, { passive: k }), Ye.set(m, 1)) : Ye.set(m, N + 1);
-      }
-    }
-  };
-  f(ji(Kn)), Jt.add(f);
-  var d = void 0, v = uo(() => {
-    var h = r ?? t.appendChild(er());
-    return Gt(() => {
-      if (a) {
-        Wn({});
-        var g = (
-          /** @type {ComponentContext} */
-          W
-        );
-        g.c = a;
-      }
-      o && (i.$$events = o), L && Ae(
-        /** @type {TemplateNode} */
-        h,
-        null
-      ), d = e(h, i) || {}, L && (I.nodes_end = P), a && Yn();
-    }), () => {
-      var k;
-      for (var g of s) {
-        t.removeEventListener(g, ft);
-        var m = (
-          /** @type {number} */
-          Ye.get(g)
-        );
-        --m === 0 ? (document.removeEventListener(g, ft), Ye.delete(g)) : Ye.set(g, m);
-      }
-      Jt.delete(f), h !== r && ((k = h.parentNode) == null || k.removeChild(h));
-    };
-  });
-  return Kt.set(d, v), d;
-}
-let Kt = /* @__PURE__ */ new WeakMap();
-function Do(e, t) {
-  const r = Kt.get(e);
-  return r ? (Kt.delete(e), r(t)) : Promise.resolve();
-}
-function $e(e, t, [r, i] = [0, 0]) {
-  L && r === 0 && ze();
-  var o = e, a = null, l = null, s = Z, f = r > 0 ? Qt : 0, d = !1;
-  const v = (g, m = !0) => {
-    d = !0, h(m, g);
-  }, h = (g, m) => {
-    if (s === (s = g)) return;
-    let k = !1;
-    if (L && i !== -1) {
-      if (r === 0) {
-        const F = (
-          /** @type {Comment} */
-          o.data
-        );
-        F === zt ? i = 0 : F === sn ? i = 1 / 0 : (i = parseInt(F.substring(1)), i !== i && (i = s ? 1 / 0 : -1));
-      }
-      const N = i > r;
-      !!s === N && (o = ro(), Re(o), Ze(!1), k = !0, i = -1);
-    }
-    s ? (a ? Zr(a) : m && (a = Gt(() => m(o))), l && Zt(l, () => {
-      l = null;
-    })) : (l ? Zr(l) : m && (l = Gt(() => m(o, [r + 1, i]))), a && Zt(a, () => {
-      a = null;
-    })), k && Ze(!0);
-  };
-  Cn(() => {
-    d = !1, t(v), d || h(null, null);
-  }, f), L && (o = P);
-}
-function Ge(e, t, r = !1, i = !1, o = !1) {
-  var a = e, l = "";
-  Pe(() => {
-    var s = (
-      /** @type {Effect} */
-      I
+function update_reaction(reaction) {
+  var previous_deps = new_deps;
+  var previous_skipped_deps = skipped_deps;
+  var previous_untracked_writes = untracked_writes;
+  var previous_reaction = active_reaction;
+  var previous_sources = current_sources;
+  var previous_component_context = component_context;
+  var previous_untracking = untracking;
+  var previous_update_version = update_version;
+  var flags2 = reaction.f;
+  new_deps = /** @type {null | Value[]} */
+  null;
+  skipped_deps = 0;
+  untracked_writes = null;
+  active_reaction = (flags2 & (BRANCH_EFFECT | ROOT_EFFECT)) === 0 ? reaction : null;
+  current_sources = null;
+  set_component_context(reaction.ctx);
+  untracking = false;
+  update_version = ++read_version;
+  if (reaction.ac !== null) {
+    without_reactive_context(() => {
+      reaction.ac.abort(STALE_REACTION);
+    });
+    reaction.ac = null;
+  }
+  try {
+    reaction.f |= REACTION_IS_UPDATING;
+    var fn = (
+      /** @type {Function} */
+      reaction.fn
     );
-    if (l === (l = t() ?? "")) {
-      L && ze();
+    var result = fn();
+    reaction.f |= REACTION_RAN;
+    var deps = update_dependencies(reaction);
+    if (is_runes() && untracked_writes !== null && !untracking && deps !== null && (reaction.f & (DERIVED | MAYBE_DIRTY | DIRTY)) === 0) {
+      for (var i = 0; i < /** @type {Source[]} */
+      untracked_writes.length; i++) {
+        schedule_possible_effect_self_invalidation(
+          untracked_writes[i],
+          /** @type {Effect} */
+          reaction
+        );
+      }
+    }
+    if (previous_reaction !== null && previous_reaction !== reaction) {
+      read_version++;
+      if (previous_reaction.deps !== null) {
+        for (let i2 = 0; i2 < previous_skipped_deps; i2 += 1) {
+          previous_reaction.deps[i2].rv = read_version;
+        }
+      }
+      if (previous_deps !== null) {
+        for (const dep of previous_deps) {
+          dep.rv = read_version;
+        }
+      }
+      if (untracked_writes !== null) {
+        if (previous_untracked_writes === null) {
+          previous_untracked_writes = untracked_writes;
+        } else {
+          previous_untracked_writes.push(.../** @type {Source[]} */
+          untracked_writes);
+        }
+      }
+    }
+    if ((reaction.f & ERROR_VALUE) !== 0) {
+      reaction.f ^= ERROR_VALUE;
+    }
+    return result;
+  } catch (error) {
+    update_dependencies(reaction);
+    return handle_error(error);
+  } finally {
+    reaction.f ^= REACTION_IS_UPDATING;
+    new_deps = previous_deps;
+    skipped_deps = previous_skipped_deps;
+    untracked_writes = previous_untracked_writes;
+    active_reaction = previous_reaction;
+    current_sources = previous_sources;
+    set_component_context(previous_component_context);
+    untracking = previous_untracking;
+    update_version = previous_update_version;
+  }
+}
+function update_dependencies(reaction) {
+  var deps = reaction.deps;
+  var is_fork = current_batch?.is_fork;
+  if (new_deps !== null) {
+    var i;
+    if (!is_fork) {
+      remove_reactions(reaction, skipped_deps);
+    }
+    if (deps !== null && skipped_deps > 0) {
+      deps.length = skipped_deps + new_deps.length;
+      for (i = 0; i < new_deps.length; i++) {
+        deps[skipped_deps + i] = new_deps[i];
+      }
+    } else {
+      reaction.deps = deps = new_deps;
+    }
+    if (effect_tracking() && (reaction.f & CONNECTED) !== 0) {
+      for (i = skipped_deps; i < deps.length; i++) {
+        (deps[i].reactions ??= []).push(reaction);
+      }
+    }
+  } else if (!is_fork && deps !== null && skipped_deps < deps.length) {
+    remove_reactions(reaction, skipped_deps);
+    deps.length = skipped_deps;
+  }
+  return deps;
+}
+function remove_reaction(signal, dependency) {
+  let reactions = dependency.reactions;
+  if (reactions !== null) {
+    var index = index_of.call(reactions, signal);
+    if (index !== -1) {
+      var new_length = reactions.length - 1;
+      if (new_length === 0) {
+        reactions = dependency.reactions = null;
+      } else {
+        reactions[index] = reactions[new_length];
+        reactions.pop();
+      }
+    }
+  }
+  if (reactions === null && (dependency.f & DERIVED) !== 0 && // Destroying a child effect while updating a parent effect can cause a dependency to appear
+  // to be unused, when in fact it is used by the currently-updating parent. Checking `new_deps`
+  // allows us to skip the expensive work of disconnecting and immediately reconnecting it
+  (new_deps === null || !includes.call(new_deps, dependency))) {
+    var derived2 = (
+      /** @type {Derived} */
+      dependency
+    );
+    if ((derived2.f & CONNECTED) !== 0) {
+      derived2.f ^= CONNECTED;
+      derived2.f &= ~WAS_MARKED;
+    }
+    if (derived2.v !== UNINITIALIZED) {
+      update_derived_status(derived2);
+    }
+    if (derived2.ac !== null) {
+      without_reactive_context(() => {
+        derived2.ac.abort(STALE_REACTION);
+        derived2.ac = null;
+        set_signal_status(derived2, DIRTY);
+      });
+    }
+    freeze_derived_effects(derived2);
+    remove_reactions(derived2, 0);
+  }
+}
+function remove_reactions(signal, start_index) {
+  var dependencies = signal.deps;
+  if (dependencies === null) return;
+  for (var i = start_index; i < dependencies.length; i++) {
+    remove_reaction(signal, dependencies[i]);
+  }
+}
+function update_effect(effect2) {
+  var flags2 = effect2.f;
+  if ((flags2 & DESTROYED) !== 0) {
+    return;
+  }
+  set_signal_status(effect2, CLEAN);
+  var previous_effect = active_effect;
+  var was_updating_effect = is_updating_effect;
+  active_effect = effect2;
+  is_updating_effect = (flags2 & (BRANCH_EFFECT | ROOT_EFFECT)) === 0;
+  try {
+    if ((flags2 & (BLOCK_EFFECT | MANAGED_EFFECT)) !== 0) {
+      destroy_block_effect_children(effect2);
+    } else {
+      destroy_effect_children(effect2);
+    }
+    execute_effect_teardown(effect2);
+    var teardown2 = update_reaction(effect2);
+    effect2.teardown = typeof teardown2 === "function" ? teardown2 : null;
+    effect2.wv = write_version;
+    var dep;
+    if (DEV && tracing_mode_flag && (effect2.f & DIRTY) !== 0 && effect2.deps !== null) ;
+  } finally {
+    is_updating_effect = was_updating_effect;
+    active_effect = previous_effect;
+  }
+}
+async function tick() {
+  await Promise.resolve();
+  flushSync();
+}
+function get(signal) {
+  var flags2 = signal.f;
+  var is_derived = (flags2 & DERIVED) !== 0;
+  if (active_reaction !== null && !untracking) {
+    var destroyed = active_effect !== null && (active_effect.f & DESTROYED) !== 0;
+    if (!destroyed && (current_sources === null || !current_sources.has(signal))) {
+      var deps = active_reaction.deps;
+      if ((active_reaction.f & REACTION_IS_UPDATING) !== 0) {
+        if (signal.rv < read_version) {
+          signal.rv = read_version;
+          if (new_deps === null && deps !== null && deps[skipped_deps] === signal) {
+            skipped_deps++;
+          } else if (new_deps === null) {
+            new_deps = [signal];
+          } else {
+            new_deps.push(signal);
+          }
+        }
+      } else {
+        active_reaction.deps ??= [];
+        if (!includes.call(active_reaction.deps, signal)) {
+          active_reaction.deps.push(signal);
+        }
+        var reactions = signal.reactions;
+        if (reactions === null) {
+          signal.reactions = [active_reaction];
+        } else if (!includes.call(reactions, active_reaction)) {
+          reactions.push(active_reaction);
+        }
+      }
+    }
+  }
+  if (is_destroying_effect && old_values.has(signal)) {
+    return old_values.get(signal);
+  }
+  if (is_derived) {
+    var derived2 = (
+      /** @type {Derived} */
+      signal
+    );
+    if (is_destroying_effect) {
+      var value = derived2.v;
+      if ((derived2.f & CLEAN) === 0 && derived2.reactions !== null || depends_on_old_values(derived2)) {
+        value = execute_derived(derived2);
+      }
+      old_values.set(derived2, value);
+      return value;
+    }
+    var should_connect = (derived2.f & CONNECTED) === 0 && !untracking && active_reaction !== null && (is_updating_effect || (active_reaction.f & CONNECTED) !== 0);
+    var is_new = (derived2.f & REACTION_RAN) === 0;
+    if (is_dirty(derived2)) {
+      if (should_connect) {
+        derived2.f |= CONNECTED;
+      }
+      update_derived(derived2);
+    }
+    if (should_connect && !is_new) {
+      unfreeze_derived_effects(derived2);
+      reconnect(derived2);
+    }
+  }
+  if (batch_values?.has(signal)) {
+    return batch_values.get(signal);
+  }
+  if ((signal.f & ERROR_VALUE) !== 0) {
+    throw signal.v;
+  }
+  return signal.v;
+}
+function reconnect(derived2) {
+  derived2.f |= CONNECTED;
+  if (derived2.deps === null) return;
+  for (const dep of derived2.deps) {
+    (dep.reactions ??= []).push(derived2);
+    if ((dep.f & DERIVED) !== 0 && (dep.f & CONNECTED) === 0) {
+      unfreeze_derived_effects(
+        /** @type {Derived} */
+        dep
+      );
+      reconnect(
+        /** @type {Derived} */
+        dep
+      );
+    }
+  }
+}
+function depends_on_old_values(derived2) {
+  if (derived2.v === UNINITIALIZED) return true;
+  if (derived2.deps === null) return false;
+  for (const dep of derived2.deps) {
+    if (old_values.has(dep)) {
+      return true;
+    }
+    if ((dep.f & DERIVED) !== 0 && depends_on_old_values(
+      /** @type {Derived} */
+      dep
+    )) {
+      return true;
+    }
+  }
+  return false;
+}
+function untrack(fn) {
+  var previous_untracking = untracking;
+  try {
+    untracking = true;
+    return fn();
+  } finally {
+    untracking = previous_untracking;
+  }
+}
+function validate_effect(rune) {
+  if (active_effect === null) {
+    if (active_reaction === null) {
+      effect_orphan();
+    }
+    effect_in_unowned_derived();
+  }
+  if (is_destroying_effect) {
+    effect_in_teardown();
+  }
+}
+function push_effect(effect2, parent_effect) {
+  var parent_last = parent_effect.last;
+  if (parent_last === null) {
+    parent_effect.last = parent_effect.first = effect2;
+  } else {
+    parent_last.next = effect2;
+    effect2.prev = parent_last;
+    parent_effect.last = effect2;
+  }
+}
+function create_effect(type, fn) {
+  var parent = active_effect;
+  if (parent !== null && (parent.f & INERT) !== 0) {
+    type |= INERT;
+  }
+  var effect2 = {
+    ctx: component_context,
+    deps: null,
+    nodes: null,
+    f: type | DIRTY | CONNECTED,
+    first: null,
+    fn,
+    last: null,
+    next: null,
+    parent,
+    b: parent && parent.b,
+    prev: null,
+    teardown: null,
+    wv: 0,
+    ac: null
+  };
+  current_batch?.register_created_effect(effect2);
+  var e = effect2;
+  if ((type & EFFECT) !== 0) {
+    if (collected_effects !== null) {
+      collected_effects.push(effect2);
+    } else {
+      Batch.ensure().schedule(effect2);
+    }
+  } else if (fn !== null) {
+    try {
+      update_effect(effect2);
+    } catch (e2) {
+      destroy_effect(effect2);
+      throw e2;
+    }
+    if (e.deps === null && e.teardown === null && e.nodes === null && e.first === e.last && // either `null`, or a singular child
+    (e.f & EFFECT_PRESERVED) === 0) {
+      e = e.first;
+      if ((type & BLOCK_EFFECT) !== 0 && (type & EFFECT_TRANSPARENT) !== 0 && e !== null) {
+        e.f |= EFFECT_TRANSPARENT;
+      }
+    }
+  }
+  if (e !== null) {
+    e.parent = parent;
+    if (parent !== null) {
+      push_effect(e, parent);
+    }
+    if (active_reaction !== null && (active_reaction.f & DERIVED) !== 0 && (type & ROOT_EFFECT) === 0) {
+      var derived2 = (
+        /** @type {Derived} */
+        active_reaction
+      );
+      (derived2.effects ??= []).push(e);
+    }
+  }
+  return effect2;
+}
+function effect_tracking() {
+  return active_reaction !== null && !untracking;
+}
+function teardown(fn) {
+  const effect2 = create_effect(RENDER_EFFECT, null);
+  set_signal_status(effect2, CLEAN);
+  effect2.teardown = fn;
+  return effect2;
+}
+function user_effect(fn) {
+  validate_effect();
+  var flags2 = (
+    /** @type {Effect} */
+    active_effect.f
+  );
+  var defer = !active_reaction && (flags2 & BRANCH_EFFECT) !== 0 && component_context !== null && !component_context.i;
+  if (defer) {
+    var context = (
+      /** @type {ComponentContext} */
+      component_context
+    );
+    (context.e ??= []).push(fn);
+  } else {
+    return create_user_effect(fn);
+  }
+}
+function create_user_effect(fn) {
+  return create_effect(EFFECT | USER_EFFECT, fn);
+}
+function effect_root(fn) {
+  Batch.ensure();
+  const effect2 = create_effect(ROOT_EFFECT | EFFECT_PRESERVED, fn);
+  return () => {
+    destroy_effect(effect2);
+  };
+}
+function component_root(fn) {
+  Batch.ensure();
+  const effect2 = create_effect(ROOT_EFFECT | EFFECT_PRESERVED, fn);
+  return (options = {}) => {
+    return new Promise((fulfil) => {
+      if (options.outro) {
+        pause_effect(effect2, () => {
+          destroy_effect(effect2);
+          fulfil(void 0);
+        });
+      } else {
+        destroy_effect(effect2);
+        fulfil(void 0);
+      }
+    });
+  };
+}
+function effect(fn) {
+  return create_effect(EFFECT, fn);
+}
+function async_effect(fn) {
+  return create_effect(ASYNC | EFFECT_PRESERVED, fn);
+}
+function render_effect(fn, flags2 = 0) {
+  return create_effect(RENDER_EFFECT | flags2, fn);
+}
+function template_effect(fn, sync = [], async = [], blockers = []) {
+  flatten(blockers, sync, async, (values) => {
+    create_effect(RENDER_EFFECT, () => {
+      fn(...values.map(get));
+    });
+  });
+}
+function block(fn, flags2 = 0) {
+  var effect2 = create_effect(BLOCK_EFFECT | flags2, fn);
+  return effect2;
+}
+function managed(fn, flags2 = 0) {
+  var effect2 = create_effect(MANAGED_EFFECT | flags2, fn);
+  return effect2;
+}
+function branch(fn) {
+  return create_effect(BRANCH_EFFECT | EFFECT_PRESERVED, fn);
+}
+function execute_effect_teardown(effect2) {
+  var teardown2 = effect2.teardown;
+  if (teardown2 !== null) {
+    const previously_destroying_effect = is_destroying_effect;
+    const previous_reaction = active_reaction;
+    set_is_destroying_effect(true);
+    set_active_reaction(null);
+    try {
+      teardown2.call(null);
+    } catch (error) {
+      invoke_error_boundary(error, effect2.parent);
+    } finally {
+      set_is_destroying_effect(previously_destroying_effect);
+      set_active_reaction(previous_reaction);
+    }
+  }
+}
+function destroy_effect_children(signal, remove_dom = false) {
+  var effect2 = signal.first;
+  signal.first = signal.last = null;
+  while (effect2 !== null) {
+    const controller = effect2.ac;
+    if (controller !== null) {
+      without_reactive_context(() => {
+        controller.abort(STALE_REACTION);
+      });
+    }
+    var next2 = effect2.next;
+    if ((effect2.f & ROOT_EFFECT) !== 0) {
+      effect2.parent = null;
+    } else {
+      destroy_effect(effect2, remove_dom);
+    }
+    effect2 = next2;
+  }
+}
+function destroy_block_effect_children(signal) {
+  var effect2 = signal.first;
+  while (effect2 !== null) {
+    var next2 = effect2.next;
+    if ((effect2.f & BRANCH_EFFECT) === 0) {
+      destroy_effect(effect2);
+    }
+    effect2 = next2;
+  }
+}
+function destroy_effect(effect2, remove_dom = true) {
+  var removed = false;
+  if ((remove_dom || (effect2.f & HEAD_EFFECT) !== 0) && effect2.nodes !== null && effect2.nodes.end !== null) {
+    remove_effect_dom(
+      effect2.nodes.start,
+      /** @type {TemplateNode} */
+      effect2.nodes.end
+    );
+    removed = true;
+  }
+  effect2.f |= DESTROYING;
+  destroy_effect_children(effect2, remove_dom && !removed);
+  remove_reactions(effect2, 0);
+  var transitions = effect2.nodes && effect2.nodes.t;
+  if (transitions !== null) {
+    for (const transition of transitions) {
+      transition.stop();
+    }
+  }
+  execute_effect_teardown(effect2);
+  effect2.f ^= DESTROYING;
+  effect2.f |= DESTROYED;
+  var parent = effect2.parent;
+  if (parent !== null && parent.first !== null) {
+    unlink_effect(effect2);
+  }
+  effect2.next = effect2.prev = effect2.teardown = effect2.ctx = effect2.deps = effect2.fn = effect2.nodes = effect2.ac = effect2.b = null;
+}
+function remove_effect_dom(node, end) {
+  while (node !== null) {
+    var next2 = node === end ? null : /* @__PURE__ */ get_next_sibling(node);
+    node.remove();
+    node = next2;
+  }
+}
+function unlink_effect(effect2) {
+  var parent = effect2.parent;
+  var prev = effect2.prev;
+  var next2 = effect2.next;
+  if (prev !== null) prev.next = next2;
+  if (next2 !== null) next2.prev = prev;
+  if (parent !== null) {
+    if (parent.first === effect2) parent.first = next2;
+    if (parent.last === effect2) parent.last = prev;
+  }
+}
+function pause_effect(effect2, callback, destroy = true) {
+  var transitions = [];
+  effect2.f |= PAUSED;
+  pause_children(effect2, transitions, true);
+  var fn = () => {
+    if (destroy) destroy_effect(effect2);
+    if (callback) callback();
+  };
+  var remaining = transitions.length;
+  if (remaining > 0) {
+    var check = () => --remaining || fn();
+    for (var transition of transitions) {
+      transition.out(check);
+    }
+  } else {
+    fn();
+  }
+}
+function pause_children(effect2, transitions, local) {
+  if ((effect2.f & INERT) !== 0) return;
+  effect2.f ^= INERT;
+  var t = effect2.nodes && effect2.nodes.t;
+  if (t !== null) {
+    for (const transition of t) {
+      if (transition.is_global || local) {
+        transitions.push(transition);
+      }
+    }
+  }
+  var child2 = effect2.first;
+  while (child2 !== null) {
+    var sibling2 = child2.next;
+    if ((child2.f & ROOT_EFFECT) === 0) {
+      var transparent = (child2.f & EFFECT_TRANSPARENT) !== 0 || // If this is a branch effect without a block effect parent,
+      // it means the parent block effect was pruned. In that case,
+      // transparency information was transferred to the branch effect.
+      (child2.f & BRANCH_EFFECT) !== 0 && (effect2.f & BLOCK_EFFECT) !== 0;
+      pause_children(child2, transitions, transparent ? local : false);
+    }
+    child2 = sibling2;
+  }
+}
+function resume_effect(effect2) {
+  effect2.f &= ~PAUSED;
+  resume_children(effect2, true);
+}
+function resume_children(effect2, local) {
+  if ((effect2.f & PAUSED) !== 0) return;
+  if ((effect2.f & INERT) === 0) return;
+  effect2.f ^= INERT;
+  if ((effect2.f & CLEAN) === 0) {
+    set_signal_status(effect2, DIRTY);
+    Batch.ensure().schedule(effect2);
+  }
+  var child2 = effect2.first;
+  while (child2 !== null) {
+    var sibling2 = child2.next;
+    var transparent = (child2.f & EFFECT_TRANSPARENT) !== 0 || (child2.f & BRANCH_EFFECT) !== 0;
+    resume_children(child2, transparent ? local : false);
+    child2 = sibling2;
+  }
+  var t = effect2.nodes && effect2.nodes.t;
+  if (t !== null) {
+    for (const transition of t) {
+      if (transition.is_global || local) {
+        transition.in();
+      }
+    }
+  }
+}
+function move_effect(effect2, fragment) {
+  if (!effect2.nodes) return;
+  var node = effect2.nodes.start;
+  var end = effect2.nodes.end;
+  while (node !== null) {
+    var next2 = node === end ? null : /* @__PURE__ */ get_next_sibling(node);
+    fragment.append(node);
+    node = next2;
+  }
+}
+function createSubscriber(start) {
+  let subscribers = 0;
+  let version = source(0);
+  let stop;
+  return () => {
+    if (effect_tracking()) {
+      get(version);
+      render_effect(() => {
+        if (subscribers === 0) {
+          stop = untrack(() => start(() => increment(version)));
+        }
+        subscribers += 1;
+        return () => {
+          queue_micro_task(() => {
+            subscribers -= 1;
+            if (subscribers === 0) {
+              stop?.();
+              stop = void 0;
+              increment(version);
+            }
+          });
+        };
+      });
+    }
+  };
+}
+function store(defaultValue) {
+  const scope = {
+    get: (name) => {
+      return get$1(scope.store)[name];
+    },
+    set: (name, value) => {
+      if (typeof name === "string") {
+        Object.assign(get$1(scope.store), {
+          [name]: value
+        });
+      } else {
+        Object.assign(get$1(scope.store), name);
+      }
+      scope.store.set(get$1(scope.store));
+    },
+    store: writable(defaultValue)
+  };
+  return scope;
+}
+globalThis.$altcha = globalThis.$altcha || {
+  algorithms: /* @__PURE__ */ new Map(),
+  defaults: store({}),
+  i18n: store({}),
+  instances: /* @__PURE__ */ new Set(),
+  plugins: /* @__PURE__ */ new Set()
+};
+const i18n = {
+  ariaLinkLabel: "Altcha (official website)",
+  cancel: "Cancel",
+  enterCode: "Enter code",
+  enterCodeAria: "Enter code you hear. Press Space to play audio.",
+  enterCodeFromImage: "To proceed, please enter the code from the image below.",
+  error: "Verification failed. Try again later.",
+  expired: "Verification expired. Try again.",
+  footer: 'Protected by <a href="https://altcha.org/" target="_blank" rel="noopener" aria-label="Altcha (official website, opens in new tab)">ALTCHA</a>',
+  getAudioChallenge: "Get an audio challenge",
+  label: "I’m not a robot",
+  loading: "Loading...",
+  reload: "Reload",
+  verify: "Verify",
+  verificationRequired: "Verification required!",
+  verified: "Verified",
+  verifying: "Verifying...",
+  waitAlert: "Verifying... please wait."
+};
+globalThis.$altcha.i18n.set("en", i18n);
+const PUBLIC_VERSION = "5";
+if (typeof window !== "undefined") {
+  ((window.__svelte ??= {}).v ??= /* @__PURE__ */ new Set()).add(PUBLIC_VERSION);
+}
+const event_symbol = /* @__PURE__ */ Symbol("events");
+const all_registered_events = /* @__PURE__ */ new Set();
+const root_event_handles = /* @__PURE__ */ new Set();
+function create_event(event_name, dom, handler, options = {}) {
+  function target_handler(event2) {
+    if (!options.capture) {
+      handle_event_propagation.call(dom, event2);
+    }
+    if (!event2.cancelBubble) {
+      return without_reactive_context(() => {
+        return handler?.call(this, event2);
+      });
+    }
+  }
+  if (event_name.startsWith("pointer") || event_name.startsWith("touch") || event_name === "wheel") {
+    queue_micro_task(() => {
+      dom.addEventListener(event_name, target_handler, options);
+    });
+  } else {
+    dom.addEventListener(event_name, target_handler, options);
+  }
+  return target_handler;
+}
+function event(event_name, dom, handler, capture2, passive) {
+  var options = { capture: capture2, passive };
+  var target_handler = create_event(event_name, dom, handler, options);
+  if (dom === document.body || // @ts-ignore
+  dom === window || // @ts-ignore
+  dom === document || // Firefox has quirky behavior, it can happen that we still get "canplay" events when the element is already removed
+  dom instanceof HTMLMediaElement) {
+    teardown(() => {
+      dom.removeEventListener(event_name, target_handler, options);
+    });
+  }
+}
+function delegated(event_name, element, handler) {
+  (element[event_symbol] ??= {})[event_name] = handler;
+}
+function delegate(events) {
+  for (var i = 0; i < events.length; i++) {
+    all_registered_events.add(events[i]);
+  }
+  for (var fn of root_event_handles) {
+    fn(events);
+  }
+}
+let last_propagated_event = null;
+let last_propagated_event_clear_scheduled = false;
+function handle_event_propagation(event2) {
+  var handler_element = this;
+  var owner_document = (
+    /** @type {Node} */
+    handler_element.ownerDocument
+  );
+  var event_name = event2.type;
+  var path = event2.composedPath?.() || [];
+  var current_target = (
+    /** @type {null | Element} */
+    path[0] || event2.target
+  );
+  last_propagated_event = event2;
+  if (!last_propagated_event_clear_scheduled) {
+    last_propagated_event_clear_scheduled = true;
+    setTimeout(() => {
+      last_propagated_event_clear_scheduled = false;
+      last_propagated_event = null;
+    });
+  }
+  var path_idx = 0;
+  var handled_at = last_propagated_event === event2 && event2[event_symbol];
+  if (handled_at) {
+    var at_idx = path.indexOf(handled_at);
+    if (at_idx !== -1 && (handler_element === document || handler_element === /** @type {any} */
+    window)) {
+      event2[event_symbol] = handler_element;
       return;
     }
-    if (s.nodes_start !== null && (In(
-      s.nodes_start,
-      /** @type {TemplateNode} */
-      s.nodes_end
-    ), s.nodes_start = s.nodes_end = null), l !== "") {
-      if (L) {
-        P.data;
-        for (var f = ze(), d = f; f !== null && (f.nodeType !== 8 || /** @type {Comment} */
-        f.data !== ""); )
-          d = f, f = /** @type {TemplateNode} */
-          /* @__PURE__ */ Te(f);
-        if (f === null)
-          throw Tt(), Je;
-        Ae(P, d), a = Re(f);
-        return;
-      }
-      var v = l + "";
-      r ? v = `<svg>${v}</svg>` : i && (v = `<math>${v}</math>`);
-      var h = or(v);
-      if ((r || i) && (h = /** @type {Element} */
-      /* @__PURE__ */ ae(h)), Ae(
-        /** @type {TemplateNode} */
-        /* @__PURE__ */ ae(h),
-        /** @type {TemplateNode} */
-        h.lastChild
-      ), r || i)
-        for (; /* @__PURE__ */ ae(h); )
-          a.before(
-            /** @type {Node} */
-            /* @__PURE__ */ ae(h)
-          );
-      else
-        a.before(h);
+    var handler_idx = path.indexOf(handler_element);
+    if (handler_idx === -1) {
+      return;
+    }
+    if (at_idx <= handler_idx) {
+      path_idx = at_idx;
+    }
+  }
+  current_target = /** @type {Element} */
+  path[path_idx] || event2.target;
+  if (current_target === handler_element) return;
+  define_property(event2, "currentTarget", {
+    configurable: true,
+    get() {
+      return current_target || owner_document;
     }
   });
-}
-function Po(e, t, r, i, o) {
-  var s;
-  L && ze();
-  var a = (s = t.$$slots) == null ? void 0 : s[r], l = !1;
-  a === !0 && (a = t.children, l = !0), a === void 0 || a(e, l ? () => i : i);
-}
-const Qr = [...` 	
-\r\f \v\uFEFF`];
-function Oo(e, t, r) {
-  var i = "" + e;
-  if (r) {
-    for (var o in r)
-      if (r[o])
-        i = i ? i + " " + o : o;
-      else if (i.length)
-        for (var a = o.length, l = 0; (l = i.indexOf(o, l)) >= 0; ) {
-          var s = l + a;
-          (l === 0 || Qr.includes(i[l - 1])) && (s === i.length || Qr.includes(i[s])) ? i = (l === 0 ? "" : i.substring(0, l)) + i.substring(s + 1) : l = s;
+  var previous_reaction = active_reaction;
+  var previous_effect = active_effect;
+  set_active_reaction(null);
+  set_active_effect(null);
+  try {
+    var throw_error;
+    var other_errors = [];
+    while (current_target !== null) {
+      if (current_target === handler_element) break;
+      try {
+        var delegated2 = current_target[event_symbol]?.[event_name];
+        if (delegated2 != null && (!/** @type {any} */
+        current_target.disabled || // DOM could've been updated already by the time this is reached, so we check this as well
+        // -> the target could not have been disabled because it emits the event in the first place
+        event2.target === current_target)) {
+          delegated2.call(current_target, event2);
         }
-  }
-  return i === "" ? null : i;
-}
-function Fo(e, t, r, i, o, a) {
-  var l = e.__className;
-  if (L || l !== r || l === void 0) {
-    var s = Oo(r, i, a);
-    (!L || s !== e.getAttribute("class")) && (s == null ? e.removeAttribute("class") : e.className = s), e.__className = r;
-  } else if (a && o !== a)
-    for (var f in a) {
-      var d = !!a[f];
-      (o == null || d !== !!o[f]) && e.classList.toggle(f, d);
+      } catch (error) {
+        if (throw_error) {
+          other_errors.push(error);
+        } else {
+          throw_error = error;
+        }
+      }
+      if (event2.cancelBubble) break;
+      path_idx++;
+      current_target = path_idx < path.length ? (
+        /** @type {Element} */
+        path[path_idx]
+      ) : null;
     }
-  return a;
+    if (throw_error) {
+      for (let error of other_errors) {
+        queueMicrotask(() => {
+          throw error;
+        });
+      }
+      throw throw_error;
+    }
+  } finally {
+    event2[event_symbol] = handler_element;
+    delete event2.currentTarget;
+    set_active_reaction(previous_reaction);
+    set_active_effect(previous_effect);
+  }
 }
-const Mo = Symbol("is custom element"), Uo = Symbol("is html");
-function en(e) {
-  if (L) {
-    var t = !1, r = () => {
-      if (!t) {
-        if (t = !0, e.hasAttribute("value")) {
-          var i = e.value;
-          se(e, "value", null), e.value = i;
+const policy = (
+  // We gotta write it like this because after downleveling the pure comment may end up in the wrong location
+  globalThis?.window?.trustedTypes && /* @__PURE__ */ globalThis.window.trustedTypes.createPolicy("svelte-trusted-html", {
+    /** @param {string} html */
+    createHTML: (html2) => {
+      return html2;
+    }
+  })
+);
+function create_trusted_html(html2) {
+  return (
+    /** @type {string} */
+    policy?.createHTML(html2) ?? html2
+  );
+}
+function create_fragment_from_html(html2) {
+  var elem = create_element("template");
+  elem.innerHTML = create_trusted_html(html2.replaceAll("<!>", "<!---->"));
+  return elem.content;
+}
+function assign_nodes(start, end) {
+  var effect2 = (
+    /** @type {Effect} */
+    active_effect
+  );
+  if (effect2.nodes === null) {
+    effect2.nodes = { start, end, a: null, t: null };
+  }
+}
+// @__NO_SIDE_EFFECTS__
+function from_html(content, flags2) {
+  var is_fragment = (flags2 & TEMPLATE_FRAGMENT) !== 0;
+  var use_import_node = (flags2 & TEMPLATE_USE_IMPORT_NODE) !== 0;
+  var node;
+  var has_start = !content.startsWith("<!>");
+  return () => {
+    if (hydrating) {
+      assign_nodes(hydrate_node, null);
+      return hydrate_node;
+    }
+    if (node === void 0) {
+      node = create_fragment_from_html(has_start ? content : "<!>" + content);
+      if (!is_fragment) node = /** @type {TemplateNode} */
+      /* @__PURE__ */ get_first_child(node);
+    }
+    var clone = (
+      /** @type {TemplateNode} */
+      use_import_node || is_firefox ? document.importNode(node, true) : node.cloneNode(true)
+    );
+    if (is_fragment) {
+      var start = (
+        /** @type {TemplateNode} */
+        /* @__PURE__ */ get_first_child(clone)
+      );
+      var end = (
+        /** @type {TemplateNode} */
+        clone.lastChild
+      );
+      assign_nodes(start, end);
+    } else {
+      assign_nodes(clone, clone);
+    }
+    return clone;
+  };
+}
+// @__NO_SIDE_EFFECTS__
+function from_namespace(content, flags2, ns = "svg") {
+  var has_start = !content.startsWith("<!>");
+  var wrapped = `<${ns}>${has_start ? content : "<!>" + content}</${ns}>`;
+  var node;
+  return () => {
+    if (hydrating) {
+      assign_nodes(hydrate_node, null);
+      return hydrate_node;
+    }
+    if (!node) {
+      var fragment = (
+        /** @type {DocumentFragment} */
+        create_fragment_from_html(wrapped)
+      );
+      var root2 = (
+        /** @type {Element} */
+        /* @__PURE__ */ get_first_child(fragment)
+      );
+      {
+        node = /** @type {Element} */
+        /* @__PURE__ */ get_first_child(root2);
+      }
+    }
+    var clone = (
+      /** @type {TemplateNode} */
+      node.cloneNode(true)
+    );
+    {
+      assign_nodes(clone, clone);
+    }
+    return clone;
+  };
+}
+// @__NO_SIDE_EFFECTS__
+function from_svg(content, flags2) {
+  return /* @__PURE__ */ from_namespace(content, flags2, "svg");
+}
+function text(value = "") {
+  if (!hydrating) {
+    var t = create_text(value + "");
+    assign_nodes(t, t);
+    return t;
+  }
+  var node = hydrate_node;
+  if (node.nodeType !== TEXT_NODE) {
+    node.before(node = create_text());
+    set_hydrate_node(node);
+  } else {
+    merge_text_nodes(
+      /** @type {Text} */
+      node
+    );
+  }
+  assign_nodes(node, node);
+  return node;
+}
+function comment() {
+  if (hydrating) {
+    assign_nodes(hydrate_node, null);
+    return hydrate_node;
+  }
+  var frag = document.createDocumentFragment();
+  var start = document.createComment("");
+  var anchor = create_text();
+  frag.append(start, anchor);
+  assign_nodes(start, anchor);
+  return frag;
+}
+function append(anchor, dom) {
+  if (hydrating) {
+    var effect2 = (
+      /** @type {Effect & { nodes: EffectNodes }} */
+      active_effect
+    );
+    if ((effect2.f & REACTION_RAN) === 0 || effect2.nodes.end === null) {
+      effect2.nodes.end = hydrate_node;
+    }
+    hydrate_next();
+    return;
+  }
+  if (anchor === null) {
+    return;
+  }
+  anchor.before(
+    /** @type {Node} */
+    dom
+  );
+}
+function is_capture_event(name) {
+  return name.endsWith("capture") && name !== "gotpointercapture" && name !== "lostpointercapture";
+}
+const DELEGATED_EVENTS = [
+  "beforeinput",
+  "click",
+  "change",
+  "dblclick",
+  "contextmenu",
+  "focusin",
+  "focusout",
+  "input",
+  "keydown",
+  "keyup",
+  "mousedown",
+  "mousemove",
+  "mouseout",
+  "mouseover",
+  "mouseup",
+  "pointerdown",
+  "pointermove",
+  "pointerout",
+  "pointerover",
+  "pointerup",
+  "touchend",
+  "touchmove",
+  "touchstart"
+];
+function can_delegate_event(event_name) {
+  return DELEGATED_EVENTS.includes(event_name);
+}
+const ATTRIBUTE_ALIASES = {
+  // no `class: 'className'` because we handle that separately
+  formnovalidate: "formNoValidate",
+  ismap: "isMap",
+  nomodule: "noModule",
+  playsinline: "playsInline",
+  readonly: "readOnly",
+  defaultvalue: "defaultValue",
+  defaultchecked: "defaultChecked",
+  srcobject: "srcObject",
+  novalidate: "noValidate",
+  allowfullscreen: "allowFullscreen",
+  disablepictureinpicture: "disablePictureInPicture",
+  disableremoteplayback: "disableRemotePlayback"
+};
+function normalize_attribute(name) {
+  name = name.toLowerCase();
+  return ATTRIBUTE_ALIASES[name] ?? name;
+}
+const PASSIVE_EVENTS = ["touchstart", "touchmove"];
+function is_passive_event(name) {
+  return PASSIVE_EVENTS.includes(name);
+}
+var flags = EFFECT_TRANSPARENT | EFFECT_PRESERVED;
+function boundary(node, props, children, transform_error) {
+  new Boundary(node, props, children, transform_error);
+}
+class Boundary {
+  /** @type {Boundary | null} */
+  parent;
+  is_pending = false;
+  /**
+   * API-level transformError transform function. Transforms errors before they reach the `failed` snippet.
+   * Inherited from parent boundary, or defaults to identity.
+   * @type {(error: unknown) => unknown}
+   */
+  transform_error;
+  /** @type {TemplateNode} */
+  #anchor;
+  /** @type {TemplateNode | null} */
+  #hydrate_open = hydrating ? hydrate_node : null;
+  /** @type {BoundaryProps} */
+  #props;
+  /** @type {((anchor: Node) => void)} */
+  #children;
+  /** @type {Effect} */
+  #effect;
+  /** @type {Effect | null} */
+  #main_effect = null;
+  /** @type {Effect | null} */
+  #pending_effect = null;
+  /** @type {Effect | null} */
+  #failed_effect = null;
+  /** @type {DocumentFragment | null} */
+  #offscreen_fragment = null;
+  #local_pending_count = 0;
+  #pending_count = 0;
+  #pending_count_update_queued = false;
+  /** @type {Set<Effect>} */
+  #dirty_effects = /* @__PURE__ */ new Set();
+  /** @type {Set<Effect>} */
+  #maybe_dirty_effects = /* @__PURE__ */ new Set();
+  /**
+   * A source containing the number of pending async deriveds/expressions.
+   * Only created if `$effect.pending()` is used inside the boundary,
+   * otherwise updating the source results in needless `Batch.ensure()`
+   * calls followed by no-op flushes
+   * @type {Source<number> | null}
+   */
+  #effect_pending = null;
+  #effect_pending_subscriber = createSubscriber(() => {
+    this.#effect_pending = source(this.#local_pending_count);
+    return () => {
+      this.#effect_pending = null;
+    };
+  });
+  /**
+   * @param {TemplateNode} node
+   * @param {BoundaryProps} props
+   * @param {((anchor: Node) => void)} children
+   * @param {((error: unknown) => unknown) | undefined} [transform_error]
+   */
+  constructor(node, props, children, transform_error) {
+    this.#anchor = node;
+    this.#props = props;
+    this.#children = (anchor) => {
+      var effect2 = (
+        /** @type {Effect} */
+        active_effect
+      );
+      effect2.b = this;
+      effect2.f |= BOUNDARY_EFFECT;
+      children(anchor);
+    };
+    this.parent = /** @type {Effect} */
+    active_effect.b;
+    this.transform_error = transform_error ?? this.parent?.transform_error ?? ((e) => e);
+    this.#effect = block(() => {
+      if (hydrating) {
+        const comment2 = (
+          /** @type {Comment} */
+          this.#hydrate_open
+        );
+        hydrate_next();
+        const server_rendered_pending = comment2.data === HYDRATION_START_ELSE;
+        const server_rendered_failed = comment2.data.startsWith(HYDRATION_START_FAILED);
+        if (server_rendered_failed) {
+          const serialized_error = JSON.parse(comment2.data.slice(HYDRATION_START_FAILED.length));
+          this.#hydrate_failed_content(serialized_error);
+        } else if (server_rendered_pending) {
+          this.#hydrate_pending_content();
+        } else {
+          this.#hydrate_resolved_content();
         }
-        if (e.hasAttribute("checked")) {
-          var o = e.checked;
-          se(e, "checked", null), e.checked = o;
+      } else {
+        this.#render();
+      }
+    }, flags);
+    if (hydrating) {
+      this.#anchor = hydrate_node;
+    }
+  }
+  #hydrate_resolved_content() {
+    try {
+      this.#main_effect = branch(() => this.#children(this.#anchor));
+    } catch (error) {
+      this.error(error);
+    }
+  }
+  /**
+   * @param {unknown} error The deserialized error from the server's hydration comment
+   */
+  #hydrate_failed_content(error) {
+    const failed = this.#props.failed;
+    const { reset: reset2, invoke_onerror } = this.#create_reset(error);
+    queue_micro_task(invoke_onerror);
+    if (!failed) return;
+    this.#failed_effect = branch(() => {
+      failed(
+        this.#anchor,
+        () => error,
+        () => reset2
+      );
+    });
+  }
+  /**
+   * Creates the `reset` function for a failed boundary, along with a function
+   * that invokes `onerror` with it (if provided)
+   * @param {unknown} error
+   * @returns {{ reset: () => void, invoke_onerror: () => void }}
+   */
+  #create_reset(error) {
+    var did_reset = false;
+    var calling_on_error = false;
+    const reset2 = () => {
+      if (did_reset) {
+        svelte_boundary_reset_noop();
+        return;
+      }
+      did_reset = true;
+      if (calling_on_error) {
+        svelte_boundary_reset_onerror();
+      }
+      if (this.#failed_effect !== null) {
+        pause_effect(this.#failed_effect, () => {
+          this.#failed_effect = null;
+        });
+      }
+      this.#run(() => {
+        this.#render();
+      });
+    };
+    const invoke_onerror = () => {
+      try {
+        calling_on_error = true;
+        this.#props.onerror?.(error, reset2);
+        calling_on_error = false;
+      } catch (err) {
+        invoke_error_boundary(err, this.#effect && this.#effect.parent);
+      }
+    };
+    return { reset: reset2, invoke_onerror };
+  }
+  #hydrate_pending_content() {
+    const pending = this.#props.pending;
+    if (!pending) return;
+    this.is_pending = true;
+    this.#pending_effect = branch(() => pending(this.#anchor));
+    queue_micro_task(() => {
+      var fragment = this.#offscreen_fragment = document.createDocumentFragment();
+      var anchor = create_text();
+      var handled = false;
+      fragment.append(anchor);
+      this.#main_effect = this.#run(() => {
+        try {
+          return branch(() => this.#children(anchor));
+        } catch (error) {
+          try {
+            this.error(error);
+            handled = true;
+          } catch (error2) {
+            invoke_error_boundary(error2, this.#effect.parent);
+          }
+          return null;
+        }
+      });
+      if (this.#main_effect === null) {
+        this.#offscreen_fragment = null;
+        if (handled) this.#resolve(
+          /** @type {Batch} */
+          current_batch
+        );
+        return;
+      }
+      if (this.#pending_count === 0) {
+        this.#anchor.before(fragment);
+        this.#offscreen_fragment = null;
+        pause_effect(
+          /** @type {Effect} */
+          this.#pending_effect,
+          () => {
+            this.#pending_effect = null;
+          }
+        );
+        this.#resolve(
+          /** @type {Batch} */
+          current_batch
+        );
+      }
+    });
+  }
+  #render() {
+    try {
+      this.is_pending = this.has_pending_snippet();
+      this.#pending_count = 0;
+      this.#local_pending_count = 0;
+      this.#main_effect = branch(() => {
+        this.#children(this.#anchor);
+      });
+      if (this.#pending_count > 0) {
+        var fragment = this.#offscreen_fragment = document.createDocumentFragment();
+        move_effect(this.#main_effect, fragment);
+        const pending = (
+          /** @type {(anchor: Node) => void} */
+          this.#props.pending
+        );
+        this.#pending_effect = branch(() => pending(this.#anchor));
+      } else {
+        this.#resolve(
+          /** @type {Batch} */
+          current_batch
+        );
+      }
+    } catch (error) {
+      this.error(error);
+    }
+  }
+  /**
+   * @param {Batch} batch
+   */
+  #resolve(batch) {
+    this.is_pending = false;
+    batch.transfer_effects(this.#dirty_effects, this.#maybe_dirty_effects);
+  }
+  /**
+   * Defer an effect inside a pending boundary until the boundary resolves
+   * @param {Effect} effect
+   */
+  defer_effect(effect2) {
+    defer_effect(effect2, this.#dirty_effects, this.#maybe_dirty_effects);
+  }
+  /**
+   * Returns `false` if the effect exists inside a boundary whose pending snippet is shown
+   * @returns {boolean}
+   */
+  is_rendered() {
+    return !this.is_pending && (!this.parent || this.parent.is_rendered());
+  }
+  has_pending_snippet() {
+    return !!this.#props.pending;
+  }
+  /**
+   * @template T
+   * @param {() => T} fn
+   */
+  #run(fn) {
+    var previous_effect = active_effect;
+    var previous_reaction = active_reaction;
+    var previous_ctx = component_context;
+    set_active_effect(this.#effect);
+    set_active_reaction(this.#effect);
+    set_component_context(this.#effect.ctx);
+    try {
+      Batch.ensure();
+      return fn();
+    } finally {
+      set_active_effect(previous_effect);
+      set_active_reaction(previous_reaction);
+      set_component_context(previous_ctx);
+    }
+  }
+  /**
+   * Updates the pending count associated with the currently visible pending snippet,
+   * if any, such that we can replace the snippet with content once work is done
+   * @param {1 | -1} d
+   * @param {Batch} batch
+   */
+  #update_pending_count(d, batch) {
+    if (!this.has_pending_snippet()) {
+      if (this.parent) {
+        this.parent.#update_pending_count(d, batch);
+      }
+      return;
+    }
+    this.#pending_count += d;
+    if (this.#pending_count === 0) {
+      this.#resolve(batch);
+      if (this.#pending_effect) {
+        pause_effect(this.#pending_effect, () => {
+          this.#pending_effect = null;
+        });
+      }
+      if (this.#offscreen_fragment) {
+        this.#anchor.before(this.#offscreen_fragment);
+        this.#offscreen_fragment = null;
+      }
+    }
+  }
+  /**
+   * Update the source that powers `$effect.pending()` inside this boundary,
+   * and controls when the current `pending` snippet (if any) is removed.
+   * Do not call from inside the class
+   * @param {1 | -1} d
+   * @param {Batch} batch
+   */
+  update_pending_count(d, batch) {
+    this.#update_pending_count(d, batch);
+    this.#local_pending_count += d;
+    if (!this.#effect_pending || this.#pending_count_update_queued) return;
+    this.#pending_count_update_queued = true;
+    queue_micro_task(() => {
+      this.#pending_count_update_queued = false;
+      if (this.#effect_pending) {
+        internal_set(this.#effect_pending, this.#local_pending_count);
+      }
+    });
+  }
+  get_effect_pending() {
+    this.#effect_pending_subscriber();
+    return get(
+      /** @type {Source<number>} */
+      this.#effect_pending
+    );
+  }
+  /** @param {unknown} error */
+  error(error) {
+    if (!this.#props.onerror && !this.#props.failed) {
+      throw error;
+    }
+    if (current_batch?.is_fork) {
+      if (this.#main_effect) current_batch.skip_effect(this.#main_effect);
+      if (this.#pending_effect) current_batch.skip_effect(this.#pending_effect);
+      if (this.#failed_effect) current_batch.skip_effect(this.#failed_effect);
+      current_batch.oncommit(() => {
+        this.#handle_error(error);
+      });
+    } else {
+      this.#handle_error(error);
+    }
+  }
+  /**
+   * @param {unknown} error
+   */
+  #handle_error(error) {
+    if (this.#main_effect) {
+      destroy_effect(this.#main_effect);
+      this.#main_effect = null;
+    }
+    if (this.#pending_effect) {
+      destroy_effect(this.#pending_effect);
+      this.#pending_effect = null;
+    }
+    if (this.#failed_effect) {
+      destroy_effect(this.#failed_effect);
+      this.#failed_effect = null;
+    }
+    if (hydrating) {
+      set_hydrate_node(
+        /** @type {TemplateNode} */
+        this.#hydrate_open
+      );
+      next();
+      set_hydrate_node(skip_nodes());
+    }
+    let failed = this.#props.failed;
+    const handle_error_result = (transformed_error) => {
+      const { reset: reset2, invoke_onerror } = this.#create_reset(transformed_error);
+      invoke_onerror();
+      if (failed) {
+        this.#failed_effect = this.#run(() => {
+          try {
+            return branch(() => {
+              var effect2 = (
+                /** @type {Effect} */
+                active_effect
+              );
+              effect2.b = this;
+              effect2.f |= BOUNDARY_EFFECT;
+              failed(
+                this.#anchor,
+                () => transformed_error,
+                () => reset2
+              );
+            });
+          } catch (error2) {
+            invoke_error_boundary(
+              error2,
+              /** @type {Effect} */
+              this.#effect.parent
+            );
+            return null;
+          }
+        });
+      }
+    };
+    queue_micro_task(() => {
+      var result;
+      try {
+        result = this.transform_error(error);
+      } catch (e) {
+        invoke_error_boundary(e, this.#effect && this.#effect.parent);
+        return;
+      }
+      if (result !== null && typeof result === "object" && typeof /** @type {any} */
+      result.then === "function") {
+        result.then(
+          handle_error_result,
+          /** @param {unknown} e */
+          (e) => invoke_error_boundary(e, this.#effect && this.#effect.parent)
+        );
+      } else {
+        handle_error_result(result);
+      }
+    });
+  }
+}
+function set_text(text2, value) {
+  var str = value == null ? "" : typeof value === "object" ? `${value}` : value;
+  if (str !== /** @type {any} */
+  (text2[TEXT_CACHE] ??= text2.nodeValue)) {
+    text2[TEXT_CACHE] = str;
+    text2.nodeValue = `${str}`;
+  }
+}
+function mount(component2, options) {
+  return _mount(component2, options);
+}
+function hydrate(component2, options) {
+  init_operations();
+  options.intro = options.intro ?? false;
+  const target = options.target;
+  const was_hydrating = hydrating;
+  const previous_hydrate_node = hydrate_node;
+  try {
+    var anchor = /* @__PURE__ */ get_first_child(target);
+    while (anchor && (anchor.nodeType !== COMMENT_NODE || /** @type {Comment} */
+    anchor.data !== HYDRATION_START)) {
+      anchor = /* @__PURE__ */ get_next_sibling(anchor);
+    }
+    if (!anchor) {
+      throw HYDRATION_ERROR;
+    }
+    set_hydrating(true);
+    set_hydrate_node(
+      /** @type {Comment} */
+      anchor
+    );
+    const instance = _mount(component2, { ...options, anchor });
+    set_hydrating(false);
+    return (
+      /**  @type {Exports} */
+      instance
+    );
+  } catch (error) {
+    if (error instanceof Error && error.message.split("\n").some((line) => line.startsWith("https://svelte.dev/e/"))) {
+      throw error;
+    }
+    if (error !== HYDRATION_ERROR) {
+      console.warn("Failed to hydrate: ", error);
+    }
+    if (options.recover === false) {
+      hydration_failed();
+    }
+    init_operations();
+    clear_text_content(target);
+    set_hydrating(false);
+    return mount(component2, options);
+  } finally {
+    set_hydrating(was_hydrating);
+    set_hydrate_node(previous_hydrate_node);
+  }
+}
+const listeners = /* @__PURE__ */ new Map();
+function _mount(Component, { target, anchor, props = {}, events, context, intro = true, transformError }) {
+  init_operations();
+  var component2 = void 0;
+  var unmount2 = component_root(() => {
+    var anchor_node = anchor ?? target.appendChild(create_text());
+    boundary(
+      /** @type {TemplateNode} */
+      anchor_node,
+      {
+        pending: () => {
+        }
+      },
+      (anchor_node2) => {
+        push({});
+        var ctx = (
+          /** @type {ComponentContext} */
+          component_context
+        );
+        if (context) ctx.c = context;
+        if (events) {
+          props.$$events = events;
+        }
+        if (hydrating) {
+          assign_nodes(
+            /** @type {TemplateNode} */
+            anchor_node2,
+            null
+          );
+        }
+        component2 = Component(anchor_node2, props) || mark_as_component();
+        if (hydrating) {
+          active_effect.nodes.end = hydrate_node;
+          if (hydrate_node === null || hydrate_node.nodeType !== COMMENT_NODE || /** @type {Comment} */
+          hydrate_node.data !== HYDRATION_END) {
+            hydration_mismatch();
+            throw HYDRATION_ERROR;
+          }
+        }
+        pop();
+      },
+      transformError
+    );
+    var registered_events = /* @__PURE__ */ new Set();
+    var event_handle = (events2) => {
+      for (var i = 0; i < events2.length; i++) {
+        var event_name = events2[i];
+        if (registered_events.has(event_name)) continue;
+        registered_events.add(event_name);
+        var passive = is_passive_event(event_name);
+        for (const node of [target, document]) {
+          var counts = listeners.get(node);
+          if (counts === void 0) {
+            counts = /* @__PURE__ */ new Map();
+            listeners.set(node, counts);
+          }
+          var count = counts.get(event_name);
+          if (count === void 0) {
+            node.addEventListener(event_name, handle_event_propagation, { passive });
+            counts.set(event_name, 1);
+          } else {
+            counts.set(event_name, count + 1);
+          }
         }
       }
     };
-    e.__on_r = r, go(r), Zn();
+    event_handle(array_from(all_registered_events));
+    root_event_handles.add(event_handle);
+    return () => {
+      for (var event_name of registered_events) {
+        for (const node of [target, document]) {
+          var counts = (
+            /** @type {Map<string, number>} */
+            listeners.get(node)
+          );
+          var count = (
+            /** @type {number} */
+            counts.get(event_name)
+          );
+          if (--count == 0) {
+            node.removeEventListener(event_name, handle_event_propagation);
+            counts.delete(event_name);
+            if (counts.size === 0) {
+              listeners.delete(node);
+            }
+          } else {
+            counts.set(event_name, count);
+          }
+        }
+      }
+      root_event_handles.delete(event_handle);
+      if (anchor_node !== anchor) {
+        anchor_node.parentNode?.removeChild(anchor_node);
+      }
+    };
+  });
+  mounted_components.set(component2, unmount2);
+  return component2;
+}
+let mounted_components = /* @__PURE__ */ new WeakMap();
+function unmount(component2, options) {
+  const fn = mounted_components.get(component2);
+  if (fn) {
+    mounted_components.delete(component2);
+    return fn(options);
+  }
+  return Promise.resolve();
+}
+class BranchManager {
+  /** @type {TemplateNode} */
+  anchor;
+  /** @type {Map<Batch, Key>} */
+  #batches = /* @__PURE__ */ new Map();
+  /**
+   * Map of keys to effects that are currently rendered in the DOM.
+   * These effects are visible and actively part of the document tree.
+   * Example:
+   * ```
+   * {#if condition}
+   * 	foo
+   * {:else}
+   * 	bar
+   * {/if}
+   * ```
+   * Can result in the entries `true->Effect` and `false->Effect`
+   * @type {Map<Key, Effect>}
+   */
+  #onscreen = /* @__PURE__ */ new Map();
+  /**
+   * Similar to #onscreen with respect to the keys, but contains branches that are not yet
+   * in the DOM, because their insertion is deferred.
+   * @type {Map<Key, Branch>}
+   */
+  #offscreen = /* @__PURE__ */ new Map();
+  /**
+   * Keys of effects that are currently outroing
+   * @type {Set<Key>}
+   */
+  #outroing = /* @__PURE__ */ new Set();
+  /**
+   * Whether to pause (i.e. outro) on change, or destroy immediately.
+   * This is necessary for `<svelte:element>`
+   */
+  #transition = true;
+  /**
+   * @param {TemplateNode} anchor
+   * @param {boolean} transition
+   */
+  constructor(anchor, transition = true) {
+    this.anchor = anchor;
+    this.#transition = transition;
+  }
+  /**
+   * @param {Batch} batch
+   */
+  #commit = (batch) => {
+    if (!this.#batches.has(batch)) return;
+    var key2 = (
+      /** @type {Key} */
+      this.#batches.get(batch)
+    );
+    var onscreen = this.#onscreen.get(key2);
+    if (onscreen) {
+      resume_effect(onscreen);
+      this.#outroing.delete(key2);
+    } else {
+      var offscreen = this.#offscreen.get(key2);
+      if (offscreen) {
+        resume_effect(offscreen.effect);
+        this.#onscreen.set(key2, offscreen.effect);
+        this.#offscreen.delete(key2);
+        offscreen.fragment.lastChild.remove();
+        this.anchor.before(offscreen.fragment);
+        onscreen = offscreen.effect;
+      }
+    }
+    for (const [b, k] of this.#batches) {
+      this.#batches.delete(b);
+      if (b === batch) {
+        break;
+      }
+      const offscreen2 = this.#offscreen.get(k);
+      if (offscreen2) {
+        destroy_effect(offscreen2.effect);
+        this.#offscreen.delete(k);
+      }
+    }
+    for (const [k, effect2] of this.#onscreen) {
+      if (k === key2 || this.#outroing.has(k)) continue;
+      const on_destroy = () => {
+        const keys = Array.from(this.#batches.values());
+        if (keys.includes(k)) {
+          var fragment = document.createDocumentFragment();
+          move_effect(effect2, fragment);
+          fragment.append(create_text());
+          this.#offscreen.set(k, { effect: effect2, fragment });
+        } else {
+          destroy_effect(effect2);
+        }
+        this.#outroing.delete(k);
+        this.#onscreen.delete(k);
+      };
+      if (this.#transition || !onscreen) {
+        this.#outroing.add(k);
+        pause_effect(effect2, on_destroy, false);
+      } else {
+        on_destroy();
+      }
+    }
+  };
+  /**
+   * @param {Batch} batch
+   */
+  #discard = (batch) => {
+    this.#batches.delete(batch);
+    const keys = Array.from(this.#batches.values());
+    for (const [k, branch2] of this.#offscreen) {
+      if (!keys.includes(k)) {
+        destroy_effect(branch2.effect);
+        this.#offscreen.delete(k);
+      }
+    }
+  };
+  /**
+   *
+   * @param {any} key
+   * @param {null | ((target: TemplateNode) => void)} fn
+   */
+  ensure(key2, fn) {
+    var batch = (
+      /** @type {Batch} */
+      current_batch
+    );
+    var defer = should_defer_append();
+    if (fn && !this.#onscreen.has(key2) && !this.#offscreen.has(key2)) {
+      if (defer) {
+        var fragment = document.createDocumentFragment();
+        var target = create_text();
+        fragment.append(target);
+        this.#offscreen.set(key2, {
+          effect: branch(() => fn(target)),
+          fragment
+        });
+      } else {
+        this.#onscreen.set(
+          key2,
+          branch(() => fn(this.anchor))
+        );
+      }
+    }
+    this.#batches.set(batch, key2);
+    if (defer) {
+      for (const [k, effect2] of this.#onscreen) {
+        if (k === key2) {
+          batch.unskip_effect(effect2);
+        } else {
+          batch.skip_effect(effect2);
+        }
+      }
+      for (const [k, branch2] of this.#offscreen) {
+        if (k === key2) {
+          batch.unskip_effect(branch2.effect);
+        } else {
+          batch.skip_effect(branch2.effect);
+        }
+      }
+      batch.oncommit(this.#commit);
+      batch.ondiscard(this.#discard);
+    } else {
+      if (hydrating) {
+        this.anchor = hydrate_node;
+      }
+      this.#commit(batch);
+    }
   }
 }
-function jo(e, t) {
-  var r = Qn(e);
-  r.value === (r.value = // treat null and undefined the same for the initial value
-  t ?? void 0) || // @ts-expect-error
+function snippet(node, get_snippet, ...args) {
+  var branches = new BranchManager(node);
+  block(() => {
+    const snippet2 = get_snippet() ?? null;
+    branches.ensure(snippet2, snippet2 && ((anchor) => snippet2(anchor, ...args)));
+  }, EFFECT_TRANSPARENT);
+}
+function onMount(fn) {
+  if (component_context === null) {
+    lifecycle_outside_component();
+  }
+  {
+    user_effect(() => {
+      const cleanup = untrack(fn);
+      if (typeof cleanup === "function") return (
+        /** @type {() => void} */
+        cleanup
+      );
+    });
+  }
+}
+function if_block(node, fn, elseif = false) {
+  var marker;
+  if (hydrating) {
+    marker = hydrate_node;
+    hydrate_next();
+  }
+  var branches = new BranchManager(node);
+  var flags2 = elseif ? EFFECT_TRANSPARENT : 0;
+  function update_branch(key2, fn2) {
+    if (hydrating) {
+      var data = read_hydration_instruction(
+        /** @type {TemplateNode} */
+        marker
+      );
+      if (key2 !== parseInt(data.substring(1))) {
+        var anchor = skip_nodes();
+        set_hydrate_node(anchor);
+        branches.anchor = anchor;
+        set_hydrating(false);
+        branches.ensure(key2, fn2);
+        set_hydrating(true);
+        return;
+      }
+    }
+    branches.ensure(key2, fn2);
+  }
+  block(() => {
+    var has_branch = false;
+    fn((fn2, key2 = 0) => {
+      has_branch = true;
+      update_branch(key2, fn2);
+    });
+    if (!has_branch) {
+      update_branch(-1, null);
+    }
+  }, flags2);
+}
+const NAN = /* @__PURE__ */ Symbol("NaN");
+function key(node, get_key, render_fn) {
+  if (hydrating) {
+    hydrate_next();
+  }
+  var branches = new BranchManager(node);
+  block(() => {
+    var key2 = get_key();
+    if (key2 !== key2) {
+      key2 = /** @type {any} */
+      NAN;
+    }
+    branches.ensure(key2, render_fn);
+  });
+}
+function html(node, get_value, is_controlled = false, svg = false, mathml = false, skip_warning = false) {
+  var anchor = node;
+  var value = "";
+  if (is_controlled) {
+    var parent_node = (
+      /** @type {Element} */
+      node
+    );
+    if (hydrating) {
+      anchor = set_hydrate_node(/* @__PURE__ */ get_first_child(parent_node));
+    }
+  }
+  template_effect(() => {
+    var effect2 = (
+      /** @type {Effect} */
+      active_effect
+    );
+    if (value === (value = get_value() ?? "")) {
+      if (hydrating) hydrate_next();
+      return;
+    }
+    if (is_controlled && !hydrating) {
+      effect2.nodes = null;
+      parent_node.innerHTML = /** @type {string} */
+      value;
+      if (value !== "") {
+        assign_nodes(
+          /** @type {TemplateNode} */
+          /* @__PURE__ */ get_first_child(parent_node),
+          /** @type {TemplateNode} */
+          parent_node.lastChild
+        );
+      }
+      return;
+    }
+    if (effect2.nodes !== null) {
+      remove_effect_dom(
+        effect2.nodes.start,
+        /** @type {TemplateNode} */
+        effect2.nodes.end
+      );
+      effect2.nodes = null;
+    }
+    if (value === "") return;
+    if (hydrating) {
+      hydrate_node.data;
+      var next2 = hydrate_next();
+      var last = next2;
+      while (next2 !== null && (next2.nodeType !== COMMENT_NODE || /** @type {Comment} */
+      next2.data !== "")) {
+        last = next2;
+        next2 = /* @__PURE__ */ get_next_sibling(next2);
+      }
+      if (next2 === null) {
+        hydration_mismatch();
+        throw HYDRATION_ERROR;
+      }
+      assign_nodes(hydrate_node, last);
+      anchor = set_hydrate_node(next2);
+      return;
+    }
+    var ns = svg ? NAMESPACE_SVG : mathml ? NAMESPACE_MATHML : void 0;
+    var wrapper = (
+      /** @type {HTMLTemplateElement | SVGElement | MathMLElement} */
+      create_element(svg ? "svg" : mathml ? "math" : "template", ns)
+    );
+    wrapper.innerHTML = /** @type {any} */
+    value;
+    var node2 = svg || mathml ? wrapper : (
+      /** @type {HTMLTemplateElement} */
+      wrapper.content
+    );
+    assign_nodes(
+      /** @type {TemplateNode} */
+      /* @__PURE__ */ get_first_child(node2),
+      /** @type {TemplateNode} */
+      node2.lastChild
+    );
+    if (svg || mathml) {
+      while (/* @__PURE__ */ get_first_child(node2)) {
+        anchor.before(
+          /** @type {TemplateNode} */
+          /* @__PURE__ */ get_first_child(node2)
+        );
+      }
+    } else {
+      anchor.before(node2);
+    }
+  });
+}
+function component(node, get_component, render_fn) {
+  var hydration_start_node;
+  if (hydrating) {
+    hydration_start_node = hydrate_node;
+    hydrate_next();
+  }
+  var branches = new BranchManager(node);
+  block(() => {
+    var component2 = get_component() ?? null;
+    if (hydrating) {
+      var data = read_hydration_instruction(
+        /** @type {TemplateNode} */
+        hydration_start_node
+      );
+      var server_had_component = data === HYDRATION_START;
+      var client_has_component = component2 !== null;
+      if (server_had_component !== client_has_component) {
+        var anchor = skip_nodes();
+        set_hydrate_node(anchor);
+        branches.anchor = anchor;
+        set_hydrating(false);
+        branches.ensure(component2, component2 && ((target) => render_fn(target, component2)));
+        set_hydrating(true);
+        return;
+      }
+    }
+    branches.ensure(component2, component2 && ((target) => render_fn(target, component2)));
+  }, EFFECT_TRANSPARENT);
+}
+function attach(node, get_fn) {
+  var fn = void 0;
+  var e;
+  managed(() => {
+    if (fn !== (fn = get_fn())) {
+      if (e) {
+        destroy_effect(e);
+        e = null;
+      }
+      if (fn) {
+        e = branch(() => {
+          effect(() => (
+            /** @type {(node: Element) => void} */
+            fn(node)
+          ));
+        });
+      }
+    }
+  });
+}
+function r(e) {
+  var t, f, n = "";
+  if ("string" == typeof e || "number" == typeof e) n += e;
+  else if ("object" == typeof e) if (Array.isArray(e)) {
+    var o = e.length;
+    for (t = 0; t < o; t++) e[t] && (f = r(e[t])) && (n && (n += " "), n += f);
+  } else for (f in e) e[f] && (n && (n += " "), n += f);
+  return n;
+}
+function clsx$1() {
+  for (var e, t, f = 0, n = "", o = arguments.length; f < o; f++) (e = arguments[f]) && (t = r(e)) && (n && (n += " "), n += t);
+  return n;
+}
+function clsx(value) {
+  if (typeof value === "object") {
+    return clsx$1(value);
+  } else {
+    return value ?? "";
+  }
+}
+const whitespace = [..." 	\n\r\f \v\uFEFF"];
+function to_class(value, hash, directives) {
+  var classname = value == null ? "" : "" + value;
+  if (directives) {
+    for (var key2 of Object.keys(directives)) {
+      if (directives[key2]) {
+        classname = classname ? classname + " " + key2 : key2;
+      } else if (classname.length) {
+        var len = key2.length;
+        var a = 0;
+        while ((a = classname.indexOf(key2, a)) >= 0) {
+          var b = a + len;
+          if ((a === 0 || whitespace.includes(classname[a - 1])) && (b === classname.length || whitespace.includes(classname[b]))) {
+            classname = (a === 0 ? "" : classname.substring(0, a)) + classname.substring(b + 1);
+          } else {
+            a = b;
+          }
+        }
+      }
+    }
+  }
+  return classname === "" ? null : classname;
+}
+function append_styles(styles, important = false) {
+  var separator = important ? " !important;" : ";";
+  var css2 = "";
+  for (var key2 of Object.keys(styles)) {
+    var value = styles[key2];
+    if (value != null && value !== "") {
+      css2 += " " + key2 + ": " + value + separator;
+    }
+  }
+  return css2;
+}
+function to_css_name(name) {
+  if (name[0] !== "-" || name[1] !== "-") {
+    return name.toLowerCase();
+  }
+  return name;
+}
+function to_style(value, styles) {
+  if (styles) {
+    var new_style = "";
+    var normal_styles;
+    var important_styles;
+    if (Array.isArray(styles)) {
+      normal_styles = styles[0];
+      important_styles = styles[1];
+    } else {
+      normal_styles = styles;
+    }
+    if (value) {
+      value = String(value).replaceAll(/\/\*.*?\*\//g, "").trim();
+      var in_str = false;
+      var in_apo = 0;
+      var in_comment = false;
+      var reserved_names = [];
+      if (normal_styles) {
+        reserved_names.push(...Object.keys(normal_styles).map(to_css_name));
+      }
+      if (important_styles) {
+        reserved_names.push(...Object.keys(important_styles).map(to_css_name));
+      }
+      var start_index = 0;
+      var name_index = -1;
+      const len = value.length;
+      for (var i = 0; i < len; i++) {
+        var c = value[i];
+        if (in_comment) {
+          if (c === "/" && value[i - 1] === "*") {
+            in_comment = false;
+          }
+        } else if (in_str) {
+          if (in_str === c) {
+            in_str = false;
+          }
+        } else if (c === "/" && value[i + 1] === "*") {
+          in_comment = true;
+        } else if (c === '"' || c === "'") {
+          in_str = c;
+        } else if (c === "(") {
+          in_apo++;
+        } else if (c === ")") {
+          in_apo--;
+        }
+        if (!in_comment && in_str === false && in_apo === 0) {
+          if (c === ":" && name_index === -1) {
+            name_index = i;
+          } else if (c === ";" || i === len - 1) {
+            if (name_index !== -1) {
+              var name = to_css_name(value.substring(start_index, name_index).trim());
+              if (!reserved_names.includes(name)) {
+                if (c !== ";") {
+                  i++;
+                }
+                var property = value.substring(start_index, i).trim();
+                new_style += " " + property + ";";
+              }
+            }
+            start_index = i + 1;
+            name_index = -1;
+          }
+        }
+      }
+    }
+    if (normal_styles) {
+      new_style += append_styles(normal_styles);
+    }
+    if (important_styles) {
+      new_style += append_styles(important_styles, true);
+    }
+    new_style = new_style.trim();
+    return new_style === "" ? null : new_style;
+  }
+  return value == null ? null : String(value);
+}
+function set_class(dom, is_html, value, hash, prev_classes, next_classes) {
+  var prev = (
+    /** @type {any} */
+    dom[CLASS_CACHE]
+  );
+  if (hydrating || prev !== value || prev === void 0) {
+    var next_class_name = to_class(value, hash, next_classes);
+    if (!hydrating || next_class_name !== dom.getAttribute("class")) {
+      if (next_class_name == null) {
+        dom.removeAttribute("class");
+      } else if (is_html) {
+        dom.className = next_class_name;
+      } else {
+        dom.setAttribute("class", next_class_name);
+      }
+    }
+    dom[CLASS_CACHE] = value;
+  } else if (next_classes && prev_classes !== next_classes) {
+    for (var key2 in next_classes) {
+      var is_present = !!next_classes[key2];
+      if (prev_classes == null || is_present !== !!prev_classes[key2]) {
+        dom.classList.toggle(key2, is_present);
+      }
+    }
+  }
+  return next_classes;
+}
+function update_styles(dom, prev = {}, next2, priority) {
+  for (var key2 in next2) {
+    var value = next2[key2];
+    if (prev[key2] !== value) {
+      if (next2[key2] == null) {
+        dom.style.removeProperty(key2);
+      } else {
+        dom.style.setProperty(key2, value, priority);
+      }
+    }
+  }
+}
+function set_style(dom, value, prev_styles, next_styles) {
+  var prev = (
+    /** @type {any} */
+    dom[STYLE_CACHE]
+  );
+  if (hydrating || prev !== value) {
+    var next_style_attr = to_style(value, next_styles);
+    if (!hydrating || next_style_attr !== dom.getAttribute("style")) {
+      if (next_style_attr == null) {
+        dom.removeAttribute("style");
+      } else {
+        dom.style.cssText = next_style_attr;
+      }
+    }
+    dom[STYLE_CACHE] = value;
+  } else if (next_styles) {
+    if (Array.isArray(next_styles)) {
+      update_styles(dom, prev_styles?.[0], next_styles[0]);
+      update_styles(dom, prev_styles?.[1], next_styles[1], "important");
+    } else {
+      update_styles(dom, prev_styles, next_styles);
+    }
+  }
+  return next_styles;
+}
+function set_selected(option, selected) {
+  if (selected) {
+    if (!option.hasAttribute("selected")) option.setAttribute("selected", "");
+  } else {
+    option.removeAttribute("selected");
+  }
+}
+function set_default_select_value(select, value) {
+  var mounting = !("__defaultValue" in select);
+  if (!mounting && select.__defaultValue === value) return;
+  select.__defaultValue = value;
+  apply_default_select_value(select, !mounting || "__value" in select);
+}
+function apply_default_select_value(select, preserve) {
+  var value = select.__defaultValue;
+  var multiple = select.multiple;
+  var values = multiple ? value ?? [] : null;
+  if (multiple && !is_array(values)) return;
+  var index = select.selectedIndex;
+  var selected = preserve && multiple ? new Set(select.selectedOptions) : null;
+  for (var option of select.options) {
+    var option_value = get_option_value(option);
+    set_selected(
+      option,
+      multiple ? (
+        /** @type {any[]} */
+        values.includes(option_value)
+      ) : is(option_value, value)
+    );
+  }
+  if (!preserve) return;
+  if (selected !== null) {
+    for (option of select.options) {
+      var was_selected = selected.has(option);
+      if (option.selected !== was_selected) option.selected = was_selected;
+    }
+  } else if (select.selectedIndex !== index) {
+    select.selectedIndex = index;
+  }
+}
+function select_option(select, value, mounting = false) {
+  if (select.multiple) {
+    if (value == void 0) {
+      return;
+    }
+    if (!is_array(value)) {
+      return select_multiple_invalid_value();
+    }
+    for (var option of select.options) {
+      option.selected = value.includes(get_option_value(option));
+    }
+    return;
+  }
+  for (option of select.options) {
+    var option_value = get_option_value(option);
+    if (is(option_value, value)) {
+      option.selected = true;
+      return;
+    }
+  }
+  if (!mounting || value !== void 0) {
+    select.selectedIndex = -1;
+  }
+}
+function init_select(select) {
+  var observer = new MutationObserver((entries) => {
+    if (entries.every(is_selectedcontent_mutation)) return;
+    if ("__defaultValue" in select) {
+      apply_default_select_value(select, false);
+    }
+    if ("__value" in select) {
+      select_option(select, select.__value);
+    }
+  });
+  observer.observe(select, {
+    // Listen to option element changes
+    childList: true,
+    subtree: true,
+    // because of <optgroup>
+    // Listen to option element value attribute changes
+    // (doesn't get notified of select value changes,
+    // because that property is not reflected as an attribute)
+    attributes: true,
+    attributeFilter: ["value"]
+  });
+  teardown(() => {
+    observer.disconnect();
+  });
+}
+function get_option_value(option) {
+  if ("__value" in option) {
+    return option.__value;
+  } else {
+    return option.value;
+  }
+}
+function is_selectedcontent_mutation(entry) {
+  if (
+    /** @type {Element} */
+    entry.target.closest("selectedcontent") !== null
+  ) {
+    return true;
+  }
+  if (entry.type === "childList") {
+    var nodes = [...entry.addedNodes, ...entry.removedNodes];
+    return nodes.length > 0 && nodes.every((node) => node.nodeName === "SELECTEDCONTENT");
+  }
+  return false;
+}
+const CLASS = /* @__PURE__ */ Symbol("class");
+const STYLE = /* @__PURE__ */ Symbol("style");
+const IS_CUSTOM_ELEMENT = /* @__PURE__ */ Symbol("is custom element");
+const IS_HTML = /* @__PURE__ */ Symbol("is html");
+const LINK_TAG = IS_XHTML ? "link" : "LINK";
+const INPUT_TAG = IS_XHTML ? "input" : "INPUT";
+const OPTION_TAG = IS_XHTML ? "option" : "OPTION";
+const SELECT_TAG = IS_XHTML ? "select" : "SELECT";
+const PROGRESS_TAG = IS_XHTML ? "progress" : "PROGRESS";
+function remove_input_defaults(input) {
+  if (!hydrating) return;
+  var already_removed = false;
+  var remove_defaults = () => {
+    if (already_removed) return;
+    already_removed = true;
+    if (input.hasAttribute("value")) {
+      var value = input.value;
+      set_attribute(input, "value", null);
+      input.value = value;
+    }
+    if (input.hasAttribute("checked")) {
+      var checked = input.checked;
+      set_attribute(input, "checked", null);
+      input.checked = checked;
+    }
+  };
+  input[FORM_RESET_HANDLER] = remove_defaults;
+  queue_micro_task(remove_defaults);
+  add_form_reset_listener();
+}
+function set_value(element, value) {
+  var attributes = get_attributes(element);
+  if (attributes.value === (attributes.value = // treat null and undefined the same for the initial value
+  value ?? void 0) || // @ts-expect-error
   // `progress` elements always need their value set when it's `0`
-  e.value === t && (t !== 0 || e.nodeName !== "PROGRESS") || (e.value = t ?? "");
+  element.value === value && (value !== 0 || element.nodeName !== PROGRESS_TAG)) {
+    return;
+  }
+  element.value = value ?? "";
 }
-function se(e, t, r, i) {
-  var o = Qn(e);
-  L && (o[t] = e.getAttribute(t), t === "src" || t === "srcset" || t === "href" && e.nodeName === "LINK") || o[t] !== (o[t] = r) && (t === "loading" && (e[Yi] = r), r == null ? e.removeAttribute(t) : typeof r != "string" && Vo(e).includes(t) ? e[t] = r : e.setAttribute(t, r));
+function set_attribute(element, attribute, value, skip_warning) {
+  var attributes = get_attributes(element);
+  if (hydrating) {
+    attributes[attribute] = element.getAttribute(attribute);
+    if (attribute === "src" || attribute === "srcset" || attribute === "href" && element.nodeName === LINK_TAG) {
+      return;
+    }
+  }
+  if (attributes[attribute] === (attributes[attribute] = value)) return;
+  if (attribute === "loading") {
+    element[LOADING_ATTR_SYMBOL] = value;
+  }
+  if (value == null) {
+    element.removeAttribute(attribute);
+  } else if (typeof value !== "string" && get_setters(element).has(attribute)) {
+    element[attribute] = value;
+  } else {
+    element.setAttribute(attribute, value);
+  }
 }
-function Qn(e) {
+function set_attributes(element, prev, next2, css_hash, should_remove_defaults = false, skip_warning = false) {
+  if (hydrating && should_remove_defaults && element.nodeName === INPUT_TAG) {
+    if (!("defaultValue" in next2 || "defaultChecked" in next2)) {
+      remove_input_defaults(
+        /** @type {HTMLInputElement} */
+        element
+      );
+    }
+  }
+  var attributes = get_attributes(element);
+  var is_custom_element = attributes[IS_CUSTOM_ELEMENT];
+  var preserve_attribute_case = !attributes[IS_HTML];
+  let is_hydrating_custom_element = hydrating && is_custom_element;
+  if (is_hydrating_custom_element) {
+    set_hydrating(false);
+  }
+  var current = prev || {};
+  var is_option_element = element.nodeName === OPTION_TAG;
+  var is_select_element = element.nodeName === SELECT_TAG;
+  for (var key2 in prev) {
+    if (!(key2 in next2) && key2[0] + key2[1] !== "$$") {
+      next2[key2] = null;
+    }
+  }
+  if (next2.class) {
+    next2.class = clsx(next2.class);
+  } else if (next2[CLASS]) {
+    next2.class = null;
+  }
+  if (next2[STYLE]) {
+    next2.style ??= null;
+  }
+  var setters = get_setters(element);
+  if (element.nodeName === INPUT_TAG && "type" in next2 && ("value" in next2 || "__value" in next2)) {
+    var type = next2.type;
+    if (type !== current.type || type === void 0 && element.hasAttribute("type")) {
+      current.type = type;
+      set_attribute(element, "type", type);
+    }
+  }
+  for (const key3 in next2) {
+    let value = next2[key3];
+    if (is_option_element && key3 === "value" && value == null) {
+      element.value = element.__value = "";
+      current[key3] = value;
+      continue;
+    }
+    if (key3 === "class") {
+      var is_html = element.namespaceURI === "http://www.w3.org/1999/xhtml";
+      set_class(element, is_html, value, css_hash, prev?.[CLASS], next2[CLASS]);
+      current[key3] = value;
+      current[CLASS] = next2[CLASS];
+      continue;
+    }
+    if (key3 === "style") {
+      set_style(element, value, prev?.[STYLE], next2[STYLE]);
+      current[key3] = value;
+      current[STYLE] = next2[STYLE];
+      continue;
+    }
+    var prev_value = current[key3];
+    if (value === prev_value && !(value === void 0 && element.hasAttribute(key3))) {
+      continue;
+    }
+    current[key3] = value;
+    var prefix = key3[0] + key3[1];
+    if (prefix === "$$") continue;
+    if (prefix === "on") {
+      const opts = {};
+      const event_handle_key = "$$" + key3;
+      let event_name = key3.slice(2);
+      var is_delegated = can_delegate_event(event_name);
+      if (is_capture_event(event_name)) {
+        event_name = event_name.slice(0, -7);
+        opts.capture = true;
+      }
+      if (!is_delegated && prev_value) {
+        if (value != null) continue;
+        element.removeEventListener(event_name, current[event_handle_key], opts);
+        current[event_handle_key] = null;
+      }
+      if (is_delegated) {
+        delegated(event_name, element, value);
+        delegate([event_name]);
+      } else if (value != null) {
+        let handle2 = function(evt) {
+          current[key3].call(this, evt);
+        };
+        var handle = handle2;
+        current[event_handle_key] = create_event(event_name, element, handle2, opts);
+      }
+    } else if (key3 === "style") {
+      set_attribute(element, key3, value);
+    } else if (key3 === "autofocus") {
+      autofocus(
+        /** @type {HTMLElement} */
+        element,
+        Boolean(value)
+      );
+    } else if (!is_custom_element && (key3 === "__value" || key3 === "value" && value != null)) {
+      element.value = element.__value = value;
+    } else if (key3 === "selected" && is_option_element) {
+      set_selected(
+        /** @type {HTMLOptionElement} */
+        element,
+        value
+      );
+    } else {
+      var name = key3;
+      if (!preserve_attribute_case) {
+        name = normalize_attribute(name);
+      }
+      var is_default = name === "defaultValue" || name === "defaultChecked";
+      if (is_select_element && name === "defaultValue") continue;
+      if (value == null && !is_custom_element && !is_default) {
+        attributes[key3] = null;
+        if (name === "value" || name === "checked") {
+          let input = (
+            /** @type {HTMLInputElement} */
+            element
+          );
+          const use_default = prev === void 0;
+          if (name === "value") {
+            let previous = input.defaultValue;
+            input.removeAttribute(name);
+            input.defaultValue = previous;
+            input.value = input.__value = use_default ? previous : null;
+          } else {
+            let previous = input.defaultChecked;
+            input.removeAttribute(name);
+            input.defaultChecked = previous;
+            input.checked = use_default ? previous : false;
+          }
+        } else {
+          element.removeAttribute(key3);
+        }
+      } else if (is_default || (is_custom_element || typeof value !== "string") && setters.has(name)) {
+        element[name] = value;
+        if (name in attributes) attributes[name] = UNINITIALIZED;
+      } else if (typeof value !== "function") {
+        set_attribute(element, name, value);
+      }
+    }
+  }
+  if (is_hydrating_custom_element) {
+    set_hydrating(true);
+  }
+  return current;
+}
+function attribute_effect(element, fn, sync = [], async = [], blockers = [], css_hash, should_remove_defaults = false, skip_warning = false) {
+  flatten(blockers, sync, async, (values) => {
+    var prev = void 0;
+    var effects = {};
+    var is_select = element.nodeName === SELECT_TAG;
+    var inited = false;
+    managed(() => {
+      var next2 = fn(...values.map(get));
+      var current = set_attributes(
+        element,
+        prev,
+        next2,
+        css_hash,
+        should_remove_defaults,
+        skip_warning
+      );
+      if (inited && is_select) {
+        var select2 = (
+          /** @type {HTMLSelectElement} */
+          element
+        );
+        if ("defaultValue" in next2) {
+          set_default_select_value(select2, next2.defaultValue);
+        }
+        if ("value" in next2) {
+          select_option(select2, next2.value);
+        }
+      }
+      for (let symbol of Object.getOwnPropertySymbols(effects)) {
+        if (!next2[symbol]) destroy_effect(effects[symbol]);
+      }
+      for (let symbol of Object.getOwnPropertySymbols(next2)) {
+        var n = next2[symbol];
+        if (symbol.description === ATTACHMENT_KEY && (!prev || n !== prev[symbol])) {
+          if (effects[symbol]) destroy_effect(effects[symbol]);
+          effects[symbol] = branch(() => attach(element, () => n));
+        }
+        current[symbol] = n;
+      }
+      prev = current;
+    });
+    if (is_select) {
+      var select = (
+        /** @type {HTMLSelectElement} */
+        element
+      );
+      effect(() => {
+        var attrs = (
+          /** @type {Record<string | symbol, any>} */
+          prev
+        );
+        if ("defaultValue" in attrs) {
+          set_default_select_value(select, attrs.defaultValue);
+        }
+        select_option(select, attrs.value, true);
+        init_select(select);
+      });
+    }
+    inited = true;
+  });
+}
+function get_attributes(element) {
   return (
     /** @type {Record<string | symbol, unknown>} **/
-    // @ts-expect-error
-    e.__attributes ?? (e.__attributes = {
-      [Mo]: e.nodeName.includes("-"),
-      [Uo]: e.namespaceURI === Mi
+    /** @type {any} */
+    element[ATTRIBUTES_CACHE] ??= {
+      [IS_CUSTOM_ELEMENT]: element.nodeName.includes("-"),
+      [IS_HTML]: element.namespaceURI === NAMESPACE_HTML
+    }
+  );
+}
+var setters_cache = /* @__PURE__ */ new Map();
+function get_setters(element) {
+  var cache_key = element.getAttribute("is") || element.nodeName;
+  var setters = setters_cache.get(cache_key);
+  if (setters) return setters;
+  setters_cache.set(cache_key, setters = /* @__PURE__ */ new Set());
+  var descriptors;
+  var proto = element;
+  var element_proto = Element.prototype;
+  while (element_proto !== proto) {
+    descriptors = get_descriptors(proto);
+    for (var key2 in descriptors) {
+      if (descriptors[key2].set && // better safe than sorry, we don't want spread attributes to mess with HTML content
+      key2 !== "innerHTML" && key2 !== "textContent" && key2 !== "innerText") {
+        setters.add(key2);
+      }
+    }
+    proto = get_prototype_of(proto);
+  }
+  return setters;
+}
+function bind_value(input, get2, set2 = get2) {
+  var batches = /* @__PURE__ */ new WeakSet();
+  listen_to_event_and_reset_event(input, "input", async (is_reset) => {
+    var value = is_reset ? input.defaultValue : input.value;
+    value = is_numberlike_input(input) ? to_number(value) : value;
+    set2(value);
+    if (current_batch !== null) {
+      batches.add(current_batch);
+    }
+    await tick();
+    if (value !== (value = get2())) {
+      var start = input.selectionStart;
+      var end = input.selectionEnd;
+      var length = input.value.length;
+      input.value = value ?? "";
+      if (end !== null) {
+        var new_length = input.value.length;
+        if (start === end && end === length && new_length > length) {
+          input.selectionStart = new_length;
+          input.selectionEnd = new_length;
+        } else {
+          input.selectionStart = start;
+          input.selectionEnd = Math.min(end, new_length);
+        }
+      }
+    }
+  });
+  if (
+    // If we are hydrating and the value has since changed,
+    // then use the updated value from the input instead.
+    hydrating && input.defaultValue !== input.value || // If defaultValue is set, then value == defaultValue
+    // TODO Svelte 6: remove input.value check and set to empty string?
+    untrack(get2) == null && input.value
+  ) {
+    set2(is_numberlike_input(input) ? to_number(input.value) : input.value);
+    if (current_batch !== null) {
+      batches.add(current_batch);
+    }
+  }
+  render_effect(() => {
+    var value = get2();
+    if (input === document.activeElement) {
+      var batch = (
+        /** @type {Batch} */
+        current_batch
+      );
+      if (batches.has(batch)) {
+        return;
+      }
+    }
+    if (is_numberlike_input(input) && value === to_number(input.value)) {
+      return;
+    }
+    if (input.type === "date" && !value && !input.value) {
+      return;
+    }
+    if (value !== input.value) {
+      input.value = value ?? "";
+    }
+  });
+}
+function is_numberlike_input(input) {
+  var type = input.type;
+  return type === "number" || type === "range";
+}
+function to_number(value) {
+  return value === "" ? null : +value;
+}
+function is_bound_this(bound_value, element_or_component) {
+  return bound_value === element_or_component || bound_value?.[STATE_SYMBOL] === element_or_component;
+}
+function bind_this(element_or_component = mark_as_component(), update, get_value, get_parts) {
+  var component_effect = (
+    /** @type {ComponentContext} */
+    component_context.r
+  );
+  var parent = (
+    /** @type {Effect} */
+    active_effect
+  );
+  effect(() => {
+    var old_parts;
+    var parts;
+    render_effect(() => {
+      old_parts = parts;
+      parts = [];
+      untrack(() => {
+        if (!is_bound_this(get_value(...parts), element_or_component)) {
+          update(element_or_component, ...parts);
+          if (old_parts && is_bound_this(get_value(...old_parts), element_or_component)) {
+            update(null, ...old_parts);
+          }
+        }
+      });
+    });
+    return () => {
+      let p = parent;
+      while (p !== component_effect && p.parent !== null && p.parent.f & DESTROYING) {
+        p = p.parent;
+      }
+      const teardown2 = () => {
+        if (parts && is_bound_this(get_value(...parts), element_or_component)) {
+          update(null, ...parts);
+        }
+      };
+      const original_teardown = p.teardown;
+      p.teardown = () => {
+        teardown2();
+        original_teardown?.();
+      };
+    };
+  });
+  return element_or_component;
+}
+const rest_props_handler = {
+  get(target, key2) {
+    if (target.exclude.has(key2)) return;
+    return target.props[key2];
+  },
+  set(target, key2) {
+    return false;
+  },
+  getOwnPropertyDescriptor(target, key2) {
+    if (target.exclude.has(key2)) return;
+    if (key2 in target.props) {
+      return {
+        enumerable: true,
+        configurable: true,
+        value: target.props[key2]
+      };
+    }
+  },
+  has(target, key2) {
+    if (target.exclude.has(key2)) return false;
+    return key2 in target.props;
+  },
+  ownKeys(target) {
+    return Reflect.ownKeys(target.props).filter((key2) => !target.exclude.has(key2));
+  }
+};
+// @__NO_SIDE_EFFECTS__
+function rest_props(props, exclude, name) {
+  return new Proxy({ props, exclude }, rest_props_handler);
+}
+function prop(props, key2, flags2, fallback) {
+  var fallback_value = (
+    /** @type {V} */
+    fallback
+  );
+  var fallback_dirty = true;
+  var get_fallback = () => {
+    if (fallback_dirty) {
+      fallback_dirty = false;
+      fallback_value = /** @type {V} */
+      fallback;
+    }
+    return fallback_value;
+  };
+  var initial_value;
+  {
+    initial_value = /** @type {V} */
+    props[key2];
+  }
+  if (initial_value === void 0 && fallback !== void 0) {
+    initial_value = get_fallback();
+  }
+  var getter;
+  {
+    getter = () => {
+      var value = (
+        /** @type {V} */
+        props[key2]
+      );
+      if (value === void 0) return get_fallback();
+      fallback_dirty = true;
+      return value;
+    };
+  }
+  var overridden = false;
+  var d = /* @__PURE__ */ derived(() => {
+    overridden = false;
+    return getter();
+  });
+  var parent_effect = (
+    /** @type {Effect} */
+    active_effect
+  );
+  return (
+    /** @type {() => V} */
+    (function(value, mutation) {
+      if (arguments.length > 0) {
+        const new_value = mutation ? get(d) : value;
+        set(d, new_value);
+        overridden = true;
+        if (fallback_value !== void 0) {
+          fallback_value = new_value;
+        }
+        return value;
+      }
+      if (is_destroying_effect && overridden || (parent_effect.f & DESTROYED) !== 0) {
+        return d.v;
+      }
+      return get(d);
     })
   );
 }
-var tn = /* @__PURE__ */ new Map();
-function Vo(e) {
-  var t = tn.get(e.nodeName);
-  if (t) return t;
-  tn.set(e.nodeName, t = []);
-  for (var r, i = e, o = Element.prototype; o !== i; ) {
-    r = Vi(i);
-    for (var a in r)
-      r[a].set && t.push(a);
-    i = dn(i);
-  }
-  return t;
+function createClassComponent(options) {
+  return new Svelte4Component(options);
 }
-function Bo(e, t, r = t) {
-  Ro(e, "change", (i) => {
-    var o = i ? e.defaultChecked : e.checked;
-    r(o);
-  }), // If we are hydrating and the value has since changed,
-  // then use the update value from the input instead.
-  (L && e.defaultChecked !== e.checked || // If defaultChecked is set, then checked == defaultChecked
-  Xe(t) == null) && r(e.checked), nr(() => {
-    var i = t();
-    e.checked = !!i;
-  });
-}
-function rn(e, t) {
-  return e === t || (e == null ? void 0 : e[ut]) === t;
-}
-function nn(e = {}, t, r, i) {
-  return rr(() => {
-    var o, a;
-    return nr(() => {
-      o = a, a = [], Xe(() => {
-        e !== r(...a) && (t(e, ...a), o && rn(r(...o), e) && t(null, ...o));
-      });
-    }), () => {
-      Pn(() => {
-        a && rn(r(...a), e) && t(null, ...a);
-      });
-    };
-  }), e;
-}
-function ei(e) {
-  W === null && un(), Yt(() => {
-    const t = Xe(e);
-    if (typeof t == "function") return (
-      /** @type {() => void} */
-      t
-    );
-  });
-}
-function qo(e) {
-  W === null && un(), ei(() => () => Xe(e));
-}
-let wt = !1;
-function Ho(e) {
-  var t = wt;
-  try {
-    return wt = !1, [e(), wt];
-  } finally {
-    wt = t;
-  }
-}
-function on(e) {
-  var t;
-  return ((t = e.ctx) == null ? void 0 : t.d) ?? !1;
-}
-function A(e, t, r, i) {
-  var Ne;
-  var o = (r & Ni) !== 0, a = !0, l = (r & Di) !== 0, s = (r & Pi) !== 0, f = !1, d;
-  l ? [d, f] = Ho(() => (
-    /** @type {V} */
-    e[t]
-  )) : d = /** @type {V} */
-  e[t];
-  var v = ut in e || _n in e, h = l && (((Ne = Oe(e, t)) == null ? void 0 : Ne.set) ?? (v && t in e && ((O) => e[t] = O))) || void 0, g = (
-    /** @type {V} */
-    i
-  ), m = !0, k = !1, N = () => (k = !0, m && (m = !1, s ? g = Xe(
-    /** @type {() => V} */
-    i
-  ) : g = /** @type {V} */
-  i), g);
-  d === void 0 && i !== void 0 && (h && a && Xi(), d = N(), h && h(d));
-  var F;
-  if (F = () => {
-    var O = (
-      /** @type {V} */
-      e[t]
-    );
-    return O === void 0 ? N() : (m = !0, k = !1, O);
-  }, (r & Li) === 0)
-    return F;
-  if (h) {
-    var V = e.$$legacy;
-    return function(O, j) {
-      return arguments.length > 0 ? ((!j || V || f) && h(j ? F() : O), O) : F();
-    };
-  }
-  var U = !1, Y = /* @__PURE__ */ qn(d), M = /* @__PURE__ */ tr(() => {
-    var O = F(), j = c(Y);
-    return U ? (U = !1, j) : Y.v = O;
-  });
-  return l && c(M), o || (M.equals = yn), function(O, j) {
-    if (arguments.length > 0) {
-      const _e = j ? c(M) : l ? ke(O) : O;
-      if (!M.equals(_e)) {
-        if (U = !0, D(Y, _e), k && g !== void 0 && (g = _e), on(M))
-          return O;
-        Xe(() => c(M));
-      }
-      return O;
-    }
-    return on(M) ? M.v : c(M);
-  };
-}
-function Wo(e) {
-  return new Yo(e);
-}
-var pe, oe;
-class Yo {
+class Svelte4Component {
+  /** @type {any} */
+  #events;
+  /** @type {Record<string, any>} */
+  #instance;
   /**
    * @param {ComponentConstructorOptions & {
    *  component: any;
    * }} options
    */
-  constructor(t) {
-    /** @type {any} */
-    Vt(this, pe);
-    /** @type {Record<string, any>} */
-    Vt(this, oe);
-    var a;
-    var r = /* @__PURE__ */ new Map(), i = (l, s) => {
-      var f = /* @__PURE__ */ qn(s);
-      return r.set(l, f), f;
+  constructor(options) {
+    var sources = /* @__PURE__ */ new Map();
+    var add_source = (key2, value) => {
+      var s = /* @__PURE__ */ mutable_source(value, false, false);
+      sources.set(key2, s);
+      return s;
     };
-    const o = new Proxy(
-      { ...t.props || {}, $$events: {} },
+    const props = new Proxy(
+      { ...options.props || {}, $$events: {} },
       {
-        get(l, s) {
-          return c(r.get(s) ?? i(s, Reflect.get(l, s)));
+        get(target, prop2) {
+          return get(sources.get(prop2) ?? add_source(prop2, Reflect.get(target, prop2)));
         },
-        has(l, s) {
-          return s === _n ? !0 : (c(r.get(s) ?? i(s, Reflect.get(l, s))), Reflect.has(l, s));
+        has(target, prop2) {
+          if (prop2 === LEGACY_PROPS) return true;
+          get(sources.get(prop2) ?? add_source(prop2, Reflect.get(target, prop2)));
+          return Reflect.has(target, prop2);
         },
-        set(l, s, f) {
-          return D(r.get(s) ?? i(s, f), f), Reflect.set(l, s, f);
+        set(target, prop2, value) {
+          set(sources.get(prop2) ?? add_source(prop2, value), value);
+          return Reflect.set(target, prop2, value);
         }
       }
     );
-    Bt(this, oe, (t.hydrate ? Lo : zn)(t.component, {
-      target: t.target,
-      anchor: t.anchor,
-      props: o,
-      context: t.context,
-      intro: t.intro ?? !1,
-      recover: t.recover
-    })), (!((a = t == null ? void 0 : t.props) != null && a.$$host) || t.sync === !1) && $(), Bt(this, pe, o.$$events);
-    for (const l of Object.keys(G(this, oe)))
-      l === "$set" || l === "$destroy" || l === "$on" || Et(this, l, {
+    this.#instance = (options.hydrate ? hydrate : mount)(options.component, {
+      target: options.target,
+      anchor: options.anchor,
+      props,
+      context: options.context,
+      intro: options.intro ?? false,
+      recover: options.recover,
+      transformError: options.transformError
+    });
+    if (!options?.props?.$$host || options.sync === false) {
+      flushSync();
+    }
+    this.#events = props.$$events;
+    for (const key2 of Object.keys(this.#instance)) {
+      if (key2 === "$set" || key2 === "$destroy" || key2 === "$on") continue;
+      define_property(this, key2, {
         get() {
-          return G(this, oe)[l];
+          return this.#instance[key2];
         },
         /** @param {any} value */
-        set(s) {
-          G(this, oe)[l] = s;
+        set(value) {
+          this.#instance[key2] = value;
         },
-        enumerable: !0
+        enumerable: true
       });
-    G(this, oe).$set = /** @param {Record<string, any>} next */
-    (l) => {
-      Object.assign(o, l);
-    }, G(this, oe).$destroy = () => {
-      Do(G(this, oe));
+    }
+    this.#instance.$set = /** @param {Record<string, any>} next */
+    (next2) => {
+      Object.assign(props, next2);
+    };
+    this.#instance.$destroy = () => {
+      unmount(this.#instance);
     };
   }
   /** @param {Record<string, any>} props */
-  $set(t) {
-    G(this, oe).$set(t);
+  $set(props) {
+    this.#instance.$set(props);
   }
   /**
    * @param {string} event
    * @param {(...args: any[]) => any} callback
    * @returns {any}
    */
-  $on(t, r) {
-    G(this, pe)[t] = G(this, pe)[t] || [];
-    const i = (...o) => r.call(this, ...o);
-    return G(this, pe)[t].push(i), () => {
-      G(this, pe)[t] = G(this, pe)[t].filter(
+  $on(event2, callback) {
+    this.#events[event2] = this.#events[event2] || [];
+    const cb = (...args) => callback.call(this, ...args);
+    this.#events[event2].push(cb);
+    return () => {
+      this.#events[event2] = this.#events[event2].filter(
         /** @param {any} fn */
-        (o) => o !== i
+        (fn) => fn !== cb
       );
     };
   }
   $destroy() {
-    G(this, oe).$destroy();
+    this.#instance.$destroy();
   }
 }
-pe = new WeakMap(), oe = new WeakMap();
-let ti;
-typeof HTMLElement == "function" && (ti = class extends HTMLElement {
-  /**
-   * @param {*} $$componentCtor
-   * @param {*} $$slots
-   * @param {*} use_shadow_dom
-   */
-  constructor(t, r, i) {
-    super();
+let SvelteElement = class {
+};
+if (typeof HTMLElement === "function") {
+  SvelteElement = class extends HTMLElement {
     /** The Svelte component constructor */
-    le(this, "$$ctor");
+    $$ctor;
     /** Slots */
-    le(this, "$$s");
+    $$s;
     /** @type {any} The Svelte component instance */
-    le(this, "$$c");
+    $$c;
     /** Whether or not the custom element is connected */
-    le(this, "$$cn", !1);
+    $$cn = false;
     /** @type {Record<string, any>} Component props data */
-    le(this, "$$d", {});
+    $$d = {};
     /** `true` if currently in the process of reflecting component props back to attributes */
-    le(this, "$$r", !1);
+    $$r = false;
     /** @type {Record<string, CustomElementPropDefinition>} Props definition (name, reflected, type etc) */
-    le(this, "$$p_d", {});
+    $$p_d = {};
     /** @type {Record<string, EventListenerOrEventListenerObject[]>} Event listeners */
-    le(this, "$$l", {});
+    $$l = {};
     /** @type {Map<EventListenerOrEventListenerObject, Function>} Event listener unsubscribe functions */
-    le(this, "$$l_u", /* @__PURE__ */ new Map());
+    $$l_u = /* @__PURE__ */ new Map();
     /** @type {any} The managed render effect for reflecting attributes */
-    le(this, "$$me");
-    this.$$ctor = t, this.$$s = r, i && this.attachShadow({ mode: "open" });
-  }
-  /**
-   * @param {string} type
-   * @param {EventListenerOrEventListenerObject} listener
-   * @param {boolean | AddEventListenerOptions} [options]
-   */
-  addEventListener(t, r, i) {
-    if (this.$$l[t] = this.$$l[t] || [], this.$$l[t].push(r), this.$$c) {
-      const o = this.$$c.$on(t, r);
-      this.$$l_u.set(r, o);
-    }
-    super.addEventListener(t, r, i);
-  }
-  /**
-   * @param {string} type
-   * @param {EventListenerOrEventListenerObject} listener
-   * @param {boolean | AddEventListenerOptions} [options]
-   */
-  removeEventListener(t, r, i) {
-    if (super.removeEventListener(t, r, i), this.$$c) {
-      const o = this.$$l_u.get(r);
-      o && (o(), this.$$l_u.delete(r));
-    }
-  }
-  async connectedCallback() {
-    if (this.$$cn = !0, !this.$$c) {
-      let t = function(o) {
-        return (a) => {
-          const l = document.createElement("slot");
-          o !== "default" && (l.name = o), ne(a, l);
-        };
-      };
-      if (await Promise.resolve(), !this.$$cn || this.$$c)
-        return;
-      const r = {}, i = Go(this);
-      for (const o of this.$$s)
-        o in i && (o === "default" && !this.$$d.children ? (this.$$d.children = t(o), r.default = !0) : r[o] = t(o));
-      for (const o of this.attributes) {
-        const a = this.$$g_p(o.name);
-        a in this.$$d || (this.$$d[a] = bt(a, o.value, this.$$p_d, "toProp"));
+    $$me;
+    /** @type {ShadowRoot | null} The ShadowRoot of the custom element */
+    $$shadowRoot = null;
+    /**
+     * @param {*} $$componentCtor
+     * @param {*} $$slots
+     * @param {ShadowRootInit | undefined} shadow_root_init
+     */
+    constructor($$componentCtor, $$slots, shadow_root_init) {
+      super();
+      this.$$ctor = $$componentCtor;
+      this.$$s = $$slots;
+      if (shadow_root_init) {
+        this.$$shadowRoot = this.attachShadow(shadow_root_init);
       }
-      for (const o in this.$$p_d)
-        !(o in this.$$d) && this[o] !== void 0 && (this.$$d[o] = this[o], delete this[o]);
-      this.$$c = Wo({
-        component: this.$$ctor,
-        target: this.shadowRoot || this,
-        props: {
-          ...this.$$d,
-          $$slots: r,
-          $$host: this
+    }
+    /**
+     * @param {string} type
+     * @param {EventListenerOrEventListenerObject} listener
+     * @param {boolean | AddEventListenerOptions} [options]
+     */
+    addEventListener(type, listener, options) {
+      this.$$l[type] = this.$$l[type] || [];
+      this.$$l[type].push(listener);
+      if (this.$$c) {
+        const unsub = this.$$c.$on(type, listener);
+        this.$$l_u.set(listener, unsub);
+      }
+      super.addEventListener(type, listener, options);
+    }
+    /**
+     * @param {string} type
+     * @param {EventListenerOrEventListenerObject} listener
+     * @param {boolean | AddEventListenerOptions} [options]
+     */
+    removeEventListener(type, listener, options) {
+      super.removeEventListener(type, listener, options);
+      if (this.$$c) {
+        const unsub = this.$$l_u.get(listener);
+        if (unsub) {
+          unsub();
+          this.$$l_u.delete(listener);
         }
-      }), this.$$me = fo(() => {
-        nr(() => {
-          var o;
-          this.$$r = !0;
-          for (const a of yt(this.$$c)) {
-            if (!((o = this.$$p_d[a]) != null && o.reflect)) continue;
-            this.$$d[a] = this.$$c[a];
-            const l = bt(
-              a,
-              this.$$d[a],
-              this.$$p_d,
-              "toAttribute"
-            );
-            l == null ? this.removeAttribute(this.$$p_d[a].attribute || a) : this.setAttribute(this.$$p_d[a].attribute || a, l);
+      }
+    }
+    async connectedCallback() {
+      this.$$cn = true;
+      if (!this.$$c) {
+        let create_slot2 = function(name) {
+          return (anchor) => {
+            const slot = create_element("slot");
+            if (name !== "default") slot.name = name;
+            append(anchor, slot);
+          };
+        };
+        var create_slot = create_slot2;
+        await Promise.resolve();
+        if (!this.$$cn || this.$$c) {
+          return;
+        }
+        const $$slots = {};
+        const existing_slots = get_custom_elements_slots(this);
+        for (const name of this.$$s) {
+          if (name in existing_slots) {
+            if (name === "default" && !this.$$d.children) {
+              this.$$d.children = create_slot2(name);
+              $$slots.default = true;
+            } else {
+              $$slots[name] = create_slot2(name);
+            }
           }
-          this.$$r = !1;
-        });
-      });
-      for (const o in this.$$l)
-        for (const a of this.$$l[o]) {
-          const l = this.$$c.$on(o, a);
-          this.$$l_u.set(a, l);
         }
-      this.$$l = {};
+        for (const attribute of this.attributes) {
+          const name = this.$$g_p(attribute.name);
+          if (!(name in this.$$d)) {
+            this.$$d[name] = get_custom_element_value(name, attribute.value, this.$$p_d, "toProp");
+          }
+        }
+        for (const key2 in this.$$p_d) {
+          if (!(key2 in this.$$d) && this[key2] !== void 0) {
+            this.$$d[key2] = this[key2];
+            delete this[key2];
+          }
+        }
+        this.$$c = createClassComponent({
+          component: this.$$ctor,
+          target: this.$$shadowRoot || this,
+          props: {
+            ...this.$$d,
+            $$slots,
+            $$host: this
+          }
+        });
+        this.$$me = effect_root(() => {
+          render_effect(() => {
+            this.$$r = true;
+            for (const key2 of object_keys(this.$$c)) {
+              if (!this.$$p_d[key2]?.reflect) continue;
+              this.$$d[key2] = this.$$c[key2];
+              const attribute_value = get_custom_element_value(
+                key2,
+                this.$$d[key2],
+                this.$$p_d,
+                "toAttribute"
+              );
+              if (attribute_value == null) {
+                this.removeAttribute(this.$$p_d[key2].attribute || key2);
+              } else {
+                this.setAttribute(this.$$p_d[key2].attribute || key2, attribute_value);
+              }
+            }
+            this.$$r = false;
+          });
+        });
+        for (const type in this.$$l) {
+          for (const listener of this.$$l[type]) {
+            const unsub = this.$$c.$on(type, listener);
+            this.$$l_u.set(listener, unsub);
+          }
+        }
+        this.$$l = {};
+      }
     }
-  }
-  // We don't need this when working within Svelte code, but for compatibility of people using this outside of Svelte
-  // and setting attributes through setAttribute etc, this is helpful
-  /**
-   * @param {string} attr
-   * @param {string} _oldValue
-   * @param {string} newValue
-   */
-  attributeChangedCallback(t, r, i) {
-    var o;
-    this.$$r || (t = this.$$g_p(t), this.$$d[t] = bt(t, i, this.$$p_d, "toProp"), (o = this.$$c) == null || o.$set({ [t]: this.$$d[t] }));
-  }
-  disconnectedCallback() {
-    this.$$cn = !1, Promise.resolve().then(() => {
-      !this.$$cn && this.$$c && (this.$$c.$destroy(), this.$$me(), this.$$c = void 0);
-    });
-  }
-  /**
-   * @param {string} attribute_name
-   */
-  $$g_p(t) {
-    return yt(this.$$p_d).find(
-      (r) => this.$$p_d[r].attribute === t || !this.$$p_d[r].attribute && r.toLowerCase() === t
-    ) || t;
-  }
-});
-function bt(e, t, r, i) {
-  var a;
-  const o = (a = r[e]) == null ? void 0 : a.type;
-  if (t = o === "Boolean" && typeof t != "boolean" ? t != null : t, !i || !r[e])
-    return t;
-  if (i === "toAttribute")
-    switch (o) {
+    // We don't need this when working within Svelte code, but for compatibility of people using this outside of Svelte
+    // and setting attributes through setAttribute etc, this is helpful
+    /**
+     * @param {string} attr
+     * @param {string} _oldValue
+     * @param {string} newValue
+     */
+    attributeChangedCallback(attr, _oldValue, newValue) {
+      if (this.$$r) return;
+      attr = this.$$g_p(attr);
+      this.$$d[attr] = get_custom_element_value(attr, newValue, this.$$p_d, "toProp");
+      this.$$c?.$set({ [attr]: this.$$d[attr] });
+    }
+    disconnectedCallback() {
+      this.$$cn = false;
+      Promise.resolve().then(() => {
+        if (!this.$$cn && this.$$c) {
+          this.$$c.$destroy();
+          this.$$me();
+          this.$$c = void 0;
+        }
+      });
+    }
+    /**
+     * @param {string} attribute_name
+     */
+    $$g_p(attribute_name) {
+      return object_keys(this.$$p_d).find(
+        (key2) => this.$$p_d[key2].attribute === attribute_name || !this.$$p_d[key2].attribute && key2.toLowerCase() === attribute_name
+      ) || attribute_name;
+    }
+  };
+}
+function get_custom_element_value(prop2, value, props_definition, transform) {
+  const type = props_definition[prop2]?.type;
+  value = type === "Boolean" && typeof value !== "boolean" ? value != null : value;
+  if (!transform || !props_definition[prop2]) {
+    return value;
+  } else if (transform === "toAttribute") {
+    switch (type) {
       case "Object":
       case "Array":
-        return t == null ? null : JSON.stringify(t);
+        return value == null ? null : JSON.stringify(value);
       case "Boolean":
-        return t ? "" : null;
+        return value ? "" : null;
       case "Number":
-        return t ?? null;
+        return value == null ? null : value;
       default:
-        return t;
+        return value;
     }
-  else
-    switch (o) {
+  } else {
+    switch (type) {
       case "Object":
       case "Array":
-        return t && JSON.parse(t);
+        return value && JSON.parse(value);
       case "Boolean":
-        return t;
+        return value;
       // conversion already handled above
       case "Number":
-        return t != null ? +t : t;
+        return value != null ? +value : value;
       default:
-        return t;
+        return value;
     }
+  }
 }
-function Go(e) {
-  const t = {};
-  return e.childNodes.forEach((r) => {
-    t[
+function get_custom_elements_slots(element) {
+  const result = {};
+  element.childNodes.forEach((node) => {
+    result[
       /** @type {Element} node */
-      r.slot || "default"
-    ] = !0;
-  }), t;
+      node.slot || "default"
+    ] = true;
+  });
+  return result;
 }
-function Zo(e, t, r, i, o, a) {
-  let l = class extends ti {
+function create_custom_element(Component, props_definition, slots, exports, shadow_root_init, extend) {
+  let Class = class extends SvelteElement {
     constructor() {
-      super(e, r, o), this.$$p_d = t;
+      super(Component, slots, shadow_root_init);
+      this.$$p_d = props_definition;
     }
     static get observedAttributes() {
-      return yt(t).map(
-        (s) => (t[s].attribute || s).toLowerCase()
+      return object_keys(props_definition).map(
+        (key2) => (props_definition[key2].attribute || key2).toLowerCase()
       );
     }
   };
-  return yt(t).forEach((s) => {
-    Et(l.prototype, s, {
+  object_keys(props_definition).forEach((prop2) => {
+    define_property(Class.prototype, prop2, {
       get() {
-        return this.$$c && s in this.$$c ? this.$$c[s] : this.$$d[s];
+        return this.$$c && prop2 in this.$$c ? this.$$c[prop2] : this.$$d[prop2];
       },
-      set(f) {
-        var h;
-        f = bt(s, f, t), this.$$d[s] = f;
-        var d = this.$$c;
-        if (d) {
-          var v = (h = Oe(d, s)) == null ? void 0 : h.get;
-          v ? d[s] = f : d.$set({ [s]: f });
+      set(value) {
+        value = get_custom_element_value(prop2, value, props_definition);
+        this.$$d[prop2] = value;
+        var component2 = this.$$c;
+        if (component2) {
+          var setter = get_descriptor(component2, prop2)?.get;
+          if (setter) {
+            component2[prop2] = value;
+          } else {
+            component2.$set({ [prop2]: value });
+          }
         }
       }
     });
-  }), i.forEach((s) => {
-    Et(l.prototype, s, {
+  });
+  exports.forEach((property) => {
+    define_property(Class.prototype, property, {
       get() {
-        var f;
-        return (f = this.$$c) == null ? void 0 : f[s];
+        return this.$$c?.[property];
       }
     });
-  }), e.element = /** @type {any} */
-  l, l;
+  });
+  Component.element = /** @type {any} */
+  Class;
+  return Class;
 }
-const ri = new TextEncoder();
-function Jo(e) {
-  return [...new Uint8Array(e)].map((t) => t.toString(16).padStart(2, "0")).join("");
-}
-async function Ko(e, t = "SHA-256", r = 1e5) {
-  const i = Date.now().toString(16);
-  e || (e = Math.round(Math.random() * r));
-  const o = await ni(i, e, t);
-  return {
-    algorithm: t,
-    challenge: o,
-    salt: i,
-    signature: ""
+var rest_excludes$3 = /* @__PURE__ */ new Set(["$$slots", "$$events", "$$legacy", "$$host", "loading"]);
+var root$6 = /* @__PURE__ */ from_html(`<div class="altcha-checkbox"><input/> <svg aria-hidden="true" width="12" height="9" viewBox="0 0 12 9"><polyline points="1 5 4 8 11 1"></polyline></svg> <div class="altcha-spinner altcha-checkbox-spinner" aria-hidden="true"></div></div>`);
+function Checkbox($$anchor, $$props) {
+  push($$props, true);
+  let loading = prop($$props, "loading"), rest = /* @__PURE__ */ rest_props($$props, rest_excludes$3);
+  let inputEl;
+  function onClick() {
+    inputEl?.click();
+  }
+  var $$exports = {
+    get loading() {
+      return loading();
+    },
+    set loading($$value) {
+      loading($$value);
+      flushSync();
+    }
   };
+  var div = root$6();
+  var input = child(div);
+  attribute_effect(input, () => ({ type: "checkbox", ...rest }), void 0, void 0, void 0, void 0, true);
+  bind_this(input, ($$value) => inputEl = $$value, () => inputEl);
+  var svg = sibling(input, 2);
+  next(2);
+  reset(div);
+  template_effect(() => set_attribute(div, "data-loading", loading()));
+  delegated("click", svg, onClick);
+  append($$anchor, div);
+  return pop($$exports);
 }
-async function ni(e, t, r) {
-  if (typeof crypto > "u" || !("subtle" in crypto) || !("digest" in crypto.subtle))
-    throw new Error("Web Crypto is not available. Secure context is required (https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts).");
-  return Jo(
-    await crypto.subtle.digest(
-      r.toUpperCase(),
-      ri.encode(e + t)
-    )
-  );
+delegate(["click"]);
+create_custom_element(Checkbox, { loading: {} }, [], [], { mode: "open" });
+var rest_excludes$2 = /* @__PURE__ */ new Set(["$$slots", "$$events", "$$legacy", "$$host", "loading"]);
+var root$5 = /* @__PURE__ */ from_html(`<div class="altcha-checkbox-native"><input/> <div class="altcha-spinner altcha-checkbox-native-spinner"></div></div>`);
+function CheckboxNative($$anchor, $$props) {
+  push($$props, true);
+  let loading = prop($$props, "loading"), rest = /* @__PURE__ */ rest_props($$props, rest_excludes$2);
+  var $$exports = {
+    get loading() {
+      return loading();
+    },
+    set loading($$value) {
+      loading($$value);
+      flushSync();
+    }
+  };
+  var div = root$5();
+  var input = child(div);
+  attribute_effect(input, () => ({ type: "checkbox", ...rest }), void 0, void 0, void 0, void 0, true);
+  next(2);
+  reset(div);
+  template_effect(() => set_attribute(div, "data-loading", loading()));
+  append($$anchor, div);
+  return pop($$exports);
 }
-function zo(e, t, r = "SHA-256", i = 1e6, o = 0) {
-  const a = new AbortController(), l = Date.now();
-  return {
-    promise: (async () => {
-      for (let f = o; f <= i; f += 1) {
-        if (a.signal.aborted)
-          return null;
-        if (await ni(t, f, r) === e)
-          return {
-            number: f,
-            took: Date.now() - l
-          };
+create_custom_element(CheckboxNative, { loading: {} }, [], [], { mode: "open" });
+var root$4 = /* @__PURE__ */ from_html(`<div><a target="_blank" rel="noopener" class="altcha-logo" aria-hidden="true" tabindex="-1"><svg width="22" height="22" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2.33955 16.4279C5.88954 20.6586 12.1971 21.2105 16.4279 17.6604C18.4699 15.947 19.6548 13.5911 19.9352 11.1365L17.9886 10.4279C17.8738 12.5624 16.909 14.6459 15.1423 16.1284C11.7577 18.9684 6.71167 18.5269 3.87164 15.1423C1.03163 11.7577 1.4731 6.71166 4.8577 3.87164C8.24231 1.03162 13.2883 1.4731 16.1284 4.8577C16.9767 5.86872 17.5322 7.02798 17.804 8.2324L19.9522 9.01429C19.7622 7.07737 19.0059 5.17558 17.6604 3.57212C14.1104 -0.658624 7.80283 -1.21043 3.57212 2.33956C-0.658625 5.88958 -1.21046 12.1971 2.33955 16.4279Z" fill="currentColor"></path><path d="M3.57212 2.33956C1.65755 3.94607 0.496389 6.11731 0.12782 8.40523L2.04639 9.13961C2.26047 7.15832 3.21057 5.25375 4.8577 3.87164C8.24231 1.03162 13.2883 1.4731 16.1284 4.8577L13.8302 6.78606L19.9633 9.13364C19.7929 7.15555 19.0335 5.20847 17.6604 3.57212C14.1104 -0.658624 7.80283 -1.21043 3.57212 2.33956Z" fill="currentColor"></path><path d="M7 10H5C5 12.7614 7.23858 15 10 15C12.7614 15 15 12.7614 15 10H13C13 11.6569 11.6569 13 10 13C8.3431 13 7 11.6569 7 10Z" fill="currentColor"></path></svg></a></div>`);
+function Logo($$anchor, $$props) {
+  push($$props, true);
+  let strings = prop($$props, "strings");
+  const website = "https://altcha.org";
+  var $$exports = {
+    get strings() {
+      return strings();
+    },
+    set strings($$value) {
+      strings($$value);
+      flushSync();
+    }
+  };
+  var div = root$4();
+  var a = child(div);
+  set_attribute(a, "href", website);
+  reset(div);
+  template_effect(() => set_attribute(a, "aria-label", strings().ariaLinkLabel));
+  append($$anchor, div);
+  return pop($$exports);
+}
+create_custom_element(Logo, { strings: {} }, [], [], { mode: "open" });
+var root$3 = /* @__PURE__ */ from_html(`<div class="altcha-footer"><p></p> <!></div>`);
+function Footer($$anchor, $$props) {
+  push($$props, true);
+  let logo = prop($$props, "logo"), strings = prop($$props, "strings");
+  var $$exports = {
+    get logo() {
+      return logo();
+    },
+    set logo($$value) {
+      logo($$value);
+      flushSync();
+    },
+    get strings() {
+      return strings();
+    },
+    set strings($$value) {
+      strings($$value);
+      flushSync();
+    }
+  };
+  var div = root$3();
+  var p = child(div);
+  html(p, () => strings().footer, true);
+  reset(p);
+  var node = sibling(p, 2);
+  {
+    var consequent = ($$anchor2) => {
+      Logo($$anchor2, {
+        get strings() {
+          return strings();
+        }
+      });
+    };
+    if_block(node, ($$render) => {
+      if (logo()) $$render(consequent);
+    });
+  }
+  reset(div);
+  append($$anchor, div);
+  return pop($$exports);
+}
+create_custom_element(Footer, { logo: {}, strings: {} }, [], [], { mode: "open" });
+var rest_excludes$1 = /* @__PURE__ */ new Set(["$$slots", "$$events", "$$legacy", "$$host", "loading"]);
+var root$2 = /* @__PURE__ */ from_html(`<div class="altcha-switch"><input/>  <div class="altcha-switch-toggle"><div class="altcha-spinner altcha-switch-spinner"></div></div></div>`);
+function Switch($$anchor, $$props) {
+  push($$props, true);
+  let loading = prop($$props, "loading"), rest = /* @__PURE__ */ rest_props($$props, rest_excludes$1);
+  let inputEl;
+  function onClick() {
+    inputEl?.click();
+  }
+  var $$exports = {
+    get loading() {
+      return loading();
+    },
+    set loading($$value) {
+      loading($$value);
+      flushSync();
+    }
+  };
+  var div = root$2();
+  var input = child(div);
+  attribute_effect(input, () => ({ type: "checkbox", ...rest }), void 0, void 0, void 0, void 0, true);
+  bind_this(input, ($$value) => inputEl = $$value, () => inputEl);
+  var div_1 = sibling(input, 2);
+  reset(div);
+  template_effect(() => set_attribute(div, "data-loading", loading()));
+  delegated("click", div_1, onClick);
+  append($$anchor, div);
+  return pop($$exports);
+}
+delegate(["click"]);
+create_custom_element(Switch, { loading: {} }, [], [], { mode: "open" });
+var AudioState = /* @__PURE__ */ ((AudioState2) => {
+  AudioState2["ERROR"] = "error";
+  AudioState2["LOADING"] = "loading";
+  AudioState2["PLAYING"] = "playing";
+  AudioState2["PAUSED"] = "paused";
+  AudioState2["READY"] = "ready";
+  return AudioState2;
+})(AudioState || {});
+var HmacAlgorithm = /* @__PURE__ */ ((HmacAlgorithm2) => {
+  HmacAlgorithm2["SHA_256"] = "SHA-256";
+  HmacAlgorithm2["SHA_384"] = "SHA-384";
+  HmacAlgorithm2["SHA_512"] = "SHA-512";
+  return HmacAlgorithm2;
+})(HmacAlgorithm || {});
+var State = /* @__PURE__ */ ((State2) => {
+  State2["CODE"] = "code";
+  State2["ERROR"] = "error";
+  State2["VERIFIED"] = "verified";
+  State2["VERIFYING"] = "verifying";
+  State2["UNVERIFIED"] = "unverified";
+  State2["EXPIRED"] = "expired";
+  return State2;
+})(State || {});
+var root$1 = /* @__PURE__ */ from_html(`<div class="altcha-code-challenge-title"> </div>`);
+var root_1$2 = /* @__PURE__ */ from_html(`<div class="altcha-spinner"></div>`);
+var root_2$2 = /* @__PURE__ */ from_svg(`<svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12.8659 3.00017L22.3922 19.5002C22.6684 19.9785 22.5045 20.5901 22.0262 20.8662C21.8742 20.954 21.7017 21.0002 21.5262 21.0002H2.47363C1.92135 21.0002 1.47363 20.5525 1.47363 20.0002C1.47363 19.8246 1.51984 19.6522 1.60761 19.5002L11.1339 3.00017C11.41 2.52187 12.0216 2.358 12.4999 2.63414C12.6519 2.72191 12.7782 2.84815 12.8659 3.00017ZM10.9999 16.0002V18.0002H12.9999V16.0002H10.9999ZM10.9999 9.00017V14.0002H12.9999V9.00017H10.9999Z"></path></svg>`);
+var root_3$2 = /* @__PURE__ */ from_svg(`<svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M15 7C15 6.44772 15.4477 6 16 6C16.5523 6 17 6.44772 17 7V17C17 17.5523 16.5523 18 16 18C15.4477 18 15 17.5523 15 17V7ZM7 7C7 6.44772 7.44772 6 8 6C8.55228 6 9 6.44772 9 7V17C9 17.5523 8.55228 18 8 18C7.44772 18 7 17.5523 7 17V7Z"></path></svg>`);
+var root_4$1 = /* @__PURE__ */ from_svg(`<svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M4 12H7C8.10457 12 9 12.8954 9 14V19C9 20.1046 8.10457 21 7 21H4C2.89543 21 2 20.1046 2 19V12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12V19C22 20.1046 21.1046 21 20 21H17C15.8954 21 15 20.1046 15 19V14C15 12.8954 15.8954 12 17 12H20C20 7.58172 16.4183 4 12 4C7.58172 4 4 7.58172 4 12Z"></path></svg>`);
+var root_5$1 = /* @__PURE__ */ from_html(`<button type="button" class="altcha-button altcha-button-secondary"><!></button>`);
+var root_6$1 = /* @__PURE__ */ from_html(`<audio hidden="" autoplay=""></audio>`);
+var root_7$1 = /* @__PURE__ */ from_html(`<div class="altcha-code-challenge"><form data-code-challenge="true"><!> <div class="altcha-code-challenge-text"> </div> <img class="altcha-code-challenge-image" alt=""/> <div class="altcha-code-challenge-row"><input type="text" class="altcha-input" autocomplete="off" name="" required=""/> <!> <button type="button" class="altcha-button altcha-button-secondary"><svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M2 12C2 17.5228 6.47715 22 12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2V4C16.4183 4 20 7.58172 20 12C20 16.4183 16.4183 20 12 20C7.58172 20 4 16.4183 4 12C4 9.25022 5.38734 6.82447 7.50024 5.38451L7.5 8H9.5V2L3.5 2V4L5.99918 3.99989C3.57075 5.82434 2 8.72873 2 12Z"></path></svg></button></div> <div class="altcha-code-challenge-buttons"><button type="submit" class="altcha-button"> </button> <button type="button" class="altcha-button altcha-button-secondary"> </button></div></form> <!></div>`);
+function Code($$anchor, $$props) {
+  push($$props, true);
+  let audioUrl = prop($$props, "audioUrl"), codeChallenge = prop($$props, "codeChallenge"), config = prop($$props, "config"), imageUrl = prop($$props, "imageUrl"), onCancel = prop($$props, "onCancel"), onReload = prop($$props, "onReload"), onSubmit = prop($$props, "onSubmit"), strings = prop($$props, "strings");
+  let audioState = /* @__PURE__ */ state(void 0);
+  let elAudio = /* @__PURE__ */ state(void 0);
+  let elInput = /* @__PURE__ */ state(void 0);
+  let loading = /* @__PURE__ */ state(false);
+  let code = /* @__PURE__ */ state("");
+  let playAudio = /* @__PURE__ */ state(false);
+  onMount(() => {
+    if (!config().disableAutoFocus) {
+      tick().then(() => {
+        get(elInput)?.focus();
+      });
+    }
+    return () => {
+      if (get(elAudio)) {
+        get(elAudio).pause();
+        set(elAudio, void 0);
       }
-      return null;
-    })(),
-    controller: a
+    };
+  });
+  function onAudioEnded() {
+    set(audioState, AudioState.PAUSED, true);
+  }
+  function onAudioError(ev) {
+    set(audioState, AudioState.ERROR, true);
+  }
+  function onAudioCanPlay() {
+    set(audioState, AudioState.READY, true);
+  }
+  function onAudioLoadStart() {
+    set(audioState, AudioState.LOADING, true);
+  }
+  function onAudioPlaying() {
+    set(audioState, AudioState.PLAYING, true);
+  }
+  function onAudioPause() {
+    set(audioState, AudioState.PAUSED, true);
+  }
+  function onInputKeyDown(ev) {
+    if (ev.code === "Space") {
+      ev.preventDefault();
+      ev.stopPropagation();
+      onPlayAudio();
+    } else if (ev.code === "Escape") {
+      ev.preventDefault();
+      ev.stopPropagation();
+      onCancel()?.();
+    }
+  }
+  function onSubmitCapture(ev) {
+    ev.preventDefault();
+    ev.stopPropagation();
+    onSubmit()?.(get(code));
+  }
+  function startAudio(el) {
+    el.play().catch((err) => {
+      if (!(err instanceof DOMException && err.name === "AbortError")) {
+        throw err;
+      }
+    });
+  }
+  function onPlayAudio() {
+    if (get(elAudio)) {
+      if (get(audioState) === AudioState.LOADING) ;
+      else if (!get(elAudio).paused) {
+        get(elAudio).pause();
+      } else {
+        if (audioUrl() && get(elAudio).src !== audioUrl()) {
+          get(elAudio).src = audioUrl();
+        }
+        get(elAudio).currentTime = 0;
+        startAudio(get(elAudio));
+      }
+    } else {
+      set(playAudio, true);
+      requestAnimationFrame(() => {
+        if (get(elAudio) && audioUrl()) {
+          get(elAudio).src = audioUrl();
+          startAudio(get(elAudio));
+        }
+      });
+    }
+  }
+  var $$exports = {
+    get audioUrl() {
+      return audioUrl();
+    },
+    set audioUrl($$value) {
+      audioUrl($$value);
+      flushSync();
+    },
+    get codeChallenge() {
+      return codeChallenge();
+    },
+    set codeChallenge($$value) {
+      codeChallenge($$value);
+      flushSync();
+    },
+    get config() {
+      return config();
+    },
+    set config($$value) {
+      config($$value);
+      flushSync();
+    },
+    get imageUrl() {
+      return imageUrl();
+    },
+    set imageUrl($$value) {
+      imageUrl($$value);
+      flushSync();
+    },
+    get onCancel() {
+      return onCancel();
+    },
+    set onCancel($$value) {
+      onCancel($$value);
+      flushSync();
+    },
+    get onReload() {
+      return onReload();
+    },
+    set onReload($$value) {
+      onReload($$value);
+      flushSync();
+    },
+    get onSubmit() {
+      return onSubmit();
+    },
+    set onSubmit($$value) {
+      onSubmit($$value);
+      flushSync();
+    },
+    get strings() {
+      return strings();
+    },
+    set strings($$value) {
+      strings($$value);
+      flushSync();
+    }
   };
+  var div = root_7$1();
+  var form = child(div);
+  var node = child(form);
+  {
+    var consequent = ($$anchor2) => {
+      var div_1 = root$1();
+      var text2 = only_child(div_1, true);
+      template_effect(() => set_text(text2, strings().verificationRequired));
+      append($$anchor2, div_1);
+    };
+    if_block(node, ($$render) => {
+      if (config().codeChallengeDisplay !== "standard") $$render(consequent);
+    });
+  }
+  var div_2 = sibling(node, 2);
+  var text_1 = only_child(div_2, true);
+  var img = sibling(div_2, 2);
+  var div_3 = sibling(img, 2);
+  var input = child(div_3);
+  remove_input_defaults(input);
+  input.disabled = get(loading);
+  bind_this(input, ($$value) => set(elInput, $$value), () => get(elInput));
+  var node_1 = sibling(input, 2);
+  {
+    var consequent_4 = ($$anchor2) => {
+      var button = root_5$1();
+      var node_2 = child(button);
+      {
+        var consequent_1 = ($$anchor3) => {
+          var div_4 = root_1$2();
+          append($$anchor3, div_4);
+        };
+        var consequent_2 = ($$anchor3) => {
+          var svg = root_2$2();
+          append($$anchor3, svg);
+        };
+        var consequent_3 = ($$anchor3) => {
+          var svg_1 = root_3$2();
+          append($$anchor3, svg_1);
+        };
+        var alternate = ($$anchor3) => {
+          var svg_2 = root_4$1();
+          append($$anchor3, svg_2);
+        };
+        if_block(node_2, ($$render) => {
+          if (get(audioState) === AudioState.LOADING) $$render(consequent_1);
+          else if (get(audioState) === AudioState.ERROR) $$render(consequent_2, 1);
+          else if (get(audioState) === AudioState.PLAYING) $$render(consequent_3, 2);
+          else $$render(alternate, -1);
+        });
+      }
+      reset(button);
+      template_effect(() => {
+        set_attribute(button, "title", strings().getAudioChallenge);
+        button.disabled = get(audioState) === AudioState.LOADING || get(audioState) === AudioState.ERROR;
+        set_attribute(button, "aria-label", get(audioState) === AudioState.LOADING ? strings().loading : strings().getAudioChallenge);
+      });
+      event("click", button, () => onPlayAudio(), true);
+      append($$anchor2, button);
+    };
+    if_block(node_1, ($$render) => {
+      if (codeChallenge().audio) $$render(consequent_4);
+    });
+  }
+  var button_1 = sibling(node_1, 2);
+  reset(div_3);
+  var div_5 = sibling(div_3, 2);
+  var button_2 = child(div_5);
+  var text_2 = only_child(button_2, true);
+  var button_3 = sibling(button_2, 2);
+  var text_3 = only_child(button_3, true);
+  reset(div_5);
+  reset(form);
+  var node_3 = sibling(form, 2);
+  {
+    var consequent_5 = ($$anchor2) => {
+      var audio = root_6$1();
+      bind_this(audio, ($$value) => set(elAudio, $$value), () => get(elAudio));
+      event("error", audio, onAudioError);
+      event("loadstart", audio, onAudioLoadStart);
+      event("canplay", audio, onAudioCanPlay);
+      event("pause", audio, onAudioPause);
+      event("playing", audio, onAudioPlaying);
+      event("ended", audio, onAudioEnded);
+      append($$anchor2, audio);
+    };
+    if_block(node_3, ($$render) => {
+      if (get(playAudio)) $$render(consequent_5);
+    });
+  }
+  reset(div);
+  template_effect(() => {
+    set_text(text_1, strings().enterCodeFromImage);
+    set_attribute(img, "src", imageUrl());
+    set_attribute(input, "minlength", codeChallenge().length || 1);
+    set_attribute(input, "maxlength", codeChallenge().length);
+    set_attribute(input, "placeholder", strings().enterCode);
+    set_attribute(input, "aria-label", get(audioState) === AudioState.LOADING ? strings().loading : get(audioState) === AudioState.PLAYING ? "" : strings().enterCodeAria);
+    set_attribute(input, "aria-live", get(audioState) ? "assertive" : "polite");
+    set_attribute(input, "aria-busy", get(audioState) === AudioState.LOADING);
+    set_attribute(button_1, "title", strings().reload);
+    set_attribute(button_1, "aria-label", strings().reload);
+    set_attribute(button_2, "aria-label", strings().verify);
+    set_text(text_2, strings().verify);
+    set_attribute(button_3, "aria-label", strings().cancel);
+    set_text(text_3, strings().cancel);
+  });
+  event("submit", form, onSubmitCapture, true);
+  delegated("keydown", input, onInputKeyDown);
+  bind_value(input, () => get(code), ($$value) => set(code, $$value));
+  event("click", button_1, () => onReload()?.(), true);
+  event("click", button_3, () => onCancel()?.(), true);
+  append($$anchor, div);
+  return pop($$exports);
 }
-function Xo() {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone;
-  } catch {
+delegate(["keydown"]);
+create_custom_element(
+  Code,
+  {
+    audioUrl: {},
+    codeChallenge: {},
+    config: {},
+    imageUrl: {},
+    onCancel: {},
+    onReload: {},
+    onSubmit: {},
+    strings: {}
+  },
+  [],
+  [],
+  { mode: "open" }
+);
+var rest_excludes = /* @__PURE__ */ new Set([
+  "$$slots",
+  "$$events",
+  "$$legacy",
+  "$$host",
+  "anchor",
+  "children",
+  "display",
+  "backdrop",
+  "onClickOutside",
+  "onClickOutsideDelay",
+  "onClose",
+  "placement",
+  "updateUISignal",
+  "variant"
+]);
+var root = /* @__PURE__ */ from_html(`<div class="altcha-popover-backdrop" data-backdrop=""></div>`);
+var root_1$1 = /* @__PURE__ */ from_html(`<div class="altcha-popover-arrow"></div>`);
+var root_2$1 = /* @__PURE__ */ from_html(`<div role="button" class="altcha-popover-close">&times;</div>`);
+var root_3$1 = /* @__PURE__ */ from_html(`<!> <div><!> <!> <div class="altcha-popover-content"><!></div></div>`, 1);
+function Popover($$anchor, $$props) {
+  push($$props, true);
+  let anchor = prop($$props, "anchor"), children = prop($$props, "children"), display = prop($$props, "display", 7, "standard"), backdrop = prop($$props, "backdrop", 7, false), onClickOutside = prop($$props, "onClickOutside"), onClickOutsideDelay = prop($$props, "onClickOutsideDelay", 7, 600), onClose = prop($$props, "onClose"), placement = prop($$props, "placement", 7, "auto"), updateUISignal = prop($$props, "updateUISignal"), variant = prop($$props, "variant", 7, "neutral"), rest = /* @__PURE__ */ rest_props($$props, rest_excludes);
+  let el = /* @__PURE__ */ state(void 0);
+  let elBackdrop = /* @__PURE__ */ state(void 0);
+  let top = /* @__PURE__ */ state(false);
+  let mountedAt = /* @__PURE__ */ state(0);
+  user_effect(() => {
+    if (placement() !== "auto") {
+      set(top, placement() === "top");
+    }
+  });
+  user_effect(() => {
+    if (updateUISignal()) {
+      reposition();
+    }
+  });
+  onMount(() => {
+    const moveToBody = display() === "bottomsheet" || display() === "overlay";
+    if (moveToBody) {
+      get(elBackdrop) && document.body.append(get(elBackdrop));
+      get(el) && document.body.append(get(el));
+    }
+    reposition();
+    tick().then(() => {
+      set(mountedAt, Date.now(), true);
+    });
+    return () => {
+      if (moveToBody) {
+        get(elBackdrop) && document.body.removeChild(get(elBackdrop));
+        get(el) && document.body.removeChild(get(el));
+      }
+    };
+  });
+  function onCloseClick() {
+    onClose()?.();
+  }
+  function onWindowClick(ev) {
+    const target = ev.target;
+    if (!get(el)?.contains(target) && (!onClickOutsideDelay() || get(mountedAt) + onClickOutsideDelay() < Date.now())) {
+      onClickOutside()?.();
+    }
+  }
+  function onWindowResize() {
+    reposition();
+  }
+  function onWindowScroll() {
+    reposition();
+  }
+  function reposition() {
+    if (anchor() && placement() === "auto" && get(el)) {
+      const boundary2 = anchor().getBoundingClientRect();
+      const bottomGap = document.documentElement.clientHeight - (boundary2.top + boundary2.height);
+      const newTop = bottomGap < get(el).clientHeight;
+      if (get(top) !== newTop) {
+        set(top, newTop);
+      }
+    }
+  }
+  var $$exports = {
+    get anchor() {
+      return anchor();
+    },
+    set anchor($$value) {
+      anchor($$value);
+      flushSync();
+    },
+    get children() {
+      return children();
+    },
+    set children($$value) {
+      children($$value);
+      flushSync();
+    },
+    get display() {
+      return display();
+    },
+    set display($$value = "standard") {
+      display($$value);
+      flushSync();
+    },
+    get backdrop() {
+      return backdrop();
+    },
+    set backdrop($$value = false) {
+      backdrop($$value);
+      flushSync();
+    },
+    get onClickOutside() {
+      return onClickOutside();
+    },
+    set onClickOutside($$value) {
+      onClickOutside($$value);
+      flushSync();
+    },
+    get onClickOutsideDelay() {
+      return onClickOutsideDelay();
+    },
+    set onClickOutsideDelay($$value = 600) {
+      onClickOutsideDelay($$value);
+      flushSync();
+    },
+    get onClose() {
+      return onClose();
+    },
+    set onClose($$value) {
+      onClose($$value);
+      flushSync();
+    },
+    get placement() {
+      return placement();
+    },
+    set placement($$value = "auto") {
+      placement($$value);
+      flushSync();
+    },
+    get updateUISignal() {
+      return updateUISignal();
+    },
+    set updateUISignal($$value) {
+      updateUISignal($$value);
+      flushSync();
+    },
+    get variant() {
+      return variant();
+    },
+    set variant($$value = "neutral") {
+      variant($$value);
+      flushSync();
+    }
+  };
+  var fragment = root_3$1();
+  event("click", $window, onWindowClick, true);
+  event("resize", $window, onWindowResize);
+  event("scroll", $window, onWindowScroll);
+  var node = first_child(fragment);
+  {
+    var consequent = ($$anchor2) => {
+      var div = root();
+      bind_this(div, ($$value) => set(elBackdrop, $$value), () => get(elBackdrop));
+      append($$anchor2, div);
+    };
+    if_block(node, ($$render) => {
+      if (backdrop()) $$render(consequent);
+    });
+  }
+  var div_1 = sibling(node, 2);
+  attribute_effect(div_1, () => ({
+    ...rest,
+    class: `altcha-popover ${($$props.class || "") ?? ""}`,
+    "data-popover": true,
+    "data-variant": variant(),
+    "data-top": get(top),
+    "data-display": display()
+  }));
+  var node_1 = child(div_1);
+  {
+    var consequent_1 = ($$anchor2) => {
+      var div_2 = root_1$1();
+      append($$anchor2, div_2);
+    };
+    if_block(node_1, ($$render) => {
+      if (display() === "standard") $$render(consequent_1);
+    });
+  }
+  var node_2 = sibling(node_1, 2);
+  {
+    var consequent_2 = ($$anchor2) => {
+      var div_3 = root_2$1();
+      event("click", div_3, onCloseClick, true);
+      append($$anchor2, div_3);
+    };
+    if_block(node_2, ($$render) => {
+      if (display() !== "standard") $$render(consequent_2);
+    });
+  }
+  var div_4 = sibling(node_2, 2);
+  var node_3 = child(div_4);
+  snippet(node_3, () => children() ?? noop);
+  reset(div_4);
+  reset(div_1);
+  bind_this(div_1, ($$value) => set(el, $$value), () => get(el));
+  append($$anchor, fragment);
+  return pop($$exports);
+}
+create_custom_element(
+  Popover,
+  {
+    anchor: {},
+    children: {},
+    display: {},
+    backdrop: {},
+    onClickOutside: {},
+    onClickOutsideDelay: {},
+    onClose: {},
+    placement: {},
+    updateUISignal: {},
+    variant: {}
+  },
+  [],
+  [],
+  { mode: "open" }
+);
+class RequestError extends Error {
+  name = "RequestError";
+}
+function bufferToHex(buffer) {
+  return Array.from(new Uint8Array(buffer)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+function injectCss(css2, id = "altcha-css", nonce) {
+  if (typeof document !== "undefined" && document && !document.getElementById(id)) {
+    const style = document.createElement("style");
+    style.id = id;
+    style.textContent = css2;
+    const resolvedNonce = document.currentScript?.nonce ?? document.querySelector('meta[name="csp-nonce"]')?.content;
+    if (resolvedNonce) {
+      style.nonce = resolvedNonce;
+    }
+    document.head.appendChild(style);
   }
 }
-function Qo(e) {
-  const t = atob(e), r = new Uint8Array(t.length);
-  for (let i = 0; i < t.length; i++)
-    r[i] = t.charCodeAt(i);
-  return r;
+Object.values(HmacAlgorithm);
+async function solveChallengeWorkers(options) {
+  const {
+    challenge,
+    concurrency = navigator.hardwareConcurrency,
+    controller = new AbortController(),
+    createWorker,
+    onOutOfMemory = (c) => c > 1 ? Math.floor(c / 2) : 0,
+    counterMode,
+    timeout
+  } = options;
+  const workersConcurrency = Math.min(16, Math.max(1, concurrency));
+  const workersInstances = [];
+  const terminate = () => {
+    for (const worker of workersInstances) {
+      worker.terminate();
+    }
+  };
+  for (let i = 0; i < workersConcurrency; i++) {
+    workersInstances.push(await createWorker(challenge.parameters.algorithm));
+  }
+  let solution = null;
+  try {
+    solution = await Promise.race(
+      workersInstances.map((worker, i) => {
+        controller.signal.addEventListener("abort", () => {
+          worker.postMessage({ type: "abort" });
+        });
+        return new Promise((resolve, reject) => {
+          worker.addEventListener("error", (err) => {
+            reject(err);
+          });
+          worker.addEventListener("message", (message) => {
+            if (message.data) {
+              for (const w of workersInstances) {
+                if (w !== worker) {
+                  w.postMessage({ type: "abort" });
+                }
+              }
+              if (message.data.error) {
+                return reject(new Error(message.data.error));
+              }
+            }
+            resolve(message.data);
+          });
+          worker.postMessage({
+            challenge,
+            counterMode,
+            counterStart: i,
+            counterStep: workersConcurrency,
+            timeout,
+            type: "work"
+          });
+        });
+      })
+    );
+  } catch (err) {
+    const isOOM = err instanceof Error && !!err?.message?.includes("Out of memory");
+    if (isOOM) {
+      if (onOutOfMemory) {
+        terminate();
+        const retryConcurrency = onOutOfMemory(workersConcurrency);
+        if (retryConcurrency) {
+          return solveChallengeWorkers({
+            ...options,
+            challenge,
+            controller,
+            concurrency: retryConcurrency,
+            createWorker
+          });
+        }
+      }
+    }
+    throw err;
+  } finally {
+    terminate();
+  }
+  if (controller.signal.aborted) {
+    return null;
+  }
+  return solution || null;
 }
-function ea(e, t = 12) {
-  const r = new Uint8Array(t);
-  for (let i = 0; i < t; i++)
-    r[i] = e % 256, e = Math.floor(e / 256);
-  return r;
+class Collector {
+  TAG_CODES = {
+    INPUT: 1,
+    TEXTAREA: 2,
+    SELECT: 3,
+    BUTTON: 4,
+    A: 5,
+    DETAILS: 6,
+    SUMMARY: 7,
+    IFRAME: 8,
+    VIDEO: 9,
+    AUDIO: 10
+  };
+  POINTER_TYPES = {
+    mouse: 0,
+    pen: 1,
+    touch: 2
+  };
+  maxSamples;
+  sampleInterval;
+  target;
+  focusStartTime = 0;
+  focusInteraction = 0;
+  focusInteractionTimer;
+  lastPointerSample = 0;
+  lastTouchSample = 0;
+  lastScrollSample = 0;
+  pendingClick = null;
+  keysDown = /* @__PURE__ */ new Map();
+  /** Raw (unthrottled) non-touch pointermove timestamps, newest last */
+  moveTimes = [];
+  untrusted = 0;
+  click = [];
+  focus = [];
+  key = [];
+  pointer = [];
+  scroll = [];
+  touch = [];
+  markTime = null;
+  markUntrusted = 0;
+  constructor(options = {}) {
+    const { maxSamples = 60, sampleInterval = 50, target = window } = options;
+    this.maxSamples = maxSamples;
+    this.sampleInterval = sampleInterval;
+    this.target = target;
+    this.attach();
+  }
+  destroy() {
+    const o = { capture: true };
+    this.target.removeEventListener("focusin", this.onFocus, o);
+    this.target.removeEventListener("keydown", this.onKeyDown, o);
+    this.target.removeEventListener("keyup", this.onKeyUp, o);
+    this.target.removeEventListener("pointerdown", this.onPointerDown, o);
+    this.target.removeEventListener("pointerup", this.onPointerUp, o);
+    this.target.removeEventListener("pointermove", this.onPointer, o);
+    this.target.removeEventListener("scroll", this.onScroll, o);
+    this.target.removeEventListener("touchmove", this.onTouchMove, o);
+  }
+  export() {
+    return {
+      click: this.click,
+      focus: this.focus,
+      key: this.key,
+      maxTouchPoints: navigator.maxTouchPoints || 0,
+      pointer: this.pointer,
+      scroll: this.scroll,
+      time: Date.now(),
+      touch: this.touch,
+      untrusted: this.untrusted,
+      v: 2,
+      webdriver: navigator.webdriver === true
+    };
+  }
+  /** Starts the window of `exportSinceMark()`; collected samples are kept. */
+  mark() {
+    this.markTime = performance.now();
+    this.markUntrusted = this.untrusted;
+  }
+  /** Same shape as `export()`, limited to samples collected since the latest `mark()`. */
+  exportSinceMark() {
+    const data = this.export();
+    const since = this.markTime;
+    if (since === null) {
+      return data;
+    }
+    const focus = this.focus.filter((s) => this.focusStartTime + s[0] >= since);
+    const first = focus[0]?.[0] ?? 0;
+    return {
+      ...data,
+      click: this.click.filter((s) => s[2] >= since),
+      focus: focus.map((s) => [s[0] - first, s[1], s[2], s[3]]),
+      key: this.key.filter((s) => s[0] >= since),
+      pointer: this.pointer.filter((s) => s[2] >= since),
+      scroll: this.scroll.filter((s) => s[1] >= since),
+      touch: this.touch.filter((s) => s[2] >= since),
+      untrusted: this.untrusted - this.markUntrusted
+    };
+  }
+  attach() {
+    const o = { passive: true, capture: true };
+    this.target.addEventListener("focusin", this.onFocus, o);
+    this.target.addEventListener("keydown", this.onKeyDown, o);
+    this.target.addEventListener("keyup", this.onKeyUp, o);
+    this.target.addEventListener("pointerdown", this.onPointerDown, o);
+    this.target.addEventListener("pointerup", this.onPointerUp, o);
+    this.target.addEventListener("pointermove", this.onPointer, o);
+    this.target.addEventListener("scroll", this.onScroll, o);
+    this.target.addEventListener("touchmove", this.onTouchMove, o);
+  }
+  evict(buffer) {
+    if (buffer.length > this.maxSamples) {
+      buffer.splice(0, buffer.length - this.maxSamples);
+    }
+  }
+  onFocus = (e) => {
+    if (!e.isTrusted) {
+      this.untrusted++;
+      return;
+    }
+    if (this.focusInteraction === 2) {
+      return;
+    }
+    const el = e.target;
+    if (!(el instanceof Element)) {
+      return;
+    }
+    const now = performance.now();
+    if (this.focusStartTime === 0) {
+      this.focusStartTime = now;
+    }
+    this.focus.push([
+      Math.round(now - this.focusStartTime),
+      el.tabIndex,
+      this.TAG_CODES[el.tagName] ?? 0,
+      this.focusInteraction ? 1 : 0
+    ]);
+    this.evict(this.focus);
+  };
+  setInteraction(kind) {
+    this.focusInteraction = kind;
+    clearTimeout(this.focusInteractionTimer);
+    this.focusInteractionTimer = setTimeout(() => {
+      this.focusInteraction = 0;
+    }, 100);
+  }
+  onKeyDown = (e) => {
+    if (!e.isTrusted) {
+      this.untrusted++;
+      return;
+    }
+    this.setInteraction(1);
+    if (e.repeat) {
+      return;
+    }
+    const now = e.timeStamp || performance.now();
+    const sample = [Math.round(now), -1];
+    this.key.push(sample);
+    this.evict(this.key);
+    this.keysDown.set(e.code, { sample, down: now });
+  };
+  onKeyUp = (e) => {
+    if (!e.isTrusted) {
+      this.untrusted++;
+      return;
+    }
+    const pending = this.keysDown.get(e.code);
+    if (pending) {
+      const now = e.timeStamp || performance.now();
+      pending.sample[1] = Math.round(now - pending.down);
+      this.keysDown.delete(e.code);
+    }
+  };
+  onPointerDown = (e) => {
+    if (!e.isTrusted) {
+      this.untrusted++;
+      return;
+    }
+    this.setInteraction(2);
+    const now = e.timeStamp || performance.now();
+    const rect = e.target instanceof Element ? e.target.getBoundingClientRect() : null;
+    let moves = 0;
+    for (const t of this.moveTimes) {
+      if (t >= now - 500 && t < now) {
+        moves++;
+      }
+    }
+    const sample = [
+      Math.round(e.clientX),
+      Math.round(e.clientY),
+      Math.round(now),
+      -1,
+      rect ? Math.round(e.clientX - (rect.left + rect.width / 2)) : 0,
+      rect ? Math.round(e.clientY - (rect.top + rect.height / 2)) : 0,
+      this.POINTER_TYPES[e.pointerType] ?? 3,
+      moves
+    ];
+    this.click.push(sample);
+    this.evict(this.click);
+    this.pendingClick = { sample, down: now };
+  };
+  onPointerUp = (e) => {
+    if (!e.isTrusted) {
+      this.untrusted++;
+      return;
+    }
+    if (this.pendingClick) {
+      const now = e.timeStamp || performance.now();
+      this.pendingClick.sample[3] = Math.round(now - this.pendingClick.down);
+      this.pendingClick = null;
+    }
+  };
+  onPointer = (e) => {
+    if (!e.isTrusted) {
+      this.untrusted++;
+      return;
+    }
+    if (e.pointerType === "touch") {
+      return;
+    }
+    const now = e.timeStamp || performance.now();
+    this.moveTimes.push(now);
+    if (this.moveTimes.length > 32) {
+      this.moveTimes.shift();
+    }
+    if (now - this.lastPointerSample >= this.sampleInterval) {
+      this.pointer.push([Math.round(e.clientX), Math.round(e.clientY), Math.round(now)]);
+      this.lastPointerSample = now;
+      this.evict(this.pointer);
+    }
+  };
+  onScroll = (e) => {
+    if (!e.isTrusted) {
+      this.untrusted++;
+      return;
+    }
+    const now = performance.now();
+    if (now - this.lastScrollSample < this.sampleInterval) {
+      return;
+    }
+    this.scroll.push([Math.round(window.scrollY), Math.round(now)]);
+    this.lastScrollSample = now;
+    this.evict(this.scroll);
+  };
+  onTouchMove = (e) => {
+    if (!e.isTrusted) {
+      this.untrusted++;
+      return;
+    }
+    const now = e.timeStamp || performance.now();
+    const t = e.touches[0];
+    if (!t) {
+      return;
+    }
+    if (now - this.lastTouchSample >= this.sampleInterval) {
+      this.touch.push([
+        Math.round(t.clientX),
+        Math.round(t.clientY),
+        Math.round(now),
+        Math.round(t.force * 1e3) / 1e3,
+        Math.round(t.radiusX || 0),
+        Math.round(t.radiusY || 0)
+      ]);
+      this.lastTouchSample = now;
+      this.evict(this.touch);
+    }
+  };
 }
-async function ta(e, t = "", r = 1e6, i = 0) {
-  const o = "AES-GCM", a = new AbortController(), l = Date.now(), s = async () => {
-    for (let v = i; v <= r; v += 1) {
-      if (a.signal.aborted || !f || !d)
-        return null;
+var root_1 = /* @__PURE__ */ from_html(`<div class="altcha-overlay-backdrop" data-backdrop=""></div>`);
+var root_2 = /* @__PURE__ */ from_html(`<div class="altcha-overlay-content"></div>`);
+var root_3 = /* @__PURE__ */ from_html(`<div role="button" class="altcha-overlay-close">&times;</div> <!>`, 1);
+var root_4 = /* @__PURE__ */ from_html(`<div class="altcha-floating-arrow"></div>`);
+var root_5 = /* @__PURE__ */ from_html(`<input type="hidden"/>`);
+var root_6 = /* @__PURE__ */ from_html(`<div class="altcha-error">Secure context (HTTPS) required.</div>`);
+var root_7 = /* @__PURE__ */ from_html(`<div class="altcha-error"> </div>`);
+var root_8 = /* @__PURE__ */ from_html(`<!> <!>`, 1);
+var root_9 = /* @__PURE__ */ from_html(`<!> <div class="altcha"><!> <div class="altcha-main"><div><div class="altcha-checkbox-wrap"><!> <label><!></label></div> <!></div> <!> <!> <!></div> <!></div>`, 1);
+function Widget($$anchor, $$props) {
+  push($$props, true);
+  const $altchaDefaults = () => store_get(altchaDefaults, "$altchaDefaults", $$stores);
+  const $altchaI18nStore = () => store_get(altchaI18nStore, "$altchaI18nStore", $$stores);
+  const [$$stores, $$cleanup] = setup_stores();
+  const fieldsSelector = 'input[type="text"]:not([data-no-spamfilter]), textarea:not([data-no-spamfilter])';
+  const submitButtonSelector = 'input[type="submit"], button[type="submit"], button:not([type="button"]):not([type="reset"])';
+  const rtlLanguages = ["ar", "fa", "he", "ur"];
+  const { isSecureContext } = globalThis;
+  const { store: altchaDefaults } = globalThis.$altcha.defaults;
+  const hardwareConcurrency = navigator.hardwareConcurrency || 2;
+  const deviceMemory = navigator.deviceMemory || 0;
+  const defaultWorkers = deviceMemory && deviceMemory <= 4 ? Math.min(4, hardwareConcurrency) : hardwareConcurrency;
+  const altchaI18nStore = globalThis.$altcha.i18n.store;
+  const instance = $$props.$$host;
+  const dispatch = (event2, detail) => {
+    tick().then(() => {
+      instance?.dispatchEvent(new CustomEvent(event2, { detail }));
+    });
+  };
+  let hisCollector = null;
+  let baseUrl = /* @__PURE__ */ state(proxy(new URL(location.origin)));
+  let checked = /* @__PURE__ */ state(false);
+  let codeChallenge = /* @__PURE__ */ state(null);
+  let currentController = /* @__PURE__ */ state(null);
+  let currentDisplay = /* @__PURE__ */ state(null);
+  let currentState = /* @__PURE__ */ state(proxy(State.UNVERIFIED));
+  let elAnchorArrow = /* @__PURE__ */ state(void 0);
+  let elFloatingAnchor = /* @__PURE__ */ state(void 0);
+  let elForm = /* @__PURE__ */ state(null);
+  let elRoot = /* @__PURE__ */ state(void 0);
+  let elSubmitter = /* @__PURE__ */ state(null);
+  let error = /* @__PURE__ */ state(null);
+  let errorMessage = /* @__PURE__ */ state(null);
+  let expirationTimeout = /* @__PURE__ */ state(null);
+  let payload = /* @__PURE__ */ state(null);
+  let plugins = /* @__PURE__ */ state(proxy([]));
+  let updateUISignal = /* @__PURE__ */ state(0);
+  let userConfig = /* @__PURE__ */ state(proxy({}));
+  let visible = /* @__PURE__ */ state(true);
+  const config = /* @__PURE__ */ user_derived(() => ({
+    fetch: (input, init) => fetch(input, init),
+    audioChallengeLanguage: "",
+    auto: "off",
+    barPlacement: "bottom",
+    challenge: "",
+    codeChallenge: null,
+    codeChallengeDisplay: "standard",
+    credentials: null,
+    debug: false,
+    disableAutoFocus: false,
+    display: "standard",
+    floatingAnchor: "",
+    floatingOffset: 8,
+    floatingPersist: false,
+    floatingPlacement: "auto",
+    formatError: null,
+    hideFooter: false,
+    hideLogo: false,
+    humanInteractionSignature: true,
+    language: "",
+    mockError: false,
+    minDuration: 500,
+    overlayContent: "",
+    name: "altcha",
+    popoverPlacement: "auto",
+    retryOnOutOfMemoryError: true,
+    setCookie: null,
+    serverVerificationFields: false,
+    serverVerificationTimeZone: false,
+    test: false,
+    timeout: 9e4,
+    type: "checkbox",
+    validationMessage: "",
+    verifyFunction: null,
+    verifyUrl: "",
+    workers: defaultWorkers,
+    ...$altchaDefaults(),
+    ...get(userConfig)
+  }));
+  const checkboxId = /* @__PURE__ */ user_derived(() => `altcha-checkbox-${$$props.id || Math.floor(Math.random() * 1e12).toString(16)}`);
+  const CheckboxComponent = /* @__PURE__ */ user_derived(() => getCheckboxComponent(get(config).type));
+  const auto = /* @__PURE__ */ user_derived(() => get(config).auto);
+  const loading = /* @__PURE__ */ user_derived(() => get(currentState) === State.VERIFYING);
+  const showFooter = /* @__PURE__ */ user_derived(() => !get(config).hideFooter);
+  const showLogo = /* @__PURE__ */ user_derived(() => !get(config).hideLogo && get(config).display !== "bar");
+  const locale = /* @__PURE__ */ user_derived(() => getI18nStrings($altchaI18nStore(), [
+    get(config).language,
+    document.documentElement.lang,
+    ...navigator.languages
+  ]));
+  const dir = /* @__PURE__ */ user_derived(() => rtlLanguages.includes(get(locale).language) ? "rtl" : void 0);
+  const strings = /* @__PURE__ */ user_derived(() => ({ ...get(locale).strings }));
+  const codeChallengeAudioUrl = /* @__PURE__ */ user_derived(() => get(codeChallenge)?.audio?.match(/^(https?:)?\//) ? getUrl(get(codeChallenge).audio, get(baseUrl), {
+    language: get(config).audioChallengeLanguage || get(locale).language
+  }).toString() : get(codeChallenge)?.audio);
+  const codeChallengeImageUrl = /* @__PURE__ */ user_derived(() => get(codeChallenge)?.image?.match(/^(https?:)?\//) ? getUrl(get(codeChallenge).image, get(baseUrl)) : get(codeChallenge)?.image);
+  user_effect(() => {
+    configure({
+      auto: $$props.auto,
+      challenge: $$props.challenge,
+      display: $$props.display,
+      language: $$props.language,
+      name: $$props.name,
+      type: $$props.type,
+      workers: $$props.workers
+    });
+  });
+  user_effect(() => {
+    if ($$props.theme) {
+      instance?.setAttribute("theme", $$props.theme);
+    } else {
+      instance?.removeAttribute("theme");
+    }
+  });
+  user_effect(() => {
+    if ($$props.configuration) {
       try {
-        const h = await crypto.subtle.decrypt(
-          {
-            name: o,
-            iv: ea(v)
-          },
-          f,
-          d
-        );
-        if (h)
-          return {
-            clearText: new TextDecoder().decode(h),
-            took: Date.now() - l
-          };
+        configure(JSON.parse($$props.configuration));
+      } catch {
+        log("unable to parse the `configuration` attribute (JSON expected)");
+      }
+    }
+  });
+  user_effect(() => {
+    if (get(currentDisplay) !== get(config).display) {
+      setDisplay(get(config).display);
+    }
+  });
+  user_effect(() => {
+    if (get(checked) && get(currentState) === State.VERIFYING) {
+      set(checked, false);
+    }
+  });
+  user_effect(() => {
+    if (!get(checked) && get(currentState) === State.VERIFIED) {
+      set(checked, true);
+    }
+  });
+  user_effect(() => {
+    if (!get(checked)) {
+      const checkbox = getCheckboxElement();
+      if (checkbox && checkbox.checked) {
+        checkbox.checked = false;
+      }
+    }
+  });
+  user_effect(() => {
+    if (get(currentState) === State.VERIFIED) {
+      getCheckboxElement()?.setCustomValidity("");
+    }
+  });
+  user_effect(() => {
+    if (get(auto) === "onload") {
+      const tm = setTimeout(
+        () => {
+          verify();
+        },
+        10
+      );
+      return () => {
+        if (tm) {
+          clearTimeout(tm);
+        }
+      };
+    }
+  });
+  user_effect(() => {
+    if (get(error)) {
+      log("error:", get(error));
+    }
+  });
+  user_effect(() => {
+    if (get(payload) && get(config).setCookie) {
+      setCookie(get(payload), get(config).setCookie);
+    }
+  });
+  onMount(() => {
+    log("mounted", "3.6.0");
+    if (instance) {
+      globalThis.$altcha.instances.add(instance);
+    }
+    set(elForm, resolveForm(), true);
+    get(elForm)?.addEventListener("reset", onFormReset);
+    get(elForm)?.addEventListener("submit", onFormSubmit, { capture: true });
+    document.addEventListener("focusin", onFormFocusIn);
+    activatePlugins();
+    if (get(config).humanInteractionSignature) {
+      log("human interaction signature enabled");
+      hisCollector = new Collector();
+    }
+    dispatch("load");
+    if (!isSecureContext) {
+      log("secure context (HTTPS) required");
+    }
+    return () => {
+      destroyPlugins();
+      if (instance) {
+        globalThis.$altcha.instances.delete(instance);
+      }
+      if (get(expirationTimeout)) {
+        clearTimeout(get(expirationTimeout));
+      }
+      get(elForm)?.removeEventListener("reset", onFormReset);
+      get(elForm)?.removeEventListener("submit", onFormSubmit, { capture: true });
+      document.removeEventListener("focusin", onFormFocusIn);
+      hisCollector?.destroy();
+    };
+  });
+  function activatePlugins() {
+    set(plugins, [...globalThis.$altcha.plugins].map((PluginCls) => new PluginCls(instance)), true);
+    log("activating plugins", get(plugins).map((plugin) => plugin.constructor.name));
+    for (const plugin of get(plugins)) {
+      plugin.activate();
+    }
+  }
+  async function callHook(hook, ...args) {
+    let result = void 0;
+    for (const plugin of get(plugins)) {
+      result = await plugin[hook].call(plugin, ...args);
+    }
+    return result;
+  }
+  function destroyPlugins() {
+    for (const plugin of get(plugins)) {
+      plugin.destroy();
+    }
+  }
+  function createChallengeFromV1(challenge) {
+    const [_, queryParams] = challenge.salt.split("?");
+    const data = {};
+    if (queryParams) {
+      try {
+        Object.assign(data, Object.fromEntries(new URLSearchParams(queryParams).entries()));
       } catch {
       }
     }
-    return null;
-  };
-  let f = null, d = null;
-  try {
-    d = Qo(e);
-    const v = await crypto.subtle.digest(
-      "SHA-256",
-      ri.encode(t)
-    );
-    f = await crypto.subtle.importKey(
-      "raw",
-      v,
-      o,
-      !1,
-      ["decrypt"]
-    );
-  } catch {
-    return {
-      promise: Promise.reject(),
-      controller: a
+    const result = {
+      codeChallenge: challenge.codeChallenge,
+      parameters: {
+        algorithm: challenge.algorithm,
+        cost: 1,
+        data,
+        expiresAt: data?.expires ? parseInt(data.expires, 10) : void 0,
+        keyLength: challenge.algorithm === "SHA-512" ? 64 : challenge.algorithm === "SHA-384" ? 48 : 32,
+        nonce: bufferToHex(new TextEncoder().encode(challenge.salt)),
+        keyPrefix: challenge.challenge,
+        salt: ""
+      },
+      signature: challenge.signature
     };
-  }
-  return {
-    promise: s(),
-    controller: a
-  };
-}
-var b = /* @__PURE__ */ ((e) => (e.ERROR = "error", e.VERIFIED = "verified", e.VERIFYING = "verifying", e.UNVERIFIED = "unverified", e.EXPIRED = "expired", e))(b || {}), ra = /* @__PURE__ */ No('<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12,1A11,11,0,1,0,23,12,11,11,0,0,0,12,1Zm0,19a8,8,0,1,1,8-8A8,8,0,0,1,12,20Z" fill="currentColor" opacity=".25"></path><path d="M12,4a8,8,0,0,1,7.89,6.7A1.53,1.53,0,0,0,21.38,12h0a1.5,1.5,0,0,0,1.48-1.75,11,11,0,0,0-21.72,0A1.5,1.5,0,0,0,2.62,12h0a1.53,1.53,0,0,0,1.49-1.3A8,8,0,0,1,12,4Z" fill="currentColor" class="altcha-spinner"></path></svg>'), na = /* @__PURE__ */ ge('<span role="status" aria-live="polite"><!></span> <input type="hidden">', 1), ia = /* @__PURE__ */ ge('<span role="status" aria-live="polite"><!></span>'), oa = /* @__PURE__ */ ge("<label><!></label>"), aa = /* @__PURE__ */ ge('<div><a target="_blank" class="altcha-logo"><svg width="22" height="22" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2.33955 16.4279C5.88954 20.6586 12.1971 21.2105 16.4279 17.6604C18.4699 15.947 19.6548 13.5911 19.9352 11.1365L17.9886 10.4279C17.8738 12.5624 16.909 14.6459 15.1423 16.1284C11.7577 18.9684 6.71167 18.5269 3.87164 15.1423C1.03163 11.7577 1.4731 6.71166 4.8577 3.87164C8.24231 1.03162 13.2883 1.4731 16.1284 4.8577C16.9767 5.86872 17.5322 7.02798 17.804 8.2324L19.9522 9.01429C19.7622 7.07737 19.0059 5.17558 17.6604 3.57212C14.1104 -0.658624 7.80283 -1.21043 3.57212 2.33956C-0.658625 5.88958 -1.21046 12.1971 2.33955 16.4279Z" fill="currentColor"></path><path d="M3.57212 2.33956C1.65755 3.94607 0.496389 6.11731 0.12782 8.40523L2.04639 9.13961C2.26047 7.15832 3.21057 5.25375 4.8577 3.87164C8.24231 1.03162 13.2883 1.4731 16.1284 4.8577L13.8302 6.78606L19.9633 9.13364C19.7929 7.15555 19.0335 5.20847 17.6604 3.57212C14.1104 -0.658624 7.80283 -1.21043 3.57212 2.33956Z" fill="currentColor"></path><path d="M7 10H5C5 12.7614 7.23858 15 10 15C12.7614 15 15 12.7614 15 10H13C13 11.6569 11.6569 13 10 13C8.3431 13 7 11.6569 7 10Z" fill="currentColor"></path></svg></a></div>'), la = /* @__PURE__ */ ge("<div><!></div>"), sa = /* @__PURE__ */ ge("<div><!></div>"), fa = /* @__PURE__ */ ge('<div class="altcha-error"><svg width="14" height="14" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path></svg> <!></div>'), ua = /* @__PURE__ */ ge('<div class="altcha-footer"><div><!></div></div>'), ca = /* @__PURE__ */ ge('<div class="altcha-anchor-arrow"></div>'), da = /* @__PURE__ */ ge('<!> <div class="altcha"><div class="altcha-main"><!> <div><input type="checkbox"></div> <div class="altcha-label"><!></div> <!></div> <!> <!> <!></div>', 1);
-function ha(e, t) {
-  var Mr, Ur;
-  Wn(t, !0);
-  let r = A(t, "auto", 7, void 0), i = A(t, "blockspam", 7, void 0), o = A(t, "challengeurl", 7, void 0), a = A(t, "challengejson", 7, void 0), l = A(t, "customfetch", 7, void 0), s = A(t, "debug", 7, !1), f = A(t, "delay", 7, 0), d = A(t, "expire", 7, void 0), v = A(t, "floating", 7, void 0), h = A(t, "floatinganchor", 7, void 0), g = A(t, "floatingoffset", 7, void 0), m = A(t, "floatingpersist", 7, !1), k = A(t, "hidefooter", 7, !1), N = A(t, "hidelogo", 7, !1), F = A(t, "id", 7, void 0), V = A(t, "name", 7, "altcha"), U = A(t, "maxnumber", 7, 1e6), Y = A(t, "mockerror", 7, !1), M = A(t, "obfuscated", 7, void 0), Ne = A(t, "plugins", 7, void 0), O = A(t, "refetchonexpire", 7, !0), j = A(t, "spamfilter", 7, !1), _e = A(t, "strings", 7, void 0), te = A(t, "test", 7, !1), ye = A(t, "verifyurl", 7, void 0), Ve = A(t, "workers", 23, () => Math.min(16, navigator.hardwareConcurrency || 8)), Qe = A(t, "workerurl", 7, void 0);
-  const ar = ["SHA-256", "SHA-384", "SHA-512"], lr = "Visit Altcha.org", sr = "https://altcha.org/", et = (n, u) => {
-    t.$$host.dispatchEvent(new CustomEvent(n, { detail: u }));
-  }, fr = (Ur = (Mr = document.documentElement.lang) == null ? void 0 : Mr.split("-")) == null ? void 0 : Ur[0], Dt = /* @__PURE__ */ st(() => {
-    var n;
-    return o() && new URL(o(), location.origin).host.endsWith(".altcha.org") && !!((n = o()) != null && n.includes("apiKey=ckey_"));
-  }), Pt = /* @__PURE__ */ st(() => a() ? Er(a()) : void 0), ur = /* @__PURE__ */ st(() => _e() ? Er(_e()) : {}), re = /* @__PURE__ */ st(() => {
-    var n;
-    return {
-      ariaLinkLabel: lr,
-      error: "Verification failed. Try again later.",
-      expired: "Verification expired. Try again.",
-      footer: `Protected by <a href="${sr}" target="_blank" aria-label="${((n = c(ur)) == null ? void 0 : n.ariaLinkLabel) || lr}">ALTCHA</a>`,
-      label: "I'm not a robot",
-      verified: "Verified",
-      verifying: "Verifying...",
-      waitAlert: "Verifying... please wait.",
-      ...c(ur)
-    };
-  }), cr = /* @__PURE__ */ st(() => `${F() || V()}_checkbox`);
-  let Be = /* @__PURE__ */ J(!1), C = /* @__PURE__ */ J(ke(b.UNVERIFIED)), B = /* @__PURE__ */ J(void 0), tt = /* @__PURE__ */ J(null), qe = null, w = null, He = /* @__PURE__ */ J(null), ce = null, Ee = [], Le = /* @__PURE__ */ J(null);
-  Yt(() => {
-    ci(c(He));
-  }), Yt(() => {
-    di(c(C));
-  }), qo(() => {
-    ii(), w && (w.removeEventListener("submit", wr), w.removeEventListener("reset", pr), w.removeEventListener("focusin", mr), w = null), ce && (clearTimeout(ce), ce = null), document.removeEventListener("click", gr), document.removeEventListener("scroll", _r), window.removeEventListener("resize", yr);
-  }), ei(() => {
-    var n;
-    S("mounted", "1.5.1"), S("workers", Ve()), fi(), S("plugins", Ee.length ? Ee.map((u) => u.constructor.pluginName).join(", ") : "none"), te() && S("using test mode"), d() && Ot(d()), r() !== void 0 && S("auto", r()), v() !== void 0 && xr(v()), w = (n = c(B)) == null ? void 0 : n.closest("form"), w && (w.addEventListener("submit", wr, { capture: !0 }), w.addEventListener("reset", pr), (r() === "onfocus" || m() === "focus") && w.addEventListener("focusin", mr)), r() === "onload" && (M() ? rt() : xe()), c(Dt) && (k() || N()) && S("Attributes hidefooter and hidelogo ignored because usage with free API Keys requires attribution."), requestAnimationFrame(() => {
-      et("load");
+    Object.defineProperties(result, {
+      _originalSalt: { enumerable: false, value: challenge.salt, writable: false },
+      _version: { enumerable: false, value: 1, writable: false }
     });
-  });
-  function dr(n, u) {
-    return btoa(JSON.stringify({
-      algorithm: n.algorithm,
-      challenge: n.challenge,
-      number: u.number,
-      salt: n.salt,
-      signature: n.signature,
-      test: te() ? !0 : void 0,
-      took: u.took
-    }));
+    return result;
   }
-  function ii() {
-    for (const n of Ee)
-      n.destroy();
+  function createPayloadV1(challenge, solution) {
+    return {
+      algorithm: challenge.parameters.algorithm,
+      challenge: challenge.parameters.keyPrefix,
+      number: solution.counter,
+      salt: "_originalSalt" in challenge ? challenge._originalSalt : challenge.parameters.nonce,
+      signature: challenge.signature,
+      took: solution.time || 0
+    };
   }
-  function hr() {
-    o() && O() && c(C) === b.VERIFIED ? xe() : it(b.EXPIRED, c(re).expired);
+  async function delay(ms) {
+    await new Promise((resolve) => setTimeout(resolve, ms));
   }
-  async function oi() {
-    var n;
-    if (Y())
-      throw S("mocking error"), new Error("Mocked error.");
-    if (c(Pt))
-      return S("using provided json data"), c(Pt);
-    if (te())
-      return S("generating test challenge", { test: te() }), Ko(typeof te() != "boolean" ? +te() : void 0);
-    {
-      if (!o() && w) {
-        const x = w.getAttribute("action");
-        x != null && x.includes("/form/") && o(x + "/altcha");
-      }
-      if (!o())
-        throw new Error("Attribute challengeurl not set.");
-      S("fetching challenge from", o());
-      const u = {
-        headers: j() !== !1 ? { "x-altcha-spam-filter": "1" } : {}
-      }, _ = await vr()(o(), u);
-      if (!_ || !(_ instanceof Response))
-        throw new Error("Fetch function did not return a response.");
-      if (_.status !== 200)
-        throw new Error(`Server responded with ${_.status}.`);
-      const y = _.headers.get("X-Altcha-Config"), T = await _.json(), E = new URLSearchParams((n = T.salt.split("?")) == null ? void 0 : n[1]), p = E.get("expires") || E.get("expire");
-      if (p) {
-        const x = new Date(+p * 1e3), me = isNaN(x.getTime()) ? 0 : x.getTime() - Date.now();
-        me > 0 && Ot(me);
-      }
-      if (y)
+  async function fetchChallenge(source2 = get(config).challenge, requestOptions) {
+    const hook = await callHook("onFetchChallenge", source2);
+    let challenge = null;
+    if (hook !== void 0) {
+      return hook;
+    }
+    if (typeof source2 === "string") {
+      if (source2.startsWith("{")) {
+        log("parsing JSON challenge");
         try {
-          const x = JSON.parse(y);
-          x && typeof x == "object" && ("sentinel" in x ? alert("This version of the widget is not compatible with Sentinel. Upgrade to version 2.x.x.") : (x.verifyurl && (x.verifyurl = new URL(x.verifyurl, new URL(o())).toString()), Cr(x)));
-        } catch (x) {
-          S("unable to configure from X-Altcha-Config", x);
+          challenge = JSON.parse(source2);
+        } catch {
+          throw new Error(`Unable to parse JSON challenge.`);
         }
-      return T;
+      } else {
+        log("fetching challenge from", requestOptions?.method || "GET", source2);
+        set(baseUrl, new URL(source2, location.origin), true);
+        const { headers, json } = await requestJson(source2, {
+          credentials: get(config).credentials || void 0,
+          ...requestOptions
+        });
+        const configHeader = headers.get("x-altcha-config");
+        if (configHeader) {
+          processConfigHeader(configHeader);
+        }
+        if (json && "his" in json && json.his) {
+          log("requested HIS");
+          if (!hisCollector) {
+            throw new Error("Server requested HIS data but collector is disabled.");
+          }
+          const his = hisCollector.export();
+          hisCollector.mark();
+          return fetchChallenge(getUrl(json.his.url, get(baseUrl)), {
+            body: JSON.stringify({ his }),
+            headers: { "content-type": "application/json" },
+            method: "POST"
+          });
+        }
+        if (json && "hisResult" in json && json.hisResult) {
+          log("HIS result", json.hisResult);
+        }
+        challenge = json;
+      }
+    } else if (source2 && typeof source2 === "object") {
+      try {
+        challenge = JSON.parse(JSON.stringify(source2));
+      } catch {
+        throw new Error(`Unable to parse JSON challenge.`);
+      }
+    }
+    if (isChallengeV1(challenge)) {
+      challenge = createChallengeFromV1(challenge);
+    }
+    if (!isChallengeValid(challenge)) {
+      throw new Error(`Challenge validation failed.`);
+    }
+    return challenge;
+  }
+  function isChallengeV1(challenge) {
+    return challenge !== null && typeof challenge === "object" && "challenge" in challenge;
+  }
+  function isChallengeValid(challenge) {
+    return !!challenge && typeof challenge === "object" && "parameters" in challenge && !!challenge.parameters && typeof challenge.parameters === "object" && "algorithm" in challenge.parameters && "nonce" in challenge.parameters && "salt" in challenge.parameters && "keyPrefix" in challenge.parameters;
+  }
+  function getCheckboxElement() {
+    return document.getElementById(get(checkboxId));
+  }
+  function getCheckboxComponent(type) {
+    switch (type) {
+      case "checkbox":
+        return Checkbox;
+      case "switch":
+        return Switch;
+      case "native":
+      default:
+        return CheckboxNative;
     }
   }
-  function ai(n) {
-    var _;
-    const u = w == null ? void 0 : w.querySelector(typeof n == "string" ? `input[name="${n}"]` : 'input[type="email"]:not([data-no-spamfilter])');
-    return ((_ = u == null ? void 0 : u.value) == null ? void 0 : _.slice(u.value.indexOf("@"))) || void 0;
+  function getI18nStrings(i18n2, languages) {
+    const codes = Object.keys(i18n2).map((code) => code.toLowerCase());
+    let language = languages.reduce(
+      (acc, lang) => {
+        lang = lang.toLowerCase();
+        return acc || (i18n2[lang] ? lang : null) || codes.find((code) => lang.split("-")[0] === code.split("-")[0]) || null;
+      },
+      null
+    );
+    if (!i18n2[language || ""]) {
+      language = "en";
+    }
+    return { language, strings: i18n2[language] };
   }
-  function vr() {
-    let n = fetch;
-    if (l())
-      if (S("using customfetch"), typeof l() == "string") {
-        if (n = globalThis[l()] || null, !n)
-          throw new Error(`Custom fetch function not found: ${l()}`);
-      } else
-        n = l();
-    return n;
+  function getPlacement(display) {
+    switch (display) {
+      case "bar":
+        return get(config).barPlacement || "bottom";
+      case "floating":
+        return get(config).floatingPlacement || "auto";
+      default:
+        return void 0;
+    }
   }
-  function li() {
-    return j() === "ipAddress" ? {
-      blockedCountries: void 0,
-      classifier: void 0,
-      disableRules: void 0,
-      email: !1,
-      expectedCountries: void 0,
-      expectedLanguages: void 0,
-      fields: !1,
-      ipAddress: void 0,
-      text: void 0,
-      timeZone: void 0
-    } : typeof j() == "object" ? j() : {
-      blockedCountries: void 0,
-      classifier: void 0,
-      disableRules: void 0,
-      email: void 0,
-      expectedCountries: void 0,
-      expectedLanguages: void 0,
-      fields: void 0,
-      ipAddress: void 0,
-      text: void 0,
-      timeZone: void 0
-    };
+  function resolveForm() {
+    if ($$props.form) {
+      const root2 = instance?.getRootNode();
+      const el = root2?.getElementById?.($$props.form);
+      return el instanceof HTMLFormElement ? el : null;
+    }
+    return get(elRoot)?.closest("form") ?? null;
   }
-  function si(n) {
-    return [
-      ...(w == null ? void 0 : w.querySelectorAll(n != null && n.length ? n.map((_) => `input[name="${_}"]`).join(", ") : 'input[type="text"]:not([data-no-spamfilter]), textarea:not([data-no-spamfilter])')) || []
-    ].reduce(
-      (_, y) => {
-        const T = y.name, E = y.value;
-        return T && E && (_[T] = /\n/.test(E) ? E.replace(new RegExp("(?<!\\r)\\n", "g"), `\r
-`) : E), _;
+  function getFormElements(selector) {
+    return get(elForm) ? Array.from(get(elForm).elements).filter((el) => el.matches(selector)) : [];
+  }
+  function getTextFields(names) {
+    const elInputs = getFormElements(fieldsSelector);
+    return elInputs.reduce(
+      (acc, el) => {
+        const name = el.name;
+        const value = el.value;
+        if (name && value) {
+          acc[name] = /\n/.test(value) ? value.replace(new RegExp("(?<!\\r)\\n", "g"), "\r\n") : value;
+        }
+        return acc;
       },
       {}
     );
   }
-  function fi() {
-    const n = Ne() !== void 0 ? Ne().split(",") : void 0;
-    for (const u of globalThis.altchaPlugins)
-      (!n || n.includes(u.pluginName)) && Ee.push(new u({
-        el: c(B),
-        clarify: rt,
-        dispatch: et,
-        getConfiguration: Ar,
-        getFloatingAnchor: Rr,
-        getState: Ir,
-        log: S,
-        reset: it,
-        solve: kr,
-        setState: De,
-        setFloatingAnchor: Tr,
-        verify: xe
-      }));
-  }
-  function S(...n) {
-    (s() || n.some((u) => u instanceof Error)) && console[n[0] instanceof Error ? "error" : "log"]("ALTCHA", `[name=${V()}]`, ...n);
-  }
-  function ui() {
-    [b.UNVERIFIED, b.ERROR, b.EXPIRED].includes(c(C)) ? j() !== !1 && (w == null ? void 0 : w.reportValidity()) === !1 ? D(Be, !1) : M() ? rt() : xe() : D(Be, !0);
-  }
-  function gr(n) {
-    const u = n.target;
-    v() && u && !c(B).contains(u) && (c(C) === b.VERIFIED && m() === !1 || c(C) === b.VERIFIED && m() === "focus" && !(w != null && w.matches(":focus-within")) || r() === "off" && c(C) === b.UNVERIFIED) && Sr();
-  }
-  function _r() {
-    v() && c(C) !== b.UNVERIFIED && nt();
-  }
-  function ci(n) {
-    for (const u of Ee)
-      typeof u.onErrorChange == "function" && u.onErrorChange(c(He));
-  }
-  function mr(n) {
-    c(C) === b.UNVERIFIED ? xe() : v() && m() === "focus" && c(C) === b.VERIFIED && Ft();
-  }
-  function wr(n) {
-    w && r() === "onsubmit" ? c(C) === b.UNVERIFIED ? (n.preventDefault(), n.stopPropagation(), xe().then(() => {
-      vi();
-    })) : c(C) !== b.VERIFIED && (n.preventDefault(), n.stopPropagation(), c(C) === b.VERIFYING && br()) : w && v() && r() === "off" && c(C) === b.UNVERIFIED && (n.preventDefault(), n.stopPropagation(), Ft());
-  }
-  function pr() {
-    it();
-  }
-  function br() {
-    c(C) === b.VERIFYING && c(re).waitAlert && alert(c(re).waitAlert);
-  }
-  function di(n) {
-    for (const u of Ee)
-      typeof u.onStateChange == "function" && u.onStateChange(c(C));
-    v() && c(C) !== b.UNVERIFIED && requestAnimationFrame(() => {
-      nt();
-    }), D(Be, c(C) === b.VERIFIED);
-  }
-  function yr() {
-    v() && nt();
-  }
-  function Er(n) {
-    return JSON.parse(n);
-  }
-  async function hi(n) {
-    if (!ye())
-      throw new Error("Attribute verifyurl not set.");
-    S("requesting server verification from", ye());
-    const u = { payload: n };
-    if (j() !== !1) {
-      const {
-        blockedCountries: T,
-        classifier: E,
-        disableRules: p,
-        email: x,
-        expectedLanguages: me,
-        expectedCountries: jt,
-        fields: at,
-        ipAddress: lt,
-        text: Ai,
-        timeZone: jr
-      } = li();
-      u.blockedCountries = T, u.classifier = E, u.disableRules = p, u.email = x === !1 ? void 0 : ai(x), u.expectedCountries = jt, u.expectedLanguages = me || (fr ? [fr] : void 0), u.fields = at === !1 ? void 0 : si(at), u.ipAddress = lt === !1 ? void 0 : lt || "auto", u.text = Ai, u.timeZone = jr === !1 ? void 0 : jr || Xo();
+  function getTimeZone() {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone;
+    } catch {
     }
-    const _ = await vr()(ye(), {
-      body: JSON.stringify(u),
-      headers: { "content-type": "application/json" },
+    return void 0;
+  }
+  function getUrl(uri, baseUrl2, params) {
+    const result = new URL(uri, baseUrl2);
+    if (!result.search) {
+      result.search = baseUrl2.search;
+    }
+    if (params) {
+      for (const key2 in params) {
+        if (params[key2] !== void 0 && params[key2] !== null) {
+          result.searchParams.set(key2, params[key2]);
+        }
+      }
+    }
+    return result.toString();
+  }
+  function onCheckboxChange(ev) {
+    if (!get(checked) && ev.currentTarget.checked) {
+      ev.preventDefault();
+      ev.currentTarget.checked = false;
+      if (get(currentState) !== State.VERIFYING) {
+        verify();
+      }
+    } else if (!ev.currentTarget.checked) {
+      ev.preventDefault();
+      reset$1();
+    }
+  }
+  function onCheckboxInvalid(ev) {
+    if (get(currentState) === State.VERIFYING) {
+      ev.currentTarget.setCustomValidity(get(strings).waitAlert);
+    } else if (get(config).validationMessage) {
+      ev.currentTarget.setCustomValidity(get(config).validationMessage);
+    }
+  }
+  function onCloseClick() {
+    setDisplay(get(config).display);
+    reset$1();
+  }
+  function onDocumentScroll() {
+    updateUI();
+  }
+  function onDocumentClick(ev) {
+    const target = ev.target;
+    if (get(config).display === "floating" && target && !instance?.contains(target) && !target.hasAttribute("data-backdrop") && !target.closest("[data-popover]") && get(currentState) !== State.VERIFIED && !get(config).floatingPersist) {
+      hide();
+    }
+  }
+  function onFormFocusIn(ev) {
+    const target = ev.target;
+    if (get(auto) === "onfocus" && get(currentState) === State.UNVERIFIED && get(elForm) && target instanceof Element && (get(elForm).contains(target) || target.form === get(elForm))) {
+      verify();
+    }
+  }
+  function onFormReset() {
+    setDisplay(get(config).display);
+    reset$1();
+  }
+  function onFormSubmit(ev) {
+    const target = ev.target;
+    if (target?.getAttribute("data-code-challenge") === "true") {
+      return;
+    }
+    if (get(auto) === "onsubmit" && get(currentState) === State.UNVERIFIED) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      set(elSubmitter, ev.submitter, true);
+      show();
+      verify().then((result) => {
+        if (result && !get(codeChallenge)) {
+          tick().then(() => {
+            requestSubmit(get(elSubmitter));
+          });
+        }
+      });
+    }
+  }
+  function onWindowPageshow(ev) {
+    if (ev.persisted) {
+      setDisplay(get(config).display);
+      reset$1();
+    }
+  }
+  function onWindowResize() {
+    updateUI();
+  }
+  function processConfigHeader(jsonConfig) {
+    try {
+      const json = JSON.parse(jsonConfig);
+      if (json && typeof json === "object") {
+        configure({
+          // Backward compatibility mappings
+          serverVerificationFields: json?.sentinel?.fields,
+          serverVerificationTimeZone: json?.sentinel?.timeZone,
+          verifyUrl: json.verifyurl,
+          ...json
+        });
+      }
+    } catch (err) {
+      log("unable to configure from x-altcha-config header", err);
+    }
+  }
+  function repositionFloating(viewportOffset = 20) {
+    if (!get(elRoot)) {
+      return;
+    }
+    const floatingPlacement = get(config).floatingPlacement;
+    if (!get(elFloatingAnchor)) {
+      set(
+        elFloatingAnchor,
+        (get(config).floatingAnchor instanceof HTMLElement ? get(config).floatingAnchor : get(config).floatingAnchor ? document.querySelector(get(config).floatingAnchor) : getFormElements(submitButtonSelector)[0]) || get(elForm),
+        true
+      );
+      if (!get(elFloatingAnchor)) {
+        log("unable to find floating anchor element");
+        return;
+      }
+    }
+    const offsetY = parseInt(get(config).floatingOffset, 10) || 12;
+    const anchorBoundry = get(elFloatingAnchor).getBoundingClientRect();
+    const elBoundary = get(elRoot).getBoundingClientRect();
+    const docHeight = document.documentElement.clientHeight;
+    const docWidth = document.documentElement.clientWidth;
+    const showOnTop = !floatingPlacement || floatingPlacement === "auto" ? anchorBoundry.bottom + elBoundary.height + offsetY + viewportOffset > docHeight : floatingPlacement === "top";
+    const left = Math.max(viewportOffset, Math.min(docWidth - viewportOffset - elBoundary.width, anchorBoundry.left + anchorBoundry.width / 2 - elBoundary.width / 2));
+    get(elRoot).style.setProperty("--altcha-floating-left", `${left}px`);
+    get(elRoot).style.setProperty("--altcha-floating-top", showOnTop ? `${anchorBoundry.top - (elBoundary.height + offsetY)}px` : `${anchorBoundry.bottom + offsetY}px`);
+    get(elRoot).setAttribute("data-floating-position", showOnTop ? "top" : "bottom");
+    if (get(elAnchorArrow)) {
+      const anchorArrowBoundry = get(elAnchorArrow).getBoundingClientRect();
+      get(elAnchorArrow).style.left = anchorBoundry.left - left + anchorBoundry.width / 2 - anchorArrowBoundry.width / 2 + "px";
+    }
+  }
+  async function requestServerVerification(verificationPayload, code) {
+    const hook = await callHook("onRequestServerVerification", verificationPayload, code);
+    if (hook !== void 0) {
+      return hook;
+    }
+    log("requesting server verification from", get(config).verifyUrl);
+    if (!get(config).verifyUrl) {
+      throw new Error(`Parameter verifyUrl must be set for server verification.`);
+    }
+    const { json } = await requestJson(getUrl(get(config).verifyUrl, get(baseUrl)), {
+      body: JSON.stringify({
+        code,
+        fields: get(config).serverVerificationFields ? getTextFields() : void 0,
+        his: get(codeChallenge)?.his && hisCollector ? hisCollector.exportSinceMark() : void 0,
+        payload: verificationPayload,
+        timeZone: get(config).serverVerificationTimeZone ? getTimeZone() : void 0
+      }),
+      credentials: get(config).credentials || void 0,
+      headers: { "Content-Type": "application/json" },
       method: "POST"
     });
-    if (!_ || !(_ instanceof Response))
-      throw new Error("Fetch function did not return a response.");
-    if (_.status !== 200)
-      throw new Error(`Server responded with ${_.status}.`);
-    const y = await _.json();
-    if (y != null && y.payload && D(Le, y.payload, !0), et("serververification", y), i() && y.classification === "BAD")
-      throw new Error("SpamFilter returned negative classification.");
+    if (json && typeof json === "object" && "payload" in json && !!json.payload) {
+      dispatch("serververification", json);
+    }
+    return json;
   }
-  function vi() {
-    w && "requestSubmit" in w ? w.requestSubmit() : w != null && w.reportValidity() && w.submit();
-  }
-  function Ot(n) {
-    S("expire", n), ce && (clearTimeout(ce), ce = null), n < 1 ? hr() : ce = setTimeout(hr, n);
-  }
-  function xr(n) {
-    S("floating", n), v() !== n && (c(B).style.left = "", c(B).style.top = ""), v(n === !0 || n === "" ? "auto" : n === !1 || n === "false" ? void 0 : v()), v() ? (r() || r("onsubmit"), document.addEventListener("scroll", _r), document.addEventListener("click", gr), window.addEventListener("resize", yr)) : r() === "onsubmit" && r(void 0);
-  }
-  function $r(n) {
-    if (!n.algorithm)
-      throw new Error("Invalid challenge. Property algorithm is missing.");
-    if (n.signature === void 0)
-      throw new Error("Invalid challenge. Property signature is missing.");
-    if (!ar.includes(n.algorithm.toUpperCase()))
-      throw new Error(`Unknown algorithm value. Allowed values: ${ar.join(", ")}`);
-    if (!n.challenge || n.challenge.length < 40)
-      throw new Error("Challenge is too short. Min. 40 chars.");
-    if (!n.salt || n.salt.length < 10)
-      throw new Error("Salt is too short. Min. 10 chars.");
-  }
-  async function kr(n) {
-    let u = null;
-    if ("Worker" in window) {
-      try {
-        u = await gi(n, n.maxNumber || n.maxnumber || U());
-      } catch (_) {
-        S(_);
+  function requestSubmit(submitter) {
+    if (get(elForm) && "requestSubmit" in get(elForm)) {
+      get(elForm).requestSubmit(submitter);
+    } else if (get(elForm)?.reportValidity()) {
+      if (submitter) {
+        submitter.click();
+      } else {
+        get(elForm).submit();
       }
-      if ((u == null ? void 0 : u.number) !== void 0 || "obfuscated" in n)
-        return { data: n, solution: u };
     }
-    if ("obfuscated" in n) {
-      const _ = await ta(n.obfuscated, n.key, n.maxNumber || n.maxnumber);
-      return { data: n, solution: await _.promise };
-    }
-    return {
-      data: n,
-      solution: await zo(n.challenge, n.salt, n.algorithm, n.maxNumber || n.maxnumber || U()).promise
-    };
   }
-  async function gi(n, u = typeof te() == "number" ? te() : n.maxNumber || n.maxnumber || U(), _ = Math.ceil(Ve())) {
-    const y = [];
-    _ = Math.min(16, u, Math.max(1, _));
-    for (let p = 0; p < _; p++)
-      y.push(altchaCreateWorker(Qe()));
-    const T = Math.ceil(u / _), E = await Promise.all(y.map((p, x) => {
-      const me = x * T;
-      return new Promise((jt) => {
-        p.addEventListener("message", (at) => {
-          if (at.data)
-            for (const lt of y)
-              lt !== p && lt.postMessage({ type: "abort" });
-          jt(at.data);
-        }), p.postMessage({
-          payload: n,
-          max: me + T,
-          start: me,
-          type: "work"
-        });
-      });
-    }));
-    for (const p of y)
-      p.terminate();
-    return E.find((p) => !!p) || null;
+  function setCookie(value, options = {}) {
+    const {
+      domain,
+      name = get(config).name,
+      maxAge,
+      path,
+      sameSite,
+      secure
+    } = options;
+    let cookie = `${encodeURIComponent(name)}=${encodeURIComponent(value)}`;
+    if (domain) cookie += `; Domain=${domain}`;
+    if (maxAge != null) cookie += `; Max-Age=${maxAge}`;
+    if (path) cookie += `; Path=${path}`;
+    if (sameSite) cookie += `; SameSite=${sameSite}`;
+    if (secure) cookie += `; Secure`;
+    document.cookie = cookie;
   }
-  async function rt() {
-    if (!M()) {
-      De(b.ERROR);
-      return;
-    }
-    const n = Ee.find((u) => u.constructor.pluginName === "obfuscation");
-    if (!n || !("clarify" in n)) {
-      De(b.ERROR), S("Plugin `obfuscation` not found. Import `altcha/plugins/obfuscation` to load it.");
-      return;
-    }
-    if ("clarify" in n && typeof n.clarify == "function")
-      return n.clarify();
-  }
-  function Cr(n) {
-    n.obfuscated !== void 0 && M(n.obfuscated), n.auto !== void 0 && (r(n.auto), r() === "onload" && (M() ? rt() : xe())), n.blockspam !== void 0 && i(!!n.blockspam), n.customfetch !== void 0 && l(n.customfetch), n.floatinganchor !== void 0 && h(n.floatinganchor), n.delay !== void 0 && f(n.delay), n.floatingoffset !== void 0 && g(n.floatingoffset), n.floating !== void 0 && xr(n.floating), n.expire !== void 0 && (Ot(n.expire), d(n.expire)), n.challenge && (a(typeof n.challenge == "string" ? n.challenge : JSON.stringify(n.challenge)), $r(c(Pt))), n.challengeurl !== void 0 && o(n.challengeurl), n.debug !== void 0 && s(!!n.debug), n.hidefooter !== void 0 && k(!!n.hidefooter), n.hidelogo !== void 0 && N(!!n.hidelogo), n.maxnumber !== void 0 && U(+n.maxnumber), n.mockerror !== void 0 && Y(!!n.mockerror), n.name !== void 0 && V(n.name), n.refetchonexpire !== void 0 && O(!!n.refetchonexpire), n.spamfilter !== void 0 && j(typeof n.spamfilter == "object" ? n.spamfilter : !!n.spamfilter), n.strings && _e(typeof n.strings == "string" ? n.strings : JSON.stringify(n.strings)), n.test !== void 0 && te(typeof n.test == "number" ? n.test : !!n.test), n.verifyurl !== void 0 && ye(n.verifyurl), n.workers !== void 0 && Ve(+n.workers), n.workerurl !== void 0 && Qe(n.workerurl);
-  }
-  function Ar() {
-    return {
-      auto: r(),
-      blockspam: i(),
-      challengeurl: o(),
-      debug: s(),
-      delay: f(),
-      expire: d(),
-      floating: v(),
-      floatinganchor: h(),
-      floatingoffset: g(),
-      hidefooter: k(),
-      hidelogo: N(),
-      name: V(),
-      maxnumber: U(),
-      mockerror: Y(),
-      obfuscated: M(),
-      refetchonexpire: O(),
-      spamfilter: j(),
-      strings: c(re),
-      test: te(),
-      verifyurl: ye(),
-      workers: Ve(),
-      workerurl: Qe()
-    };
-  }
-  function Rr() {
-    return qe;
-  }
-  function _i(n) {
-    return Ee.find((u) => u.constructor.pluginName === n);
-  }
-  function Ir() {
-    return c(C);
-  }
-  function Sr() {
-    c(B).style.display = "none";
-  }
-  function nt(n = 20) {
-    if (c(B))
-      if (qe || (qe = (h() ? document.querySelector(h()) : w == null ? void 0 : w.querySelector('input[type="submit"], button[type="submit"], button:not([type="button"]):not([type="reset"])')) || w), qe) {
-        const u = parseInt(g(), 10) || 12, _ = qe.getBoundingClientRect(), y = c(B).getBoundingClientRect(), T = document.documentElement.clientHeight, E = document.documentElement.clientWidth, p = v() === "auto" ? _.bottom + y.height + u + n > T : v() === "top", x = Math.max(n, Math.min(E - n - y.width, _.left + _.width / 2 - y.width / 2));
-        if (p ? c(B).style.top = `${_.top - (y.height + u)}px` : c(B).style.top = `${_.bottom + u}px`, c(B).style.left = `${x}px`, c(B).setAttribute("data-floating", p ? "top" : "bottom"), c(tt)) {
-          const me = c(tt).getBoundingClientRect();
-          c(tt).style.left = _.left - x + _.width / 2 - me.width / 2 + "px";
+  function setDisplay(value) {
+    switch (value) {
+      case "bar":
+      case "floating":
+      case "overlay":
+        hide();
+        if (!get(auto) || get(auto) === "off") {
+          get(userConfig).auto = "onsubmit";
         }
-      } else
-        S("unable to find floating anchor element");
+        break;
+      case "standard":
+        show();
+    }
+    if (get(currentDisplay) !== value) {
+      set(currentDisplay, value, true);
+    }
   }
-  function it(n = b.UNVERIFIED, u = null) {
-    ce && (clearTimeout(ce), ce = null), D(Be, !1), D(Le, null), De(n, u);
-  }
-  function Tr(n) {
-    qe = n;
-  }
-  function De(n, u = null) {
-    D(C, n, !0), D(He, u, !0), et("statechange", {
-      payload: c(Le),
-      state: c(C)
-    });
-  }
-  function Ft() {
-    c(B).style.display = "block", v() && nt();
-  }
-  async function xe() {
-    return it(b.VERIFYING), await new Promise((n) => setTimeout(n, f() || 0)), oi().then((n) => ($r(n), S("challenge", n), kr(n))).then(({ data: n, solution: u }) => {
-      if (S("solution", u), !u || n && "challenge" in n && !("clearText" in u))
-        if ((u == null ? void 0 : u.number) !== void 0 && "challenge" in n) {
-          if (ye())
-            return hi(dr(n, u));
-          D(Le, dr(n, u), !0), S("payload", c(Le));
-        } else
-          throw S("Unable to find a solution. Ensure that the 'maxnumber' attribute is greater than the randomly generated number."), new Error("Unexpected result returned.");
-    }).then(() => {
-      De(b.VERIFIED), S("verified"), xo().then(() => {
-        et("verified", { payload: c(Le) });
-      });
-    }).catch((n) => {
-      S(n), De(b.ERROR, n.message);
-    });
-  }
-  var Nr = da(), Lr = Gr(Nr);
-  Po(Lr, t, "default", {});
-  var ot = we(Lr, 2), Mt = X(ot), Dr = X(Mt);
-  {
-    var mi = (n) => {
-      var u = ra();
-      ne(n, u);
+  function setChallengeExpiration(expiresAt) {
+    if (get(expirationTimeout)) {
+      clearTimeout(get(expirationTimeout));
+    }
+    const onExpired = () => {
+      if (get(currentState) !== State.UNVERIFIED) {
+        set(checked, false);
+        setState(State.EXPIRED);
+      } else {
+        reset$1();
+      }
+      dispatch("expired");
     };
-    $e(Dr, (n) => {
-      c(C) === b.VERIFYING && n(mi);
+    const duration = expiresAt * 1e3 - Date.now();
+    if (duration >= 1) {
+      set(expirationTimeout, setTimeout(onExpired, duration), true);
+    } else {
+      onExpired();
+    }
+  }
+  async function requestJson(url, init) {
+    try {
+      const resp = await get(config).fetch(url, init);
+      await validateResponse(resp);
+      return { headers: resp.headers, json: await resp.json() };
+    } catch (err) {
+      throw new RequestError(err instanceof Error ? err.message : String(err));
+    }
+  }
+  async function validateResponse(resp) {
+    if (resp.status >= 400) {
+      if (resp.headers.get("content-type")?.includes("/json")) {
+        let json;
+        try {
+          json = await resp.json();
+        } catch {
+        }
+        if (json && "error" in json) {
+          throw new Error(`Server responded with ${resp.status} - ${json.error}`);
+        }
+      }
+      throw new Error(`Server responded with ${resp.status}.`);
+    }
+    const contentType = resp.headers.get("content-type");
+    if (!contentType || !contentType.includes("/json")) {
+      throw new Error(`Server responded with invalid content-type. Expected application/json, received ${contentType}.`);
+    }
+  }
+  async function verifyServer(code) {
+    if (!get(payload)) {
+      setError(new Error("Cannot verify code challenge without PoW payload."));
+      return;
+    }
+    setState(State.VERIFYING);
+    let result = null;
+    if (get(config).verifyUrl) {
+      result = await requestServerVerification(get(payload), code);
+    } else if (get(config).verifyFunction) {
+      result = await get(config).verifyFunction(get(payload), code);
+    } else {
+      setError(new Error("Parameter verifyUrl is required for code challenge verification."));
+      return;
+    }
+    if (result?.payload) {
+      set(payload, result.payload, true);
+      log("server payload", get(payload));
+    }
+    if (result?.verified === true) {
+      log("verified");
+      setState(State.VERIFIED);
+      dispatch("verified", { payload: get(payload) });
+      if (get(auto) === "onsubmit") {
+        tick().then(() => {
+          requestSubmit(get(elSubmitter));
+        });
+      }
+    } else {
+      setError(new Error(result?.reason || "Verification failed."));
+    }
+    if (!get(config).disableAutoFocus) {
+      getCheckboxElement()?.focus();
+    }
+  }
+  function configure(newConfig) {
+    Object.assign(get(userConfig), {
+      ...Object.fromEntries(Object.entries(newConfig).filter(([_, value]) => value !== void 0))
     });
   }
-  var mt = we(Dr, 2);
-  let Pr;
-  var We = X(mt);
-  en(We), We.__change = ui, z(mt);
-  var Ut = we(mt, 2), wi = X(Ut);
-  {
-    var pi = (n) => {
-      var u = na(), _ = Gr(u), y = X(_);
-      Ge(y, () => c(re).verified), z(_);
-      var T = we(_, 2);
-      en(T), Pe(() => {
-        se(T, "name", V()), jo(T, c(Le));
-      }), ne(n, u);
-    }, bi = (n, u) => {
-      {
-        var _ = (T) => {
-          var E = ia(), p = X(E);
-          Ge(p, () => c(re).verifying), z(E), ne(T, E);
-        }, y = (T) => {
-          var E = oa(), p = X(E);
-          Ge(p, () => c(re).label), z(E), Pe(() => se(E, "for", c(cr))), ne(T, E);
-        };
-        $e(
-          n,
-          (T) => {
-            c(C) === b.VERIFYING ? T(_) : T(y, !1);
-          },
-          u
+  function getConfiguration() {
+    return { ...get(config) };
+  }
+  function getState() {
+    return get(currentState);
+  }
+  function hide() {
+    set(visible, false);
+  }
+  function log(...args) {
+    if (get(config).debug || args.some((a) => a instanceof Error)) {
+      console[args[0] instanceof Error ? "error" : "log"]("ALTCHA", `[name=${get(config).name}]`, ...args);
+    }
+  }
+  function reset$1(newState = State.UNVERIFIED, err = null) {
+    set(checked, false);
+    set(error, err, true);
+    set(payload, null);
+    if (get(currentController)) {
+      get(currentController).abort();
+    }
+    if (get(expirationTimeout)) {
+      clearTimeout(get(expirationTimeout));
+      set(expirationTimeout, null);
+    }
+    setState(newState);
+  }
+  function setError(err) {
+    const errObj = err instanceof Error ? err : new Error(String(err));
+    setState(State.ERROR, String(errObj));
+    if (get(config).formatError) {
+      set(errorMessage, get(config).formatError(errObj) || null, true);
+    } else if (errObj instanceof RequestError) {
+      set(errorMessage, `Error: ${errObj.message}`);
+    }
+  }
+  function setState(newState, err = null) {
+    set(currentState, newState, true);
+    set(error, err, true);
+    set(errorMessage, null);
+    dispatch("statechange", { payload: get(payload), state: get(currentState) });
+  }
+  function show() {
+    set(visible, true);
+    tick().then(() => {
+      updateUI();
+    });
+  }
+  function updateUI() {
+    switch (get(config).display) {
+      case "floating":
+        return repositionFloating();
+    }
+    set(updateUISignal, get(updateUISignal) + 1);
+  }
+  async function verify(options = {}) {
+    const {
+      concurrency = Math.max(1, get(config).workers),
+      controller = new AbortController(),
+      minDuration = get(config).minDuration
+    } = options;
+    const start = performance.now();
+    let challenge = null;
+    let solution = null;
+    let isChallengeV12 = false;
+    const hook = await callHook("onVerify", options);
+    if (hook !== void 0) {
+      return hook;
+    }
+    reset$1(State.VERIFYING);
+    set(currentController, controller, true);
+    try {
+      if (!isSecureContext) {
+        throw new Error("Secure context (HTTPS) required.");
+      }
+      if (get(config).mockError) {
+        throw new Error("Mock error.");
+      }
+      if (get(config).test) {
+        log("running test mode with null challenge");
+        await delay(Math.max(0, minDuration - (performance.now() - start)));
+        if (get(currentController)?.signal.aborted) {
+          reset$1();
+          return null;
+        }
+        set(payload, btoa(JSON.stringify({ challenge: null, solution: null, test: true })), true);
+        log("verified");
+        setState(State.VERIFIED);
+        dispatch("verified", { payload: get(payload) });
+        return { payload: get(payload) };
+      }
+      challenge = await fetchChallenge();
+      if (!challenge) {
+        throw new Error("Failed to fetch challenge.");
+      }
+      log("challenge", challenge);
+      if ("configuration" in challenge) {
+        log("re-configuring from challenge", challenge.configuration);
+        configure(challenge.configuration);
+      }
+      if (challenge.parameters.expiresAt) {
+        setChallengeExpiration(challenge.parameters.expiresAt);
+      }
+      isChallengeV12 = "_version" in challenge && challenge._version === 1;
+      const createWorker = globalThis.$altcha.algorithms.get(challenge.parameters.algorithm);
+      if (!createWorker) {
+        throw new Error(`Unsupported algorithm ${challenge.parameters.algorithm}.`);
+      }
+      solution = await solveChallengeWorkers({
+        challenge,
+        concurrency,
+        controller,
+        createWorker,
+        counterMode: isChallengeV12 ? "string" : "uint32",
+        onOutOfMemory: (c) => {
+          log("out of memory error received");
+          dispatch("outofmemory");
+          if (get(config).retryOnOutOfMemoryError && c > 1) {
+            const retryConcurrency = Math.floor(c / 2);
+            log(`retrying with ${retryConcurrency} workers...`);
+            return retryConcurrency;
+          }
+        },
+        timeout: get(config).timeout
+      });
+      if (get(currentController)?.signal.aborted) {
+        reset$1();
+        return null;
+      }
+      if (!solution) {
+        throw new Error("Failed to find solution.");
+      }
+      log("solution", solution);
+      await delay(Math.max(0, minDuration - (performance.now() - start)));
+      set(codeChallenge, challenge.codeChallenge || get(config).codeChallenge || null, true);
+      if (isChallengeV12) {
+        set(payload, btoa(JSON.stringify(createPayloadV1(challenge, solution))), true);
+      } else {
+        set(
+          payload,
+          btoa(JSON.stringify({
+            challenge: {
+              parameters: challenge.parameters,
+              signature: challenge.signature
+            },
+            solution
+          })),
+          true
         );
       }
+      if (get(codeChallenge)) {
+        log("requesting code verification");
+        setState(State.CODE);
+        dispatch("codechallenge", { codeChallenge: get(codeChallenge) });
+      } else if (get(config).verifyUrl) {
+        await verifyServer();
+      } else {
+        log("verified");
+        setState(State.VERIFIED);
+        dispatch("verified", { payload: get(payload) });
+      }
+    } catch (err) {
+      log("verification failed", err);
+      setError(err);
+      return null;
+    } finally {
+      set(currentController, null);
+    }
+    return { challenge, payload: get(payload), solution };
+  }
+  var $$exports = {
+    configure,
+    getConfiguration,
+    getState,
+    hide,
+    log,
+    reset: reset$1,
+    setState,
+    show,
+    updateUI,
+    verify
+  };
+  var fragment = root_9();
+  event("scroll", $document, onDocumentScroll);
+  event("click", $document, onDocumentClick);
+  event("pageshow", $window, onWindowPageshow);
+  event("resize", $window, onWindowResize);
+  var node = first_child(fragment);
+  {
+    var consequent = ($$anchor2) => {
+      var div = root_1();
+      append($$anchor2, div);
     };
-    $e(wi, (n) => {
-      c(C) === b.VERIFIED ? n(pi) : n(bi, !1);
+    if_block(node, ($$render) => {
+      if (get(config).display === "overlay" && get(visible)) $$render(consequent);
     });
   }
-  z(Ut);
-  var yi = we(Ut, 2);
+  var div_1 = sibling(node, 2);
+  var node_1 = child(div_1);
   {
-    var Ei = (n) => {
-      var u = aa(), _ = X(u);
-      se(_, "href", sr), z(u), Pe(() => se(_, "aria-label", c(re).ariaLinkLabel)), ne(n, u);
-    };
-    $e(yi, (n) => {
-      (N() !== !0 || c(Dt)) && n(Ei);
-    });
-  }
-  z(Mt);
-  var Or = we(Mt, 2);
-  {
-    var xi = (n) => {
-      var u = fa(), _ = we(X(u), 2);
+    var consequent_2 = ($$anchor2) => {
+      var fragment_1 = root_3();
+      var div_2 = first_child(fragment_1);
+      var node_2 = sibling(div_2, 2);
       {
-        var y = (E) => {
-          var p = la(), x = X(p);
-          Ge(x, () => c(re).expired), z(p), Pe(() => se(p, "title", c(He))), ne(E, p);
-        }, T = (E) => {
-          var p = sa(), x = X(p);
-          Ge(x, () => c(re).error), z(p), Pe(() => se(p, "title", c(He))), ne(E, p);
+        var consequent_1 = ($$anchor3) => {
+          var div_3 = root_2();
+          html(div_3, () => document.querySelector(get(config).overlayContent)?.innerHTML, true);
+          reset(div_3);
+          append($$anchor3, div_3);
         };
-        $e(_, (E) => {
-          c(C) === b.EXPIRED ? E(y) : E(T, !1);
+        if_block(node_2, ($$render) => {
+          if (get(config).overlayContent) $$render(consequent_1);
         });
       }
-      z(u), ne(n, u);
+      event("click", div_2, onCloseClick, true);
+      append($$anchor2, fragment_1);
     };
-    $e(Or, (n) => {
-      (c(He) || c(C) === b.EXPIRED) && n(xi);
+    if_block(node_1, ($$render) => {
+      if (get(config).display === "overlay" && get(visible)) $$render(consequent_2);
     });
   }
-  var Fr = we(Or, 2);
+  var div_4 = sibling(node_1, 2);
+  var div_5 = child(div_4);
+  var div_6 = child(div_5);
+  var node_3 = child(div_6);
   {
-    var $i = (n) => {
-      var u = ua(), _ = X(u), y = X(_);
-      Ge(y, () => c(re).footer), z(_), z(u), ne(n, u);
-    };
-    $e(Fr, (n) => {
-      c(re).footer && (k() !== !0 || c(Dt)) && n($i);
+    let $0 = /* @__PURE__ */ user_derived(() => get(config).display === "standard" && get(auto) !== "onsubmit" || get(currentState) === State.VERIFYING);
+    component(node_3, () => get(CheckboxComponent), ($$anchor2, CheckboxComponent_1) => {
+      CheckboxComponent_1($$anchor2, {
+        get id() {
+          return get(checkboxId);
+        },
+        get form() {
+          return $$props.form;
+        },
+        name: "",
+        get required() {
+          return get($0);
+        },
+        get loading() {
+          return get(loading);
+        },
+        get checked() {
+          return get(checked);
+        },
+        onchange: onCheckboxChange,
+        oninvalid: onCheckboxInvalid
+      });
     });
   }
-  var ki = we(Fr, 2);
+  var label = sibling(node_3, 2);
+  var node_4 = child(label);
   {
-    var Ci = (n) => {
-      var u = ca();
-      nn(u, (_) => D(tt, _), () => c(tt)), ne(n, u);
+    var consequent_3 = ($$anchor2) => {
+      var text$1 = text();
+      template_effect(() => set_text(text$1, get(strings).verificationRequired));
+      append($$anchor2, text$1);
     };
-    $e(ki, (n) => {
-      v() && n(Ci);
+    var consequent_4 = ($$anchor2) => {
+      var text_1 = text();
+      template_effect(() => set_text(text_1, get(strings).verifying));
+      append($$anchor2, text_1);
+    };
+    var consequent_5 = ($$anchor2) => {
+      var text_2 = text();
+      template_effect(() => set_text(text_2, get(strings).verified));
+      append($$anchor2, text_2);
+    };
+    var alternate = ($$anchor2) => {
+      var text_3 = text();
+      template_effect(() => set_text(text_3, get(strings).label));
+      append($$anchor2, text_3);
+    };
+    if_block(node_4, ($$render) => {
+      if (get(currentState) === State.CODE && get(codeChallenge)) $$render(consequent_3);
+      else if (get(currentState) === State.VERIFYING) $$render(consequent_4, 1);
+      else if (get(currentState) === State.VERIFIED) $$render(consequent_5, 2);
+      else $$render(alternate, -1);
     });
   }
-  return z(ot), nn(ot, (n) => D(B, n), () => c(B)), Pe(
-    (n) => {
-      se(ot, "data-state", c(C)), se(ot, "data-floating", v()), Pr = Fo(mt, 1, "altcha-checkbox", null, Pr, n), se(We, "id", c(cr)), We.required = r() !== "onsubmit" && (!v() || r() !== "off");
+  reset(label);
+  reset(div_6);
+  var node_5 = sibling(div_6, 2);
+  {
+    var consequent_6 = ($$anchor2) => {
+      Logo($$anchor2, {
+        get strings() {
+          return get(strings);
+        }
+      });
+    };
+    if_block(node_5, ($$render) => {
+      if (get(showLogo)) $$render(consequent_6);
+    });
+  }
+  reset(div_5);
+  var node_6 = sibling(div_5, 2);
+  {
+    var consequent_7 = ($$anchor2) => {
+      {
+        let $0 = /* @__PURE__ */ user_derived(() => get(config).display === "bar" && get(showLogo));
+        Footer($$anchor2, {
+          get logo() {
+            return get($0);
+          },
+          get strings() {
+            return get(strings);
+          }
+        });
+      }
+    };
+    if_block(node_6, ($$render) => {
+      if (get(showFooter)) $$render(consequent_7);
+    });
+  }
+  var node_7 = sibling(node_6, 2);
+  {
+    var consequent_8 = ($$anchor2) => {
+      var div_7 = root_4();
+      bind_this(div_7, ($$value) => set(elAnchorArrow, $$value), () => get(elAnchorArrow));
+      append($$anchor2, div_7);
+    };
+    if_block(node_7, ($$render) => {
+      if (get(config).display === "floating") $$render(consequent_8);
+    });
+  }
+  var node_8 = sibling(node_7, 2);
+  {
+    var consequent_9 = ($$anchor2) => {
+      var input_1 = root_5();
+      remove_input_defaults(input_1);
+      template_effect(() => {
+        set_attribute(input_1, "form", $$props.form);
+        set_attribute(input_1, "name", get(config).name);
+        set_value(input_1, get(payload));
+      });
+      append($$anchor2, input_1);
+    };
+    if_block(node_8, ($$render) => {
+      if (!get(config).setCookie) $$render(consequent_9);
+    });
+  }
+  reset(div_4);
+  var node_9 = sibling(div_4, 2);
+  {
+    var consequent_12 = ($$anchor2) => {
+      Popover($$anchor2, {
+        get anchor() {
+          return get(elRoot);
+        },
+        onClickOutside: () => {
+          if (isSecureContext) {
+            reset$1();
+          }
+        },
+        get placement() {
+          return get(config).popoverPlacement;
+        },
+        role: "alert",
+        variant: "error",
+        get dir() {
+          return get(dir);
+        },
+        get updateUISignal() {
+          return get(updateUISignal);
+        },
+        children: ($$anchor3, $$slotProps) => {
+          var fragment_9 = comment();
+          var node_10 = first_child(fragment_9);
+          {
+            var consequent_10 = ($$anchor4) => {
+              var div_8 = root_6();
+              append($$anchor4, div_8);
+            };
+            var consequent_11 = ($$anchor4) => {
+              var div_9 = root_7();
+              var text_4 = only_child(div_9, true);
+              template_effect(() => set_text(text_4, get(strings).expired));
+              append($$anchor4, div_9);
+            };
+            var alternate_1 = ($$anchor4) => {
+              var div_10 = root_7();
+              var text_5 = only_child(div_10, true);
+              template_effect(() => {
+                set_attribute(div_10, "title", get(error));
+                set_text(text_5, get(errorMessage) || get(strings).error);
+              });
+              append($$anchor4, div_10);
+            };
+            if_block(node_10, ($$render) => {
+              if (!get(error) && !isSecureContext) $$render(consequent_10);
+              else if (!get(error) && get(currentState) === State.EXPIRED) $$render(consequent_11, 1);
+              else $$render(alternate_1, -1);
+            });
+          }
+          append($$anchor3, fragment_9);
+        },
+        $$slots: { default: true }
+      });
+    };
+    var consequent_14 = ($$anchor2) => {
+      var fragment_10 = comment();
+      var node_11 = first_child(fragment_10);
+      key(node_11, () => get(codeChallenge), ($$anchor3) => {
+        {
+          let $0 = /* @__PURE__ */ user_derived(() => get(config).codeChallengeDisplay !== "standard");
+          Popover($$anchor3, {
+            get anchor() {
+              return get(elRoot);
+            },
+            get backdrop() {
+              return get($0);
+            },
+            get display() {
+              return get(config).codeChallengeDisplay;
+            },
+            onClose: () => {
+              reset$1();
+            },
+            get placement() {
+              return get(config).popoverPlacement;
+            },
+            role: "dialog",
+            get "aria-label"() {
+              return get(strings).verificationRequired;
+            },
+            get dir() {
+              return get(dir);
+            },
+            get updateUISignal() {
+              return get(updateUISignal);
+            },
+            children: ($$anchor4, $$slotProps) => {
+              var fragment_12 = root_8();
+              var node_12 = first_child(fragment_12);
+              Code(node_12, {
+                get audioUrl() {
+                  return get(codeChallengeAudioUrl);
+                },
+                get imageUrl() {
+                  return get(codeChallengeImageUrl);
+                },
+                onCancel: () => reset$1(),
+                onReload: () => verify(),
+                onSubmit: (code) => verifyServer(code).catch(setError),
+                get codeChallenge() {
+                  return get(codeChallenge);
+                },
+                get config() {
+                  return get(config);
+                },
+                get strings() {
+                  return get(strings);
+                }
+              });
+              var node_13 = sibling(node_12, 2);
+              {
+                var consequent_13 = ($$anchor5) => {
+                  Footer($$anchor5, {
+                    get logo() {
+                      return get(showLogo);
+                    },
+                    get strings() {
+                      return get(strings);
+                    }
+                  });
+                };
+                if_block(node_13, ($$render) => {
+                  if (get(showFooter) && get(config).codeChallengeDisplay !== "standard") $$render(consequent_13);
+                });
+              }
+              append($$anchor4, fragment_12);
+            },
+            $$slots: { default: true }
+          });
+        }
+      });
+      append($$anchor2, fragment_10);
+    };
+    if_block(node_9, ($$render) => {
+      if (get(error) || get(currentState) === State.EXPIRED || !isSecureContext) $$render(consequent_12);
+      else if (get(codeChallenge) && get(currentState) === State.CODE) $$render(consequent_14, 1);
+    });
+  }
+  reset(div_1);
+  bind_this(div_1, ($$value) => set(elRoot, $$value), () => get(elRoot));
+  template_effect(
+    ($0) => {
+      set_attribute(div_1, "data-state", get(currentState));
+      set_attribute(div_1, "data-display", get(config).display || void 0);
+      set_attribute(div_1, "data-placement", $0);
+      set_attribute(div_1, "data-visible", get(visible) || void 0);
+      set_attribute(div_1, "dir", get(dir));
+      set_attribute(label, "for", get(checkboxId));
+      div_1.dir = div_1.dir;
     },
-    [
-      () => ({
-        "altcha-hidden": c(C) === b.VERIFYING
-      })
-    ]
-  ), So("invalid", We, br), Bo(We, () => c(Be), (n) => D(Be, n)), ne(e, Nr), Yn({
-    clarify: rt,
-    configure: Cr,
-    getConfiguration: Ar,
-    getFloatingAnchor: Rr,
-    getPlugin: _i,
-    getState: Ir,
-    hide: Sr,
-    repositionFloating: nt,
-    reset: it,
-    setFloatingAnchor: Tr,
-    setState: De,
-    show: Ft,
-    verify: xe,
-    get auto() {
-      return r();
-    },
-    set auto(n = void 0) {
-      r(n), $();
-    },
-    get blockspam() {
-      return i();
-    },
-    set blockspam(n = void 0) {
-      i(n), $();
-    },
-    get challengeurl() {
-      return o();
-    },
-    set challengeurl(n = void 0) {
-      o(n), $();
-    },
-    get challengejson() {
-      return a();
-    },
-    set challengejson(n = void 0) {
-      a(n), $();
-    },
-    get customfetch() {
-      return l();
-    },
-    set customfetch(n = void 0) {
-      l(n), $();
-    },
-    get debug() {
-      return s();
-    },
-    set debug(n = !1) {
-      s(n), $();
-    },
-    get delay() {
-      return f();
-    },
-    set delay(n = 0) {
-      f(n), $();
-    },
-    get expire() {
-      return d();
-    },
-    set expire(n = void 0) {
-      d(n), $();
-    },
-    get floating() {
-      return v();
-    },
-    set floating(n = void 0) {
-      v(n), $();
-    },
-    get floatinganchor() {
-      return h();
-    },
-    set floatinganchor(n = void 0) {
-      h(n), $();
-    },
-    get floatingoffset() {
-      return g();
-    },
-    set floatingoffset(n = void 0) {
-      g(n), $();
-    },
-    get floatingpersist() {
-      return m();
-    },
-    set floatingpersist(n = !1) {
-      m(n), $();
-    },
-    get hidefooter() {
-      return k();
-    },
-    set hidefooter(n = !1) {
-      k(n), $();
-    },
-    get hidelogo() {
-      return N();
-    },
-    set hidelogo(n = !1) {
-      N(n), $();
-    },
-    get id() {
-      return F();
-    },
-    set id(n = void 0) {
-      F(n), $();
-    },
-    get name() {
-      return V();
-    },
-    set name(n = "altcha") {
-      V(n), $();
-    },
-    get maxnumber() {
-      return U();
-    },
-    set maxnumber(n = 1e6) {
-      U(n), $();
-    },
-    get mockerror() {
-      return Y();
-    },
-    set mockerror(n = !1) {
-      Y(n), $();
-    },
-    get obfuscated() {
-      return M();
-    },
-    set obfuscated(n = void 0) {
-      M(n), $();
-    },
-    get plugins() {
-      return Ne();
-    },
-    set plugins(n = void 0) {
-      Ne(n), $();
-    },
-    get refetchonexpire() {
-      return O();
-    },
-    set refetchonexpire(n = !0) {
-      O(n), $();
-    },
-    get spamfilter() {
-      return j();
-    },
-    set spamfilter(n = !1) {
-      j(n), $();
-    },
-    get strings() {
-      return _e();
-    },
-    set strings(n = void 0) {
-      _e(n), $();
-    },
-    get test() {
-      return te();
-    },
-    set test(n = !1) {
-      te(n), $();
-    },
-    get verifyurl() {
-      return ye();
-    },
-    set verifyurl(n = void 0) {
-      ye(n), $();
-    },
-    get workers() {
-      return Ve();
-    },
-    set workers(n = Math.min(16, navigator.hardwareConcurrency || 8)) {
-      Ve(n), $();
-    },
-    get workerurl() {
-      return Qe();
-    },
-    set workerurl(n = void 0) {
-      Qe(n), $();
-    }
-  });
+    [() => getPlacement(get(config).display)]
+  );
+  append($$anchor, fragment);
+  var $$pop = pop($$exports);
+  $$cleanup();
+  return $$pop;
 }
-To(["change"]);
-customElements.define("altcha-widget", Zo(
-  ha,
+if (typeof window !== "undefined" && window.customElements && !customElements.get("altcha-widget")) customElements.define("altcha-widget", create_custom_element(
+  Widget,
   {
-    blockspam: { type: "Boolean" },
-    debug: { type: "Boolean" },
-    delay: { type: "Number" },
-    expire: { type: "Number" },
-    floatingoffset: { type: "Number" },
-    hidefooter: { type: "Boolean" },
-    hidelogo: { type: "Boolean" },
-    maxnumber: { type: "Number" },
-    mockerror: { type: "Boolean" },
-    refetchonexpire: { type: "Boolean" },
-    test: { type: "Boolean" },
-    workers: { type: "Number" },
-    auto: {},
-    challengeurl: {},
-    challengejson: {},
-    customfetch: {},
-    floating: {},
-    floatinganchor: {},
-    floatingpersist: {},
-    id: {},
-    name: {},
-    obfuscated: {},
-    plugins: {},
-    spamfilter: {},
-    strings: {},
-    verifyurl: {},
-    workerurl: {}
+    auto: { type: "String" },
+    challenge: { type: "String" },
+    configuration: { type: "String" },
+    display: { type: "String" },
+    form: { type: "String" },
+    language: { type: "String" },
+    name: { type: "String" },
+    theme: { type: "String" },
+    type: { type: "String" },
+    workers: { type: "Number" }
   },
-  ["default"],
+  [],
   [
-    "clarify",
     "configure",
     "getConfiguration",
-    "getFloatingAnchor",
-    "getPlugin",
     "getState",
     "hide",
-    "repositionFloating",
+    "log",
     "reset",
-    "setFloatingAnchor",
     "setState",
     "show",
+    "updateUI",
     "verify"
-  ],
-  !1
+  ]
 ));
-const va = '@keyframes altcha-spinner{to{transform:rotate(360deg)}}.altcha{background:var(--altcha-color-base, transparent);border:var(--altcha-border-width, 1px) solid var(--altcha-color-border, #a0a0a0);border-radius:var(--altcha-border-radius, 3px);color:var(--altcha-color-text, currentColor);display:flex;flex-direction:column;max-width:var(--altcha-max-width, 260px);position:relative;text-align:left}.altcha:focus-within{border-color:var(--altcha-color-border-focus, currentColor)}.altcha[data-floating]{background:var(--altcha-color-base, white);display:none;filter:drop-shadow(3px 3px 6px rgba(0,0,0,.2));left:-100%;position:fixed;top:-100%;width:var(--altcha-max-width, 260px);z-index:999999}.altcha[data-floating=top] .altcha-anchor-arrow{border-bottom-color:transparent;border-top-color:var(--altcha-color-border, #a0a0a0);bottom:-12px;top:auto}.altcha[data-floating=bottom]:focus-within::after{border-bottom-color:var(--altcha-color-border-focus, currentColor)}.altcha[data-floating=top]:focus-within::after{border-top-color:var(--altcha-color-border-focus, currentColor)}.altcha[data-floating]:not([data-state=unverified]){display:block}.altcha-anchor-arrow{border:6px solid transparent;border-bottom-color:var(--altcha-color-border, #a0a0a0);content:"";height:0;left:12px;position:absolute;top:-12px;width:0}.altcha-main{align-items:center;display:flex;gap:.4rem;padding:.7rem}.altcha-label{flex-grow:1}.altcha-label label{cursor:pointer}.altcha-logo{color:currentColor;opacity:.3}.altcha-footer:hover,.altcha-logo:hover{opacity:1}.altcha-error{color:var(--altcha-color-error-text, #f23939);display:flex;font-size:.85rem;gap:.3rem;padding:0 .7rem .7rem}.altcha-footer{align-items:center;background-color:var(--altcha-color-footer-bg, transparent);display:flex;font-size:.75rem;opacity:.4;padding:.2rem .7rem;text-align:right}.altcha-footer>:first-child{flex-grow:1}.altcha-footer a{color:currentColor}.altcha-checkbox{display:flex;align-items:center;height:24px;width:24px}.altcha-checkbox input{width:18px;height:18px;margin:0}.altcha-hidden{display:none}.altcha-spinner{animation:altcha-spinner .75s infinite linear;transform-origin:center}';
-function ga(e, t = "__altcha-css") {
-  if (!document.getElementById(t)) {
-    const r = document.createElement("style");
-    r.id = t, r.textContent = e, document.head.appendChild(r);
+const jsContent$1 = '(function() {\n  "use strict";\n  function assertAlgorithm(algorithm, allowed) {\n    if (!allowed.includes(algorithm)) {\n      throw new Error(\n        `Unsupported algorithm: ${String(algorithm)}. Expected one of: ${allowed.join(", ")}.`\n      );\n    }\n  }\n  function bufferStartsWith(buffer, prefix) {\n    if (prefix.length > buffer.length) {\n      return false;\n    }\n    for (let i = 0; i < prefix.length; i++) {\n      if (buffer[i] !== prefix[i]) {\n        return false;\n      }\n    }\n    return true;\n  }\n  function bufferToHex(buffer) {\n    return Array.from(new Uint8Array(buffer)).map((b) => b.toString(16).padStart(2, "0")).join("");\n  }\n  function concatBuffers(a, b) {\n    const out = new Uint8Array(a.length + b.length);\n    out.set(a, 0);\n    out.set(b, a.length);\n    return out;\n  }\n  function hexToBuffer(hex) {\n    if (hex.length % 2 !== 0) {\n      throw new Error(`Hex string must have an even length. Got: ${hex}`);\n    }\n    if (!/^[0-9a-fA-F]*$/.test(hex)) {\n      throw new Error("Hex string contains non-hex characters.");\n    }\n    const buffer = new Uint8Array(hex.length / 2);\n    for (let i = 0; i < buffer.length; i++) {\n      buffer[i] = parseInt(hex.substring(i * 2, i * 2 + 2), 16);\n    }\n    return buffer;\n  }\n  async function delay(ms) {\n    await new Promise((resolve) => setTimeout(resolve, ms));\n  }\n  function timeDuration(start) {\n    return Math.floor((performance.now() - start) * 10) / 10;\n  }\n  var HmacAlgorithm = /* @__PURE__ */ ((HmacAlgorithm2) => {\n    HmacAlgorithm2["SHA_256"] = "SHA-256";\n    HmacAlgorithm2["SHA_384"] = "SHA-384";\n    HmacAlgorithm2["SHA_512"] = "SHA-512";\n    return HmacAlgorithm2;\n  })(HmacAlgorithm || {});\n  Object.values(HmacAlgorithm);\n  const MAX_COUNTER = {\n    string: Number.MAX_SAFE_INTEGER,\n    uint32: 4294967295\n  };\n  function isValidCounter(n, mode) {\n    return Number.isInteger(n) && n >= 0 && n <= MAX_COUNTER[mode];\n  }\n  class PasswordBuffer {\n    constructor(nonce, mode = "uint32") {\n      this.nonce = nonce;\n      this.mode = mode;\n      this.buffer = new Uint8Array(this.nonce.length + this.COUNTER_BYTES);\n      this.buffer.set(this.nonce, 0);\n      this.dataView = new DataView(this.buffer.buffer);\n    }\n    nonce;\n    mode;\n    COUNTER_BYTES = 4;\n    buffer;\n    dataView;\n    encoder = new TextEncoder();\n    /**\n     * Appends the counter to the nonce buffer.\n     * In \'string\' mode, encodes the counter as a UTF-8 string.\n     * In \'uint32\' mode, writes the counter as a big-endian 32-bit integer.\n     * Throws a RangeError unless the counter is an integer the mode encodes exactly.\n     */\n    setCounter(n) {\n      if (!isValidCounter(n, this.mode)) {\n        throw new RangeError(\n          `counter must be an integer from 0 to ${MAX_COUNTER[this.mode]}. Got: ${n}`\n        );\n      }\n      if (this.mode === "string") {\n        return concatBuffers(this.nonce, this.encoder.encode(n.toString()));\n      }\n      this.dataView.setUint32(this.nonce.length, n, false);\n      return this.buffer;\n    }\n  }\n  function assertKeyPrefix(keyPrefix, keyLength) {\n    if (typeof keyPrefix !== "string" || !/^[0-9a-fA-F]+$/.test(keyPrefix)) {\n      throw new Error("keyPrefix must be a non-empty hex string.");\n    }\n    if (keyPrefix.length > keyLength * 2) {\n      throw new Error(\n        `keyPrefix (${keyPrefix.length} hex characters) must not be longer than the key (keyLength: ${keyLength} bytes).`\n      );\n    }\n  }\n  async function solveChallenge(options) {\n    const {\n      challenge,\n      controller,\n      counterMode = "uint32",\n      counterStart = 0,\n      counterStep = 1,\n      deriveKey: deriveKey2,\n      timeout = 9e4\n    } = options;\n    const { nonce, keyLength = 32, keyPrefix, salt } = challenge.parameters;\n    assertKeyPrefix(keyPrefix, keyLength);\n    const nonceBuf = hexToBuffer(nonce);\n    const saltBuf = hexToBuffer(salt);\n    const keyPrefixHex = keyPrefix.toLowerCase();\n    const keyPrefixBuf = keyPrefix.length % 2 === 0 ? hexToBuffer(keyPrefix) : null;\n    const password = new PasswordBuffer(nonceBuf, counterMode);\n    const start = performance.now();\n    let counter = counterStart;\n    let iterations = 0;\n    let derivedKeyHex = "";\n    let lastYield = start;\n    while (true) {\n      if (controller?.signal.aborted || timeout && iterations % 10 === 0 && performance.now() - start > timeout) {\n        return null;\n      }\n      const { derivedKey } = await deriveKey2(\n        challenge.parameters,\n        saltBuf,\n        password.setCounter(counter)\n      );\n      if (iterations % 10 === 0 && performance.now() - lastYield > 200) {\n        await delay(0);\n        lastYield = performance.now();\n      }\n      if (keyPrefixBuf ? bufferStartsWith(derivedKey, keyPrefixBuf) : bufferToHex(derivedKey).startsWith(keyPrefixHex)) {\n        derivedKeyHex = bufferToHex(derivedKey);\n        break;\n      }\n      counter = counter + counterStep;\n      iterations = iterations + 1;\n    }\n    return {\n      counter,\n      derivedKey: derivedKeyHex,\n      time: timeDuration(start)\n    };\n  }\n  function handler(options) {\n    const { deriveKey: deriveKey2 } = options;\n    let controller = void 0;\n    self.onmessage = async (message) => {\n      const { challenge, counterMode, counterStart, counterStep, timeout, type } = message.data;\n      if (type === "abort") {\n        controller?.abort();\n      } else if (type === "work") {\n        controller = new AbortController();\n        let solution;\n        try {\n          solution = await solveChallenge({\n            challenge,\n            controller,\n            counterStart,\n            counterStep,\n            deriveKey: deriveKey2,\n            counterMode,\n            timeout\n          });\n        } catch (err) {\n          return self.postMessage({ error: err });\n        }\n        self.postMessage(solution);\n      }\n    };\n  }\n  async function deriveKey(parameters, salt, password) {\n    const { algorithm, cost, keyLength = 32 } = parameters;\n    assertAlgorithm(algorithm, ["PBKDF2/SHA-256", "PBKDF2/SHA-384", "PBKDF2/SHA-512"]);\n    const passwordKey = await crypto.subtle.importKey(\n      "raw",\n      password,\n      { name: "PBKDF2" },\n      false,\n      ["deriveBits"]\n    );\n    const derivedBits = await crypto.subtle.deriveBits(\n      {\n        name: "PBKDF2",\n        salt,\n        iterations: cost,\n        hash: algorithm.slice("PBKDF2/".length)\n      },\n      passwordKey,\n      keyLength * 8\n    );\n    return {\n      parameters: {},\n      derivedKey: new Uint8Array(derivedBits)\n    };\n  }\n  handler({\n    deriveKey\n  });\n})();\n';
+const blob$1 = typeof self !== "undefined" && self.Blob && new Blob(["(self.URL || self.webkitURL).revokeObjectURL(self.location.href);", jsContent$1], { type: "text/javascript;charset=utf-8" });
+function WorkerWrapper$1(options) {
+  let objURL;
+  try {
+    objURL = blob$1 && (self.URL || self.webkitURL).createObjectURL(blob$1);
+    if (!objURL) throw "";
+    const worker = new Worker(objURL, {
+      name: options?.name
+    });
+    worker.addEventListener("error", () => {
+      (self.URL || self.webkitURL).revokeObjectURL(objURL);
+    });
+    return worker;
+  } catch (e) {
+    return new Worker(
+      "data:text/javascript;charset=utf-8," + encodeURIComponent(jsContent$1),
+      {
+        name: options?.name
+      }
+    );
   }
 }
-globalThis.altchaCreateWorker = (e) => e ? new Worker(new URL(e)) : new Si();
-globalThis.altchaPlugins = globalThis.altchaPlugins || [];
-ga(va);
-export {
-  ha as Altcha
-};
+const jsContent = '(function() {\n  "use strict";\n  function assertAlgorithm(algorithm, allowed) {\n    if (!allowed.includes(algorithm)) {\n      throw new Error(\n        `Unsupported algorithm: ${String(algorithm)}. Expected one of: ${allowed.join(", ")}.`\n      );\n    }\n  }\n  function bufferStartsWith(buffer, prefix) {\n    if (prefix.length > buffer.length) {\n      return false;\n    }\n    for (let i = 0; i < prefix.length; i++) {\n      if (buffer[i] !== prefix[i]) {\n        return false;\n      }\n    }\n    return true;\n  }\n  function bufferToHex(buffer) {\n    return Array.from(new Uint8Array(buffer)).map((b) => b.toString(16).padStart(2, "0")).join("");\n  }\n  function concatBuffers(a, b) {\n    const out = new Uint8Array(a.length + b.length);\n    out.set(a, 0);\n    out.set(b, a.length);\n    return out;\n  }\n  function hexToBuffer(hex) {\n    if (hex.length % 2 !== 0) {\n      throw new Error(`Hex string must have an even length. Got: ${hex}`);\n    }\n    if (!/^[0-9a-fA-F]*$/.test(hex)) {\n      throw new Error("Hex string contains non-hex characters.");\n    }\n    const buffer = new Uint8Array(hex.length / 2);\n    for (let i = 0; i < buffer.length; i++) {\n      buffer[i] = parseInt(hex.substring(i * 2, i * 2 + 2), 16);\n    }\n    return buffer;\n  }\n  async function delay(ms) {\n    await new Promise((resolve) => setTimeout(resolve, ms));\n  }\n  function timeDuration(start) {\n    return Math.floor((performance.now() - start) * 10) / 10;\n  }\n  var HmacAlgorithm = /* @__PURE__ */ ((HmacAlgorithm2) => {\n    HmacAlgorithm2["SHA_256"] = "SHA-256";\n    HmacAlgorithm2["SHA_384"] = "SHA-384";\n    HmacAlgorithm2["SHA_512"] = "SHA-512";\n    return HmacAlgorithm2;\n  })(HmacAlgorithm || {});\n  Object.values(HmacAlgorithm);\n  const MAX_COUNTER = {\n    string: Number.MAX_SAFE_INTEGER,\n    uint32: 4294967295\n  };\n  function isValidCounter(n, mode) {\n    return Number.isInteger(n) && n >= 0 && n <= MAX_COUNTER[mode];\n  }\n  class PasswordBuffer {\n    constructor(nonce, mode = "uint32") {\n      this.nonce = nonce;\n      this.mode = mode;\n      this.buffer = new Uint8Array(this.nonce.length + this.COUNTER_BYTES);\n      this.buffer.set(this.nonce, 0);\n      this.dataView = new DataView(this.buffer.buffer);\n    }\n    nonce;\n    mode;\n    COUNTER_BYTES = 4;\n    buffer;\n    dataView;\n    encoder = new TextEncoder();\n    /**\n     * Appends the counter to the nonce buffer.\n     * In \'string\' mode, encodes the counter as a UTF-8 string.\n     * In \'uint32\' mode, writes the counter as a big-endian 32-bit integer.\n     * Throws a RangeError unless the counter is an integer the mode encodes exactly.\n     */\n    setCounter(n) {\n      if (!isValidCounter(n, this.mode)) {\n        throw new RangeError(\n          `counter must be an integer from 0 to ${MAX_COUNTER[this.mode]}. Got: ${n}`\n        );\n      }\n      if (this.mode === "string") {\n        return concatBuffers(this.nonce, this.encoder.encode(n.toString()));\n      }\n      this.dataView.setUint32(this.nonce.length, n, false);\n      return this.buffer;\n    }\n  }\n  function assertKeyPrefix(keyPrefix, keyLength) {\n    if (typeof keyPrefix !== "string" || !/^[0-9a-fA-F]+$/.test(keyPrefix)) {\n      throw new Error("keyPrefix must be a non-empty hex string.");\n    }\n    if (keyPrefix.length > keyLength * 2) {\n      throw new Error(\n        `keyPrefix (${keyPrefix.length} hex characters) must not be longer than the key (keyLength: ${keyLength} bytes).`\n      );\n    }\n  }\n  async function solveChallenge(options) {\n    const {\n      challenge,\n      controller,\n      counterMode = "uint32",\n      counterStart = 0,\n      counterStep = 1,\n      deriveKey: deriveKey2,\n      timeout = 9e4\n    } = options;\n    const { nonce, keyLength = 32, keyPrefix, salt } = challenge.parameters;\n    assertKeyPrefix(keyPrefix, keyLength);\n    const nonceBuf = hexToBuffer(nonce);\n    const saltBuf = hexToBuffer(salt);\n    const keyPrefixHex = keyPrefix.toLowerCase();\n    const keyPrefixBuf = keyPrefix.length % 2 === 0 ? hexToBuffer(keyPrefix) : null;\n    const password = new PasswordBuffer(nonceBuf, counterMode);\n    const start = performance.now();\n    let counter = counterStart;\n    let iterations = 0;\n    let derivedKeyHex = "";\n    let lastYield = start;\n    while (true) {\n      if (controller?.signal.aborted || timeout && iterations % 10 === 0 && performance.now() - start > timeout) {\n        return null;\n      }\n      const { derivedKey } = await deriveKey2(\n        challenge.parameters,\n        saltBuf,\n        password.setCounter(counter)\n      );\n      if (iterations % 10 === 0 && performance.now() - lastYield > 200) {\n        await delay(0);\n        lastYield = performance.now();\n      }\n      if (keyPrefixBuf ? bufferStartsWith(derivedKey, keyPrefixBuf) : bufferToHex(derivedKey).startsWith(keyPrefixHex)) {\n        derivedKeyHex = bufferToHex(derivedKey);\n        break;\n      }\n      counter = counter + counterStep;\n      iterations = iterations + 1;\n    }\n    return {\n      counter,\n      derivedKey: derivedKeyHex,\n      time: timeDuration(start)\n    };\n  }\n  function handler(options) {\n    const { deriveKey: deriveKey2 } = options;\n    let controller = void 0;\n    self.onmessage = async (message) => {\n      const { challenge, counterMode, counterStart, counterStep, timeout, type } = message.data;\n      if (type === "abort") {\n        controller?.abort();\n      } else if (type === "work") {\n        controller = new AbortController();\n        let solution;\n        try {\n          solution = await solveChallenge({\n            challenge,\n            controller,\n            counterStart,\n            counterStep,\n            deriveKey: deriveKey2,\n            counterMode,\n            timeout\n          });\n        } catch (err) {\n          return self.postMessage({ error: err });\n        }\n        self.postMessage(solution);\n      }\n    };\n  }\n  async function deriveKey(parameters, salt, password) {\n    const { algorithm, keyLength = 32 } = parameters;\n    assertAlgorithm(algorithm, ["SHA-256", "SHA-384", "SHA-512"]);\n    const iterations = Math.max(1, parameters.cost);\n    let derivedKey = concatBuffers(salt, password);\n    for (let i = 0; i < iterations; i++) {\n      derivedKey = new Uint8Array(await crypto.subtle.digest(algorithm, derivedKey));\n    }\n    return {\n      parameters: {},\n      derivedKey: derivedKey.slice(0, keyLength)\n    };\n  }\n  handler({\n    deriveKey\n  });\n})();\n';
+const blob = typeof self !== "undefined" && self.Blob && new Blob(["(self.URL || self.webkitURL).revokeObjectURL(self.location.href);", jsContent], { type: "text/javascript;charset=utf-8" });
+function WorkerWrapper(options) {
+  let objURL;
+  try {
+    objURL = blob && (self.URL || self.webkitURL).createObjectURL(blob);
+    if (!objURL) throw "";
+    const worker = new Worker(objURL, {
+      name: options?.name
+    });
+    worker.addEventListener("error", () => {
+      (self.URL || self.webkitURL).revokeObjectURL(objURL);
+    });
+    return worker;
+  } catch (e) {
+    return new Worker(
+      "data:text/javascript;charset=utf-8," + encodeURIComponent(jsContent),
+      {
+        name: options?.name
+      }
+    );
+  }
+}
+const css = ':root {\n  --altcha-border-color: var(--altcha-color-neutral);\n  --altcha-border-width: 1px;\n  --altcha-border-radius: 6px;\n  --altcha-color-base: light-dark(oklch(100% 0.00011 271.152), oklch(20.904% 0.00002 271.152));\n  --altcha-color-base-content: light-dark(\n  	oklch(20.904% 0.00002 271.152),\n  	oklch(100% 0.00011 271.152)\n  );\n  --altcha-color-error: oklch(51.284% 0.20527 28.678);\n  --altcha-color-error-content: oklch(100% 0.00011 271.152);\n  --altcha-color-neutral: light-dark(oklch(83.591% 0.0001 271.152), oklch(46.04% 0.00005 271.152));\n  --altcha-color-neutral-content: light-dark(\n  	oklch(46.76% 0.00005 271.152),\n  	oklch(100% 0.00011 271.152)\n  );\n  --altcha-color-primary: oklch(40.279% 0.2449 268.131);\n  --altcha-color-primary-content: oklch(100% 0.00011 271.152);\n  --altcha-color-success: oklch(55.748% 0.18968 142.511);\n  --altcha-color-success-content: oklch(100% 0.00011 271.152);\n  --altcha-checkbox-border-color: light-dark(\n  	oklch(66.494% 0.00233 15.434),\n  	oklch(51.028% 0.00006 271.152)\n  );\n  --altcha-checkbox-border-radius: 5px;\n  --altcha-checkbox-border-width: var(--altcha-border-width);\n  --altcha-checkbox-outline: 2px solid var(--altcha-checkbox-outline-color);\n  --altcha-checkbox-outline-color: -webkit-focus-ring-color;\n  --altcha-checkbox-outline-offset: 2px;\n  --altcha-checkbox-size: 22px;\n  --altcha-checkbox-transition-duration: var(--altcha-transition-duration);\n  --altcha-input-background-color: var(--altcha-color-base);\n  --altcha-input-border-radius: 3px;\n  --altcha-input-border-width: 1px;\n  --altcha-input-color: var(--altcha-color-base-content);\n  --altcha-max-width: 320px;\n  --altcha-padding: 0.75rem;\n  --altcha-popover-arrow-size: 6px;\n  --altcha-popover-color: var(--altcha-border-color);\n  --altcha-shadow: drop-shadow(3px 3px 6px oklch(0% 0 0 / 0.2));\n  --altcha-spinner-color: var(--altcha-color-base-content);\n  --altcha-switch-background-color: var(--altcha-color-neutral);\n  --altcha-switch-border-radius: calc(infinity * 1px);\n  --altcha-switch-height: var(--altcha-checkbox-size);\n  --altcha-switch-padding: 0.25rem;\n  --altcha-switch-width: calc(var(--altcha-checkbox-size) * 1.75);\n  --altcha-switch-toggle-border-radius: 100%;\n  --altcha-switch-toggle-color: var(--altcha-color-neutral-content);\n  --altcha-switch-toggle-size: calc(\n  	var(--altcha-switch-height) - calc(var(--altcha-switch-padding) * 2)\n  );\n  --altcha-transition-duration: 0.6s;\n  --altcha-z-index: 99999999;\n  --altcha-z-index-popover: 999999999;\n}\n\n@supports (-moz-appearance: none) {\n  :root {\n    --altcha-checkbox-outline-color: var(--altcha-color-primary);\n  }\n}\n.altcha {\n  all: revert-layer;\n  display: none;\n  font-family: inherit;\n  font-size: inherit;\n  position: relative;\n}\n.altcha[data-visible] {\n  display: block;\n}\n.altcha-popover, .altcha-popover * {\n  all: revert-layer;\n  box-sizing: border-box;\n  font-family: inherit;\n  font-size: inherit;\n  line-height: 1.25;\n}\n.altcha * {\n  all: revert-layer;\n  box-sizing: border-box;\n  font-family: inherit;\n  font-size: inherit;\n  line-height: 1.25;\n}\n.altcha a, .altcha-popover a {\n  color: currentColor;\n  text-decoration: none;\n}\n.altcha a:hover, .altcha-popover a:hover {\n  color: currentColor;\n}\n.altcha-main {\n  align-items: start;\n  background-color: var(--altcha-color-base);\n  border: var(--altcha-border-width, 1px) solid var(--altcha-border-color);\n  border-radius: var(--altcha-border-radius, 0);\n  color: var(--altcha-color-base-content);\n  display: flex;\n  flex-direction: column;\n  gap: 0.5rem;\n  justify-content: space-between;\n  padding: var(--altcha-padding);\n  max-width: var(--altcha-max-width, 100%);\n}\n.altcha-main > * {\n  display: flex;\n  width: 100%;\n}\n.altcha-main > *:first-child {\n  flex-grow: 1;\n}\n.altcha-checkbox-wrap {\n  align-items: center;\n  display: flex;\n  flex-direction: row;\n  flex-grow: 1;\n  gap: 0.5rem;\n}\n.altcha-checkbox-wrap > * {\n  display: flex;\n}\n.altcha-logo {\n  opacity: 0.7;\n}\n.altcha-footer {\n  align-items: center;\n  display: flex;\n  flex-grow: 1;\n  gap: 0.5rem;\n  justify-content: flex-end;\n  font-size: 0.7rem;\n  opacity: 0.7;\n}\n.altcha-footer p {\n  margin: 0;\n  padding: 0;\n}\n.altcha-error {\n  font-size: 0.85rem;\n}\n.altcha-button {\n  align-items: center;\n  background: var(--altcha-color-primary);\n  border: var(--altcha-input-border-width) solid var(--altcha-color-primary);\n  border-radius: var(--altcha-input-border-radius);\n  color: var(--altcha-color-primary-content);\n  cursor: pointer;\n  display: flex;\n  font-size: 0.9rem;\n  gap: 0.5rem;\n  padding: 0.35rem;\n}\n.altcha-button:focus {\n  border-color: var(--altcha-color-primary);\n  outline: var(--altcha-checkbox-outline);\n  outline-offset: var(--altcha-checkbox-outline-offset);\n}\n.altcha-button > .altcha-spinner, .altcha-button > svg {\n  height: 20px;\n  width: 20px;\n}\n.altcha-button-secondary {\n  background: transparent;\n  border-color: var(--altcha-color-neutral);\n  color: var(--altcha-color-neutral-content);\n}\n.altcha-input {\n  background: var(--altcha-input-background-color);\n  border: var(--altcha-input-border-width) solid var(--altcha-color-neutral);\n  border-radius: var(--altcha-input-border-radius);\n  color: var(--altcha-input-color);\n  flex-grow: 1;\n  font-size: 1rem;\n  min-width: 0;\n  padding: 0.25rem;\n  width: auto;\n}\n.altcha-input:focus {\n  border-color: var(--altcha-color-primary);\n  outline: var(--altcha-checkbox-outline);\n  outline-offset: var(--altcha-checkbox-outline-offset);\n}\n.altcha-spinner {\n  animation: altcha-rotate 0.6s linear infinite;\n  border-radius: 100%;\n  border: var(--altcha-checkbox-border-width) solid var(--altcha-spinner-color);\n  border-bottom-color: transparent;\n  border-right-color: transparent;\n  opacity: 0.7;\n}\n.altcha-popover {\n  background-color: var(--altcha-color-base);\n  border: var(--altcha-border-width) solid var(--altcha-border-color);\n  border-radius: var(--altcha-border-radius);\n  color: var(--altcha-color-base-content);\n  filter: var(--altcha-shadow);\n  position: absolute;\n  left: calc(var(--altcha-padding) / 2);\n  max-width: calc(var(--altcha-max-width) - var(--altcha-padding));\n  top: calc(var(--altcha-padding) + var(--altcha-checkbox-size) + var(--altcha-popover-arrow-size));\n  z-index: var(--altcha-z-index-popover);\n}\n.altcha-popover-arrow {\n  border: var(--altcha-popover-arrow-size) solid transparent;\n  border-bottom-color: var(--altcha-popover-color);\n  content: "";\n  height: 0;\n  left: calc(var(--altcha-checkbox-size) / 2);\n  position: absolute;\n  top: calc(var(--altcha-popover-arrow-size) * -2);\n  width: 0;\n}\n.altcha-popover-content {\n  max-height: 100dvh;\n  overflow: auto;\n  padding: var(--altcha-padding);\n}\n.altcha-popover[data-top=true][data-display=standard] {\n  bottom: calc(100% - (var(--altcha-padding) - var(--altcha-popover-arrow-size)));\n  top: auto;\n}\n.altcha-popover[data-top=true][data-display=standard] .altcha-popover-arrow {\n  border-bottom-color: transparent;\n  border-top-color: var(--altcha-popover-color);\n  bottom: calc(var(--altcha-popover-arrow-size) * -2);\n  top: auto;\n}\n.altcha-popover[data-variant=error] {\n  --altcha-popover-color: var(--altcha-color-error);\n  background-color: var(--altcha-color-error);\n  border-color: var(--altcha-color-error);\n  color: var(--altcha-color-error-content);\n}\n.altcha-popover[data-variant=error] .altcha-popover-content {\n  padding: calc(var(--altcha-padding) / 1.5) var(--altcha-padding);\n}\n.altcha-popover[data-display=overlay] {\n  animation: altcha-overlay-slidein 0.5s forwards;\n  left: 50%;\n  position: fixed;\n  top: 45%;\n  transform: translate(-50%, -50%);\n  width: var(--altcha-max-width);\n  z-index: var(--altcha-z-index);\n}\n.altcha-popover[data-display=bottomsheet] {\n  animation: altcha-bottomsheet-slideup 0.5s forwards;\n  border-bottom-left-radius: 0;\n  border-bottom-right-radius: 0;\n  border-bottom: 0;\n  bottom: -100%;\n  left: 50%;\n  position: fixed;\n  top: auto;\n  transform: translate(-50%, 0);\n  width: var(--altcha-max-width);\n  z-index: var(--altcha-z-index);\n}\n.altcha-popover[data-display=bottomsheet] .altcha-popover-content {\n  padding-bottom: calc(var(--altcha-padding) * 2);\n}\n.altcha-popover-backdrop {\n  background: var(--altcha-color-base-content);\n  bottom: 0;\n  left: 0;\n  opacity: 0.1;\n  position: fixed;\n  right: 0;\n  top: 0;\n  transition: opacity 0.5s;\n  z-index: var(--altcha-z-index);\n}\n.altcha-popover-close {\n  color: var(--altcha-color-base-content);\n  cursor: pointer;\n  display: inline-block;\n  font-size: 1rem;\n  height: 1.25rem;\n  line-height: 0.95;\n  position: absolute;\n  right: 0;\n  text-align: center;\n  text-shadow: 0 0 1px var(--altcha-color-base);\n  top: -1.5rem;\n  width: 1.25rem;\n  z-index: var(--altcha-z-index);\n}\n[dir=rtl] .altcha-popover {\n  left: auto;\n  right: calc(var(--altcha-padding) / 2);\n}\n[dir=rtl] .altcha-popover-arrow {\n  left: auto;\n  right: calc(var(--altcha-checkbox-size) / 2);\n}\n[dir=rtl] .altcha-popover-close {\n  left: 0;\n  right: auto;\n}\n.altcha-popover[data-display=bottomsheet] .altcha-footer, .altcha-popover[data-display=overlay] .altcha-footer {\n  align-items: center;\n  justify-content: center;\n  padding-top: 1rem;\n  gap: 0.5rem;\n}\n.altcha-popover[data-display=bottomsheet] .altcha-footer svg, .altcha-popover[data-display=overlay] .altcha-footer svg {\n  height: 18px;\n  width: 18px;\n  vertical-align: middle;\n}\n.altcha-code-challenge > form {\n  display: flex;\n  flex-direction: column;\n  gap: 0.5rem;\n}\n.altcha-code-challenge-title {\n  font-weight: 600;\n}\n.altcha-code-challenge-text {\n  font-size: 0.85rem;\n}\n.altcha-code-challenge-image {\n  background: white;\n  border: var(--altcha-input-border-width) solid var(--altcha-color-neutral);\n  border-radius: var(--altcha-input-border-radius);\n  object-fit: contain;\n  height: 50px;\n}\n.altcha-code-challenge-row {\n  display: flex;\n  gap: 0.5rem;\n}\n.altcha-code-challenge-buttons {\n  align-items: center;\n  display: flex;\n  flex-direction: column;\n  gap: 0.5rem;\n  margin-top: var(--altcha-padding);\n  justify-content: space-between;\n}\n.altcha-code-challenge-buttons button {\n  justify-content: center;\n  width: 100%;\n}\n.altcha-checkbox {\n  cursor: pointer;\n  height: var(--altcha-checkbox-size);\n  position: relative;\n  width: var(--altcha-checkbox-size);\n}\n.altcha-checkbox input {\n  appearance: none;\n  background: var(--altcha-input-background-color);\n  border: var(--altcha-checkbox-border-width, 2px) solid var(--altcha-checkbox-border-color);\n  border-radius: var(--altcha-checkbox-border-radius);\n  cursor: pointer;\n  height: var(--altcha-checkbox-size);\n  left: 0;\n  margin: 0;\n  padding: 0;\n  position: absolute;\n  top: 0;\n  width: var(--altcha-checkbox-size);\n}\n@supports (hanging-punctuation: first) and (font: -apple-system-body) and (-webkit-appearance: none) {\n  .altcha-checkbox input {\n    /* Safari-only: fixes focus outline */\n  }\n  .altcha-checkbox input:focus {\n    outline-width: 2px;\n    outline-style: solid;\n  }\n}\n.altcha-checkbox input:before {\n  border-radius: var(--altcha-checkbox-border-radius);\n  content: "";\n  width: 100%;\n  height: 100%;\n  background: var(--altcha-color-neutral);\n  display: block;\n  transform: scale(0);\n}\n.altcha-checkbox input:checked {\n  background-color: var(--altcha-color-success);\n  border-color: var(--altcha-color-success);\n}\n.altcha-checkbox input:checked::before {\n  background-color: var(--altcha-color-success);\n  opacity: 0;\n  transform: scale(2.2);\n  transition: all var(--altcha-checkbox-transition-duration) ease;\n  transition-delay: 0.1s;\n}\n.altcha-checkbox svg {\n  --altcha-radio-svg-size: calc(var(--altcha-checkbox-size) * 0.5);\n  --altcha-radio-svg-offset: calc(var(--altcha-checkbox-size) * 0.25);\n  fill: none;\n  left: var(--altcha-radio-svg-offset);\n  height: var(--altcha-radio-svg-size);\n  opacity: 0;\n  position: absolute;\n  stroke: currentColor;\n  stroke-width: 2;\n  stroke-linecap: round;\n  stroke-linejoin: round;\n  stroke-dasharray: 16px;\n  stroke-dashoffset: 16px;\n  top: var(--altcha-radio-svg-offset);\n  transform: translate3d(0, 0, 0);\n  width: var(--altcha-radio-svg-size);\n}\n.altcha-checkbox input:checked + svg {\n  color: var(--altcha-color-success-content);\n  opacity: 1;\n  stroke-dashoffset: 0;\n  transition: all var(--altcha-checkbox-transition-duration) ease;\n  transition-delay: 0.1s;\n}\n.altcha-checkbox-spinner {\n  display: none;\n  left: 0;\n  height: var(--altcha-checkbox-size);\n  position: absolute;\n  top: 0;\n  width: var(--altcha-checkbox-size);\n}\n.altcha-checkbox[data-loading=true] input {\n  appearance: none;\n  opacity: 0;\n  pointer-events: none;\n}\n.altcha-checkbox[data-loading=true] .altcha-checkbox-spinner {\n  display: block;\n}\n.altcha-checkbox-native {\n  height: var(--altcha-checkbox-size);\n  position: relative;\n  width: var(--altcha-checkbox-size);\n}\n.altcha-checkbox-native input {\n  height: var(--altcha-checkbox-size);\n  margin: 0;\n  width: var(--altcha-checkbox-size);\n}\n.altcha-checkbox-native-spinner {\n  display: none;\n  left: 0;\n  height: var(--altcha-checkbox-size);\n  position: absolute;\n  top: 0;\n  width: var(--altcha-checkbox-size);\n}\n.altcha-checkbox-native[data-loading=true] input {\n  appearance: none;\n  opacity: 0;\n  pointer-events: none;\n}\n.altcha-checkbox-native[data-loading=true] .altcha-checkbox-native-spinner {\n  display: block;\n}\n.altcha-switch {\n  align-items: center;\n  border-radius: var(--altcha-switch-border-radius);\n  background-color: var(--altcha-switch-background-color);\n  display: flex;\n  height: var(--altcha-switch-height);\n  padding: var(--altcha-switch-padding);\n  position: relative;\n  width: var(--altcha-switch-width);\n}\n.altcha-switch:focus-within {\n  outline: var(--altcha-checkbox-outline);\n  outline-offset: var(--altcha-checkbox-outline-offset);\n}\n.altcha-switch input {\n  appearance: none;\n  cursor: pointer;\n  height: 100%;\n  left: 0;\n  opacity: 0;\n  position: absolute;\n  top: 0;\n  width: 100%;\n}\n.altcha-switch-toggle {\n  align-items: center;\n  background-color: var(--altcha-switch-toggle-color);\n  border-radius: var(--altcha-switch-toggle-border-radius);\n  cursor: pointer;\n  display: flex;\n  height: var(--altcha-switch-toggle-size);\n  justify-content: center;\n  left: var(--altcha-switch-padding);\n  position: absolute;\n  transition: width 150ms ease-out, left 150ms ease-out;\n  width: var(--altcha-switch-toggle-size);\n}\n.altcha-switch-spinner {\n  display: none;\n  height: var(--altcha-switch-toggle-size);\n  width: var(--altcha-switch-toggle-size);\n}\n.altcha-switch[data-loading=true] {\n  pointer-events: none;\n}\n.altcha-switch[data-loading=true] .altcha-switch-spinner {\n  display: block;\n}\n.altcha-switch[data-loading=true] .altcha-switch-toggle {\n  background-color: transparent;\n  left: calc(50% - var(--altcha-switch-toggle-size) / 2);\n}\n[data-state=verified] .altcha-switch {\n  --altcha-switch-background-color: var(--altcha-color-success);\n}\n[data-state=verified] .altcha-switch-toggle {\n  background-color: var(--altcha-color-success-content);\n  left: calc(100% - var(--altcha-switch-height) + var(--altcha-switch-padding));\n}\n[dir=rtl] .altcha-switch-toggle {\n  left: calc(100% - var(--altcha-switch-height) + var(--altcha-switch-padding));\n}\n[dir=rtl][data-state=verified] .altcha-switch-toggle {\n  left: var(--altcha-switch-padding);\n}\n.altcha-floating-arrow {\n  border: 6px solid transparent;\n  border-bottom-color: var(--altcha-border-color);\n  content: "";\n  height: 0;\n  left: 12px;\n  position: absolute;\n  top: -12px;\n  width: 0;\n}\n.altcha-overlay-backdrop {\n  bottom: 0;\n  left: 0;\n  position: fixed;\n  right: 0;\n  top: 0;\n  transition: opacity var(--altcha-transition-duration);\n  z-index: var(--altcha-z-index);\n}\n.altcha-overlay-close {\n  display: inline-block;\n  color: currentColor;\n  cursor: pointer;\n  font-size: 1rem;\n  height: 1rem;\n  line-height: 0.85;\n  position: absolute;\n  right: 0;\n  text-align: center;\n  text-shadow: 0 0 1px var(--altcha-color-base);\n  top: -1.5rem;\n  width: 1rem;\n  z-index: var(--altcha-z-index);\n}\n.altcha[data-display=overlay] {\n  animation: altcha-overlay-slidein var(--altcha-transition-duration) forwards;\n  filter: var(--altcha-shadow);\n  left: 50%;\n  opacity: 0;\n  position: fixed;\n  top: 45%;\n  transform: translate(-50%, -50%);\n  z-index: var(--altcha-z-index);\n}\n.altcha[data-display=overlay] .altcha-main {\n  width: var(--altcha-max-width);\n}\n.altcha[data-display=floating] {\n  display: none;\n  filter: var(--altcha-shadow);\n  left: var(--altcha-floating-left, -100%);\n  position: fixed;\n  top: var(--altcha-floating-top, -100%);\n  z-index: var(--altcha-z-index);\n}\n.altcha[data-display=floating] .altcha-main {\n  width: var(--altcha-max-width);\n}\n.altcha[data-display=floating][data-floating-position=top] .altcha-floating-arrow {\n  border-bottom-color: transparent;\n  border-top-color: var(--altcha-border-color);\n  bottom: -12px;\n  top: auto;\n}\n.altcha[data-display=floating][data-visible] {\n  display: flex;\n}\n.altcha[data-display=bar] {\n  bottom: -100%;\n  filter: var(--altcha-shadow);\n  left: 0;\n  position: fixed;\n  right: 0;\n  transition: bottom var(--altcha-transition-duration), top var(--altcha-transition-duration);\n  z-index: var(--altcha-z-index);\n}\n.altcha[data-display=bar] .altcha-main {\n  align-items: center;\n  border-radius: 0;\n  border-width: var(--altcha-border-width) 0 0 0;\n  flex-direction: row;\n  max-width: 100% !important;\n}\n.altcha[data-display=bar] .altcha-main > * {\n  width: auto;\n}\n.altcha[data-display=bar][data-placement=top] {\n  bottom: auto;\n  top: -100%;\n}\n.altcha[data-display=bar][data-placement=top] .altcha-main {\n  border-width: 0 0 var(--altcha-border-width) 0;\n}\n.altcha[data-display=bar][data-placement=bottom]:not([data-state=unverified]) {\n  bottom: 0;\n}\n.altcha[data-display=bar][data-placement=top]:not([data-state=unverified]) {\n  top: 0;\n}\n.altcha[data-display=invisible] {\n  display: none;\n}\n\n@keyframes altcha-rotate {\n  0% {\n    transform: rotate(0deg);\n  }\n  100% {\n    transform: rotate(360deg);\n  }\n}\n@keyframes altcha-bottomsheet-slideup {\n  100% {\n    bottom: 0;\n  }\n}\n@keyframes altcha-overlay-slidein {\n  100% {\n    opacity: 1;\n    top: 50%;\n  }\n}';
+injectCss(css);
+$altcha.algorithms.set("SHA-256", () => new WorkerWrapper());
+$altcha.algorithms.set("SHA-384", () => new WorkerWrapper());
+$altcha.algorithms.set("SHA-512", () => new WorkerWrapper());
+$altcha.algorithms.set("PBKDF2/SHA-256", () => new WorkerWrapper$1());
+$altcha.algorithms.set("PBKDF2/SHA-384", () => new WorkerWrapper$1());
+$altcha.algorithms.set("PBKDF2/SHA-512", () => new WorkerWrapper$1());

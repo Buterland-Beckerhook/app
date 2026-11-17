@@ -7,6 +7,6 @@ PR. The map stack is documented in `map/VERSIONS.md`.
 
 | File | Package | Version | License | Source |
 | --- | --- | --- | --- | --- |
-| `altcha/altcha.js` | `altcha` | 1.5.1 | MIT | `dist/altcha.js` (server contract: `lib/bbh/altcha.ex`) |
+| `altcha/altcha.js`, `altcha/i18n/de.js` | `altcha` | 3.6.0 | MIT | `dist/main/altcha.js`, `dist/i18n/de.js` (server contract: `lib/bbh/altcha.ex`) |
 | `quill/quill.js`, `quill/quill.snow.css` | `quill` | 2.0.3 | BSD-3-Clause | `dist/` |
 | `flatpickr/flatpickr.min.js`, `flatpickr/flatpickr.min.css`, `flatpickr/l10n/` | `flatpickr` | 4.6.13 | MIT | `dist/` |

@@ -286,7 +286,7 @@
       </div>
 
       <div :if={@altcha}>
-        <altcha-widget challengejson={Jason.encode!(@altcha)} auto="onload"></altcha-widget>
+        <altcha-widget challenge={Jason.encode!(@altcha)} auto="onload"></altcha-widget>
       </div>
 
       <%!-- A notice, not a checkbox: the member data follows from the membership itself
