@@ -43,6 +43,12 @@ defmodule Bbh.Accounts do
   """
   def get_user!(id), do: Repo.get!(User, id)
 
+  @doc "A user by id, or `nil` — for a reference that may have gone since."
+  def get_user(id), do: Repo.get(User, id)
+
+  @doc "The users with these ids; ids without a user are skipped."
+  def list_users_by_ids(ids), do: Repo.all(from u in User, where: u.id in ^ids)
+
   ## TOTP two-factor authentication
 
   @doc "Generate a fresh TOTP secret (not yet persisted)."
@@ -203,10 +209,39 @@ defmodule Bbh.Accounts do
 
   def list_users, do: Repo.all(from u in User, order_by: u.email)
 
+  @doc "The users holding the admin role, by email."
+  def list_admins, do: Repo.all(from u in User, where: u.role == "admin", order_by: u.email)
+
   @doc "How many users currently hold the admin role."
   def count_admins, do: Repo.aggregate(from(u in User, where: u.role == "admin"), :count)
 
   def delete_user(%User{} = user), do: Repo.delete(user)
+
+  ## Postfach notification settings (the fields live on the user)
+
+  @doc "A changeset for the user's Postfach notification settings."
+  def change_ticket_notifications(%User{} = user, attrs \\ %{}),
+    do: User.ticket_notifications_changeset(user, attrs)
+
+  @doc "Saves the user's Postfach notification settings."
+  def update_ticket_notifications(%User{} = user, attrs),
+    do: user |> change_ticket_notifications(attrs) |> Repo.update()
+
+  @doc """
+  Marks that the user got today's Postfach reminders; `false` if they already had. One
+  conditional `UPDATE`, so of two overlapping runs only one reminds.
+  """
+  def claim_ticket_reminder(%User{id: id}, %Date{} = today) do
+    {count, _} =
+      Repo.update_all(
+        from(u in User,
+          where: u.id == ^id and (is_nil(u.ticket_reminded_on) or u.ticket_reminded_on < ^today)
+        ),
+        set: [ticket_reminded_on: today]
+      )
+
+    count > 0
+  end
 
   @doc "Today in the site's time zone (`Bbh.Time`), never shifted by the dev clock."
   def local_today, do: Bbh.Time.real_now() |> DateTime.to_date()

@@ -17,6 +17,30 @@ defmodule Bbh.AccountsTest do
     end
   end
 
+  describe "lookups for other contexts" do
+    test "get_user/1, list_users_by_ids/1 and list_admins/0" do
+      user = user_fixture()
+      admin = admin_user_fixture()
+
+      assert Accounts.get_user(user.id).id == user.id
+      refute Accounts.get_user(Ecto.UUID.generate())
+
+      assert Accounts.list_users_by_ids([user.id, Ecto.UUID.generate()]) |> Enum.map(& &1.id) ==
+               [user.id]
+
+      assert Enum.map(Accounts.list_admins(), & &1.id) == [admin.id]
+    end
+
+    test "claim_ticket_reminder/2 succeeds once per day" do
+      user = user_fixture()
+      today = ~D[2026-11-17]
+
+      assert Accounts.claim_ticket_reminder(user, today)
+      refute Accounts.claim_ticket_reminder(user, today)
+      assert Accounts.claim_ticket_reminder(user, Date.add(today, 1))
+    end
+  end
+
   describe "get_user!/1" do
     test "raises if id is invalid" do
       assert_raise Ecto.NoResultsError, fn ->

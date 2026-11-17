@@ -12,7 +12,6 @@ defmodule Bbh.Workers.TicketReminder do
 
   import Ecto.Query
 
-  alias Bbh.Accounts.User
   alias Bbh.Repo
   alias Bbh.Settings
   alias Bbh.Tickets.{Notifier, Reminders, Ticket}
@@ -39,7 +38,7 @@ defmodule Bbh.Workers.TicketReminder do
     if overdue != [] or escalations != [] do
       digest = %{counts: counts(), overdue: overdue, escalations: escalations}
 
-      for admin <- Repo.all(from u in User, where: u.role == "admin") do
+      for admin <- Bbh.Accounts.list_admins() do
         Notifier.digest(admin, digest)
       end
     end

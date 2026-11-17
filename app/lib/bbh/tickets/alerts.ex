@@ -20,6 +20,7 @@ defmodule Bbh.Tickets.Alerts do
   """
   import Ecto.Query
 
+  alias Bbh.Accounts
   alias Bbh.Accounts.User
   alias Bbh.Notifications
   alias Bbh.Repo
@@ -34,12 +35,12 @@ defmodule Bbh.Tickets.Alerts do
   @daily_slot 19 * 60
 
   @doc "A changeset for the user's notification settings."
-  def change_preferences(%User{} = user, attrs \\ %{}),
-    do: User.ticket_notifications_changeset(user, attrs)
+  defdelegate change_preferences(user, attrs \\ %{}),
+    to: Accounts,
+    as: :change_ticket_notifications
 
   @doc "Saves the user's notification settings."
-  def update_preferences(%User{} = user, attrs),
-    do: user |> change_preferences(attrs) |> Repo.update()
+  defdelegate update_preferences(user, attrs), to: Accounts, as: :update_ticket_notifications
 
   @doc "Queues the announcement of new tickets for everyone who works their queues."
   def enqueue_new(tickets) do
@@ -118,7 +119,7 @@ defmodule Bbh.Tickets.Alerts do
       reminders = todays_reminders(settings, now)
 
       users =
-        Repo.all(from u in User, where: u.id in ^Map.keys(reminders))
+        Accounts.list_users_by_ids(Map.keys(reminders))
         |> Kernel.++(Enum.map(rows, & &1.user))
         |> Enum.uniq_by(& &1.id)
 
@@ -173,24 +174,10 @@ defmodule Bbh.Tickets.Alerts do
     today = DateTime.to_date(now)
     reminder_time = at(today, settings.ticket_reminder_hour * 60)
 
-    if DateTime.compare(slot, reminder_time) != :lt and claim_reminders(user, today),
-      do: items,
-      else: []
-  end
-
-  # One conditional UPDATE, so two overlapping runs cannot both remind.
-  defp claim_reminders(user, today) do
-    {count, _} =
-      Repo.update_all(
-        from(u in User,
-          where:
-            u.id == ^user.id and
-              (is_nil(u.ticket_reminded_on) or u.ticket_reminded_on < ^today)
-        ),
-        set: [ticket_reminded_on: today]
-      )
-
-    count > 0
+    if DateTime.compare(slot, reminder_time) != :lt and
+         Accounts.claim_ticket_reminder(user, today),
+       do: items,
+       else: []
   end
 
   defp flush_user(user, rows, items, recipients) do
