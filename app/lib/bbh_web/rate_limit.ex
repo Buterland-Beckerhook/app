@@ -38,7 +38,19 @@ defmodule BbhWeb.RateLimit do
   @doc "Client IP string for use in rate-limit keys — see `BbhWeb.ClientIp`."
   defdelegate client_ip(conn), to: BbhWeb.ClientIp, as: :get
 
-  defp normalize(ip) when is_tuple(ip), do: ip |> :inet.ntoa() |> to_string()
+  defp normalize(ip) when is_tuple(ip), do: ip |> :inet.ntoa() |> to_string() |> normalize()
+
+  # An IPv6 host usually holds a whole /64 and could rotate through it for a fresh
+  # bucket per request, so a /64 shares one. IPv4-mapped addresses stay per address,
+  # and anything that is not an IPv6 address (IPv4, a user id, an email) is kept as is.
+  defp normalize(identifier) when is_binary(identifier) do
+    case :inet.parse_ipv6strict_address(String.to_charlist(identifier)) do
+      {:ok, {0, 0, 0, 0, 0, 0xFFFF, _, _}} -> identifier
+      {:ok, {a, b, c, d, _, _, _, _}} -> "#{:inet.ntoa({a, b, c, d, 0, 0, 0, 0})}/64"
+      {:error, _} -> identifier
+    end
+  end
+
   defp normalize(other), do: to_string(other)
 
   defp enabled?, do: Application.get_env(:bbh, __MODULE__, [])[:enabled] != false
