@@ -277,4 +277,57 @@ defmodule Bbh.NotificationsTest do
       assert {:error, :not_found} = Notifications.set_label(nil, "Name")
     end
   end
+
+  describe "sending to a device" do
+    @endpoint "https://fcm.googleapis.com/fcm/send/geraet"
+
+    setup do
+      user = user_fixture()
+
+      {:ok, _} =
+        Notifications.link_device(user, %{
+          "endpoint" => @endpoint,
+          "keys" => %{"p256dh" => "pk", "auth" => "ak"}
+        })
+
+      previous = Application.get_env(:bbh, Notifications, [])
+      on_exit(fn -> Application.put_env(:bbh, Notifications, previous) end)
+      %{user: user, previous: previous}
+    end
+
+    defp push_answers(previous, result) do
+      Application.put_env(
+        :bbh,
+        Notifications,
+        Keyword.put(previous, :sender, fn _, _ -> result end)
+      )
+    end
+
+    defp device, do: Repo.get_by(PushSubscription, endpoint: @endpoint)
+
+    test "an expired subscription is pruned", %{user: user, previous: previous} do
+      push_answers(previous, {:error, :expired})
+
+      assert Notifications.notify_user(user, %{title: "t", body: "b"}) == 0
+      refute device()
+    end
+
+    test "any other failure counts against the device", %{user: user, previous: previous} do
+      push_answers(previous, {:error, :timeout})
+
+      assert Notifications.notify_user(user, %{title: "t", body: "b"}) == 0
+      assert Notifications.notify_user(user, %{title: "t", body: "b"}) == 0
+      assert %{error_count: 2, last_error_at: %DateTime{}} = device()
+    end
+
+    test "a success clears the failures", %{user: user, previous: previous} do
+      push_answers(previous, {:error, :timeout})
+      Notifications.notify_user(user, %{title: "t", body: "b"})
+
+      push_answers(previous, {:ok, :sent})
+
+      assert Notifications.notify_user(user, %{title: "t", body: "b"}) == 1
+      assert %{error_count: 0, last_error_at: nil, last_used: %DateTime{}} = device()
+    end
+  end
 end
