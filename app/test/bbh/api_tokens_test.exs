@@ -158,6 +158,29 @@ defmodule Bbh.ApiTokensTest do
     end
   end
 
+  describe "revoke_all_for_user/1" do
+    test "revokes PATs and OAuth tokens of that user only", %{user: user} do
+      other = user_fixture()
+      {:ok, pat, _} = ApiTokens.create_pat(user, "iPhone", ["mcp:write"])
+      {:ok, refresh, _} = ApiTokens.mint(user, "refresh", resource: @resource)
+      {:ok, foreign, _} = ApiTokens.create_pat(other, "foreign", ["mcp:read"])
+
+      assert ApiTokens.revoke_all_for_user(user) == 2
+
+      assert {:error, :revoked} = ApiTokens.verify(pat, :any)
+      assert {:error, :revoked} = ApiTokens.verify(refresh, :any)
+      assert {:ok, _, _} = ApiTokens.verify(foreign, :any)
+    end
+
+    test "keeps the timestamp of a token revoked earlier", %{user: user} do
+      {:ok, _, token} = ApiTokens.create_pat(user, "old", ["mcp:read"])
+      {:ok, revoked} = ApiTokens.revoke(token)
+
+      assert ApiTokens.revoke_all_for_user(user) == 0
+      assert Repo.get!(ApiToken, token.id).revoked_at == revoked.revoked_at
+    end
+  end
+
   describe "get_for_user/2" do
     test "will not reach across accounts", %{user: user} do
       other = user_fixture()

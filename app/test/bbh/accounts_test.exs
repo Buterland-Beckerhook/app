@@ -433,6 +433,14 @@ defmodule Bbh.AccountsTest do
       assert Accounts.SecondFactor.valid_factor_reset_code?(user, code)
     end
 
+    test "revokes the user's API tokens", %{user: user} do
+      {:ok, pat, _} = Bbh.ApiTokens.create_pat(user, "iPhone", ["mcp:write"])
+
+      {:ok, _} = Accounts.SecondFactor.reset_second_factors(user)
+
+      assert {:error, :revoked} = Bbh.ApiTokens.verify(pat, :any)
+    end
+
     test "accepts the code regardless of case, dash and spaces", %{user: user} do
       {:ok, {code, _}} = Accounts.SecondFactor.reset_second_factors(user)
       sloppy = code |> String.replace("-", " ") |> String.downcase()
