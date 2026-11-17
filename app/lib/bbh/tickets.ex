@@ -39,7 +39,10 @@ defmodule Bbh.Tickets do
   @doc "Whether the Postfach replaces the old mail path (`TICKETS_ENABLED`)."
   def enabled?, do: Application.get_env(:bbh, :tickets_enabled, false) == true
 
-  @doc "Subscribes the caller to ticket changes (`{:tickets_changed, ticket_id}`)."
+  @doc """
+  Subscribes the caller to ticket changes (`{:tickets_changed, ticket_id}`) made by other
+  processes — its own writes are not echoed back.
+  """
   def subscribe, do: Phoenix.PubSub.subscribe(Bbh.PubSub, Store.topic())
 
   ## Creating

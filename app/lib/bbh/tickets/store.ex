@@ -14,8 +14,10 @@ defmodule Bbh.Tickets.Store do
 
   def topic, do: @topic
 
+  # Not to the writer itself: the ticket page reloads after its own action, and hearing
+  # the same change again would load the whole ticket a second time.
   def broadcast(%Ticket{id: id}),
-    do: Phoenix.PubSub.broadcast(Bbh.PubSub, @topic, {:tickets_changed, id})
+    do: Phoenix.PubSub.broadcast_from(Bbh.PubSub, self(), @topic, {:tickets_changed, id})
 
   def insert_message(%Ticket{id: ticket_id}, attrs) do
     %Message{}
