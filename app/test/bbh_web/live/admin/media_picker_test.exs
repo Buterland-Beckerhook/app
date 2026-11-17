@@ -67,6 +67,10 @@ defmodule BbhWeb.Admin.MediaPickerTest do
 
     # A pick reaches the host LiveView as a message, so render/1 afterwards to let it be
     # handled before asserting.
+    defp count_files(html) do
+      html |> LazyHTML.from_fragment() |> LazyHTML.query("button[phx-value-id]") |> Enum.count()
+    end
+
     defp pick(lv, media_id) do
       lv |> element(~s(#media-picker button[phx-value-id="#{media_id}"])) |> render_click()
       render(lv)
@@ -134,6 +138,20 @@ defmodule BbhWeb.Admin.MediaPickerTest do
       assert Bbh.Content.get_article!(ctx.article.id).image_id == ctx.unfiled.id
       # Closed, because the article image is a single-image slot.
       refute html =~ "Aus Mediathek wählen"
+    end
+
+    test "a big folder shows a page of files and more on request", ctx do
+      for i <- 1..50, do: upload_fixture(filename: "seite-#{i}.webp", folder_id: ctx.sub.id)
+      {lv, _html} = open_picker(ctx.conn, ctx.article)
+      browse(lv, ctx.folder.id)
+      browse(lv, ctx.sub.id)
+
+      # 51 files in the folder (the fixture's nested one included), 48 per page.
+      assert lv |> element("#media-picker") |> render() |> count_files() == 48
+
+      html = lv |> element("#media-picker button", "Mehr anzeigen") |> render_click()
+      assert count_files(html) == 51
+      refute html =~ "Mehr anzeigen"
     end
 
     test "closing hides the modal", ctx do

@@ -108,14 +108,22 @@ defmodule Bbh.Media do
   empty selection is; it will not raise either way.
   """
   def list_uploads(opts \\ []) do
+    opts
+    |> uploads_query()
+    |> sort_uploads(opts[:sort] || "newest")
+    |> page(opts[:limit], opts[:offset])
+    |> Repo.all()
+  end
+
+  @doc "How many uploads `list_uploads/1` finds for the same filters, ignoring paging."
+  def count_uploads(opts \\ []), do: opts |> uploads_query() |> Repo.aggregate(:count)
+
+  defp uploads_query(opts) do
     from(u in Upload)
     |> filter_search(opts[:search])
     |> filter_folder(Keyword.get(opts, :folder, :all))
     |> filter_images_only(opts[:images_only])
     |> filter_recent(opts[:recent])
-    |> sort_uploads(opts[:sort] || "newest")
-    |> page(opts[:limit], opts[:offset])
-    |> Repo.all()
   end
 
   # Offset paging for the media library grid. Every sort ends on the id, so a page

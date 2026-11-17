@@ -43,6 +43,10 @@ defmodule BbhWeb.Admin.MediaPicker do
   alias Bbh.Media
   alias Bbh.Media.Folder
 
+  # Files shown at first, and added by each "Mehr anzeigen". A big folder or a broad
+  # search then never loads the whole library into the socket.
+  @page_size 48
+
   @impl true
   def update(assigns, socket) do
     {:ok,
@@ -52,6 +56,8 @@ defmodule BbhWeb.Admin.MediaPicker do
      |> assign_new(:params, fn -> %{} end)
      |> assign_new(:folder, fn -> nil end)
      |> assign_new(:search, fn -> "" end)
+     |> assign_new(:shown, fn -> @page_size end)
+     |> assign_new(:more?, fn -> false end)
      |> assign_new(:files, fn -> [] end)
      |> assign_new(:subfolders, fn -> [] end)}
   end
@@ -60,21 +66,27 @@ defmodule BbhWeb.Admin.MediaPicker do
   def handle_event("open", params, socket) do
     {:noreply,
      socket
-     |> assign(open: true, params: params, folder: :recent, search: "")
+     |> assign(open: true, params: params, folder: :recent, search: "", shown: @page_size)
      |> load()}
   end
 
-  def handle_event("close", _params, socket), do: {:noreply, assign(socket, :open, false)}
+  # The files go with the modal; the next open loads them afresh anyway.
+  def handle_event("close", _params, socket),
+    do: {:noreply, assign(socket, open: false, files: [])}
 
   def handle_event("browse", %{"folder_id" => folder_id}, socket) do
     {:noreply,
      socket
-     |> assign(folder: folder_from(folder_id), search: "")
+     |> assign(folder: folder_from(folder_id), search: "", shown: @page_size)
      |> load()}
   end
 
   def handle_event("search", %{"search" => search}, socket) do
-    {:noreply, socket |> assign(:search, search) |> load()}
+    {:noreply, socket |> assign(search: search, shown: @page_size) |> load()}
+  end
+
+  def handle_event("more", _params, socket) do
+    {:noreply, socket |> update(:shown, &(&1 + @page_size)) |> load()}
   end
 
   def handle_event("select", %{"id" => id}, socket) do
@@ -94,7 +106,8 @@ defmodule BbhWeb.Admin.MediaPicker do
           socket
       end
 
-    {:noreply, assign(socket, :open, keep_open?(params))}
+    open? = keep_open?(params)
+    {:noreply, assign(socket, open: open?, files: if(open?, do: socket.assigns.files, else: []))}
   end
 
   # A gallery usually takes several pictures in a row, so its modal stays open; every
@@ -107,8 +120,9 @@ defmodule BbhWeb.Admin.MediaPicker do
   defp images_only?(_params), do: true
 
   defp load(socket) do
-    %{search: search, folder: folder, params: params} = socket.assigns
-    opts = [images_only: images_only?(params)]
+    %{search: search, folder: folder, params: params, shown: shown} = socket.assigns
+    # One more than shown, to know whether "Mehr anzeigen" has anything to add.
+    opts = [images_only: images_only?(params), limit: shown + 1]
 
     # A search reaches across folders on purpose; plain browsing stays in the folder.
     files =
@@ -116,7 +130,11 @@ defmodule BbhWeb.Admin.MediaPicker do
         do: Media.list_uploads(opts ++ browse_opts(folder)),
         else: Media.list_uploads(opts ++ [search: search])
 
-    assign(socket, files: files, subfolders: subfolders(folder))
+    assign(socket,
+      files: Enum.take(files, shown),
+      more?: length(files) > shown,
+      subfolders: subfolders(folder)
+    )
   end
 
   # `folder` is nil (the root), a %Folder{}, or :recent — the virtual folder.
@@ -278,6 +296,17 @@ defmodule BbhWeb.Admin.MediaPicker do
                   <.icon :if={!Media.image?(u)} name="hero-document" class="size-10 opacity-50" />
                 </div>
                 <span class="truncate p-1.5 text-xs">{u.title || u.filename}</span>
+              </button>
+            </div>
+
+            <div :if={@more?} class="mt-4 text-center">
+              <button
+                type="button"
+                phx-click="more"
+                phx-target={@myself}
+                class="btn btn-sm btn-ghost"
+              >
+                Mehr anzeigen
               </button>
             </div>
 

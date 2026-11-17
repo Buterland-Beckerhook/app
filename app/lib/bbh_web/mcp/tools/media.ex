@@ -16,21 +16,22 @@ defmodule BbhWeb.MCP.Tools.Media do
     limit = args |> Args.integer("limit", 20) |> clamp(1, @max_limit)
     offset = args |> Args.integer("offset", 0) |> max(0)
 
-    # `list_uploads/1` has no limit of its own; the library is a few thousand rows, and
-    # slicing here keeps the tool result small enough to be worth reading.
+    filters = [
+      search: Args.string(args, "query"),
+      images_only: Args.boolean(args, "images_only", true)
+    ]
+
     uploads =
       Media.list_uploads(
-        search: Args.string(args, "query"),
-        images_only: Args.boolean(args, "images_only", true),
-        sort: Args.string(args, "sort", "newest")
+        filters ++ [sort: Args.string(args, "sort", "newest"), limit: limit, offset: offset]
       )
 
     {:ok,
      %{
-       total: length(uploads),
+       total: Media.count_uploads(filters),
        limit: limit,
        offset: offset,
-       media: uploads |> Enum.slice(offset, limit) |> Enum.map(&View.media/1)
+       media: Enum.map(uploads, &View.media/1)
      }}
   end
 

@@ -576,6 +576,19 @@ defmodule BbhWeb.Api.MCPControllerTest do
       assert found["url"] =~ "/media/"
     end
 
+    test "pages in SQL and reports the total of all matches", %{conn: conn, bearer: bearer} do
+      for i <- 1..5, do: upload_fixture(%{filename: "umzug-#{i}.webp"})
+      upload_fixture(%{filename: "anderes.webp"})
+
+      result =
+        conn
+        |> tool_call(bearer, "search_media", %{"query" => "umzug", "limit" => 2, "offset" => 4})
+        |> tool_data()
+
+      assert result["total"] == 5
+      assert [_last] = result["media"]
+    end
+
     test "attaches an existing media item to a gallery block", %{conn: conn, bearer: bearer} do
       article = conn |> tool_call(bearer, "create_article", %{"title" => "X"}) |> tool_data()
       upload = upload_fixture()
