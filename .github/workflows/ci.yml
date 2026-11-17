@@ -64,7 +64,7 @@ jobs:
           # Keep in sync with app/Dockerfile (Renovate updates all three together).
           # renovate: datasource=hexpm-bob depName=elixir
           elixir-version: "1.20.4"
-          # renovate: datasource=hexpm-bob depName=erlang versioning=semver-coerced
+          # renovate: datasource=hexpm-bob depName=erlang packageName=otp/ubuntu-24.04 versioning=semver-coerced
           otp-version: "29.1.2"
 
       - name: Cache deps and build

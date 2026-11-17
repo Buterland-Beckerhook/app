@@ -69,12 +69,13 @@ defmodule Bbh.MixProject do
       # declared here, so a security advisory on a lock-only package gets no PR until the
       # weekly lock-file maintenance. Keep security-relevant transitives in this list.
       {:ecto, "~> 3.14"},
-      {:plug, "~> 1.20"},
-      {:postgrex, ">= 0.0.0"},
+      # 1.20.0 and 1.20.1 are retired.
+      {:plug, "~> 1.20.3"},
+      {:postgrex, "~> 0.22"},
       {:phoenix_html, "~> 4.4"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:phoenix_live_view, "~> 1.2.0"},
-      {:lazy_html, ">= 0.1.0", only: :test},
+      {:lazy_html, "~> 0.1", only: :test},
       {:phoenix_live_dashboard, "~> 0.9.0"},
       {:esbuild, "~> 0.10", runtime: Mix.env() == :dev},
       {:tailwind, "~> 0.5", runtime: Mix.env() == :dev},
@@ -98,7 +99,8 @@ defmodule Bbh.MixProject do
         compile: false,
         depth: 1
       },
-      {:swoosh, "~> 1.16"},
+      # Floor at the GHSA-754j-98wh-57rf fix; Renovate bumps it per minor.
+      {:swoosh, "~> 1.26.3"},
       {:gen_smtp, "~> 1.2"},
       {:image, "~> 0.72"},
       {:nimble_totp, "~> 1.0"},

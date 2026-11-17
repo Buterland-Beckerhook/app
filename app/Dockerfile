@@ -19,7 +19,7 @@
 
 # renovate: datasource=hexpm-bob depName=elixir
 ARG ELIXIR_VERSION=1.20.4
-# renovate: datasource=hexpm-bob depName=erlang versioning=semver-coerced
+# renovate: datasource=hexpm-bob depName=erlang packageName=otp/ubuntu-24.04 versioning=semver-coerced
 ARG OTP_VERSION=29.1.2
 # renovate: datasource=docker depName=debian versioning=debian
 ARG DEBIAN_VERSION=trixie-20261020-slim
