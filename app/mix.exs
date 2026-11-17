@@ -99,8 +99,8 @@ defmodule Bbh.MixProject do
         compile: false,
         depth: 1
       },
-      # Floor at the GHSA-754j-98wh-57rf fix; Renovate bumps it per minor.
-      {:swoosh, "~> 1.26.3"},
+      # At least the GHSA-754j-98wh-57rf fix (1.26.3), any later 1.x.
+      {:swoosh, "~> 1.26 and >= 1.26.3"},
       {:gen_smtp, "~> 1.2"},
       {:image, "~> 0.72"},
       {:nimble_totp, "~> 1.0"},
