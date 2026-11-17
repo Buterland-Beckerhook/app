@@ -820,7 +820,7 @@ defmodule Bbh.Tickets do
         on: m.id == a.ticket_message_id,
         where: a.id == ^attachment_id and m.ticket_id == ^ticket_id
 
-    with {:ok, _} <- Ecto.UUID.cast(attachment_id),
+    with {:ok, _} <- Bbh.Schema.cast_id(attachment_id),
          :ok <- authorize_view(scope, ticket),
          %Attachment{} = attachment <- Repo.one(query) do
       attachment =

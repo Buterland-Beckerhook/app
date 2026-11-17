@@ -122,7 +122,7 @@ defmodule Bbh.Calendar do
   content block shows. `nil` for an unknown or non-public event and for a programme item.
   """
   def get_public_event_by_id(id) do
-    with {:ok, uuid} <- Ecto.UUID.cast(id || "") do
+    with {:ok, uuid} <- Bbh.Schema.cast_id(id) do
       Repo.one(
         from e in public_top_level(),
           where: e.id == ^uuid,
@@ -277,7 +277,7 @@ defmodule Bbh.Calendar do
   malformed id is a miss, not an `Ecto.Query.CastError`.
   """
   def get_event(id) do
-    case Ecto.UUID.cast(id) do
+    case Bbh.Schema.cast_id(id) do
       {:ok, uuid} -> Repo.get(Event, uuid)
       :error -> nil
     end
@@ -363,7 +363,7 @@ defmodule Bbh.Calendar do
   defp recent_or_included(around, include) do
     recent = dynamic([e], e.starts_at >= ^DateTime.add(around, -183, :day))
 
-    case Ecto.UUID.cast(include || "") do
+    case Bbh.Schema.cast_id(include) do
       {:ok, id} -> dynamic([e], ^recent or e.id == ^id)
       :error -> recent
     end

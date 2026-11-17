@@ -219,7 +219,7 @@ defmodule Bbh.Notifications do
   also has public categories keeps them. Idempotent.
   """
   def unlink_device(%User{id: user_id}, id) do
-    with {:ok, id} <- Ecto.UUID.cast(id),
+    with {:ok, id} <- Bbh.Schema.cast_id(id),
          %PushSubscription{} = sub <- Repo.get_by(PushSubscription, id: id, user_id: user_id) do
       if sub.categories == [] do
         Repo.delete(sub)

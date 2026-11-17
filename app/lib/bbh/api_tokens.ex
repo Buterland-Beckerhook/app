@@ -134,7 +134,7 @@ defmodule Bbh.ApiTokens do
   `Bbh.Media.get_upload/1` handle ids that arrive from a client payload.
   """
   def get_for_user(user, id) do
-    case Ecto.UUID.cast(id) do
+    case Bbh.Schema.cast_id(id) do
       {:ok, uuid} -> Repo.one(from t in ApiToken, where: t.id == ^uuid and t.user_id == ^user.id)
       :error -> nil
     end

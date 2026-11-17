@@ -136,7 +136,7 @@ defmodule Bbh.Media.Folders do
     do: Repo.all(from f in Folder, where: is_nil(f.parent_id), order_by: ^@folder_order)
 
   def list_subfolders(parent_id) do
-    case cast_uuid(parent_id) do
+    case Bbh.Schema.cast_id(parent_id) do
       {:ok, uuid} ->
         Repo.all(from f in Folder, where: f.parent_id == ^uuid, order_by: ^@folder_order)
 
@@ -153,7 +153,7 @@ defmodule Bbh.Media.Folders do
   so anything that is not a UUID is a miss rather than an `Ecto.Query.CastError`.
   """
   def get_folder(id) do
-    with {:ok, uuid} <- cast_uuid(id),
+    with {:ok, uuid} <- Bbh.Schema.cast_id(id),
          %Folder{} = folder <- Repo.get(Folder, uuid) do
       Repo.preload(folder, parent_chain())
     else
@@ -165,9 +165,6 @@ defmodule Bbh.Media.Folders do
   # max_depth - 1 ancestors.
   defp parent_chain,
     do: Enum.reduce(3..Folder.max_depth()//1, :parent, fn _, acc -> [parent: acc] end)
-
-  defp cast_uuid(id) when is_binary(id), do: Ecto.UUID.cast(id)
-  defp cast_uuid(_id), do: :error
 
   def get_folder!(id), do: Repo.get!(Folder, id)
 
@@ -233,7 +230,7 @@ defmodule Bbh.Media.Folders do
   defp normalize_parent_id(id) do
     case blank_to_nil(id) do
       nil -> {:ok, nil}
-      value -> cast_uuid(value)
+      value -> Bbh.Schema.cast_id(value)
     end
   end
 
@@ -361,7 +358,7 @@ defmodule Bbh.Media.Folders do
     query = from f in Folder, select: max(f.position)
 
     query =
-      case cast_uuid(parent_id) do
+      case Bbh.Schema.cast_id(parent_id) do
         {:ok, uuid} -> where(query, [f], f.parent_id == ^uuid)
         # nil, or a malformed id the changeset is about to reject anyway.
         :error -> where(query, [f], is_nil(f.parent_id))

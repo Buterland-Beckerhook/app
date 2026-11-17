@@ -13,4 +13,12 @@ defmodule Bbh.Schema do
       @timestamps_opts [type: :utc_datetime]
     end
   end
+
+  @doc """
+  An id from outside (a URL, a form, an MCP argument) as a UUID: `{:ok, uuid}`, or
+  `:error` for anything that is not one — `nil` and non-strings included — so a lookup
+  can treat a malformed id as a miss instead of raising in the query.
+  """
+  def cast_id(id) when is_binary(id), do: Ecto.UUID.cast(id)
+  def cast_id(_id), do: :error
 end
