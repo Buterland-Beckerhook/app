@@ -74,4 +74,31 @@ defmodule BbhWeb.Plugs.TrackPageViewTest do
 
     assert %{fetches: 0} = Bbh.Analytics.ical_summary(today(), today())
   end
+
+  describe "site search" do
+    test "records the term of the first result page", %{conn: conn} do
+      conn |> put_req_header("user-agent", @browser_ua) |> get("/suche?q=Thron")
+
+      assert [%{term: "thron", searches: 1, no_results: 1}] =
+               Bbh.Analytics.top_searches(today(), today())
+
+      # Still a page view as well.
+      assert Enum.any?(Bbh.Analytics.top_pages(today(), today()), &(&1.path == "/suche"))
+    end
+
+    test "does not count further result pages or empty queries", %{conn: conn} do
+      conn |> put_req_header("user-agent", @browser_ua) |> get("/suche?q=Thron&seite=2")
+      build_conn() |> put_req_header("user-agent", @browser_ua) |> get("/suche?q=")
+
+      assert Bbh.Analytics.top_searches(today(), today()) == []
+    end
+
+    test "ignores searches by bots", %{conn: conn} do
+      conn
+      |> put_req_header("user-agent", "Googlebot/2.1 (+http://www.google.com/bot.html)")
+      |> get("/suche?q=Thron")
+
+      assert Bbh.Analytics.top_searches(today(), today()) == []
+    end
+  end
 end

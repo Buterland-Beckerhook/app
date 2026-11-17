@@ -6,6 +6,7 @@ defmodule Bbh.Analytics do
     * page views per path
     * external referrer hosts
     * rough unique visitors (one row per daily-salted visitor hash)
+    * site-search terms (normalized, without any visitor reference)
 
   Recording is fire-and-forget (see `BbhWeb.Plugs.TrackPageView`); the read
   side powers the admin dashboard.
@@ -23,15 +24,18 @@ defmodule Bbh.Analytics do
   alias Bbh.Analytics.{
     DailyPageView,
     DailyReferrer,
+    DailySearch,
     DailyVisitor,
     DailyVisitorCount,
     IcalFetch,
     IcalFetchCount
   }
 
+  alias Bbh.Content.Article
   alias Bbh.Repo
 
   @path_max 255
+  @term_max 100
 
   # Days a visitor hash is kept before `roll_up/1` replaces it with the day's total.
   @retention_days 7
@@ -110,6 +114,53 @@ defmodule Bbh.Analytics do
       Logger.warning("Analytics.record_ical failed: #{inspect(error)}")
       :error
   end
+
+  @doc """
+  Record one site search. Expects `%{term:, hits:}` (and optional `:day`, defaulting
+  to today, UTC); `hits` is the result count, `0` marks a search without results. The
+  term is normalized (`normalize_term/1`); a blank one is not recorded. Best-effort:
+  any error is swallowed.
+  """
+  def record_search(attrs) do
+    day = Map.get(attrs, :day, Date.utc_today())
+
+    case normalize_term(attrs[:term]) do
+      "" ->
+        :ok
+
+      term ->
+        miss = if attrs[:hits] == 0, do: 1, else: 0
+
+        Repo.insert(%DailySearch{day: day, term: term, searches: 1, no_results: miss},
+          on_conflict: [inc: [searches: 1, no_results: miss]],
+          conflict_target: [:day, :term]
+        )
+
+        :ok
+    end
+  rescue
+    error ->
+      require Logger
+      Logger.warning("Analytics.record_search failed: #{inspect(error)}")
+      :error
+  end
+
+  @doc """
+  A search term as it is counted: lower-cased, whitespace collapsed, at most
+  #{@term_max} characters — so "Schützenfest " and "schützenfest" are one term.
+
+      iex> Bbh.Analytics.normalize_term("  Schützenfest   2026 ")
+      "schützenfest 2026"
+  """
+  def normalize_term(term) when is_binary(term) do
+    term
+    |> String.split()
+    |> Enum.join(" ")
+    |> String.downcase()
+    |> String.slice(0, @term_max)
+  end
+
+  def normalize_term(_), do: ""
 
   @doc """
   Replace the per-hash rows of every day older than `retention_days` (default
@@ -284,6 +335,61 @@ defmodule Bbh.Analytics do
         order_by: [desc: sum(r.views)],
         limit: ^limit,
         select: %{host: r.host, views: sum(r.views)}
+    )
+  end
+
+  @doc """
+  Most viewed articles in `[from, to]` as `[%{id:, title:, path:, views:}]` — the page
+  views of `/aktuell/:year/:slug` matched against the articles' current URL. Views
+  recorded under an earlier slug of an article are not attributed to it.
+  """
+  def top_articles(from, to, limit \\ 10) do
+    Repo.all(
+      from [p, a] in article_views_query(from, to),
+        group_by: [a.id, a.title, a.year, a.slug],
+        order_by: [desc: sum(p.views), asc: a.title],
+        limit: ^limit,
+        select: %{
+          id: a.id,
+          title: a.title,
+          path: fragment("'/aktuell/' || ? || '/' || ?", a.year, a.slug),
+          views: sum(p.views)
+        }
+    )
+  end
+
+  @doc """
+  Page views per article in `[from, to]` as `%{article_id => views}`; articles without
+  views are absent.
+  """
+  def article_views(from, to) do
+    from([p, a] in article_views_query(from, to),
+      group_by: a.id,
+      select: {a.id, sum(p.views)}
+    )
+    |> Repo.all()
+    |> Map.new()
+  end
+
+  defp article_views_query(from, to) do
+    from p in DailyPageView,
+      join: a in Article,
+      on: p.path == fragment("'/aktuell/' || ? || '/' || ?", a.year, a.slug),
+      where: p.day >= ^from and p.day <= ^to and like(p.path, "/aktuell/%")
+  end
+
+  @doc """
+  Most frequent site-search terms in `[from, to]` as
+  `[%{term:, searches:, no_results:}]`.
+  """
+  def top_searches(from, to, limit \\ 10) do
+    Repo.all(
+      from s in DailySearch,
+        where: s.day >= ^from and s.day <= ^to,
+        group_by: s.term,
+        order_by: [desc: sum(s.searches), asc: s.term],
+        limit: ^limit,
+        select: %{term: s.term, searches: sum(s.searches), no_results: sum(s.no_results)}
     )
   end
 

@@ -1,6 +1,8 @@
 defmodule Bbh.AnalyticsTest do
   use Bbh.DataCase, async: true
 
+  import Bbh.ContentFixtures
+
   alias Bbh.Analytics
 
   @today Date.utc_today()
@@ -35,6 +37,66 @@ defmodule Bbh.AnalyticsTest do
       assert Analytics.top_referrers(@today, @today) == [%{host: "google.com", views: 2}]
     end
   end
+
+  describe "top_articles/3 and article_views/2" do
+    test "attributes page views to articles by their current URL" do
+      popular = article_fixture(title: "Schützenfest")
+      quiet = article_fixture(title: "Jahreshauptversammlung")
+      article_fixture(title: "Ungelesen")
+
+      Analytics.record(%{path: article_path(popular), day: @today})
+      Analytics.record(%{path: article_path(popular), day: @today})
+      Analytics.record(%{path: article_path(quiet), day: @today})
+      # Not an article page.
+      Analytics.record(%{path: "/aktuell", day: @today})
+
+      assert [
+               %{id: popular_id, title: "Schützenfest", views: 2, path: popular_path},
+               %{title: "Jahreshauptversammlung", views: 1}
+             ] = Analytics.top_articles(@today, @today)
+
+      assert popular_id == popular.id
+      assert popular_path == article_path(popular)
+
+      assert Analytics.article_views(@today, @today) == %{popular.id => 2, quiet.id => 1}
+    end
+
+    test "only counts views inside the range" do
+      article = article_fixture()
+      Analytics.record(%{path: article_path(article), day: Date.add(@today, -40)})
+
+      assert Analytics.top_articles(Date.add(@today, -29), @today) == []
+      assert Analytics.article_views(Date.add(@today, -29), @today) == %{}
+    end
+  end
+
+  describe "record_search/1 and top_searches/3" do
+    test "counts normalized terms and searches without results" do
+      Analytics.record_search(%{term: "Schützenfest", hits: 3, day: @today})
+      Analytics.record_search(%{term: "  schützenfest ", hits: 3, day: @today})
+      Analytics.record_search(%{term: "Kaiserschießen", hits: 0, day: @today})
+
+      assert Analytics.top_searches(@today, @today) == [
+               %{term: "schützenfest", searches: 2, no_results: 0},
+               %{term: "kaiserschießen", searches: 1, no_results: 1}
+             ]
+    end
+
+    test "ignores blank terms" do
+      assert :ok = Analytics.record_search(%{term: "   ", hits: 0})
+      assert :ok = Analytics.record_search(%{})
+
+      assert Analytics.top_searches(@today, @today) == []
+    end
+
+    test "normalize_term/1 collapses whitespace, lower-cases and truncates" do
+      assert Analytics.normalize_term(" Thron \n 2026 ") == "thron 2026"
+      assert Analytics.normalize_term(String.duplicate("a", 300)) |> String.length() == 100
+      assert Analytics.normalize_term(nil) == ""
+    end
+  end
+
+  defp article_path(article), do: "/aktuell/#{article.year}/#{article.slug}"
 
   describe "record_ical/1 and ical_summary/2" do
     test "counts total fetches and peak daily unique subscribers" do

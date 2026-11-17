@@ -37,6 +37,19 @@ defmodule BbhWeb.Admin.ArticleLiveTest do
       assert html =~ article.title
     end
 
+    test "shows each article's page views of the last 30 days", %{conn: conn} do
+      article = article_fixture(title: "Sommerfest 2026")
+      path = "/aktuell/#{article.year}/#{article.slug}"
+      Bbh.Analytics.record(%{path: path})
+      Bbh.Analytics.record(%{path: path})
+      Bbh.Analytics.record(%{path: path, day: Date.add(Date.utc_today(), -45)})
+
+      {:ok, _lv, html} = live(conn, ~p"/admin/artikel")
+
+      assert html =~ "Aufrufe (30 Tage)"
+      assert html =~ ~r/<span class="tabular-nums">\s*2\s*<\/span>/
+    end
+
     test "filters by status, from the URL and from the select", %{conn: conn} do
       article_fixture(title: "Sommerfest 2026", status: "published")
       article_fixture(title: "Winterball 2026", status: "draft")

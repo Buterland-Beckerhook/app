@@ -107,6 +107,53 @@ defmodule BbhWeb.Admin.DashboardLiveTest do
     assert has_element?(lv, "#tickets-widget")
   end
 
+  test "shows top articles and search terms to an admin", %{conn: conn} do
+    article = article_fixture(title: "Königsschießen")
+    Bbh.Analytics.record(%{path: "/aktuell/#{article.year}/#{article.slug}"})
+    Bbh.Analytics.record_search(%{term: "Vogelschießen", hits: 0})
+
+    {:ok, lv, _html} = live(conn, ~p"/admin")
+    render_async(lv, 2000)
+
+    assert lv |> element("#top-articles") |> render() =~ "Königsschießen"
+    html = lv |> element("#top-searches") |> render()
+    assert html =~ "vogelschießen"
+    assert html =~ "ohne Treffer"
+  end
+
+  describe "as an editor with a strong session" do
+    setup do
+      %{conn: log_in_user(build_conn(), Bbh.AccountsFixtures.user_fixture())}
+    end
+
+    test "shows the basic access figures, not the admin-only ones", %{conn: conn} do
+      article = article_fixture(title: "Königsschießen")
+      path = "/aktuell/#{article.year}/#{article.slug}"
+      Bbh.Analytics.record(%{path: path, referrer_host: "google.com"})
+      Bbh.Analytics.record_search(%{term: "Vogelschießen", hits: 0})
+
+      {:ok, lv, _html} = live(conn, ~p"/admin")
+      html = render_async(lv, 2000)
+
+      assert html =~ "Zugriffe"
+      assert html =~ "Seitenaufrufe"
+      assert html =~ "Besuche"
+      assert html =~ "Top-Seiten"
+      assert lv |> element("#top-articles") |> render() =~ "Königsschießen"
+
+      refute html =~ "Top-Verweise"
+      refute html =~ "google.com"
+      refute has_element?(lv, "#top-searches")
+      refute html =~ "iCal-Abrufe"
+      refute html =~ "Push-Abos"
+      refute has_element?(lv, "#ical-clients")
+
+      # The range selector works for them too.
+      assert lv |> element("button", "7 Tage") |> render_click() =~ "Zugriffe"
+      render_async(lv, 2000)
+    end
+  end
+
   describe "with a plain magic-link session" do
     # The dashboard itself stays open (Termine editors land here), but ticket subjects
     # and visitor analytics belong to the strong-auth areas.
