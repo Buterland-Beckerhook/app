@@ -103,8 +103,17 @@ defmodule Bbh.Club do
   def count_people, do: Repo.aggregate(Person, :count, :id)
   # The portrait rides along so the admin form can show the chosen picture.
   def get_person!(id), do: Person |> Repo.get!(id) |> Repo.preload(:portrait)
-  def create_person(attrs), do: %Person{} |> Person.changeset(attrs) |> Repo.insert()
-  def update_person(%Person{} = p, attrs), do: p |> Person.changeset(attrs) |> Repo.update()
+
+  def create_person(scope, attrs) do
+    with :ok <- Authz.authorize_section(scope, :people),
+         do: %Person{} |> Person.changeset(attrs) |> Repo.insert()
+  end
+
+  def update_person(scope, %Person{} = p, attrs) do
+    with :ok <- Authz.authorize_section(scope, :people),
+         do: p |> Person.changeset(attrs) |> Repo.update()
+  end
+
   @doc "Delete a person. Admin-only: `{:error, :unauthorized}` otherwise."
   def delete_person(scope, %Person{} = p) do
     with :ok <- Authz.authorize_delete(scope, p), do: Repo.delete(p)
@@ -123,8 +132,17 @@ defmodule Bbh.Club do
   end
 
   def get_trophy!(id), do: Repo.get!(Trophy, id)
-  def create_trophy(attrs), do: %Trophy{} |> Trophy.changeset(attrs) |> Repo.insert()
-  def update_trophy(%Trophy{} = t, attrs), do: t |> Trophy.changeset(attrs) |> Repo.update()
+
+  def create_trophy(scope, attrs) do
+    with :ok <- Authz.authorize_section(scope, :trophies),
+         do: %Trophy{} |> Trophy.changeset(attrs) |> Repo.insert()
+  end
+
+  def update_trophy(scope, %Trophy{} = t, attrs) do
+    with :ok <- Authz.authorize_section(scope, :trophies),
+         do: t |> Trophy.changeset(attrs) |> Repo.update()
+  end
+
   def change_trophy(%Trophy{} = t, attrs \\ %{}), do: Trophy.changeset(t, attrs)
 
   @doc """
@@ -151,10 +169,16 @@ defmodule Bbh.Club do
   end
 
   def get_trophy_win!(id), do: TrophyWin |> Repo.get!(id) |> Repo.preload(:trophy)
-  def create_trophy_win(attrs), do: %TrophyWin{} |> TrophyWin.changeset(attrs) |> Repo.insert()
 
-  def update_trophy_win(%TrophyWin{} = w, attrs),
-    do: w |> TrophyWin.changeset(attrs) |> Repo.update()
+  def create_trophy_win(scope, attrs) do
+    with :ok <- Authz.authorize_section(scope, :trophies),
+         do: %TrophyWin{} |> TrophyWin.changeset(attrs) |> Repo.insert()
+  end
+
+  def update_trophy_win(scope, %TrophyWin{} = w, attrs) do
+    with :ok <- Authz.authorize_section(scope, :trophies),
+         do: w |> TrophyWin.changeset(attrs) |> Repo.update()
+  end
 
   @doc "Delete a winner entry. Admin-only: `{:error, :unauthorized}` otherwise."
   def delete_trophy_win(scope, %TrophyWin{} = w) do

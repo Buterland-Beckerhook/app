@@ -60,10 +60,13 @@ defmodule BbhWeb.Admin.PersonLive.Form do
   end
 
   defp save(socket, :new, params) do
-    case Club.create_person(params) do
+    case Club.create_person(socket.assigns.current_scope, params) do
       {:ok, _} ->
         {:noreply,
          socket |> put_flash(:info, "Person erstellt.") |> push_navigate(to: ~p"/admin/personen")}
+
+      {:error, :unauthorized} ->
+        {:noreply, put_flash(socket, :error, "Keine Berechtigung.")}
 
       {:error, changeset} ->
         {:noreply, assign_form(socket, changeset)}
@@ -71,12 +74,15 @@ defmodule BbhWeb.Admin.PersonLive.Form do
   end
 
   defp save(socket, :edit, params) do
-    case Club.update_person(socket.assigns.person, params) do
+    case Club.update_person(socket.assigns.current_scope, socket.assigns.person, params) do
       {:ok, _} ->
         {:noreply,
          socket
          |> put_flash(:info, "Person gespeichert.")
          |> push_navigate(to: ~p"/admin/personen")}
+
+      {:error, :unauthorized} ->
+        {:noreply, put_flash(socket, :error, "Keine Berechtigung.")}
 
       {:error, changeset} ->
         {:noreply, assign_form(socket, changeset)}

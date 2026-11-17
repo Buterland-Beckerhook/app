@@ -198,7 +198,12 @@ defmodule Bbh.MediaTest do
     test "fetches and updates" do
       upload = upload_fixture(%{})
       assert Media.get_upload!(upload.id).id == upload.id
-      assert {:ok, updated} = Media.update_upload(upload, %{title: "Neuer Titel"})
+
+      assert {:ok, updated} =
+               Media.update_upload(Bbh.AccountsFixtures.writer_scope(), upload, %{
+                 title: "Neuer Titel"
+               })
+
       assert updated.title == "Neuer Titel"
     end
 
@@ -211,7 +216,7 @@ defmodule Bbh.MediaTest do
       # storage_key drives File.rm/send_file, so overwriting it with "../.." would
       # let an admin escape uploads_dir.
       {:ok, updated} =
-        Media.update_upload(upload, %{
+        Media.update_upload(Bbh.AccountsFixtures.writer_scope(), upload, %{
           "title" => "Neu",
           "storage_key" => "../../../../etc/passwd",
           "content_type" => "text/html",
@@ -230,7 +235,7 @@ defmodule Bbh.MediaTest do
       upload = upload_fixture(%{})
 
       assert {:ok, updated} =
-               Media.update_upload(upload, %{
+               Media.update_upload(Bbh.AccountsFixtures.writer_scope(), upload, %{
                  "title" => "Schützenfest",
                  "caption" => "Der Thron 2025",
                  "description" => "Vier Personen in Uniform",
@@ -247,7 +252,12 @@ defmodule Bbh.MediaTest do
       assert {:ok, variant, _} = Media.resolve_variant(upload.storage_key, 20, 20)
       assert File.regular?(variant)
 
-      assert {:ok, _} = Media.update_upload(upload, %{focal_point_x: 0.9, focal_point_y: 0.1})
+      assert {:ok, _} =
+               Media.update_upload(Bbh.AccountsFixtures.writer_scope(), upload, %{
+                 focal_point_x: 0.9,
+                 focal_point_y: 0.1
+               })
+
       refute File.regular?(variant)
     end
 
@@ -257,7 +267,11 @@ defmodule Bbh.MediaTest do
       assert {:ok, variant, _} = Media.resolve_variant(upload.storage_key, 20, 20)
       assert File.regular?(variant)
 
-      assert {:ok, _} = Media.update_upload(upload, %{"title" => "Neu"})
+      assert {:ok, _} =
+               Media.update_upload(Bbh.AccountsFixtures.writer_scope(), upload, %{
+                 "title" => "Neu"
+               })
+
       assert File.regular?(variant)
     end
   end
@@ -336,7 +350,12 @@ defmodule Bbh.MediaTest do
     test "carries the focal point around with the image" do
       src = write_image(400, 200)
       {:ok, upload} = Media.store_file(src, %{filename: "wide.png"})
-      {:ok, upload} = Media.update_upload(upload, %{focal_point_x: 0.9, focal_point_y: 0.5})
+
+      {:ok, upload} =
+        Media.update_upload(Bbh.AccountsFixtures.writer_scope(), upload, %{
+          focal_point_x: 0.9,
+          focal_point_y: 0.5
+        })
 
       # 90° clockwise maps (x, y) -> (1 - y, x).
       assert {:ok, cw} = Media.rotate_upload(upload, 90)
@@ -364,7 +383,12 @@ defmodule Bbh.MediaTest do
       on_exit(fn -> File.rm(src) end)
 
       {:ok, upload} = Media.store_file(src, %{filename: "halves.png"})
-      {:ok, upload} = Media.update_upload(upload, %{focal_point_x: 0.1, focal_point_y: 0.5})
+
+      {:ok, upload} =
+        Media.update_upload(Bbh.AccountsFixtures.writer_scope(), upload, %{
+          focal_point_x: 0.1,
+          focal_point_y: 0.5
+        })
 
       # Warm the libvips operation cache on this filename — that cache is keyed by name
       # and does not notice the bytes changing underneath.

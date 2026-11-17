@@ -121,14 +121,8 @@ defmodule BbhWeb.Admin.EventLive.Form do
   end
 
   def handle_event("save", %{"event" => params}, socket) do
-    params = normalize(params)
-    user = socket.assigns.current_scope.user
-
-    if Authz.can_manage_calendar?(user, effective_calendar(params)) do
-      save(socket, socket.assigns.live_action, params)
-    else
-      {:noreply, put_flash(socket, :error, "Für diesen Kalender fehlt die Berechtigung.")}
-    end
+    # The calendar check (a programme item's is its festival's) is Calendar's.
+    save(socket, socket.assigns.live_action, normalize(params))
   end
 
   # Copy an earlier festival's programme into this (programme-less) festival. When the
@@ -186,7 +180,7 @@ defmodule BbhWeb.Admin.EventLive.Form do
         {:noreply, put_flash(socket, :error, "Keine Berechtigung zum Löschen.")}
 
       confirm == event.slug ->
-        {:ok, _} = Calendar.delete_event(event)
+        {:ok, _} = Calendar.delete_event(socket.assigns.current_scope, event)
 
         {:noreply,
          socket |> put_flash(:info, "Termin gelöscht.") |> push_navigate(to: ~p"/admin/termine")}
@@ -197,10 +191,13 @@ defmodule BbhWeb.Admin.EventLive.Form do
   end
 
   defp save(socket, :new, params) do
-    case Calendar.create_event(params) do
+    case Calendar.create_event(socket.assigns.current_scope, params) do
       {:ok, event} ->
         {:noreply,
          socket |> put_flash(:info, "Termin erstellt.") |> push_navigate(to: after_save(event))}
+
+      {:error, :unauthorized} ->
+        {:noreply, put_flash(socket, :error, "Für diesen Kalender fehlt die Berechtigung.")}
 
       {:error, changeset} ->
         {:noreply, assign_form(socket, changeset)}
@@ -208,12 +205,15 @@ defmodule BbhWeb.Admin.EventLive.Form do
   end
 
   defp save(socket, :edit, params) do
-    case Calendar.update_event(socket.assigns.event, params) do
+    case Calendar.update_event(socket.assigns.current_scope, socket.assigns.event, params) do
       {:ok, event} ->
         {:noreply,
          socket
          |> put_flash(:info, "Termin gespeichert.")
          |> push_navigate(to: after_save(event))}
+
+      {:error, :unauthorized} ->
+        {:noreply, put_flash(socket, :error, "Für diesen Kalender fehlt die Berechtigung.")}
 
       {:error, changeset} ->
         {:noreply, assign_form(socket, changeset)}
@@ -241,15 +241,6 @@ defmodule BbhWeb.Admin.EventLive.Form do
 
   # The calendar a save lands in: an item's comes from its festival (the changeset
   # copies it), whatever the — hidden — field says.
-  defp effective_calendar(%{"parent_id" => parent_id} = params) when parent_id not in [nil, ""] do
-    case Calendar.get_event(parent_id) do
-      %Event{calendar: calendar} -> calendar
-      nil -> params["calendar"]
-    end
-  end
-
-  defp effective_calendar(params), do: params["calendar"]
-
   defp same_weekday?(a, b), do: Date.day_of_week(a.starts_at) == Date.day_of_week(b.starts_at)
 
   defp first_error(%Ecto.Changeset{errors: [{field, {message, _}} | _]}),

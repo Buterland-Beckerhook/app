@@ -39,10 +39,13 @@ defmodule BbhWeb.Admin.MediaEditor do
       now stands. A failed rotation still leaves the metadata saved and, because the new
       bytes are only moved into place on success, the original file untouched.
   """
-  def submit(%Upload{} = upload, %{"upload" => attrs} = params) do
-    case Media.update_upload(upload, attrs) do
+  def submit(scope, %Upload{} = upload, %{"upload" => attrs} = params) do
+    case Media.update_upload(scope, upload, attrs) do
       {:ok, saved} ->
         maybe_rotate(saved, params["rotate"])
+
+      {:error, :unauthorized} ->
+        {:keep, upload, {:error, "Keine Berechtigung."}}
 
       {:error, %Ecto.Changeset{}} ->
         {:keep, upload, {:error, "Bild konnte nicht gespeichert werden."}}

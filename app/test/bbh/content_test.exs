@@ -316,7 +316,13 @@ defmodule Bbh.ContentTest do
 
   describe "page placement validation" do
     test "rejects an unknown placement" do
-      assert {:error, cs} = Content.Pages.create_page(%{title: "X", slug: "x", placement: "foo"})
+      assert {:error, cs} =
+               Content.Pages.create_page(Bbh.AccountsFixtures.writer_scope(), %{
+                 title: "X",
+                 slug: "x",
+                 placement: "foo"
+               })
+
       assert %{placement: [_]} = errors_on(cs)
     end
 
@@ -324,7 +330,7 @@ defmodule Bbh.ContentTest do
       root = page_fixture(slug: "ueber-uns")
 
       assert {:error, cs} =
-               Content.Pages.create_page(%{
+               Content.Pages.create_page(Bbh.AccountsFixtures.writer_scope(), %{
                  title: "Kind",
                  slug: "kind",
                  parent_id: root.id,
@@ -339,7 +345,7 @@ defmodule Bbh.ContentTest do
         parent = page_fixture(placement: placement)
 
         assert {:error, cs} =
-                 Content.Pages.create_page(%{
+                 Content.Pages.create_page(Bbh.AccountsFixtures.writer_scope(), %{
                    title: "Kind",
                    slug: "kind-#{placement}",
                    parent_id: parent.id
@@ -353,7 +359,11 @@ defmodule Bbh.ContentTest do
       root = page_fixture(slug: "ueber-uns")
       page_fixture(slug: "geschichte", parent_id: root.id)
 
-      assert {:error, cs} = Content.Pages.update_page(root, %{placement: "unlisted"})
+      assert {:error, cs} =
+               Content.Pages.update_page(Bbh.AccountsFixtures.writer_scope(), root, %{
+                 placement: "unlisted"
+               })
+
       assert %{placement: [_]} = errors_on(cs)
     end
 
@@ -684,7 +694,10 @@ defmodule Bbh.ContentTest do
       article = article_fixture(date_published: published)
       assert is_nil(article.date_modified)
 
-      {:ok, updated} = Content.update_article(article, %{title: "Neuer Titel"})
+      {:ok, updated} =
+        Content.update_article(Bbh.AccountsFixtures.writer_scope(), article, %{
+          title: "Neuer Titel"
+        })
 
       assert updated.date_published == published
       assert %DateTime{} = updated.date_modified
@@ -694,7 +707,7 @@ defmodule Bbh.ContentTest do
       article = article_fixture()
       assert is_nil(article.date_modified)
 
-      {:ok, unchanged} = Content.update_article(article, %{})
+      {:ok, unchanged} = Content.update_article(Bbh.AccountsFixtures.writer_scope(), article, %{})
       assert is_nil(unchanged.date_modified)
     end
   end

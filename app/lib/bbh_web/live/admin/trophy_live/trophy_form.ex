@@ -34,14 +34,17 @@ defmodule BbhWeb.Admin.TrophyLive.TrophyForm do
   def handle_event("save", %{"trophy" => params}, socket) do
     result =
       case socket.assigns.live_action do
-        :new -> Club.create_trophy(params)
-        :edit -> Club.update_trophy(socket.assigns.trophy, params)
+        :new -> Club.create_trophy(socket.assigns.current_scope, params)
+        :edit -> Club.update_trophy(socket.assigns.current_scope, socket.assigns.trophy, params)
       end
 
     case result do
       {:ok, _} ->
         {:noreply,
          socket |> put_flash(:info, "Pokal gespeichert.") |> push_navigate(to: ~p"/admin/pokale")}
+
+      {:error, :unauthorized} ->
+        {:noreply, put_flash(socket, :error, "Keine Berechtigung.")}
 
       {:error, changeset} ->
         {:noreply, assign_form(socket, changeset)}

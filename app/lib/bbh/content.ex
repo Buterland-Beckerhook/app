@@ -227,23 +227,27 @@ defmodule Bbh.Content do
   `silent: true` marks it as already notified, so publishing it sends no "Neuer Artikel"
   push — neither now nor from the notifier cron. For backfilled old articles.
   """
-  def create_article(attrs, opts \\ []) do
-    %Article{}
-    |> Article.changeset(attrs)
-    |> put_canonical_tags()
-    |> put_silent(opts)
-    |> Repo.insert()
-    |> Bbh.Search.reindex_after()
+  def create_article(scope, attrs, opts \\ []) do
+    with :ok <- Authz.authorize_section(scope, :articles) do
+      %Article{}
+      |> Article.changeset(attrs)
+      |> put_canonical_tags()
+      |> put_silent(opts)
+      |> Repo.insert()
+      |> Bbh.Search.reindex_after()
+    end
   end
 
   @doc "Update an article. Takes `silent: true` like `create_article/2`."
-  def update_article(%Article{} = article, attrs, opts \\ []) do
-    article
-    |> Article.changeset(attrs)
-    |> put_canonical_tags()
-    |> put_silent(opts)
-    |> Repo.update()
-    |> Bbh.Search.reindex_after()
+  def update_article(scope, %Article{} = article, attrs, opts \\ []) do
+    with :ok <- Authz.authorize_section(scope, :articles) do
+      article
+      |> Article.changeset(attrs)
+      |> put_canonical_tags()
+      |> put_silent(opts)
+      |> Repo.update()
+      |> Bbh.Search.reindex_after()
+    end
   end
 
   # Set in the same write as the publish, so the cron can never see the article

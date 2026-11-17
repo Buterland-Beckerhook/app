@@ -18,7 +18,8 @@ defmodule Bbh.CalendarProgrammeTest do
     })
   end
 
-  defp create_item(parent, attrs \\ %{}), do: Calendar.create_event(item_attrs(parent, attrs))
+  defp create_item(parent, attrs \\ %{}),
+    do: Calendar.create_event(Bbh.AccountsFixtures.writer_scope(), item_attrs(parent, attrs))
 
   describe "programme item changeset" do
     test "a timed item within the festival is valid, inheriting what it must" do
@@ -56,7 +57,11 @@ defmodule Bbh.CalendarProgrammeTest do
     test "an event cannot be its own parent" do
       fest = festival_fixture()
 
-      assert {:error, cs} = Calendar.update_event(fest, %{parent_id: fest.id})
+      assert {:error, cs} =
+               Calendar.update_event(Bbh.AccountsFixtures.writer_scope(), fest, %{
+                 parent_id: fest.id
+               })
+
       assert %{parent_id: ["kann nicht der Termin selbst sein"]} = errors_on(cs)
     end
 
@@ -100,7 +105,11 @@ defmodule Bbh.CalendarProgrammeTest do
       _item = programme_item_fixture(fest)
       other = festival_fixture()
 
-      assert {:error, cs} = Calendar.update_event(fest, %{parent_id: other.id})
+      assert {:error, cs} =
+               Calendar.update_event(Bbh.AccountsFixtures.writer_scope(), fest, %{
+                 parent_id: other.id
+               })
+
       assert %{parent_id: ["geht nicht: der Termin hat selbst Programmpunkte"]} = errors_on(cs)
     end
 
@@ -121,17 +130,34 @@ defmodule Bbh.CalendarProgrammeTest do
           ends_at: ~U[2030-07-24 02:00:00Z]
         )
 
-      assert {:error, cs} = Calendar.update_event(fest, %{ends_at: ~U[2030-07-22 00:00:00Z]})
+      assert {:error, cs} =
+               Calendar.update_event(Bbh.AccountsFixtures.writer_scope(), fest, %{
+                 ends_at: ~U[2030-07-22 00:00:00Z]
+               })
+
       assert %{ends_at: ["„Kehraus“ läge dann außerhalb des Festes"]} = errors_on(cs)
 
-      assert {:error, cs} = Calendar.update_event(fest, %{starts_at: ~U[2030-07-21 00:00:00Z]})
+      assert {:error, cs} =
+               Calendar.update_event(Bbh.AccountsFixtures.writer_scope(), fest, %{
+                 starts_at: ~U[2030-07-21 00:00:00Z]
+               })
+
       assert %{ends_at: ["„Kinderfest“ läge dann außerhalb des Festes"]} = errors_on(cs)
 
-      assert {:error, cs} = Calendar.update_event(fest, %{all_day: false})
+      assert {:error, cs} =
+               Calendar.update_event(Bbh.AccountsFixtures.writer_scope(), fest, %{all_day: false})
+
       assert %{all_day: [_]} = errors_on(cs)
 
-      assert {:ok, _} = Calendar.update_event(fest, %{ends_at: ~U[2030-07-24 00:00:00Z]})
-      assert {:ok, _} = Calendar.update_event(fest, %{title: "Großes Schützenfest"})
+      assert {:ok, _} =
+               Calendar.update_event(Bbh.AccountsFixtures.writer_scope(), fest, %{
+                 ends_at: ~U[2030-07-24 00:00:00Z]
+               })
+
+      assert {:ok, _} =
+               Calendar.update_event(Bbh.AccountsFixtures.writer_scope(), fest, %{
+                 title: "Großes Schützenfest"
+               })
     end
 
     test "slugs are unique per festival, not against top-level events or other festivals" do
@@ -303,7 +329,7 @@ defmodule Bbh.CalendarProgrammeTest do
       fest = festival_fixture()
       item = programme_item_fixture(fest, reminders: [%{lead_days: 1, text: "Morgen!"}])
 
-      {:ok, _} = Calendar.delete_event(fest)
+      {:ok, _} = Calendar.delete_event(Bbh.AccountsFixtures.writer_scope(), fest)
 
       refute Repo.get(Event, item.id)
       assert Repo.aggregate(EventReminder, :count, :id) == 0

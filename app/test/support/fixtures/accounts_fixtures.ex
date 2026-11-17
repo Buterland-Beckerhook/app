@@ -46,6 +46,17 @@ defmodule Bbh.AccountsFixtures do
     user
   end
 
+  @doc """
+  A scope that may write everything, without a user in the database: for fixtures and
+  context tests that create content, where who writes is not the point. Test-only on
+  purpose; lib has no way to skip the contexts' checks.
+  """
+  def writer_scope do
+    %Scope{
+      user: %Bbh.Accounts.User{id: Ecto.UUID.generate(), role: "admin", auth_method: "passkey"}
+    }
+  end
+
   def user_scope_fixture do
     user = user_fixture()
     user_scope_fixture(user)

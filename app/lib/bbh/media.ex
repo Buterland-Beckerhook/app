@@ -7,7 +7,7 @@ defmodule Bbh.Media do
   excluded from backups).
   """
   import Ecto.Query
-  alias Bbh.Repo
+  alias Bbh.{Authz, Repo}
   alias Bbh.Media.Upload
 
   @content_types %{
@@ -205,7 +205,11 @@ defmodule Bbh.Media do
   # Reindexed like the content writers in Bbh.Content: a gallery block's searchable text
   # is now the caption/title of its media items, so editing one here changes what the
   # site search should find.
-  def update_upload(%Upload{} = upload, attrs) do
+  def update_upload(scope, %Upload{} = upload, attrs) do
+    with :ok <- Authz.authorize_section(scope, :media), do: do_update_upload(upload, attrs)
+  end
+
+  defp do_update_upload(upload, attrs) do
     # The folder select submits "" for "no folder" and the column is nullable, so the
     # blank→nil is folded in here rather than repeated at each caller.
     changeset = Upload.update_changeset(upload, normalize_folder_id(attrs))

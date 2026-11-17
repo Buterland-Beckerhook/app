@@ -63,7 +63,8 @@ defmodule BbhWeb.EventBlockTest do
   end
 
   test "renders nothing while the event is not public", %{festival: f, html: html} do
-    {:ok, _} = Bbh.Calendar.update_event(f, %{status: "draft"})
+    {:ok, _} =
+      Bbh.Calendar.update_event(Bbh.AccountsFixtures.writer_scope(), f, %{status: "draft"})
 
     markup = html.(%{event_id: f.id})
     refute markup =~ "Antreten"
@@ -72,7 +73,7 @@ defmodule BbhWeb.EventBlockTest do
 
   test "an event deleted later leaves an empty block", %{festival: f, html: html, pb: pb} do
     html.(%{event_id: f.id})
-    {:ok, _} = Bbh.Calendar.delete_event(f)
+    {:ok, _} = Bbh.Calendar.delete_event(Bbh.AccountsFixtures.writer_scope(), f)
 
     assert Content.get_block(pb).event_id == nil
     refute html.(%{}) =~ "Zum Termin"

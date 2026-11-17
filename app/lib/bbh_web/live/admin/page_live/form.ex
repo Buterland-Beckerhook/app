@@ -155,12 +155,15 @@ defmodule BbhWeb.Admin.PageLive.Form do
   end
 
   defp save_page(socket, :new, params) do
-    case Content.Pages.create_page(params) do
+    case Content.Pages.create_page(socket.assigns.current_scope, params) do
       {:ok, page} ->
         {:noreply,
          socket
          |> put_flash(:info, "Seite erstellt. Jetzt Blöcke hinzufügen.")
          |> push_navigate(to: ~p"/admin/seiten/#{page.id}/bearbeiten")}
+
+      {:error, :unauthorized} ->
+        {:noreply, put_flash(socket, :error, "Keine Berechtigung.")}
 
       {:error, changeset} ->
         {:noreply, assign_meta_form(socket, changeset)}
@@ -168,9 +171,12 @@ defmodule BbhWeb.Admin.PageLive.Form do
   end
 
   defp save_page(socket, :edit, params) do
-    case Content.Pages.update_page(socket.assigns.page, params) do
+    case Content.Pages.update_page(socket.assigns.current_scope, socket.assigns.page, params) do
       {:ok, page} ->
         {:noreply, socket |> assign(:page, page) |> put_flash(:info, "Seite gespeichert.")}
+
+      {:error, :unauthorized} ->
+        {:noreply, put_flash(socket, :error, "Keine Berechtigung.")}
 
       {:error, changeset} ->
         {:noreply, assign_meta_form(socket, changeset)}
