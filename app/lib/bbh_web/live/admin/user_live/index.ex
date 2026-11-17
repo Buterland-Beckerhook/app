@@ -145,7 +145,11 @@ defmodule BbhWeb.Admin.UserLive.Index do
   def handle_event("logout_all", %{"id" => id}, socket) do
     user = Accounts.get_user!(id)
     user |> Accounts.delete_all_user_session_tokens() |> BbhWeb.UserAuth.disconnect_sessions()
-    {:noreply, put_flash(socket, :info, "Benutzer von allen Geräten abgemeldet.")}
+    # API tokens too: a token minted from a hijacked session would otherwise outlive this.
+    Bbh.ApiTokens.revoke_all_for_user(user)
+
+    {:noreply,
+     put_flash(socket, :info, "Benutzer von allen Geräten abgemeldet, API-Zugänge widerrufen.")}
   end
 
   # Lost passkey/authenticator: wipe the factors and hand out a one-time code. The code
@@ -362,7 +366,7 @@ defmodule BbhWeb.Admin.UserLive.Index do
             <.link
               :if={u.id != @current_scope.user.id}
               phx-click={JS.push("logout_all", value: %{id: u.id})}
-              data-confirm="Diesen Benutzer von allen Geräten abmelden?"
+              data-confirm="Diesen Benutzer von allen Geräten abmelden? Auch die API-Zugänge (Tokens, verbundene Apps) werden widerrufen."
               class="link"
               title="Von allen Geräten abmelden"
               aria-label="Von allen Geräten abmelden"
@@ -372,7 +376,7 @@ defmodule BbhWeb.Admin.UserLive.Index do
             <.link
               :if={u.id != @current_scope.user.id and u.confirmed_at}
               phx-click={JS.push("reset_factors", value: %{id: u.id})}
-              data-confirm="Passkeys und 2FA dieses Benutzers zurücksetzen? Alle Sitzungen werden beendet; für die Neueinrichtung erhältst du einen Code, den du persönlich weitergibst."
+              data-confirm="Passkeys und 2FA dieses Benutzers zurücksetzen? Alle Sitzungen und API-Zugänge werden beendet; für die Neueinrichtung erhältst du einen Code, den du persönlich weitergibst."
               class="link"
               title="Passkeys und 2FA zurücksetzen"
               aria-label="Passkeys und 2FA zurücksetzen"

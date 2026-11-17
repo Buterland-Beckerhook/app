@@ -166,6 +166,24 @@ defmodule Bbh.ApiTokens do
   end
 
   @doc """
+  Revokes every still-active token of `user` — personal access tokens and OAuth grants
+  alike. For incident response: an admin factor reset or "log out everywhere" must also
+  end API access, or a token minted from a hijacked session outlives the cleanup.
+
+  Returns the number of tokens revoked.
+  """
+  def revoke_all_for_user(%{id: user_id}) do
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    {count, _} =
+      Repo.update_all(from(t in ApiToken, where: t.user_id == ^user_id and is_nil(t.revoked_at)),
+        set: [revoked_at: now]
+      )
+
+    count
+  end
+
+  @doc """
   Deletes tokens that expired or were revoked more than `days` ago.
 
   Revoked rows are kept for a grace period so `last_used_at` stays inspectable after an

@@ -97,12 +97,14 @@ defmodule BbhWeb.Admin.UserLiveTest do
   test "logs another user out on all devices", %{conn: conn} do
     other = user_fixture()
     token = Accounts.generate_user_session_token(other)
+    {:ok, pat, _} = Bbh.ApiTokens.create_pat(other, "iPhone", ["mcp:write"])
     {:ok, lv, _html} = live(conn, ~p"/admin/benutzer")
 
     html = render_click(lv, "logout_all", %{"id" => other.id})
 
     assert html =~ "von allen Geräten abgemeldet"
     refute Accounts.get_user_by_session_token(token)
+    assert {:error, :revoked} = Bbh.ApiTokens.verify(pat, :any)
   end
 
   describe "login log" do

@@ -103,7 +103,8 @@ defmodule Bbh.Accounts.SecondFactor do
 
   @doc """
   Resets the user's second factors so they can enroll new ones: removes all passkeys
-  and TOTP, ends every session, and issues a one-time code
+  and TOTP, ends every session, revokes every API token (`Bbh.ApiTokens`), and issues
+  a one-time code
   (`UserToken.build_factor_reset_code/1`). Until the user has set up a new factor,
   enrolling one needs that code, so mailbox access alone is not enough.
 
@@ -122,6 +123,8 @@ defmodule Bbh.Accounts.SecondFactor do
         from t in UserToken,
           where: t.user_id == ^user.id and t.context in ["session", "factor_reset"]
       )
+
+      Bbh.ApiTokens.revoke_all_for_user(user)
 
       Repo.insert!(reset_token)
       {:ok, {code, sessions}}
