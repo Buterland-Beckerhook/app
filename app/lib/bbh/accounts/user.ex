@@ -2,7 +2,7 @@ defmodule Bbh.Accounts.User do
   use Ecto.Schema
   import Ecto.Changeset
 
-  @roles ~w(admin editor calendar_editor tickets)
+  @roles ~w(admin editor calendar_editor tickets none)
   def roles, do: @roles
 
   @primary_key {:id, :binary_id, autogenerate: true}
@@ -25,6 +25,8 @@ defmodule Bbh.Accounts.User do
     field :ticket_notify_interval_minutes, :integer, default: 2
     field :ticket_notify_channel, :string, default: "mail"
     field :ticket_reminded_on, :date
+    # Day on which `Bbh.Workers.UserDeleter` deletes the account; nil = never.
+    field :delete_on, :date
 
     timestamps(type: :utc_datetime)
   end
@@ -85,6 +87,18 @@ defmodule Bbh.Accounts.User do
     |> validate_required([:role])
     |> validate_inclusion(:role, @roles)
     |> check_constraint(:role, name: :users_role_valid, message: "ist keine gültige Rolle")
+  end
+
+  @doc """
+  Changeset for an admin to schedule (or, with `nil`, cancel) the account's deletion.
+  The date has to lie after `today`: the nightly run deletes on that very day.
+  """
+  def delete_on_changeset(user, attrs, %Date{} = today) do
+    user
+    |> cast(attrs, [:delete_on])
+    |> validate_change(:delete_on, fn :delete_on, date ->
+      if Date.after?(date, today), do: [], else: [delete_on: "muss in der Zukunft liegen"]
+    end)
   end
 
   @doc "Changeset for an admin to assign which (non-public) calendars a user may manage."

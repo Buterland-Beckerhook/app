@@ -154,6 +154,40 @@ defmodule BbhWeb.Admin.DashboardLiveTest do
     end
   end
 
+  describe "without any access" do
+    setup do
+      {:ok, user} = Bbh.AccountsFixtures.user_fixture() |> Bbh.Accounts.update_user_role("none")
+      %{conn: log_in_user(build_conn(), user), none_user: user}
+    end
+
+    test "shows only the notice, no widgets and no Übersicht menu entry", %{conn: conn} do
+      article_fixture()
+      Bbh.Analytics.record(%{path: "/aktuell"})
+
+      {:ok, lv, _html} = live(conn, ~p"/admin")
+      html = render_async(lv, 2000)
+
+      assert has_element?(lv, "#no-access")
+      assert html =~ "keine Berechtigungen"
+      assert has_element?(lv, ~s|#no-access a[href="/kontakt"]|)
+
+      refute has_element?(lv, ~s|a[data-phx-link][href="/admin"]|, "Übersicht")
+      refute html =~ "Zugriffe"
+      refute html =~ ~s(href="/admin/artikel")
+      refute html =~ ~s(href="/admin/termine")
+    end
+
+    test "shows the scheduled deletion date", %{conn: conn, none_user: user} do
+      date = Date.add(Bbh.Accounts.local_today(), 10)
+      {:ok, _} = Bbh.Accounts.schedule_user_deletion(user, date)
+
+      {:ok, lv, _html} = live(conn, ~p"/admin")
+      render_async(lv, 2000)
+
+      assert lv |> element("#delete-on-notice") |> render() =~ BbhWeb.Format.de_date(date)
+    end
+  end
+
   describe "with a plain magic-link session" do
     # The dashboard itself stays open (Termine editors land here), but ticket subjects
     # and visitor analytics belong to the strong-auth areas.
