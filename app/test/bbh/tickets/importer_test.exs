@@ -96,7 +96,7 @@ defmodule Bbh.Tickets.ImporterTest do
     scope = granted_scope(user, ["info"])
     ticket = ticket_fixture()
     {:ok, loaded} = Tickets.get_ticket(scope, ticket.number)
-    {:ok, _} = Tickets.reply(scope, loaded, "Am Freitag.")
+    {:ok, _} = Tickets.Replies.reply(scope, loaded, "Am Freitag.")
     ours = Repo.get_by!(Message, direction: "out").message_id
 
     raw =
@@ -115,7 +115,7 @@ defmodule Bbh.Tickets.ImporterTest do
     scope = granted_scope(user, ["info"])
     ticket = ticket_fixture()
     {:ok, loaded} = Tickets.get_ticket(scope, ticket.number)
-    {:ok, _} = Tickets.reply(scope, loaded, "Hallo")
+    {:ok, _} = Tickets.Replies.reply(scope, loaded, "Hallo")
     ours = Repo.get_by!(Message, direction: "out").message_id
 
     raw =

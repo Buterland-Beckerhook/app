@@ -81,7 +81,7 @@ defmodule BbhWeb.Admin.TicketPdfControllerTest do
     assert data.mandate_text == Bbh.Membership.mandate_text()
     assert data.generated_by == user.email
 
-    {:ok, numbered} = Tickets.set_member_number(admin, loaded, "4711")
+    {:ok, numbered} = Tickets.Membership.set_member_number(admin, loaded, "4711")
     assert Bbh.Tickets.Pdf.data(numbered, user).mandate_reference == "4711"
   end
 

@@ -37,15 +37,18 @@ defmodule BbhWeb.Admin.TicketLive.Requester do
     if email == "" do
       {:noreply, assign(socket, email: nil, tickets: nil)}
     else
-      {:ok, tickets} = Tickets.requester_tickets(socket.assigns.current_scope, email)
+      {:ok, tickets} = Tickets.Requesters.requester_tickets(socket.assigns.current_scope, email)
       {:noreply, assign(socket, email: email, tickets: tickets)}
     end
   end
 
   def handle_event("delete_all", %{"purge" => purge}, socket) do
     %{current_scope: scope, email: email} = socket.assigns
-    {:ok, count} = Tickets.delete_requester_tickets(scope, email, purge: purge == "true")
-    {:ok, tickets} = Tickets.requester_tickets(scope, email)
+
+    {:ok, count} =
+      Tickets.Requesters.delete_requester_tickets(scope, email, purge: purge == "true")
+
+    {:ok, tickets} = Tickets.Requesters.requester_tickets(scope, email)
 
     message =
       if purge == "true",

@@ -36,7 +36,7 @@ defmodule BbhWeb.Admin.TicketLive.Show do
            # empty field instead of keeping what the browser holds.
            form_n: 0,
            editing_requester: false,
-           replies_enabled: Tickets.replies_enabled?()
+           replies_enabled: Tickets.Replies.replies_enabled?()
          )
          |> assign_ticket(ticket)}
 
@@ -119,7 +119,7 @@ defmodule BbhWeb.Admin.TicketLive.Show do
   def handle_event("reply", %{"reply" => %{"body" => body, "status" => status}}, socket) do
     %{current_scope: scope, ticket: ticket} = socket.assigns
 
-    case Tickets.reply(scope, ticket, body, status) do
+    case Tickets.Replies.reply(scope, ticket, body, status) do
       {:ok, _} ->
         {:noreply,
          socket
@@ -191,7 +191,7 @@ defmodule BbhWeb.Admin.TicketLive.Show do
 
   def handle_event("member_number", %{"member_number" => number}, socket) do
     socket
-    |> run(&Tickets.set_member_number(&1, &2, number), "Mitgliedsnummer gespeichert.")
+    |> run(&Tickets.Membership.set_member_number(&1, &2, number), "Mitgliedsnummer gespeichert.")
     |> noreply()
   end
 

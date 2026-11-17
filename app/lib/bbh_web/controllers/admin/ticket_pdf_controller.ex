@@ -1,6 +1,6 @@
 defmodule BbhWeb.Admin.TicketPdfController do
   @moduledoc """
-  Download of a membership application as PDF (`Bbh.Tickets.export_pdf/2`). Behind a
+  Download of a membership application as PDF (`Bbh.Tickets.Membership.export_pdf/2`). Behind a
   passkey/TOTP session like the rest of the Postfach; the PDF is generated per request
   and never cached or stored.
   """
@@ -21,7 +21,7 @@ defmodule BbhWeb.Admin.TicketPdfController do
     scope = conn.assigns.current_scope
 
     with {:ok, %Ticket{kind: "membership"} = ticket} <- Tickets.get_ticket(scope, ref),
-         {:ok, pdf} <- Tickets.export_pdf(scope, ticket) do
+         {:ok, pdf} <- Tickets.Membership.export_pdf(scope, ticket) do
       conn
       |> put_resp_content_type("application/pdf", nil)
       |> put_resp_header("cache-control", "no-store")
