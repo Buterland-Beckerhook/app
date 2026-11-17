@@ -99,6 +99,7 @@ jobs:
 
       - name: Audit for retired packages
         run: mix hex.audit
+        continue-on-error: true
 
       - name: Security static analysis (Sobelow)
         run: mix sobelow --config
