@@ -40,6 +40,11 @@ defmodule Bbh.Analytics do
   # Days a visitor hash is kept before `roll_up/1` replaces it with the day's total.
   @retention_days 7
 
+  # Search terms are free public input, so their table is bounded twice: distinct terms
+  # per day (repeats of a known term still count) and days kept (`prune_searches/1`).
+  @terms_per_day 500
+  @search_retention_days 400
+
   @doc """
   Record a single page view. Expects `%{path:, referrer_host:, visitor_hash:}`
   (and optional `:day`, defaulting to today, UTC). Best-effort: any error is
@@ -118,8 +123,8 @@ defmodule Bbh.Analytics do
   @doc """
   Record one site search. Expects `%{term:, hits:}` (and optional `:day`, defaulting
   to today, UTC); `hits` is the result count, `0` marks a search without results. The
-  term is normalized (`normalize_term/1`); a blank one is not recorded. Best-effort:
-  any error is swallowed.
+  term is normalized (`normalize_term/1`); a blank one is not recorded, nor a new one
+  once the day has #{@terms_per_day} distinct terms. Best-effort: any error is swallowed.
   """
   def record_search(attrs) do
     day = Map.get(attrs, :day, Date.utc_today())
@@ -131,10 +136,12 @@ defmodule Bbh.Analytics do
       term ->
         miss = if attrs[:hits] == 0, do: 1, else: 0
 
-        Repo.insert(%DailySearch{day: day, term: term, searches: 1, no_results: miss},
-          on_conflict: [inc: [searches: 1, no_results: miss]],
-          conflict_target: [:day, :term]
-        )
+        if known_or_room?(day, term) do
+          Repo.insert(%DailySearch{day: day, term: term, searches: 1, no_results: miss},
+            on_conflict: [inc: [searches: 1, no_results: miss]],
+            conflict_target: [:day, :term]
+          )
+        end
 
         :ok
     end
@@ -143,6 +150,22 @@ defmodule Bbh.Analytics do
       require Logger
       Logger.warning("Analytics.record_search failed: #{inspect(error)}")
       :error
+  end
+
+  defp known_or_room?(day, term) do
+    Repo.exists?(from s in DailySearch, where: s.day == ^day and s.term == ^term) or
+      Repo.aggregate(from(s in DailySearch, where: s.day == ^day), :count) < @terms_per_day
+  end
+
+  @doc """
+  Deletes the search terms of days older than `keep_days` (default
+  #{@search_retention_days}, longer than any dashboard range). Run nightly by
+  `Bbh.Workers.AnalyticsRollup`; returns the number of rows deleted.
+  """
+  def prune_searches(keep_days \\ @search_retention_days) do
+    cutoff = Date.add(Date.utc_today(), -keep_days)
+    {count, _} = Repo.delete_all(from s in DailySearch, where: s.day < ^cutoff)
+    count
   end
 
   @doc """
