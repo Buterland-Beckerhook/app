@@ -19,6 +19,11 @@ defmodule BbhWeb.Admin.TicketLive.Index do
     {"spam", "Spam"}
   ]
 
+  # A change elsewhere reloads the list at once, then at most once per this interval for
+  # whatever changed meanwhile — an IMAP poll creates up to 50 tickets in a row, and the
+  # list query plus the view counts would otherwise run per ticket, per open list.
+  @reload_interval_ms 1_000
+
   @impl true
   def mount(_params, _session, socket) do
     if connected?(socket), do: Tickets.subscribe()
@@ -30,6 +35,9 @@ defmodule BbhWeb.Admin.TicketLive.Index do
     {:ok,
      assign(socket,
        page_title: "Postfach",
+       # Within an interval: `throttled` after a reload, `stale` once a change waits.
+       throttled: false,
+       stale: false,
        views: views,
        queue_options: for(key <- Authz.visible_queues(scope), do: {Queue.label(key), key})
      )}
@@ -58,7 +66,22 @@ defmodule BbhWeb.Admin.TicketLive.Index do
   end
 
   @impl true
-  def handle_info({:tickets_changed, _id}, socket), do: {:noreply, load(socket)}
+  def handle_info({:tickets_changed, _id}, %{assigns: %{throttled: true}} = socket),
+    do: {:noreply, assign(socket, stale: true)}
+
+  def handle_info({:tickets_changed, _id}, socket),
+    do: {:noreply, throttled_load(socket)}
+
+  def handle_info(:interval_over, %{assigns: %{stale: true}} = socket),
+    do: {:noreply, throttled_load(socket)}
+
+  def handle_info(:interval_over, socket),
+    do: {:noreply, assign(socket, throttled: false)}
+
+  defp throttled_load(socket) do
+    Process.send_after(self(), :interval_over, @reload_interval_ms)
+    socket |> assign(throttled: true, stale: false) |> load()
+  end
 
   defp load(socket) do
     %{view: view, queue: queue, page: page, current_scope: scope} = socket.assigns
