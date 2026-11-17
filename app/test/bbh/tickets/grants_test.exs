@@ -3,7 +3,8 @@ defmodule Bbh.Tickets.GrantsTest do
 
   import Bbh.AccountsFixtures
 
-  alias Bbh.Tickets.{Grant, Grants}
+  alias Bbh.Accounts.QueueGrant
+  alias Bbh.Tickets.Grants
 
   setup do
     %{admin: admin_user_fixture(), user: user_fixture()}
@@ -19,7 +20,10 @@ defmodule Bbh.Tickets.GrantsTest do
              Grants.set_grants(admin, user, ["vorstand", "mitgliedschaft"])
 
     assert Grants.list_queue_keys(user) == ["vorstand", "mitgliedschaft"]
-    assert Repo.get_by!(Grant, user_id: user.id, queue_key: "vorstand").granted_by_id == admin.id
+
+    assert Repo.get_by!(QueueGrant, user_id: user.id, queue_key: "vorstand").granted_by_id ==
+             admin.id
+
     assert {:ok, []} = Grants.set_grants(admin, user, [])
   end
 
@@ -58,7 +62,7 @@ defmodule Bbh.Tickets.GrantsTest do
   test "grants go with the user", %{admin: admin, user: user} do
     {:ok, _} = Grants.set_grants(admin, user, ["info"])
     Bbh.Accounts.delete_user(user)
-    assert Repo.aggregate(Grant, :count) == 0
+    assert Repo.aggregate(QueueGrant, :count) == 0
   end
 
   test "the scope carries the grants", %{admin: admin, user: user} do

@@ -3,41 +3,30 @@ defmodule Bbh.Tickets.Grants do
   Which users work which Postfach queue. Set by admins in the user administration,
   independent of the content role; admins read every queue without a grant.
 
+  The grants themselves are stored with the accounts (`Bbh.Accounts.QueueGrant`): a
+  grant is a permission of the user, and `Bbh.Accounts.Scope` loads them without
+  reaching back into the Postfach. This module adds what only the Postfach knows — which
+  keys name a queue, the order they are shown in, and who hears about a queue nobody
+  is granted.
+
   Grants are their own table rather than an array on `users` (like `users.calendars`) so
   that "who handles queue X" is one indexed query and every grant records who gave it.
   """
-  import Ecto.Query
-
+  alias Bbh.Accounts
   alias Bbh.Accounts.User
-  alias Bbh.Repo
-  alias Bbh.Tickets.{Grant, Queue}
+  alias Bbh.Tickets.Queue
 
   @doc "The queue keys a user is granted, in queue order."
-  def list_queue_keys(%User{id: user_id}) do
-    granted =
-      Repo.all(from g in Grant, where: g.user_id == ^user_id, select: g.queue_key)
-
+  def list_queue_keys(user) do
+    granted = Accounts.list_queue_keys(user)
     Enum.filter(Queue.keys(), &(&1 in granted))
   end
 
-  def list_queue_keys(_), do: []
-
   @doc "`%{user_id => [queue_key]}` for all users, for the user administration."
-  def grants_by_user do
-    Repo.all(from g in Grant, select: {g.user_id, g.queue_key})
-    |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
-  end
+  defdelegate grants_by_user, to: Accounts, as: :queue_grants_by_user
 
   @doc "The users granted a queue (not admins without a grant)."
-  def list_users(queue_key) do
-    Repo.all(
-      from u in User,
-        join: g in Grant,
-        on: g.user_id == u.id,
-        where: g.queue_key == ^queue_key,
-        order_by: u.email
-    )
-  end
+  defdelegate list_users(queue_key), to: Accounts, as: :list_queue_users
 
   @doc """
   Who hears about a queue's tickets: the users granted it — or, while nobody is, the
@@ -45,7 +34,7 @@ defmodule Bbh.Tickets.Grants do
   """
   def notify_users(queue_key) do
     case list_users(queue_key) do
-      [] -> Bbh.Accounts.list_admins()
+      [] -> Accounts.list_admins()
       users -> users
     end
   end
@@ -59,15 +48,12 @@ defmodule Bbh.Tickets.Grants do
 
   def notify_user_ids(queue_keys) do
     keys = Enum.uniq(queue_keys)
-
-    granted =
-      Repo.all(from g in Grant, where: g.queue_key in ^keys, select: {g.queue_key, g.user_id})
-      |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
+    granted = Accounts.queue_user_ids(keys)
 
     admins =
       if Enum.all?(keys, &Map.has_key?(granted, &1)),
         do: [],
-        else: Enum.map(Bbh.Accounts.list_admins(), & &1.id)
+        else: Enum.map(Accounts.list_admins(), & &1.id)
 
     Map.new(keys, &{&1, Map.get(granted, &1, admins)})
   end
@@ -80,34 +66,13 @@ defmodule Bbh.Tickets.Grants do
     keys = keys |> Enum.reject(&(&1 in [nil, ""])) |> Enum.uniq()
 
     if Enum.all?(keys, &Queue.valid?/1) do
-      now = DateTime.utc_now(:second)
+      {:ok, changed?} = Accounts.replace_queue_grants(admin, user, keys)
 
-      Repo.transact(fn ->
-        current = list_queue_keys(user)
+      if changed? do
+        Bbh.Tickets.log_event(nil, admin, "grants_changed", %{user_id: user.id, queues: keys})
+      end
 
-        Repo.delete_all(
-          from g in Grant, where: g.user_id == ^user.id and g.queue_key not in ^keys
-        )
-
-        rows =
-          for key <- keys,
-              key not in current,
-              do: %{
-                id: Ecto.UUID.generate(),
-                user_id: user.id,
-                queue_key: key,
-                granted_by_id: admin.id,
-                inserted_at: now
-              }
-
-        Repo.insert_all(Grant, rows)
-
-        if Enum.sort(current) != Enum.sort(keys) do
-          Bbh.Tickets.log_event(nil, admin, "grants_changed", %{user_id: user.id, queues: keys})
-        end
-
-        {:ok, list_queue_keys(user)}
-      end)
+      {:ok, list_queue_keys(user)}
     else
       {:error, :invalid_queue}
     end

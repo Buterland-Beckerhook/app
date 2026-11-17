@@ -21,7 +21,7 @@ defmodule Bbh.Tickets.Queue do
   import Ecto.Query
 
   alias Bbh.Repo
-  alias Bbh.Tickets.{Grant, Ticket}
+  alias Bbh.Tickets.Ticket
 
   @cache_key {__MODULE__, :all}
   @default "info"
@@ -208,7 +208,7 @@ defmodule Bbh.Tickets.Queue do
     cond do
       protected?(key) -> {:error, :protected}
       Repo.exists?(from t in Ticket, where: t.queue == ^key) -> {:error, :has_tickets}
-      Repo.exists?(from g in Grant, where: g.queue_key == ^key) -> {:error, :has_grants}
+      Bbh.Accounts.queue_granted?(key) -> {:error, :has_grants}
       true -> queue |> Repo.delete() |> refreshed()
     end
   end

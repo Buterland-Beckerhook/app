@@ -17,7 +17,7 @@ defmodule Bbh.Tickets do
 
   alias Bbh.Accounts.{Scope, User}
   alias Bbh.Repo
-  alias Bbh.Tickets.{Attachment, Event, Grant, Message, Queue, Ticket}
+  alias Bbh.Tickets.{Attachment, Event, Grants, Message, Queue, Ticket}
   alias Bbh.Tickets.ServerCopies
   alias Bbh.Vault
   alias Bbh.Authz
@@ -401,14 +401,9 @@ defmodule Bbh.Tickets do
 
   @doc "The users a ticket can be assigned to: those granted its queue, plus admins."
   def assignable_users(%Ticket{queue: queue}) do
-    Repo.all(
-      from u in User,
-        left_join: g in Grant,
-        on: g.user_id == u.id and g.queue_key == ^queue,
-        where: u.role == "admin" or not is_nil(g.id),
-        distinct: true,
-        order_by: u.email
-    )
+    (Grants.list_users(queue) ++ Bbh.Accounts.list_admins())
+    |> Enum.uniq_by(& &1.id)
+    |> Enum.sort_by(& &1.email)
   end
 
   ## Working a ticket
