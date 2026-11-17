@@ -110,8 +110,7 @@ defmodule BbhWeb.Admin.DashboardLive do
         <.icon name="hero-information-circle" class="size-5 shrink-0" />
         <div class="space-y-2">
           <p>
-            Du hast im Verwaltungsbereich zurzeit keine Berechtigungen – zum Beispiel, weil
-            dein Amt im Vorstand geendet hat.
+            Du hast im Verwaltungsbereich zurzeit keine Berechtigungen.
           </p>
           <p>Wenn du Fragen hast oder meinst, dass das nicht stimmt, melde dich bitte bei uns:</p>
           <p><.link href={~p"/kontakt"} class="link">Zum Kontaktformular</.link></p>
