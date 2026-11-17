@@ -211,13 +211,15 @@ defmodule BbhWeb.Admin.SettingsLive do
   end
 
   # Turning the second factor off takes a current code from it, like turning it on, so a
-  # hijacked session alone can't strip it. Sessions elsewhere — possibly established
-  # with that factor — are ended.
+  # hijacked session alone can't strip it. The code shares the login challenge's
+  # per-account bucket, so the socket is no way around its guess limit. Sessions
+  # elsewhere — possibly established with that factor — are ended.
   def handle_event("disable", params, socket) do
     user = socket.assigns.current_scope.user
     true = Accounts.sudo_mode?(user)
 
-    if Accounts.use_user_totp(user, params["code"] || "") == :ok do
+    with :ok <- BbhWeb.RateLimit.check("totp_user", user.id, 10, :timer.minutes(5)),
+         :ok <- Accounts.use_user_totp(user, params["code"] || "") do
       {:ok, user} = Accounts.disable_totp(user)
 
       if token = socket.assigns.session_token do
@@ -232,7 +234,11 @@ defmodule BbhWeb.Admin.SettingsLive do
        |> put_flash(:info, "Zwei-Faktor deaktiviert.")
        |> assign_totp_state(user)}
     else
-      {:noreply, assign(socket, :error, "Ungültiger Code. Bitte erneut versuchen.")}
+      {:error, _retry_after} ->
+        {:noreply, assign(socket, :error, "Zu viele Versuche. Bitte später erneut versuchen.")}
+
+      :error ->
+        {:noreply, assign(socket, :error, "Ungültiger Code. Bitte erneut versuchen.")}
     end
   end
 

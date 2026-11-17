@@ -102,4 +102,24 @@ defmodule BbhWeb.RateLimitedFormsTest do
              ) == 3
     end
   end
+
+  describe "turning off the second factor" do
+    setup :register_and_log_in_admin
+
+    test "allows ten code guesses per account, then refuses even the right code", %{
+      conn: conn,
+      user: user
+    } do
+      secret = Bbh.Accounts.generate_totp_secret()
+      {:ok, _user} = Bbh.Accounts.enable_totp(user, secret)
+      {:ok, lv, _html} = live(conn, ~p"/admin/einstellungen/2fa")
+
+      for _ <- 1..10,
+          do: assert(render_submit(lv, "disable", %{"code" => "falsch"}) =~ "Ungültiger Code")
+
+      html = render_submit(lv, "disable", %{"code" => NimbleTOTP.verification_code(secret)})
+      assert html =~ "Zu viele Versuche"
+      assert Bbh.Accounts.User.totp_enabled?(Bbh.Accounts.get_user!(user.id))
+    end
+  end
 end
