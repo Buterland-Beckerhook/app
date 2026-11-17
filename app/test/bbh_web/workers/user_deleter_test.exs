@@ -1,11 +1,11 @@
-defmodule Bbh.Workers.UserDeleterTest do
+defmodule BbhWeb.Workers.UserDeleterTest do
   use Bbh.DataCase, async: true
 
   import Bbh.AccountsFixtures
 
   alias Bbh.Accounts
   alias Bbh.Accounts.User
-  alias Bbh.Workers.UserDeleter
+  alias BbhWeb.Workers.UserDeleter
 
   # Bypasses the future-date validation: a date that has come by now.
   defp due_on(user, date), do: user |> Ecto.Changeset.change(delete_on: date) |> Repo.update!()

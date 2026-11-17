@@ -25,7 +25,7 @@ defmodule Bbh.Accounts.User do
     field :ticket_notify_interval_minutes, :integer, default: 2
     field :ticket_notify_channel, :string, default: "mail"
     field :ticket_reminded_on, :date
-    # Day on which `Bbh.Workers.UserDeleter` deletes the account; nil = never.
+    # Day on which `BbhWeb.Workers.UserDeleter` deletes the account; nil = never.
     field :delete_on, :date
 
     timestamps(type: :utc_datetime)

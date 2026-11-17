@@ -180,7 +180,7 @@ config :bbh, Oban,
        # works by then, this only deletes the rows.
        {"30 3 * * *", Bbh.Workers.AuthPruner},
        # Delete the accounts whose „Löschen am" date has come.
-       {"10 3 * * *", Bbh.Workers.UserDeleter},
+       {"10 3 * * *", BbhWeb.Workers.UserDeleter},
        # Forget 404-log entries nobody has hit for 90 days.
        {"45 3 * * *", Bbh.Workers.NotFoundPruner},
        # Postfach retention: soft-delete closed tickets, purge deleted ones and old spam.
