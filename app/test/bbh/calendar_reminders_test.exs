@@ -11,7 +11,7 @@ defmodule Bbh.CalendarRemindersTest do
   describe "reminders via cast_assoc" do
     test "an event can be created with reminders" do
       {:ok, event} =
-        Calendar.create_event(%{
+        Calendar.create_event(Bbh.AccountsFixtures.writer_scope(), %{
           status: "published",
           title: "Schützenfest",
           slug: "fest-#{System.unique_integer([:positive])}",
@@ -28,13 +28,15 @@ defmodule Bbh.CalendarRemindersTest do
       event = event_fixture(starts_at: from_now(20), reminders: [%{lead_days: 5, text: "Hallo"}])
       assert Repo.aggregate(EventReminder, :count, :id) == 1
 
-      {:ok, _} = Calendar.delete_event(Calendar.get_event!(event.id))
+      {:ok, _} =
+        Calendar.delete_event(Bbh.AccountsFixtures.writer_scope(), Calendar.get_event!(event.id))
+
       assert Repo.aggregate(EventReminder, :count, :id) == 0
     end
 
     test "lead_days is validated" do
       {:error, changeset} =
-        Calendar.create_event(%{
+        Calendar.create_event(Bbh.AccountsFixtures.writer_scope(), %{
           status: "published",
           title: "T",
           slug: "t-#{System.unique_integer([:positive])}",

@@ -10,7 +10,7 @@ defmodule Bbh.ClubFixtures do
         role: "vorstand"
       })
 
-    {:ok, person} = Club.create_person(attrs)
+    {:ok, person} = Club.create_person(Bbh.AccountsFixtures.writer_scope(), attrs)
     person
   end
 
@@ -18,7 +18,7 @@ defmodule Bbh.ClubFixtures do
     {:ok, trophy} =
       attrs
       |> Enum.into(%{name: "Pokal #{System.unique_integer([:positive])}"})
-      |> Club.create_trophy()
+      |> then(&Club.create_trophy(Bbh.AccountsFixtures.writer_scope(), &1))
 
     trophy
   end
@@ -31,7 +31,7 @@ defmodule Bbh.ClubFixtures do
       attrs
       |> Map.delete(:trophy)
       |> Enum.into(%{trophy_id: trophy.id, year: 2024, winner: "Max Mustermann"})
-      |> Club.create_trophy_win()
+      |> then(&Club.create_trophy_win(Bbh.AccountsFixtures.writer_scope(), &1))
 
     win
   end

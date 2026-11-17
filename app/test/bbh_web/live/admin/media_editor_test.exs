@@ -38,7 +38,7 @@ defmodule BbhWeb.Admin.MediaEditorTest do
       upload = upload_fixture(%{})
 
       assert {:close, saved, {:info, message}} =
-               MediaEditor.submit(upload, %{
+               MediaEditor.submit(Bbh.AccountsFixtures.writer_scope(), upload, %{
                  "upload" => %{"caption" => "Der Thron", "copyright" => "BBH e.V."}
                })
 
@@ -51,7 +51,9 @@ defmodule BbhWeb.Admin.MediaEditorTest do
       upload = upload_fixture(folder_id: folder.id)
 
       assert {:close, saved, {:info, _}} =
-               MediaEditor.submit(upload, %{"upload" => %{"folder_id" => ""}})
+               MediaEditor.submit(Bbh.AccountsFixtures.writer_scope(), upload, %{
+                 "upload" => %{"folder_id" => ""}
+               })
 
       assert is_nil(saved.folder_id)
     end
@@ -60,7 +62,7 @@ defmodule BbhWeb.Admin.MediaEditorTest do
       upload = stored_image()
 
       assert {:keep, rotated, {:info, message}} =
-               MediaEditor.submit(upload, %{
+               MediaEditor.submit(Bbh.AccountsFixtures.writer_scope(), upload, %{
                  "upload" => %{"caption" => "Vor dem Drehen getippt"},
                  "rotate" => "90"
                })
@@ -78,7 +80,7 @@ defmodule BbhWeb.Admin.MediaEditorTest do
       {:ok, upload} = Media.store_file(pdf, %{filename: "satzung.pdf"})
 
       assert {:keep, kept, {:error, message}} =
-               MediaEditor.submit(upload, %{
+               MediaEditor.submit(Bbh.AccountsFixtures.writer_scope(), upload, %{
                  "upload" => %{"title" => "Satzung 2026"},
                  "rotate" => "90"
                })
@@ -94,7 +96,10 @@ defmodule BbhWeb.Admin.MediaEditorTest do
 
       for angle <- ["45", "abc", ""] do
         assert {:keep, _kept, {:error, _}} =
-                 MediaEditor.submit(upload, %{"upload" => %{}, "rotate" => angle})
+                 MediaEditor.submit(Bbh.AccountsFixtures.writer_scope(), upload, %{
+                   "upload" => %{},
+                   "rotate" => angle
+                 })
       end
 
       assert Media.get_upload!(upload.id).revision == 0

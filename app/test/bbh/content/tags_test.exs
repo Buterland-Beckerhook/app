@@ -25,7 +25,9 @@ defmodule Bbh.Content.TagsTest do
 
     test "fixing the spelling on a tag's only article sticks" do
       article = article_fixture(tags: ["jugend"])
-      {:ok, _} = Content.update_article(article, %{tags: ["Jugend"]})
+
+      {:ok, _} =
+        Content.update_article(Bbh.AccountsFixtures.writer_scope(), article, %{tags: ["Jugend"]})
 
       assert tags(article) == ["Jugend"]
     end

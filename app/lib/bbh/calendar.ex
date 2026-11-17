@@ -5,7 +5,7 @@ defmodule Bbh.Calendar do
   modules: `Bbh.Calendar.Locations`, `Bbh.Calendar.Shares`.
   """
   import Ecto.Query
-  alias Bbh.Repo
+  alias Bbh.{Authz, Repo}
   alias Bbh.Calendar.{Event, EventReminder}
 
   @doc """
@@ -432,13 +432,41 @@ defmodule Bbh.Calendar do
     end
   end
 
-  def create_event(attrs),
-    do: %Event{} |> Event.changeset(attrs) |> Repo.insert() |> Bbh.Search.reindex_after()
+  @doc """
+  Creates an event. The scope must manage the calendar it lands in — for a programme
+  item, its festival's (`Bbh.Authz.can_manage_calendar?/2`).
+  """
+  def create_event(scope, attrs) do
+    changeset = Event.changeset(%Event{}, attrs)
 
-  def update_event(%Event{} = e, attrs),
-    do: e |> Event.changeset(attrs) |> Repo.update() |> Bbh.Search.reindex_after()
+    with :ok <- Authz.authorize_calendar(scope, effective_calendar(changeset)),
+         do: changeset |> Repo.insert() |> Bbh.Search.reindex_after()
+  end
 
-  def delete_event(%Event{} = e), do: e |> Repo.delete() |> Bbh.Search.reindex_after()
+  @doc "Updates an event; the scope must manage both its current and its new calendar."
+  def update_event(scope, %Event{} = e, attrs) do
+    changeset = Event.changeset(e, attrs)
+
+    with :ok <- Authz.authorize_calendar(scope, e.calendar),
+         :ok <- Authz.authorize_calendar(scope, effective_calendar(changeset)),
+         do: changeset |> Repo.update() |> Bbh.Search.reindex_after()
+  end
+
+  def delete_event(scope, %Event{} = e) do
+    with :ok <- Authz.authorize_event_delete(scope, e),
+         do: e |> Repo.delete() |> Bbh.Search.reindex_after()
+  end
+
+  # A programme item belongs to its festival's calendar, whatever it says itself.
+  defp effective_calendar(changeset) do
+    with parent_id when not is_nil(parent_id) <- Ecto.Changeset.get_field(changeset, :parent_id),
+         %Event{calendar: calendar} <- Repo.get(Event, parent_id) do
+      calendar
+    else
+      _ -> Ecto.Changeset.get_field(changeset, :calendar)
+    end
+  end
+
   def change_event(%Event{} = e, attrs \\ %{}), do: Event.changeset(e, attrs)
 
   ## Event reminders (push notifications ahead of an event)

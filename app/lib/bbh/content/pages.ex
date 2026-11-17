@@ -257,11 +257,15 @@ defmodule Bbh.Content.Pages do
   def get_page!(id), do: Repo.get!(Page, id)
   def get_page(id), do: Repo.get(Page, id)
 
-  def create_page(attrs),
-    do: %Page{} |> change_page(attrs) |> Repo.insert() |> Bbh.Search.reindex_after()
+  def create_page(scope, attrs) do
+    with :ok <- Authz.authorize_section(scope, :pages),
+         do: %Page{} |> change_page(attrs) |> Repo.insert() |> Bbh.Search.reindex_after()
+  end
 
-  def update_page(%Page{} = page, attrs),
-    do: page |> change_page(attrs) |> Repo.update() |> Bbh.Search.reindex_after()
+  def update_page(scope, %Page{} = page, attrs) do
+    with :ok <- Authz.authorize_section(scope, :pages),
+         do: page |> change_page(attrs) |> Repo.update() |> Bbh.Search.reindex_after()
+  end
 
   def change_page(%Page{} = page, attrs \\ %{}),
     do: page |> Page.changeset(attrs) |> validate_page_tree()

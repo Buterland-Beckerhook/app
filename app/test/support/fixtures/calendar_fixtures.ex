@@ -31,7 +31,7 @@ defmodule Bbh.CalendarFixtures do
         announce: true
       })
 
-    {:ok, event} = Calendar.create_event(attrs)
+    {:ok, event} = Calendar.create_event(Bbh.AccountsFixtures.writer_scope(), attrs)
     event
   end
 

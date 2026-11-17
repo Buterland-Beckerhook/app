@@ -120,7 +120,9 @@ defmodule Bbh.SearchTest do
       assert_enqueued(worker: Bbh.Workers.SearchReindexer)
 
       # A second change within the unique window coalesces onto the pending job.
-      {:ok, _} = Content.update_article(article, %{title: "Geändert"})
+      {:ok, _} =
+        Content.update_article(Bbh.AccountsFixtures.writer_scope(), article, %{title: "Geändert"})
+
       assert length(all_enqueued(worker: Bbh.Workers.SearchReindexer)) == 1
     end
 

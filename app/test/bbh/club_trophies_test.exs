@@ -14,7 +14,11 @@ defmodule Bbh.ClubTrophiesTest do
       trophy_win_fixture(trophy: trophy, year: 2024)
 
       assert {:error, changeset} =
-               Club.create_trophy_win(%{trophy_id: trophy.id, year: 2024, winner: "Zweiter"})
+               Club.create_trophy_win(Bbh.AccountsFixtures.writer_scope(), %{
+                 trophy_id: trophy.id,
+                 year: 2024,
+                 winner: "Zweiter"
+               })
 
       assert %{year: ["für diesen Pokal ist schon ein Sieger eingetragen"]} = errors_on(changeset)
     end
@@ -23,7 +27,12 @@ defmodule Bbh.ClubTrophiesTest do
       trophy = trophy_fixture()
 
       assert {:error, changeset} =
-               Club.create_trophy_win(%{trophy_id: trophy.id, year: 1850, winner: "X", rings: 0})
+               Club.create_trophy_win(Bbh.AccountsFixtures.writer_scope(), %{
+                 trophy_id: trophy.id,
+                 year: 1850,
+                 winner: "X",
+                 rings: 0
+               })
 
       assert %{year: [_], rings: [_]} = errors_on(changeset)
     end

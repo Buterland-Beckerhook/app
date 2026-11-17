@@ -303,7 +303,7 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
   defp save(socket, action, params, opts \\ [])
 
   defp save(socket, :new, params, opts) do
-    case Content.create_article(params, opts) do
+    case Content.create_article(socket.assigns.current_scope, params, opts) do
       {:ok, article} ->
         maybe_notify(nil, article)
 
@@ -313,6 +313,9 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
          |> put_flash(:info, "Artikel erstellt.")
          |> push_navigate(to: ~p"/admin/artikel/#{article.id}/bearbeiten")}
 
+      {:error, :unauthorized} ->
+        {:noreply, put_flash(socket, :error, "Keine Berechtigung.")}
+
       {:error, changeset} ->
         {:noreply, assign_form(socket, changeset)}
     end
@@ -321,7 +324,12 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
   defp save(socket, :edit, params, opts) do
     old_status = socket.assigns.article.status
 
-    case Content.update_article(socket.assigns.article, params, opts) do
+    case Content.update_article(
+           socket.assigns.current_scope,
+           socket.assigns.article,
+           params,
+           opts
+         ) do
       {:ok, article} ->
         maybe_notify(old_status, article)
 
@@ -331,6 +339,9 @@ defmodule BbhWeb.Admin.ArticleLive.Form do
          socket
          |> assign_form(Content.change_article(socket.assigns.article))
          |> put_flash(:info, "Artikel gespeichert.")}
+
+      {:error, :unauthorized} ->
+        {:noreply, put_flash(socket, :error, "Keine Berechtigung.")}
 
       {:error, changeset} ->
         {:noreply, assign_form(socket, changeset)}

@@ -20,7 +20,7 @@ defmodule Bbh.ContentFixtures do
         body: "<p>Inhalt</p>"
       })
 
-    {:ok, article} = Content.create_article(attrs)
+    {:ok, article} = Content.create_article(Bbh.AccountsFixtures.writer_scope(), attrs)
 
     case attrs[:body] do
       body when is_binary(body) and body not in ["", "<p></p>"] ->
@@ -90,7 +90,7 @@ defmodule Bbh.ContentFixtures do
         slug: "seite-#{System.unique_integer([:positive])}"
       })
 
-    {:ok, page} = Content.Pages.create_page(attrs)
+    {:ok, page} = Content.Pages.create_page(Bbh.AccountsFixtures.writer_scope(), attrs)
     page
   end
 

@@ -95,7 +95,7 @@ defmodule Bbh.CalendarTest do
   describe "end time" do
     test "a timed event without an end keeps a nil end" do
       {:ok, event} =
-        Calendar.create_event(%{
+        Calendar.create_event(Bbh.AccountsFixtures.writer_scope(), %{
           status: "published",
           title: "Fest",
           slug: "fest-#{System.unique_integer([:positive])}",
@@ -107,7 +107,7 @@ defmodule Bbh.CalendarTest do
 
     test "an all-day event keeps a nil end (and its start time)" do
       {:ok, event} =
-        Calendar.create_event(%{
+        Calendar.create_event(Bbh.AccountsFixtures.writer_scope(), %{
           status: "published",
           title: "Ganztag",
           slug: "ganztag-#{System.unique_integer([:positive])}",
@@ -122,7 +122,7 @@ defmodule Bbh.CalendarTest do
 
     test "an explicit end is left untouched" do
       {:ok, event} =
-        Calendar.create_event(%{
+        Calendar.create_event(Bbh.AccountsFixtures.writer_scope(), %{
           status: "published",
           title: "Mit Ende",
           slug: "ende-#{System.unique_integer([:positive])}",
@@ -253,6 +253,7 @@ defmodule Bbh.CalendarTest do
     test "create_event forces announce/countdown off and drops reminders for an internal calendar" do
       {:ok, event} =
         Calendar.create_event(
+          Bbh.AccountsFixtures.writer_scope(),
           base_attrs(Map.merge(%{"calendar" => "vorstand"}, @reminder_params))
         )
 
@@ -262,7 +263,8 @@ defmodule Bbh.CalendarTest do
     end
 
     test "public events keep announce, countdown and reminders" do
-      {:ok, event} = Calendar.create_event(base_attrs(@reminder_params))
+      {:ok, event} =
+        Calendar.create_event(Bbh.AccountsFixtures.writer_scope(), base_attrs(@reminder_params))
 
       assert event.announce
       assert event.show_countdown
@@ -270,10 +272,15 @@ defmodule Bbh.CalendarTest do
     end
 
     test "switching an existing public event to an internal calendar clears its reminders" do
-      {:ok, event} = Calendar.create_event(base_attrs(@reminder_params))
+      {:ok, event} =
+        Calendar.create_event(Bbh.AccountsFixtures.writer_scope(), base_attrs(@reminder_params))
+
       assert [_] = reminders(event)
 
-      {:ok, updated} = Calendar.update_event(event, %{"calendar" => "offiziere"})
+      {:ok, updated} =
+        Calendar.update_event(Bbh.AccountsFixtures.writer_scope(), event, %{
+          "calendar" => "offiziere"
+        })
 
       refute updated.announce
       refute updated.show_countdown

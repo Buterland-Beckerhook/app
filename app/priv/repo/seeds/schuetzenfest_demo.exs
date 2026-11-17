@@ -43,8 +43,14 @@ festplatz = location.("festplatz", "Festplatz")
 dinkelhof = location.("dinkelhof", "Dinkelhof")
 schulhof = location.("schulhof-buterlandschule", "Schulhof Buterlandschule")
 
+# A dev seed has no logged-in user; it writes as an admin with a strong session, which
+# is what Calendar's check asks of the public calendar. Nothing is stored for it.
+seed_scope = %Bbh.Accounts.Scope{
+  user: %Bbh.Accounts.User{id: Ecto.UUID.generate(), role: "admin", auth_method: "passkey"}
+}
+
 create! = fn attrs ->
-  case Calendar.create_event(attrs) do
+  case Calendar.create_event(seed_scope, attrs) do
     {:ok, event} -> event
     {:error, changeset} -> raise "demo seed: #{inspect(changeset.errors)} for #{attrs.title}"
   end

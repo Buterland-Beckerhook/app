@@ -229,9 +229,10 @@ defmodule BbhWeb.Admin.MediaLive.Index do
   def handle_event("cancel_edit", _params, socket), do: {:noreply, assign(socket, :editing, nil)}
 
   # `:keep` means the editor stays open on the returned upload — that is how a rotation
-  # shows its result and can be repeated (see BbhWeb.Admin.MediaEditor.submit/2).
+  # shows its result and can be repeated (see BbhWeb.Admin.MediaEditor.submit/3).
   def handle_event("save_meta", %{"upload" => _} = params, socket) do
-    {action, updated, {kind, message}} = MediaEditor.submit(socket.assigns.editing, params)
+    {action, updated, {kind, message}} =
+      MediaEditor.submit(socket.assigns.current_scope, socket.assigns.editing, params)
 
     {:noreply,
      socket

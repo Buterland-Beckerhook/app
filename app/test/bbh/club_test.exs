@@ -118,7 +118,11 @@ defmodule Bbh.ClubTest do
 
     test "rejects an appointment year before the placeholder" do
       assert {:error, changeset} =
-               Club.create_person(%{name: "X", role: "mitglied", honorary_since: 1899})
+               Club.create_person(Bbh.AccountsFixtures.writer_scope(), %{
+                 name: "X",
+                 role: "mitglied",
+                 honorary_since: 1899
+               })
 
       assert %{honorary_since: [_]} = errors_on(changeset)
     end

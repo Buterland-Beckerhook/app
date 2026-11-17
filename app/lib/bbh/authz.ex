@@ -114,6 +114,24 @@ defmodule Bbh.Authz do
   def can_delete?(_, _), do: false
 
   @doc """
+  `can_access_section?/2` for a scope, as the contexts' create and update functions
+  check it: `:ok`, or `{:error, :unauthorized}`. Nil-safe.
+  """
+  def authorize_section(scope, section),
+    do: ok_if(can_access_section?(scope && scope.user, section))
+
+  @doc "`can_manage_calendar?/2` for a scope (`nil` calendar = public). Nil-safe."
+  def authorize_calendar(scope, calendar),
+    do: ok_if(can_manage_calendar?(scope && scope.user, calendar))
+
+  @doc "`can_delete_event?/2` for a scope. Nil-safe."
+  def authorize_event_delete(scope, event),
+    do: ok_if(can_delete_event?(scope && scope.user, event))
+
+  defp ok_if(true), do: :ok
+  defp ok_if(false), do: {:error, :unauthorized}
+
+  @doc """
   `can_delete?/2` for a scope, as the contexts' delete functions check it: `:ok`, or
   `{:error, :unauthorized}`. Nil-safe.
   """

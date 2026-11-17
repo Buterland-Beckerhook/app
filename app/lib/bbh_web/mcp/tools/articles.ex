@@ -59,7 +59,7 @@ defmodule BbhWeb.MCP.Tools.Articles do
 
   ## Writes — article
 
-  def create_article(args, _scope) do
+  def create_article(args, scope) do
     with {:ok, title} <- Args.require_string(args, "title") do
       attrs =
         args
@@ -82,12 +82,12 @@ defmodule BbhWeb.MCP.Tools.Articles do
         |> put_image(args)
 
       attrs
-      |> Content.create_article()
+      |> then(&Content.create_article(scope, &1))
       |> reply_article()
     end
   end
 
-  def update_article(args, _scope) do
+  def update_article(args, scope) do
     with {:ok, article} <- fetch_article(args) do
       attrs =
         args
@@ -103,8 +103,7 @@ defmodule BbhWeb.MCP.Tools.Articles do
         |> maybe_put_tags(args)
         |> put_image(args)
 
-      article
-      |> Content.update_article(attrs)
+      Content.update_article(scope, article, attrs)
       |> reply_article()
     end
   end
@@ -406,6 +405,8 @@ defmodule BbhWeb.MCP.Tools.Articles do
     article = Content.get_article!(article.id)
     {:ok, View.article(article, Content.load_blocks(article))}
   end
+
+  defp reply_article({:error, :unauthorized}), do: {:error, "Keine Berechtigung für Artikel."}
 
   defp reply_article({:error, %Ecto.Changeset{} = changeset}),
     do: {:error, Args.errors(changeset)}
