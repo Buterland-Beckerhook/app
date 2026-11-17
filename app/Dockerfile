@@ -24,6 +24,9 @@ ARG OTP_VERSION=29.1.2
 # renovate: datasource=docker depName=debian versioning=debian
 ARG DEBIAN_VERSION=trixie-20261020-slim
 
+# Not digest-pinned, unlike the compose images: the tags are composed from the ARGs
+# above, which Renovate cannot resolve to a digest. The dated Debian tag keeps them
+# reproducible enough; a new date comes through the annotated DEBIAN_VERSION.
 ARG BUILDER_IMAGE="docker.io/hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-debian-${DEBIAN_VERSION}"
 ARG RUNNER_IMAGE="docker.io/debian:${DEBIAN_VERSION}"
 

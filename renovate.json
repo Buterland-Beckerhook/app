@@ -3,6 +3,7 @@
   "extends": [
     "config:recommended",
     "helpers:pinGitHubActionDigests",
+    "docker:pinDigests",
     ":dependencyDashboard",
     ":semanticCommits"
   ],
@@ -55,6 +56,12 @@
       "prBodyNotes": [
         "⚠️ **Postgres major upgrade.** Changing the tag alone does not migrate the data: the new server refuses to start on the old cluster. Plan the move first (see `docs/adr/0012-postgres-major-upgrade-by-dump-and-restore.md`); `deploy/upgrade-postgres.sh` only covers 16 → 18."
       ]
+    },
+    {
+      "description": "Image digests (docker:pinDigests): one PR per week for all digest refreshes, so a rebuilt postgres/caddy/dovecot tag is a reviewed-by-CI change instead of whatever the host pulls next",
+      "matchDatasources": ["docker"],
+      "matchUpdateTypes": ["pin", "digest"],
+      "groupName": "container image digests"
     },
     {
       "description": "Group GitHub Actions digest bumps into one PR",
