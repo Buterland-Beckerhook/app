@@ -1017,6 +1017,103 @@ defmodule BbhWeb.Admin.MediaLiveTest do
     end
   end
 
+  describe "bulk metadata" do
+    test "ticking tiles shows the selection bar", %{conn: conn} do
+      a = upload_fixture(%{})
+      {:ok, lv, _html} = live(conn, ~p"/admin/medien")
+      refute has_element?(lv, "#selection-bar")
+
+      lv |> element("#select-#{a.id}") |> render_click()
+      assert has_element?(lv, "#selection-bar", "1 ausgewählt")
+      assert has_element?(lv, "#select-#{a.id}[checked]")
+
+      lv |> element("#select-#{a.id}") |> render_click()
+      refute has_element?(lv, "#selection-bar")
+    end
+
+    test "sets the changed fields on every selected file, numbered in the current sort",
+         %{conn: conn} do
+      b = upload_fixture(filename: "IMG_0002.webp", caption: "Eigene")
+      a = upload_fixture(filename: "IMG_0001.webp", caption: "Andere")
+      untouched = upload_fixture(filename: "IMG_0003.webp")
+
+      {:ok, lv, _html} = live(conn, ~p"/admin/medien")
+      render_change(lv, "filter", %{"search" => "", "sort" => "name"})
+      lv |> element("#select-#{a.id}") |> render_click()
+      lv |> element("#select-#{b.id}") |> render_click()
+      lv |> element("#bulk-edit") |> render_click()
+
+      assert has_element?(lv, "#media-bulk-form")
+      # The captions differ: shown empty, and left alone when submitted that way.
+      assert has_element?(lv, "#bulk_caption[placeholder]")
+
+      lv
+      |> form("#media-bulk-form", bulk: %{title: "Jugendbiwak 2005 ({n})", copyright: "Max"})
+      |> render_change()
+
+      assert has_element?(lv, "#bulk-title-preview", "Jugendbiwak 2005 (2)")
+
+      lv
+      |> form("#media-bulk-form", bulk: %{title: "Jugendbiwak 2005 ({n})", copyright: "Max"})
+      |> render_submit()
+
+      refute has_element?(lv, "#media-bulk-form")
+
+      a = Media.get_upload!(a.id)
+      b = Media.get_upload!(b.id)
+      assert {a.title, b.title} == {"Jugendbiwak 2005 (1)", "Jugendbiwak 2005 (2)"}
+      assert {a.copyright, b.copyright} == {"Max", "Max"}
+      assert {a.caption, b.caption} == {"Andere", "Eigene"}
+      assert Media.get_upload!(untouched.id).title == nil
+    end
+
+    test "\"Bei allen leeren\" clears a field whose values differ", %{conn: conn} do
+      a = upload_fixture(caption: "Eins")
+      b = upload_fixture(caption: "Zwei")
+
+      {:ok, lv, _html} = live(conn, ~p"/admin/medien")
+      render_click(lv, "select_all", %{})
+      lv |> element("#bulk-edit") |> render_click()
+
+      lv |> form("#media-bulk-form", bulk: %{clear: ["caption"]}) |> render_submit()
+
+      assert Media.get_upload!(a.id).caption == nil
+      assert Media.get_upload!(b.id).caption == nil
+    end
+
+    test "\"Alle auswählen\" takes the files not scrolled in yet", %{conn: conn} do
+      for i <- 1..61, do: upload_fixture(%{filename: "bild-#{i}.webp"})
+
+      {:ok, lv, _html} = live(conn, ~p"/admin/medien")
+      lv |> element("#select-all") |> render_click()
+
+      assert has_element?(lv, "#selection-bar", "61 ausgewählt")
+    end
+
+    test "uploading several files selects them and opens the bulk editor", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, ~p"/admin/medien")
+
+      file =
+        file_input(lv, "#upload-form", :files, [
+          %{name: "eins.png", content: @png, type: "image/png"},
+          %{name: "zwei.png", content: @png, type: "image/png"}
+        ])
+
+      render_upload(file, "eins.png")
+      render_upload(file, "zwei.png")
+      lv |> element("#upload-form") |> render_submit()
+
+      assert has_element?(lv, "#media-bulk-form")
+      assert has_element?(lv, "#selection-bar", "2 ausgewählt")
+    end
+
+    test "a forged id is not selectable", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, ~p"/admin/medien")
+      render_click(lv, "toggle_select", %{"id" => "nope"})
+      refute has_element?(lv, "#selection-bar")
+    end
+  end
+
   describe "as an editor" do
     # Deleting is admin-only; the buttons are hidden, and a forced event is refused.
     setup %{conn: conn} do

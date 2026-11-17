@@ -2,22 +2,31 @@ defmodule BbhWeb.Admin.MediaLive.Index do
   use BbhWeb, :live_view
 
   import BbhWeb.Admin.MediaEditor, only: [media_editor: 1]
+  import BbhWeb.Admin.MediaBulkEditor, only: [bulk_editor: 1]
 
   alias Bbh.Media
   alias Bbh.Media.Folder
   alias Bbh.Media.Upload
+  alias BbhWeb.Admin.MediaBulkEditor
   alias BbhWeb.Admin.MediaEditor
 
   # Tiles per page. The grid grows by this much whenever its end scrolls into view, so
   # a visit no longer renders — and asks thumbnails for — the whole library at once.
   @page_size 60
 
+  # Files per upload. An album from one event easily runs to a hundred pictures, and the
+  # bulk editor that opens afterwards is what makes uploading them in one go worthwhile.
+  @max_files 100
+
   @impl true
   def mount(_params, _session, socket) do
     socket =
       socket
       |> assign(page_title: "Medien", search: "", sort: "newest")
-      |> assign(scope: :all, editing: nil, new_folder: false)
+      |> assign(scope: :all, editing: nil, new_folder: false, max_files: @max_files)
+      # The ticked tiles, by id, and the open bulk editor (`nil` or its state). A MapSet
+      # rather than the stream: tiles that are not scrolled in yet can be selected too.
+      |> assign(selected: MapSet.new(), bulk: nil)
       # Assigned here and nowhere else: picking a folder is a patch, so anything set in
       # handle_params/3 is set again on every click in the tree — which would throw the
       # sorting mode away mid-drag and fold the branch the editor just opened. The same goes
@@ -25,7 +34,7 @@ defmodule BbhWeb.Admin.MediaLive.Index do
       |> assign(edit_mode: false, expanded: MapSet.new(), include_subfolders: false)
       |> allow_upload(:files,
         accept: ~w(.jpg .jpeg .png .webp .gif .pdf),
-        max_entries: 10,
+        max_entries: @max_files,
         max_file_size: 20_000_000
       )
 
@@ -37,6 +46,9 @@ defmodule BbhWeb.Admin.MediaLive.Index do
     {:noreply,
      socket
      |> assign(scope: scope_from(params["folder"]), editing: nil, new_folder: false)
+     # A selection belongs to the folder it was made in: carried into another one, it
+     # would edit files the grid no longer shows.
+     |> assign(selected: MapSet.new(), bulk: nil)
      |> reveal_scope()
      |> load_tree()
      |> load_items()}
@@ -75,17 +87,33 @@ defmodule BbhWeb.Admin.MediaLive.Index do
     # One more than a page, to know whether another one follows.
     items =
       Media.list_uploads(
-        search: socket.assigns.search,
-        sort: socket.assigns.sort,
-        folder: folder_scope(socket.assigns),
-        recent: socket.assigns.scope == :recent && Media.recent_limit(),
-        limit: @page_size + 1,
-        offset: page * @page_size
+        list_opts(socket.assigns) ++ [limit: @page_size + 1, offset: page * @page_size]
       )
 
     socket
     |> assign(page: page, more?: length(items) > @page_size)
     |> stream(:items, Enum.take(items, @page_size), stream_opts)
+  end
+
+  # Every page loaded so far, again — after a change that touches many tiles at once (a
+  # selection, a bulk edit). load_items/1 would drop the editor back to the first page.
+  defp reload_loaded(socket) do
+    loaded = (socket.assigns.page + 1) * @page_size
+    items = Media.list_uploads(list_opts(socket.assigns) ++ [limit: loaded + 1, offset: 0])
+
+    socket
+    |> assign(more?: length(items) > loaded)
+    |> stream(:items, Enum.take(items, loaded), reset: true)
+  end
+
+  # The filters the grid lists by, shared by paging, reloading and "Alle auswählen".
+  defp list_opts(assigns) do
+    [
+      search: assigns.search,
+      sort: assigns.sort,
+      folder: folder_scope(assigns),
+      recent: assigns.scope == :recent && Media.recent_limit()
+    ]
   end
 
   # What `Media.list_uploads(folder:)` expects for each scope. A folder lists its own files
@@ -167,10 +195,11 @@ defmodule BbhWeb.Admin.MediaLive.Index do
     too_large = Enum.count(results, &(&1 == {:rejected, :image_too_large}))
     rejected = Enum.count(results, &match?({:rejected, r} when r != :image_too_large, &1))
 
-    socket =
-      Enum.reduce(stored, socket, fn upload, acc -> stream_insert(acc, :items, upload, at: 0) end)
-
-    {:noreply, socket |> load_tree() |> put_upload_flash(length(stored), rejected, too_large)}
+    {:noreply,
+     socket
+     |> show_stored(stored)
+     |> load_tree()
+     |> put_upload_flash(length(stored), rejected, too_large)}
   end
 
   def handle_event("delete", %{"id" => id}, socket) do
@@ -181,6 +210,7 @@ defmodule BbhWeb.Admin.MediaLive.Index do
         {:noreply,
          socket
          |> put_flash(:info, "Datei gelöscht.")
+         |> update(:selected, &MapSet.delete(&1, upload.id))
          |> stream_delete(:items, upload)
          |> load_tree()}
 
@@ -210,6 +240,78 @@ defmodule BbhWeb.Admin.MediaLive.Index do
      |> load_tree()
      |> refresh(updated)}
   end
+
+  # The id comes from the browser, so the tolerant getter: a stale or forged id is
+  # simply not selectable.
+  def handle_event("toggle_select", %{"id" => id}, socket) do
+    case Media.get_upload(id) do
+      %Upload{} = upload ->
+        selected = socket.assigns.selected
+
+        selected =
+          if MapSet.member?(selected, upload.id),
+            do: MapSet.delete(selected, upload.id),
+            else: MapSet.put(selected, upload.id)
+
+        {:noreply, socket |> assign(:selected, selected) |> stream_insert(:items, upload)}
+
+      nil ->
+        {:noreply, socket}
+    end
+  end
+
+  # Everything the current filters list, not only the tiles scrolled in so far — "alle"
+  # in a folder of a hundred pictures means the hundred.
+  def handle_event("select_all", _params, socket) do
+    ids = Media.list_upload_ids(list_opts(socket.assigns))
+
+    {:noreply,
+     socket
+     |> assign(:selected, MapSet.union(socket.assigns.selected, MapSet.new(ids)))
+     |> reload_loaded()}
+  end
+
+  def handle_event("clear_selection", _params, socket) do
+    {:noreply, socket |> assign(selected: MapSet.new(), bulk: nil) |> reload_loaded()}
+  end
+
+  def handle_event("bulk_edit", _params, socket), do: {:noreply, open_bulk(socket)}
+
+  def handle_event("cancel_bulk", _params, socket), do: {:noreply, assign(socket, :bulk, nil)}
+
+  # Only the title is kept, for the numbering preview. The inputs keep what was typed by
+  # themselves: their rendered value (the common one) does not change, so nothing is patched.
+  def handle_event("bulk_change", %{"bulk" => params}, %{assigns: %{bulk: %{}}} = socket) do
+    {:noreply, update(socket, :bulk, &Map.put(&1, :title_draft, params["title"]))}
+  end
+
+  def handle_event("bulk_change", _params, socket), do: {:noreply, socket}
+
+  # Numbered in the grid's current sort, so "{n}" counts the way the tiles are shown.
+  def handle_event("bulk_save", %{"bulk" => params}, %{assigns: %{bulk: %{} = bulk}} = socket) do
+    case MediaBulkEditor.changes(params, bulk.common) do
+      changes when changes == %{} ->
+        {:noreply, socket |> assign(:bulk, nil) |> put_flash(:info, "Keine Änderungen.")}
+
+      changes ->
+        ids = MapSet.to_list(socket.assigns.selected)
+
+        case Media.bulk_update_uploads(ids, changes, sort: socket.assigns.sort) do
+          {:ok, updated} ->
+            {:noreply,
+             socket
+             |> assign(:bulk, nil)
+             |> put_flash(:info, "#{length(updated)} Datei(en) gespeichert.")
+             |> load_tree()
+             |> reload_loaded()}
+
+          {:error, _changeset} ->
+            {:noreply, put_flash(socket, :error, "Dateien konnten nicht gespeichert werden.")}
+        end
+    end
+  end
+
+  def handle_event("bulk_save", _params, socket), do: {:noreply, socket}
 
   def handle_event("toggle_new_folder", _params, socket),
     do: {:noreply, assign(socket, :new_folder, not socket.assigns.new_folder)}
@@ -321,6 +423,32 @@ defmodule BbhWeb.Admin.MediaLive.Index do
         {:noreply, put_flash(socket, :error, "Datei konnte nicht verschoben werden.")}
     end
   end
+
+  # A batch of files lands selected with the bulk editor open: naming and crediting an
+  # album is the next step anyway, and selecting a hundred new tiles by hand is the very
+  # chore the editor exists to spare. A single file keeps the old behaviour — its own
+  # editor (focal point, rotation) is one click away.
+  defp show_stored(socket, [_, _ | _] = stored) do
+    socket
+    |> assign(:selected, MapSet.new(stored, & &1.id))
+    |> reload_loaded()
+    |> open_bulk()
+  end
+
+  defp show_stored(socket, stored) do
+    Enum.reduce(stored, socket, fn upload, acc -> stream_insert(acc, :items, upload, at: 0) end)
+  end
+
+  defp open_bulk(socket) do
+    case MapSet.to_list(socket.assigns.selected) do
+      [] -> socket
+      ids -> assign(socket, :bulk, %{common: Media.common_metadata(ids), title_draft: nil})
+    end
+  end
+
+  defp sort_label("oldest"), do: "Älteste zuerst"
+  defp sort_label("name"), do: "Name (A–Z)"
+  defp sort_label(_newest), do: "Neueste zuerst"
 
   # The box is only rendered inside a folder, and an unchecked box is absent from the
   # payload rather than false. So outside a folder an absent key means "no box", not
@@ -474,7 +602,9 @@ defmodule BbhWeb.Admin.MediaLive.Index do
         >
           <.live_file_input upload={@uploads.files} class="file-input file-input-bordered" />
           <p class="mt-2 text-sm text-base-content/60">
-            JPG, PNG, WebP, GIF oder PDF · bis 20&nbsp;MB · max. 10 Dateien{upload_target(@scope)}
+            JPG, PNG, WebP, GIF oder PDF · bis 20&nbsp;MB · max. {@max_files} Dateien{upload_target(
+              @scope
+            )}
           </p>
         </div>
 
@@ -670,6 +800,9 @@ defmodule BbhWeb.Admin.MediaLive.Index do
             class="checkbox checkbox-sm"
           /> Unterordner einbeziehen
         </label>
+        <button type="button" id="select-all" phx-click="select_all" class="btn btn-ghost btn-sm mb-1">
+          <.icon name="hero-check-circle" class="size-4" /> Alle auswählen
+        </button>
       </form>
 
       <div
@@ -684,8 +817,25 @@ defmodule BbhWeb.Admin.MediaLive.Index do
           id={dom_id}
           data-media-id={item.id}
           draggable="true"
-          class="rounded-box border border-base-300 p-2"
+          class={[
+            "relative rounded-box border p-2 transition-colors",
+            if(MapSet.member?(@selected, item.id),
+              do: "border-primary bg-primary/5 ring-2 ring-primary",
+              else: "border-base-300"
+            )
+          ]}
         >
+          <%!-- Always visible rather than behind a "select mode": the common case is
+                ticking a handful of tiles, and the bar below appears on the first tick. --%>
+          <input
+            type="checkbox"
+            id={"select-#{item.id}"}
+            checked={MapSet.member?(@selected, item.id)}
+            phx-click="toggle_select"
+            phx-value-id={item.id}
+            aria-label={"„#{item.title || item.filename}“ auswählen"}
+            class="checkbox checkbox-sm absolute left-3 top-3 z-10 bg-base-100 shadow"
+          />
           <img
             :if={Media.image?(item)}
             src={media_url(item, width: 300, height: 300)}
@@ -739,7 +889,31 @@ defmodule BbhWeb.Admin.MediaLive.Index do
         </button>
       </div>
 
+      <%!-- Sticky at the bottom while the grid scrolls past, so the action stays in reach
+            through a hundred tiles. --%>
+      <div
+        :if={MapSet.size(@selected) > 0}
+        id="selection-bar"
+        class="sticky bottom-4 z-40 mt-4 flex flex-wrap items-center gap-3 rounded-box border border-base-300 bg-base-100 p-3 shadow-lg"
+      >
+        <span class="text-sm font-medium">{MapSet.size(@selected)} ausgewählt</span>
+        <button type="button" id="bulk-edit" phx-click="bulk_edit" class="btn btn-primary btn-sm">
+          <.icon name="hero-pencil-square" class="size-4" /> Metadaten bearbeiten
+        </button>
+        <button type="button" phx-click="clear_selection" class="btn btn-ghost btn-sm">
+          Auswahl aufheben
+        </button>
+      </div>
+
       <.media_editor :if={@editing} upload={@editing} folder_options={@folder_options} />
+      <.bulk_editor
+        :if={@bulk}
+        count={MapSet.size(@selected)}
+        common={@bulk.common}
+        folder_options={@folder_options}
+        sort_label={sort_label(@sort)}
+        title_draft={@bulk.title_draft}
+      />
     </Layouts.admin>
     """
   end
@@ -905,7 +1079,7 @@ defmodule BbhWeb.Admin.MediaLive.Index do
   end
 
   defp upload_error_label(:too_large), do: "Datei ist zu groß (max. 20 MB)."
-  defp upload_error_label(:too_many_files), do: "Zu viele Dateien (max. 10)."
+  defp upload_error_label(:too_many_files), do: "Zu viele Dateien (max. #{@max_files})."
   defp upload_error_label(:not_accepted), do: "Dateityp nicht erlaubt."
   defp upload_error_label(_), do: "Fehler beim Hochladen."
 end

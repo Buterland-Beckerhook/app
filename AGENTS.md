@@ -77,6 +77,13 @@ Copyright are fields on `media`; an embedding (article image, gallery file) only
 `image_caption/1` and `image_copyright/1` — never off the embedding. See
 `docs/adr/0004-media-library-owns-image-metadata.md`.
 
+**Bulk metadata** (`BbhWeb.Admin.MediaBulkEditor`, `Bbh.Media.bulk_update_uploads/3`):
+tiles in `/admin/medien` can be ticked (or "Alle auswählen" for everything the filters
+list), and a batch upload of two or more files lands selected with the bulk editor open.
+Only fields that differ from what the form showed are written; `{n}` in a text field
+becomes the running number in the grid's current sort. Newest/oldest break ties within
+an upload second by filename, so a camera batch numbers in shooting order.
+
 **Images in running text** are stored as a bare inline `<img src="/media/<key>">` plus
 whitelisted size/float/caption classes (`bbh-img-*`, `bbh-float-*`, `bbh-cap-*`) — never
 as a `<figure>`, which would defeat `Bbh.Html.sanitize/1`'s block merge.

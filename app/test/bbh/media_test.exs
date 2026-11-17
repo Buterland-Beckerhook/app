@@ -96,6 +96,104 @@ defmodule Bbh.MediaTest do
     end
   end
 
+  describe "bulk_update_uploads/3" do
+    test "sets only the given fields and leaves the rest as each file has it" do
+      a = upload_fixture(filename: "a.webp", title: "Alt A", caption: "Eigene Unterschrift")
+      b = upload_fixture(filename: "b.webp", title: "Alt B", copyright: "Jemand")
+
+      assert {:ok, [_, _]} =
+               Media.bulk_update_uploads([a.id, b.id], %{
+                 title: "Jugendbiwak 2005",
+                 copyright: nil
+               })
+
+      a = Media.get_upload!(a.id)
+      b = Media.get_upload!(b.id)
+
+      assert {a.title, b.title} == {"Jugendbiwak 2005", "Jugendbiwak 2005"}
+      assert {a.copyright, b.copyright} == {nil, nil}
+      # Not in the changes, so untouched.
+      assert a.caption == "Eigene Unterschrift"
+      assert b.caption == nil
+    end
+
+    test "numbers {n} in the order of the given sort" do
+      c = upload_fixture(filename: "IMG_0003.webp")
+      a = upload_fixture(filename: "IMG_0001.webp")
+      b = upload_fixture(filename: "IMG_0002.webp")
+
+      assert {:ok, _} =
+               Media.bulk_update_uploads([c.id, a.id, b.id], %{title: "Biwak ({n})"},
+                 sort: "name"
+               )
+
+      assert Media.get_upload!(a.id).title == "Biwak (1)"
+      assert Media.get_upload!(b.id).title == "Biwak (2)"
+      assert Media.get_upload!(c.id).title == "Biwak (3)"
+    end
+
+    test "a batch sharing one upload second is numbered by filename, newest or oldest" do
+      b = upload_fixture(filename: "IMG_0002.webp")
+      a = upload_fixture(filename: "IMG_0001.webp")
+      same = ~U[2026-11-17 12:00:00Z]
+      Repo.update_all(from(u in Upload, where: u.id in ^[a.id, b.id]), set: [inserted_at: same])
+
+      for sort <- ["newest", "oldest"] do
+        assert {:ok, _} = Media.bulk_update_uploads([a.id, b.id], %{title: "{n}"}, sort: sort)
+        assert {Media.get_upload!(a.id).title, Media.get_upload!(b.id).title} == {"1", "2"}
+      end
+    end
+
+    test "moves into a folder, and \"\" means no folder" do
+      {:ok, folder} = Media.Folders.create_folder(%{"name" => "Biwak"})
+      a = upload_fixture(%{})
+
+      assert {:ok, _} = Media.bulk_update_uploads([a.id], %{folder_id: folder.id})
+      assert Media.get_upload!(a.id).folder_id == folder.id
+
+      assert {:ok, _} = Media.bulk_update_uploads([a.id], %{folder_id: ""})
+      assert Media.get_upload!(a.id).folder_id == nil
+    end
+
+    test "saves nothing when one file fails, and skips ids that are not uploads" do
+      a = upload_fixture(title: "Bleibt")
+
+      assert {:error, %Ecto.Changeset{}} =
+               Media.bulk_update_uploads([a.id], %{title: "Neu", folder_id: "kein-ordner"})
+
+      assert Media.get_upload!(a.id).title == "Bleibt"
+
+      assert {:ok, [_]} = Media.bulk_update_uploads([a.id, "nope", Ecto.UUID.generate()], %{})
+    end
+  end
+
+  describe "common_metadata/1" do
+    test "reports a shared value, or :mixed where the files differ" do
+      a = upload_fixture(title: "Gleich", caption: "Eins")
+      b = upload_fixture(title: "Gleich", caption: "Zwei")
+
+      common = Media.common_metadata([a.id, b.id])
+
+      assert common.title == "Gleich"
+      assert common.caption == :mixed
+      assert common.description == nil
+      # Both got the club default on create.
+      assert common.copyright == "Buterland-Beckerhook e.V."
+      assert common.folder_id == nil
+    end
+  end
+
+  describe "list_upload_ids/1" do
+    test "lists every matching id in sort order, unpaged" do
+      a = upload_fixture(filename: "a.webp")
+      b = upload_fixture(filename: "b.webp")
+      _other = upload_fixture(filename: "x.webp", title: "Anderes")
+
+      assert Media.list_upload_ids(search: ".webp", sort: "name") |> Enum.take(2) == [a.id, b.id]
+      assert Media.list_upload_ids(search: "Anderes") |> length() == 1
+    end
+  end
+
   describe "get_upload!/1 and update_upload/2" do
     test "fetches and updates" do
       upload = upload_fixture(%{})
