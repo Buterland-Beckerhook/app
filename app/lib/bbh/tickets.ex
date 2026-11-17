@@ -621,7 +621,7 @@ defmodule Bbh.Tickets do
   end
 
   defp notify_reply(%Ticket{assignee_id: id} = ticket) do
-    case Repo.get(User, id) do
+    case Bbh.Accounts.get_user(id) do
       nil -> notify_reply(%{ticket | assignee_id: nil})
       user -> Bbh.Tickets.Alerts.enqueue_reply(ticket, [user])
     end

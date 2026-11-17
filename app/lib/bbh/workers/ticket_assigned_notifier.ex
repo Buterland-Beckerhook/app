@@ -26,8 +26,8 @@ defmodule Bbh.Workers.TicketAssignedNotifier do
   defp tell(ticket_id, assignee_id, by_id) do
     with %Ticket{assignee_id: ^assignee_id, deleted_at: nil} = ticket <-
            Repo.get(Ticket, ticket_id),
-         %{} = assignee <- Repo.get(Accounts.User, assignee_id),
-         %{} = by <- Repo.get(Accounts.User, by_id) do
+         %{} = assignee <- Accounts.get_user(assignee_id),
+         %{} = by <- Accounts.get_user(by_id) do
       Alerts.assigned(assignee, ticket, by)
     end
 

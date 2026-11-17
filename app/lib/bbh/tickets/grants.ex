@@ -45,7 +45,7 @@ defmodule Bbh.Tickets.Grants do
   """
   def notify_users(queue_key) do
     case list_users(queue_key) do
-      [] -> Repo.all(from u in User, where: u.role == "admin", order_by: u.email)
+      [] -> Bbh.Accounts.list_admins()
       users -> users
     end
   end
@@ -67,7 +67,7 @@ defmodule Bbh.Tickets.Grants do
     admins =
       if Enum.all?(keys, &Map.has_key?(granted, &1)),
         do: [],
-        else: Repo.all(from u in User, where: u.role == "admin", select: u.id)
+        else: Enum.map(Bbh.Accounts.list_admins(), & &1.id)
 
     Map.new(keys, &{&1, Map.get(granted, &1, admins)})
   end

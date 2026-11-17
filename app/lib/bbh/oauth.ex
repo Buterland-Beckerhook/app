@@ -155,7 +155,7 @@ defmodule Bbh.OAuth do
          :ok <- check_binding(code, params),
          :ok <- verify_pkce(code, params[:code_verifier]),
          {:ok, code} <- mark_used(code) do
-      user = Repo.get!(Bbh.Accounts.User, code.user_id)
+      user = Bbh.Accounts.get_user!(code.user_id)
       issue_tokens(user, code.client_id, code.scopes, code.resource)
     end
   end
