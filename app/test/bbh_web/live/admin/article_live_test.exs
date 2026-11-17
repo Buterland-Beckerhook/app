@@ -44,10 +44,10 @@ defmodule BbhWeb.Admin.ArticleLiveTest do
       Bbh.Analytics.record(%{path: path})
       Bbh.Analytics.record(%{path: path, day: Date.add(Date.utc_today(), -45)})
 
-      {:ok, _lv, html} = live(conn, ~p"/admin/artikel")
+      {:ok, lv, html} = live(conn, ~p"/admin/artikel")
 
       assert html =~ "Aufrufe (30 Tage)"
-      assert html =~ ~r/<span class="tabular-nums">\s*2\s*<\/span>/
+      assert lv |> element("#articles tbody") |> render() =~ ~r/>\s*2\s*</
     end
 
     test "filters by status, from the URL and from the select", %{conn: conn} do
