@@ -22,8 +22,8 @@ defmodule BbhWeb.TotpControllerTest do
 
   describe "POST /users/totp" do
     setup do
-      secret = Accounts.generate_totp_secret()
-      {:ok, user} = Accounts.enable_totp(user_fixture(), secret)
+      secret = Accounts.SecondFactor.generate_totp_secret()
+      {:ok, user} = Accounts.SecondFactor.enable_totp(user_fixture(), secret)
       %{user: user, secret: secret}
     end
 

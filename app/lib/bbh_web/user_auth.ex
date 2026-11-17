@@ -405,7 +405,7 @@ defmodule BbhWeb.UserAuth do
   # or TOTP and so reach the strong-auth areas. Without any factor yet, a plain session
   # may enter to set up the first one.
   #
-  # After an admin reset (`Bbh.Accounts.reset_second_factors/1`) the user has no factor
+  # After an admin reset (`Bbh.Accounts.SecondFactor.reset_second_factors/1`) the user has no factor
   # either, but here the session must first prove the one-time code the admin handed
   # over (`BbhWeb.FactorResetController`).
   def on_mount(:require_enrolled_strong_auth, params, session, socket) do
@@ -523,7 +523,9 @@ defmodule BbhWeb.UserAuth do
     do: put_session(conn, :factor_reset_verified, user.id)
 
   defp factor_reset_unverified?(user, session),
-    do: session["factor_reset_verified"] != user.id and Accounts.factor_reset_pending?(user)
+    do:
+      session["factor_reset_verified"] != user.id and
+        Accounts.SecondFactor.factor_reset_pending?(user)
 
   defp second_factor?(user),
     do: Accounts.Passkeys.has_passkey?(user) or Accounts.User.totp_enabled?(user)

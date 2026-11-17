@@ -193,7 +193,7 @@ defmodule BbhWeb.Admin.DashboardLiveTest do
     end
 
     test "shows the scheduled deletion date", %{conn: conn, none_user: user} do
-      date = Date.add(Bbh.Accounts.local_today(), 10)
+      date = Date.add(Bbh.Time.real_today(), 10)
       {:ok, _} = Bbh.Accounts.schedule_user_deletion(user, date)
 
       {:ok, lv, _html} = live(conn, ~p"/admin")

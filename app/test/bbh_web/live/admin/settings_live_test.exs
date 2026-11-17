@@ -186,8 +186,8 @@ defmodule BbhWeb.Admin.SettingsLiveTest do
     setup :register_and_log_in_admin
 
     setup %{user: user} do
-      secret = Accounts.generate_totp_secret()
-      {:ok, user} = Accounts.enable_totp(user, secret)
+      secret = Accounts.SecondFactor.generate_totp_secret()
+      {:ok, user} = Accounts.SecondFactor.enable_totp(user, secret)
       %{user: user, secret: secret}
     end
 

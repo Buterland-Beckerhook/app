@@ -18,15 +18,15 @@ defmodule Bbh.Tickets.Grants do
 
   @doc "The queue keys a user is granted, in queue order."
   def list_queue_keys(user) do
-    granted = Accounts.list_queue_keys(user)
+    granted = Accounts.Postfach.list_queue_keys(user)
     Enum.filter(Queue.keys(), &(&1 in granted))
   end
 
   @doc "`%{user_id => [queue_key]}` for all users, for the user administration."
-  defdelegate grants_by_user, to: Accounts, as: :queue_grants_by_user
+  defdelegate grants_by_user, to: Accounts.Postfach, as: :queue_grants_by_user
 
   @doc "The users granted a queue (not admins without a grant)."
-  defdelegate list_users(queue_key), to: Accounts, as: :list_queue_users
+  defdelegate list_users(queue_key), to: Accounts.Postfach, as: :list_queue_users
 
   @doc """
   Who hears about a queue's tickets: the users granted it — or, while nobody is, the
@@ -48,7 +48,7 @@ defmodule Bbh.Tickets.Grants do
 
   def notify_user_ids(queue_keys) do
     keys = Enum.uniq(queue_keys)
-    granted = Accounts.queue_user_ids(keys)
+    granted = Accounts.Postfach.queue_user_ids(keys)
 
     admins =
       if Enum.all?(keys, &Map.has_key?(granted, &1)),
@@ -66,7 +66,7 @@ defmodule Bbh.Tickets.Grants do
     keys = keys |> Enum.reject(&(&1 in [nil, ""])) |> Enum.uniq()
 
     if Enum.all?(keys, &Queue.valid?/1) do
-      {:ok, changed?} = Accounts.replace_queue_grants(admin, user, keys)
+      {:ok, changed?} = Accounts.Postfach.replace_queue_grants(admin, user, keys)
 
       if changed? do
         Bbh.Tickets.log_event(nil, admin, "grants_changed", %{user_id: user.id, queues: keys})

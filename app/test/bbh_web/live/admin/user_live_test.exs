@@ -246,7 +246,7 @@ defmodule BbhWeb.Admin.UserLiveTest do
   describe "scheduled deletion" do
     test "sets and clears the deletion date", %{conn: conn} do
       other = user_fixture()
-      date = Date.add(Accounts.local_today(), 14)
+      date = Date.add(Bbh.Time.real_today(), 14)
       {:ok, lv, _html} = live(conn, ~p"/admin/benutzer")
 
       assert has_element?(lv, ~s|form#delete-on-#{other.id}[phx-auto-recover="ignore"]|)
@@ -268,7 +268,7 @@ defmodule BbhWeb.Admin.UserLiveTest do
 
     test "refuses a date that is not in the future", %{conn: conn} do
       other = user_fixture()
-      today = Date.to_iso8601(Accounts.local_today())
+      today = Date.to_iso8601(Bbh.Time.real_today())
       {:ok, lv, _html} = live(conn, ~p"/admin/benutzer")
 
       html = render_hook(lv, "set_delete_on", %{"user_id" => other.id, "delete_on" => today})
@@ -278,7 +278,7 @@ defmodule BbhWeb.Admin.UserLiveTest do
     end
 
     test "is not offered for the own account", %{conn: conn, user: admin} do
-      tomorrow = Date.to_iso8601(Date.add(Accounts.local_today(), 1))
+      tomorrow = Date.to_iso8601(Date.add(Bbh.Time.real_today(), 1))
       {:ok, lv, _html} = live(conn, ~p"/admin/benutzer")
 
       refute has_element?(lv, "#delete-on-#{admin.id}")
@@ -311,7 +311,7 @@ defmodule BbhWeb.Admin.UserLiveTest do
       assert [_, code] = Regex.run(~r/([A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4})/, html)
       assert html =~ "persönlich oder telefonisch"
       refute Accounts.Passkeys.has_passkey?(user)
-      assert Accounts.valid_factor_reset_code?(user, code)
+      assert Accounts.SecondFactor.valid_factor_reset_code?(user, code)
 
       assert [_] = Bbh.Repo.all_by(Accounts.AuthEvent, user_id: user.id, event: "factors_reset")
 
@@ -324,7 +324,7 @@ defmodule BbhWeb.Admin.UserLiveTest do
       assert render_click(lv, "reset_factors", %{"id" => admin.id}) =~
                "kann nicht zurückgesetzt werden"
 
-      refute Accounts.factor_reset_pending?(admin)
+      refute Accounts.SecondFactor.factor_reset_pending?(admin)
     end
   end
 end

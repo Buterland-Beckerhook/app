@@ -52,6 +52,9 @@ defmodule Bbh.Time do
     |> DateTime.truncate(precision)
   end
 
+  @doc "Today in the site's time zone, never shifted by the dev clock (see `real_now/1`)."
+  def real_today, do: real_now() |> DateTime.to_date()
+
   @doc "Shifts `dt` by `seconds`. The dev clock's arithmetic, exposed for tests."
   def apply_offset(%DateTime{} = dt, 0), do: dt
   def apply_offset(%DateTime{} = dt, seconds), do: DateTime.add(dt, seconds, :second)

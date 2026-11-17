@@ -157,7 +157,7 @@ defmodule BbhWeb.Admin.UserLive.Index do
        put_flash(socket, :error, "Die eigene Anmeldung kann nicht zurückgesetzt werden.")}
     else
       user = Accounts.get_user!(id)
-      {:ok, {code, sessions}} = Accounts.reset_second_factors(user)
+      {:ok, {code, sessions}} = Accounts.SecondFactor.reset_second_factors(user)
       BbhWeb.UserAuth.disconnect_sessions(sessions)
 
       AuthLog.record(%{
@@ -194,7 +194,7 @@ defmodule BbhWeb.Admin.UserLive.Index do
     {:ok, _} = Accounts.update_user_calendars(user, [])
   end
 
-  defp tomorrow, do: Accounts.local_today() |> Date.add(1)
+  defp tomorrow, do: Bbh.Time.real_today() |> Date.add(1)
 
   # An admin being changed to a non-admin role while they are the only admin left.
   defp demoting_last_admin?(id, role) do
