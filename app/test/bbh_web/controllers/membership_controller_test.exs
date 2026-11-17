@@ -144,7 +144,7 @@ defmodule BbhWeb.MembershipControllerTest do
 
       assert payload["iban"] == "DE89370400440532013000"
       assert payload["client_ip"] == "203.0.113.7"
-      assert payload["form_version"] == Bbh.Membership.form_version()
+      assert payload["form_version"] == Bbh.Forms.Membership.form_version()
       assert payload["sepa_mandate"] == true
       assert {:ok, _, _} = DateTime.from_iso8601(payload["submitted_at"])
       assert loaded.subject == "Aufnahmeantrag Erika Musterfrau"

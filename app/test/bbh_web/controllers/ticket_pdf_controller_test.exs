@@ -78,7 +78,7 @@ defmodule BbhWeb.Admin.TicketPdfControllerTest do
     assert data.iban == "DE89 3704 0044 0532 0130 00"
     assert data.mandate_reference == "gleich Mitgliedsnummer"
     assert data.submitted_at =~ "29.10.2026"
-    assert data.mandate_text == Bbh.Membership.mandate_text()
+    assert data.mandate_text == Bbh.Forms.Membership.mandate_text()
     assert data.generated_by == user.email
 
     {:ok, numbered} = Tickets.Membership.set_member_number(admin, loaded, "4711")

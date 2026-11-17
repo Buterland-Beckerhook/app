@@ -1,8 +1,8 @@
-defmodule Bbh.Membership do
+defmodule Bbh.Forms.Membership do
   @moduledoc """
   Membership-application ("Aufnahmeantrag") validation and delivery.
 
-  Mirrors `Bbh.Contact`: plain-function validation (no DB persistence) plus Swoosh
+  Mirrors `Bbh.Forms.Contact`: plain-function validation (no DB persistence) plus Swoosh
   delivery. The form captures the applicant's personal data and an *electronic* SEPA
   direct-debit mandate (valid without a hand-written signature). Two mails go out per
   submission — one to the club inbox, one confirmation copy to the applicant.
@@ -90,7 +90,7 @@ defmodule Bbh.Membership do
   the last four characters, the rest bulleted, in the usual groups of four — enough to
   recognise the account, useless to anyone reading the mail on its way.
 
-      iex> Bbh.Membership.mask_iban("DE89370400440532013000")
+      iex> Bbh.Forms.Membership.mask_iban("DE89370400440532013000")
       "DE89 •••• •••• •••• ••30 00"
   """
   def mask_iban(iban) when is_binary(iban) do

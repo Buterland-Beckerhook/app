@@ -122,21 +122,21 @@ defmodule Bbh.Tickets do
 
   @doc """
   A membership application as a ticket in `mitgliedschaft`. `data` is the validated
-  form (`Bbh.Membership.validate/1`); `record` the submission record that stands in for
+  form (`Bbh.Forms.Membership.validate/1`); `record` the submission record that stands in for
   date and signature: `:submitted_at`, `:client_ip`, `:altcha_verified`. Everything goes
   into the encrypted payload, together with the form version and the age flags.
   """
   def create_from_membership(data, record) do
-    name = Bbh.Membership.full_name(data)
+    name = Bbh.Forms.Membership.full_name(data)
 
     payload =
       data
       |> Map.merge(%{
-        flags: Bbh.Membership.flags(data),
+        flags: Bbh.Forms.Membership.flags(data),
         submitted_at: record.submitted_at,
         client_ip: record.client_ip,
         altcha_verified: record.altcha_verified,
-        form_version: Bbh.Membership.form_version(),
+        form_version: Bbh.Forms.Membership.form_version(),
         sepa_mandate: data.sepa
       })
       # Through JSON once, so the struct in hand looks like one loaded later.

@@ -26,7 +26,7 @@ defmodule BbhWeb.MembershipController do
     # Validate first so a human with empty/invalid fields sees the real field
     # errors instead of a generic spam message; only fully valid submissions
     # are then subjected to the (silent) spam checks.
-    case Bbh.Membership.validate(params) do
+    case Bbh.Forms.Membership.validate(params) do
       {:error, errors} ->
         render_form(conn, params, errors)
 
@@ -66,7 +66,7 @@ defmodule BbhWeb.MembershipController do
     case Bbh.Tickets.create_from_membership(data, record) do
       {:ok, _ticket} ->
         # The application is in; a failed copy is logged, not shown as a failure.
-        Bbh.Membership.deliver_applicant_copy(data)
+        Bbh.Forms.Membership.deliver_applicant_copy(data)
 
         conn
         |> put_flash(
@@ -88,7 +88,7 @@ defmodule BbhWeb.MembershipController do
   end
 
   defp deliver(conn, data, params) do
-    case Bbh.Membership.deliver(data) do
+    case Bbh.Forms.Membership.deliver(data) do
       {:ok, _} ->
         conn
         |> put_flash(
@@ -113,7 +113,7 @@ defmodule BbhWeb.MembershipController do
   # independent so any one tripping is enough to reject.
   defp check_spam(conn, params) do
     cond do
-      Bbh.Membership.honeypot_filled?(params) -> {:spam, "honeypot"}
+      Bbh.Forms.Membership.honeypot_filled?(params) -> {:spam, "honeypot"}
       not timing_ok?(conn, params) -> {:spam, "timing"}
       Bbh.Altcha.enabled?() and not Bbh.Altcha.verify(params["altcha"]) -> {:spam, "altcha"}
       rate_limited?(conn) -> :rate_limited
@@ -149,8 +149,8 @@ defmodule BbhWeb.MembershipController do
       errors: errors,
       intro_blocks: blocks_for(@intro_slug),
       download_blocks: blocks_for(@download_slug),
-      min_age: Bbh.Membership.min_age(),
-      max_child_age: Bbh.Membership.max_child_age(),
+      min_age: Bbh.Forms.Membership.min_age(),
+      max_child_age: Bbh.Forms.Membership.max_child_age(),
       form_token: Phoenix.Token.sign(conn, @form_token_salt, System.os_time(:second)),
       altcha: Bbh.Altcha.enabled?() && Bbh.Altcha.challenge()
     )

@@ -10,7 +10,7 @@ defmodule Bbh.Tickets.Pdf do
   command-line argument would).
   """
 
-  alias Bbh.Membership
+  alias Bbh.Forms.Membership
   alias Bbh.Tickets.Ticket
 
   @timeout :timer.seconds(30)
