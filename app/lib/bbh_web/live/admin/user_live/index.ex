@@ -1,5 +1,8 @@
 defmodule BbhWeb.Admin.UserLive.Index do
-  @moduledoc "Admin-only user management: invite, change role, Postfach queues, delete, login log."
+  @moduledoc """
+  Admin-only user management: invite, change role, Postfach queues, delete (now or on a
+  date), login log.
+  """
   use BbhWeb, :live_view
 
   require Logger
@@ -16,14 +19,15 @@ defmodule BbhWeb.Admin.UserLive.Index do
     {"Redakteur", "editor"},
     {"Kalender", "calendar_editor"},
     {"Nur Postfach", "tickets"},
-    {"Administrator", "admin"}
+    {"Administrator", "admin"},
+    {"Kein Zugriff", "none"}
   ]
 
   @impl true
   def mount(_params, _session, socket) do
     {:ok,
      socket
-     |> assign(page_title: "Benutzer", roles: @roles)
+     |> assign(page_title: "Benutzer", roles: @roles, tomorrow: tomorrow())
      |> assign(invite_form: to_form(%{"email" => "", "role" => "editor"}, as: "user"))
      |> assign(list_state: AdminList.init(sort: "email", dir: :asc))
      |> assign(reset_code: nil)
@@ -70,8 +74,10 @@ defmodule BbhWeb.Admin.UserLive.Index do
          |> load_users()}
 
       true ->
-        with {:ok, user} <- id |> Accounts.get_user!() |> Accounts.update_user_role(role),
-             do: remount_sessions(user)
+        with {:ok, user} <- id |> Accounts.get_user!() |> Accounts.update_user_role(role) do
+          if role == "none", do: revoke_grants(socket, user)
+          remount_sessions(user)
+        end
 
         {:noreply, load_users(socket)}
     end
@@ -92,6 +98,32 @@ defmodule BbhWeb.Admin.UserLive.Index do
     {:ok, _} = Grants.set_grants(socket.assigns.current_scope.user, user, queues)
     remount_sessions(user)
     {:noreply, load_users(socket)}
+  end
+
+  def handle_event("set_delete_on", %{"user_id" => id} = params, socket) do
+    if id == socket.assigns.current_scope.user.id do
+      {:noreply,
+       socket
+       |> put_flash(:error, "Das eigene Konto kann nicht zur Löschung vorgemerkt werden.")
+       |> load_users()}
+    else
+      case id |> Accounts.get_user!() |> Accounts.schedule_user_deletion(params["delete_on"]) do
+        {:ok, %{delete_on: nil}} ->
+          {:noreply, socket |> put_flash(:info, "Löschung aufgehoben.") |> load_users()}
+
+        {:ok, user} ->
+          {:noreply,
+           socket
+           |> put_flash(:info, "#{user.email} wird am #{de_date(user.delete_on)} gelöscht.")
+           |> load_users()}
+
+        {:error, _changeset} ->
+          {:noreply,
+           socket
+           |> put_flash(:error, "Das Löschdatum muss in der Zukunft liegen.")
+           |> load_users()}
+      end
+    end
   end
 
   def handle_event("delete", %{"id" => id}, socket) do
@@ -151,6 +183,15 @@ defmodule BbhWeb.Admin.UserLive.Index do
   # DB; the sessions themselves stay valid.
   defp remount_sessions(user),
     do: user |> Accounts.list_user_session_tokens() |> BbhWeb.UserAuth.disconnect_sessions()
+
+  # "Kein Zugriff" means none at all: queue and calendar grants go with the role, so a
+  # later role change starts from nothing instead of reviving old grants.
+  defp revoke_grants(socket, user) do
+    {:ok, _} = Grants.set_grants(socket.assigns.current_scope.user, user, [])
+    {:ok, _} = Accounts.update_user_calendars(user, [])
+  end
+
+  defp tomorrow, do: Accounts.local_today() |> Date.add(1)
 
   # An admin being changed to a non-admin role while they are the only admin left.
   defp demoting_last_admin?(id, role) do
@@ -257,7 +298,9 @@ defmodule BbhWeb.Admin.UserLive.Index do
           </span>
         </:col>
         <:col :let={u} label="Postfach">
+          <span :if={u.role == "none"} class="text-base-content/40">–</span>
           <form
+            :if={u.role != "none"}
             phx-change="set_queues"
             phx-auto-recover="ignore"
             id={"queues-#{u.id}"}
@@ -281,6 +324,25 @@ defmodule BbhWeb.Admin.UserLive.Index do
           {if MapSet.member?(@passkey_user_ids, u.id), do: "ja", else: "–"}
         </:col>
         <:col :let={u} label="2FA">{if User.totp_enabled?(u), do: "ja", else: "–"}</:col>
+        <:col :let={u} label="Löschen am">
+          <form
+            :if={u.id != @current_scope.user.id}
+            phx-change="set_delete_on"
+            phx-auto-recover="ignore"
+            id={"delete-on-#{u.id}"}
+          >
+            <input type="hidden" name="user_id" value={u.id} />
+            <input
+              type="date"
+              name="delete_on"
+              value={u.delete_on && Date.to_iso8601(u.delete_on)}
+              min={Date.to_iso8601(@tomorrow)}
+              aria-label={"Löschdatum für #{u.email}"}
+              title="Das Konto wird in der Nacht zu diesem Tag gelöscht. Leeren hebt die Löschung auf."
+              class="input input-bordered input-sm"
+            />
+          </form>
+        </:col>
         <:col :let={u} label="Status">
           <.status_badge kind={:user} status={if u.confirmed_at, do: "confirmed", else: "pending"} />
         </:col>

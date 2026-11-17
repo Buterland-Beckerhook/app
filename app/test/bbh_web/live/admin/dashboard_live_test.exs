@@ -107,6 +107,87 @@ defmodule BbhWeb.Admin.DashboardLiveTest do
     assert has_element?(lv, "#tickets-widget")
   end
 
+  test "shows top articles and search terms to an admin", %{conn: conn} do
+    article = article_fixture(title: "Königsschießen")
+    Bbh.Analytics.record(%{path: "/aktuell/#{article.year}/#{article.slug}"})
+    Bbh.Analytics.record_search(%{term: "Vogelschießen", hits: 0})
+
+    {:ok, lv, _html} = live(conn, ~p"/admin")
+    render_async(lv, 2000)
+
+    assert lv |> element("#top-articles") |> render() =~ "Königsschießen"
+    html = lv |> element("#top-searches") |> render()
+    assert html =~ "vogelschießen"
+    assert html =~ "ohne Treffer"
+  end
+
+  describe "as an editor with a strong session" do
+    setup do
+      %{conn: log_in_user(build_conn(), Bbh.AccountsFixtures.user_fixture())}
+    end
+
+    test "shows the basic access figures, not the admin-only ones", %{conn: conn} do
+      article = article_fixture(title: "Königsschießen")
+      path = "/aktuell/#{article.year}/#{article.slug}"
+      Bbh.Analytics.record(%{path: path, referrer_host: "google.com"})
+      Bbh.Analytics.record_search(%{term: "Vogelschießen", hits: 0})
+
+      {:ok, lv, _html} = live(conn, ~p"/admin")
+      html = render_async(lv, 2000)
+
+      assert html =~ "Zugriffe"
+      assert html =~ "Seitenaufrufe"
+      assert html =~ "Besuche"
+      assert html =~ "Top-Seiten"
+      assert lv |> element("#top-articles") |> render() =~ "Königsschießen"
+
+      refute html =~ "Top-Verweise"
+      refute html =~ "google.com"
+      refute has_element?(lv, "#top-searches")
+      refute html =~ "iCal-Abrufe"
+      refute html =~ "Push-Abos"
+      refute has_element?(lv, "#ical-clients")
+
+      # The range selector works for them too.
+      assert lv |> element("button", "7 Tage") |> render_click() =~ "Zugriffe"
+      render_async(lv, 2000)
+    end
+  end
+
+  describe "without any access" do
+    setup do
+      {:ok, user} = Bbh.AccountsFixtures.user_fixture() |> Bbh.Accounts.update_user_role("none")
+      %{conn: log_in_user(build_conn(), user), none_user: user}
+    end
+
+    test "shows only the notice, no widgets and no Übersicht menu entry", %{conn: conn} do
+      article_fixture()
+      Bbh.Analytics.record(%{path: "/aktuell"})
+
+      {:ok, lv, _html} = live(conn, ~p"/admin")
+      html = render_async(lv, 2000)
+
+      assert has_element?(lv, "#no-access")
+      assert html =~ "keine Berechtigungen"
+      assert has_element?(lv, ~s|#no-access a[href="/kontakt"]|)
+
+      refute has_element?(lv, ~s|a[data-phx-link][href="/admin"]|, "Übersicht")
+      refute html =~ "Zugriffe"
+      refute html =~ ~s(href="/admin/artikel")
+      refute html =~ ~s(href="/admin/termine")
+    end
+
+    test "shows the scheduled deletion date", %{conn: conn, none_user: user} do
+      date = Date.add(Bbh.Accounts.local_today(), 10)
+      {:ok, _} = Bbh.Accounts.schedule_user_deletion(user, date)
+
+      {:ok, lv, _html} = live(conn, ~p"/admin")
+      render_async(lv, 2000)
+
+      assert lv |> element("#delete-on-notice") |> render() =~ BbhWeb.Format.de_date(date)
+    end
+  end
+
   describe "with a plain magic-link session" do
     # The dashboard itself stays open (Termine editors land here), but ticket subjects
     # and visitor analytics belong to the strong-auth areas.

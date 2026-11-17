@@ -8,15 +8,25 @@ defmodule BbhWeb.Admin.DashboardLive do
     scope = socket.assigns.current_scope
     # The dashboard is open to a plain magic-link session (it is where Termine editors
     # land), so what it shows from the strong-auth areas — ticket subjects, visitor
-    # analytics — needs the strong session those areas do.
+    # analytics — needs the strong session those areas do. Every staff member then sees
+    # the basic access figures; referrers, search terms, iCal and push stay with admins.
+    # Without any access (e.g. after leaving the board) the page is only a notice.
+    no_access = Bbh.Authz.no_access?(scope)
     strong? = Bbh.Accounts.User.strong_auth?(scope.user)
-    show_analytics = strong? and Bbh.Authz.admin?(scope)
+    show_analytics = strong? and not no_access
+    full_analytics = show_analytics and Bbh.Authz.admin?(scope)
 
     socket =
       socket
-      |> assign(page_title: "Übersicht", show_analytics: show_analytics, range_days: 30)
+      |> assign(
+        page_title: "Übersicht",
+        no_access: no_access,
+        show_analytics: show_analytics,
+        full_analytics: full_analytics,
+        range_days: 30
+      )
       |> assign_async(:stats, &load_stats/0)
-      |> assign_tickets(scope, strong?)
+      |> assign_tickets(scope, strong? and not no_access)
 
     {:ok, if(show_analytics, do: load_analytics(socket), else: socket)}
   end
@@ -57,23 +67,33 @@ defmodule BbhWeb.Admin.DashboardLive do
 
   defp load_analytics(socket) do
     days = socket.assigns.range_days
+    full? = socket.assigns.full_analytics
 
     assign_async(socket, :analytics, fn ->
       to = Date.utc_today()
       from = Date.add(to, -(days - 1))
 
-      {:ok,
-       %{
-         analytics: %{
-           summary: Bbh.Analytics.summary(from, to),
-           by_day: Bbh.Analytics.views_by_day(from, to),
-           ical: Bbh.Analytics.ical_summary(from, to),
-           ical_clients: Bbh.Analytics.ical_clients(from, to),
-           push_subscriptions: Bbh.Notifications.count_subscriptions(),
-           top_pages: Bbh.Analytics.top_pages(from, to),
-           top_referrers: Bbh.Analytics.top_referrers(from, to)
-         }
-       }}
+      basic = %{
+        summary: Bbh.Analytics.summary(from, to),
+        by_day: Bbh.Analytics.views_by_day(from, to),
+        top_pages: Bbh.Analytics.top_pages(from, to),
+        top_articles: Bbh.Analytics.top_articles(from, to)
+      }
+
+      analytics =
+        if full? do
+          Map.merge(basic, %{
+            ical: Bbh.Analytics.ical_summary(from, to),
+            ical_clients: Bbh.Analytics.ical_clients(from, to),
+            push_subscriptions: Bbh.Notifications.count_subscriptions(),
+            top_referrers: Bbh.Analytics.top_referrers(from, to),
+            top_searches: Bbh.Analytics.top_searches(from, to)
+          })
+        else
+          basic
+        end
+
+      {:ok, %{analytics: analytics}}
     end)
   end
 
@@ -85,6 +105,26 @@ defmodule BbhWeb.Admin.DashboardLive do
         Übersicht
         <:subtitle>Willkommen im Verwaltungsbereich.</:subtitle>
       </.header>
+
+      <div :if={@no_access} id="no-access" role="status" class="alert mt-6 max-w-2xl items-start">
+        <.icon name="hero-information-circle" class="size-5 shrink-0" />
+        <div class="space-y-2">
+          <p>
+            Du hast im Verwaltungsbereich zurzeit keine Berechtigungen – zum Beispiel, weil
+            dein Amt im Vorstand geendet hat.
+          </p>
+          <p>Wenn du Fragen hast oder meinst, dass das nicht stimmt, melde dich bitte bei uns:</p>
+          <p><.link href={~p"/kontakt"} class="link">Zum Kontaktformular</.link></p>
+        </div>
+      </div>
+
+      <p
+        :if={@current_scope.user.delete_on}
+        id="delete-on-notice"
+        class="mt-4 max-w-2xl text-sm text-base-content/70"
+      >
+        Dein Zugang wird am {de_date(@current_scope.user.delete_on)} gelöscht.
+      </p>
 
       <section :if={@tickets} id="tickets-widget" class="mt-6 rounded-box border border-base-300 p-4">
         <div class="flex flex-wrap items-baseline justify-between gap-2">
@@ -110,7 +150,7 @@ defmodule BbhWeb.Admin.DashboardLive do
         </ul>
       </section>
 
-      <.async_result :let={stats} assign={@stats}>
+      <.async_result :let={stats} :if={!@no_access} assign={@stats}>
         <:loading>
           <div class="mt-6 grid grid-cols-2 gap-4 md:grid-cols-4">
             <div :for={_ <- 1..4} class="h-20 animate-pulse rounded-box bg-base-200"></div>
@@ -187,13 +227,13 @@ defmodule BbhWeb.Admin.DashboardLive do
                 Besuche
               </div>
             </div>
-            <div class="rounded-box border border-base-300 bg-base-200 p-4">
+            <div :if={@full_analytics} class="rounded-box border border-base-300 bg-base-200 p-4">
               <div class="text-3xl font-semibold text-primary">{a.ical.fetches}</div>
               <div class="text-sm text-base-content/70" title="Abrufe des Termin-Abo-Feeds (.ics)">
                 iCal-Abrufe
               </div>
             </div>
-            <div class="rounded-box border border-base-300 bg-base-200 p-4">
+            <div :if={@full_analytics} class="rounded-box border border-base-300 bg-base-200 p-4">
               <div class="text-3xl font-semibold text-primary">{a.ical.subscribers}</div>
               <div
                 class="text-sm text-base-content/70"
@@ -202,7 +242,7 @@ defmodule BbhWeb.Admin.DashboardLive do
                 iCal-Abos
               </div>
             </div>
-            <div class="rounded-box border border-base-300 bg-base-200 p-4">
+            <div :if={@full_analytics} class="rounded-box border border-base-300 bg-base-200 p-4">
               <div class="text-3xl font-semibold text-primary">{a.push_subscriptions}</div>
               <div class="text-sm text-base-content/70" title="Aktive Push-Benachrichtigungs-Abos">
                 Push-Abos
@@ -241,15 +281,18 @@ defmodule BbhWeb.Admin.DashboardLive do
 
           <div class="mt-6 grid gap-6 md:grid-cols-2">
             <.top_list title="Top-Seiten" rows={a.top_pages} key={:path} empty="Noch keine Aufrufe." />
+            <.top_articles rows={a.top_articles} />
             <.top_list
+              :if={@full_analytics}
               title="Top-Verweise"
               rows={a.top_referrers}
               key={:host}
               empty="Keine externen Verweise."
             />
+            <.top_searches :if={@full_analytics} rows={a.top_searches} />
           </div>
 
-          <.ical_clients rows={a.ical_clients} />
+          <.ical_clients :if={@full_analytics} rows={a.ical_clients} />
         </.async_result>
       </section>
     </Layouts.admin>
@@ -323,6 +366,63 @@ defmodule BbhWeb.Admin.DashboardLive do
     </div>
     """
   end
+
+  attr :rows, :list, required: true
+
+  # Articles by page views, linked to their public page.
+  defp top_articles(assigns) do
+    ~H"""
+    <div id="top-articles" class="rounded-box border border-base-300 bg-base-200 p-4">
+      <div class="mb-2 text-sm font-medium">Top-Artikel</div>
+      <p :if={@rows == []} class="text-sm text-base-content/60">
+        Keine Artikelaufrufe im Zeitraum.
+      </p>
+      <ul class="space-y-1">
+        <li :for={row <- @rows} class="flex items-center justify-between gap-3 text-sm">
+          <a
+            href={row.path}
+            target="_blank"
+            class="truncate text-base-content/80 hover:underline"
+          >
+            {row.title}
+          </a>
+          <span class="shrink-0 font-medium tabular-nums">{row.views}</span>
+        </li>
+      </ul>
+    </div>
+    """
+  end
+
+  attr :rows, :list, required: true
+
+  # Site-search terms. A term that never found anything is flagged — that is content
+  # visitors look for and don't get.
+  defp top_searches(assigns) do
+    ~H"""
+    <div id="top-searches" class="rounded-box border border-base-300 bg-base-200 p-4">
+      <div class="mb-2 text-sm font-medium">Top-Suchbegriffe</div>
+      <p :if={@rows == []} class="text-sm text-base-content/60">Keine Suchen im Zeitraum.</p>
+      <ul class="space-y-1">
+        <li :for={row <- @rows} class="flex items-center justify-between gap-3 text-sm">
+          <span class="truncate text-base-content/80">
+            {row.term}
+            <span
+              :if={row.no_results > 0}
+              class="text-xs text-warning"
+              title={"#{row.no_results} von #{row.searches} Suchen ohne Treffer"}
+            >
+              {no_results_label(row)}
+            </span>
+          </span>
+          <span class="shrink-0 font-medium tabular-nums">{row.searches}</span>
+        </li>
+      </ul>
+    </div>
+    """
+  end
+
+  defp no_results_label(%{no_results: n, searches: n}), do: "· ohne Treffer"
+  defp no_results_label(_row), do: "· teils ohne Treffer"
 
   attr :rows, :list, required: true
 

@@ -1,7 +1,8 @@
 defmodule BbhWeb.Plugs.TrackPageView do
   @moduledoc """
   Records a page view for public GET requests into `Bbh.Analytics`, plus retrievals
-  of the iCal subscription feed.
+  of the iCal subscription feed and site-search terms (handed over by
+  `BbhWeb.SearchController` in `conn.private[:bbh_search]`).
 
   Runs a `register_before_send/2` callback so the response status and
   content-type are known, and hands the actual DB write to `Bbh.TaskSupervisor`
@@ -52,7 +53,13 @@ defmodule BbhWeb.Plugs.TrackPageView do
           visitor_hash: visitor_hash(conn)
         }
 
-        dispatch(fn -> Bbh.Analytics.record(attrs) end)
+        # Set by BbhWeb.SearchController for the first result page of a query.
+        search = conn.private[:bbh_search]
+
+        dispatch(fn ->
+          Bbh.Analytics.record(attrs)
+          if search, do: Bbh.Analytics.record_search(search)
+        end)
 
       # A 304 is a poll too: the subscriber already had the current feed.
       conn.status in [200, 304] and ical_feed?(conn) ->

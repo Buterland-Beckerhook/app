@@ -4,11 +4,16 @@ defmodule BbhWeb.Admin.ArticleLive.Index do
   alias Bbh.Content
   alias BbhWeb.AdminList
 
+  # Window of the "Aufrufe" column.
+  @views_days 30
+
   @impl true
   def mount(params, _session, socket) do
     {:ok,
      socket
      |> assign(:page_title, "Artikel")
+     |> assign(:views_days, @views_days)
+     |> assign(:views, article_views())
      |> assign(
        :list_state,
        AdminList.init(
@@ -32,11 +37,18 @@ defmodule BbhWeb.Admin.ArticleLive.Index do
         sort: %{
           "title" => & &1.title,
           "date_published" => & &1.date_published,
-          "status" => & &1.status
+          "status" => & &1.status,
+          "views" => &Map.get(socket.assigns.views, &1.id, 0)
         }
       )
 
     assign(socket, articles: meta.entries, list_meta: meta)
+  end
+
+  # Page views per article over the last @views_days days, today included.
+  defp article_views do
+    to = Date.utc_today()
+    Bbh.Analytics.article_views(Date.add(to, -(@views_days - 1)), to)
   end
 
   @impl true
@@ -60,6 +72,9 @@ defmodule BbhWeb.Admin.ArticleLive.Index do
           <span class="font-medium">{a.title}</span>
         </:col>
         <:col :let={a} label="Datum" sort_key="date_published">{de_date(a.date_published)}</:col>
+        <:col :let={a} label={"Aufrufe (#{@views_days} Tage)"} sort_key="views">
+          <span class="tabular-nums">{Map.get(@views, a.id, 0)}</span>
+        </:col>
         <:col :let={a} label="Status" sort_key="status">
           <.status_badge status={a.status} />
         </:col>
