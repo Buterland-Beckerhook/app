@@ -128,35 +128,31 @@ defmodule BbhWeb.Admin.SettingsLive do
   end
 
   def handle_event("update_email", %{"user" => user_params}, socket) do
-    user = socket.assigns.current_scope.user
-    true = Accounts.sudo_mode?(user)
+    with_sudo(socket, fn user ->
+      case Accounts.change_user_email(user, user_params) do
+        %{valid?: true} = changeset ->
+          Accounts.deliver_user_update_email_instructions(
+            Ecto.Changeset.apply_action!(changeset, :insert),
+            user.email,
+            &url(~p"/admin/einstellungen/confirm-email/#{&1}")
+          )
 
-    case Accounts.change_user_email(user, user_params) do
-      %{valid?: true} = changeset ->
-        Accounts.deliver_user_update_email_instructions(
-          Ecto.Changeset.apply_action!(changeset, :insert),
-          user.email,
-          &url(~p"/admin/einstellungen/confirm-email/#{&1}")
-        )
+          info = "A link to confirm your email change has been sent to the new address."
+          {:noreply, put_flash(socket, :info, info)}
 
-        info = "A link to confirm your email change has been sent to the new address."
-        {:noreply, put_flash(socket, :info, info)}
-
-      changeset ->
-        {:noreply, assign(socket, :email_form, to_form(changeset, action: :insert))}
-    end
+        changeset ->
+          {:noreply, assign(socket, :email_form, to_form(changeset, action: :insert))}
+      end
+    end)
   end
 
   ## Access tokens (MCP) -----------------------------------------------------
 
   def handle_event("create_token", %{"name" => name, "access" => access}, socket) do
-    user = socket.assigns.current_scope.user
-    # `on_mount :require_sudo_mode` already gates this LiveView; assert it here too, the
-    # way update_email does, so minting a credential can never ride on a stale mount.
-    true = Accounts.sudo_mode?(user)
-    true = User.strong_auth?(user)
-
-    create_token(socket, user, name, access)
+    with_sudo(socket, fn user ->
+      true = User.strong_auth?(user)
+      create_token(socket, user, name, access)
+    end)
   end
 
   def handle_event("revoke_token", %{"id" => id}, socket) do
@@ -197,20 +193,87 @@ defmodule BbhWeb.Admin.SettingsLive do
   ## TOTP (2FA) --------------------------------------------------------------
 
   def handle_event("enable", %{"code" => code}, socket) do
-    if Accounts.SecondFactor.valid_totp?(socket.assigns.secret, code) do
-      {:ok, user} =
-        Accounts.SecondFactor.enable_totp(
-          socket.assigns.current_scope.user,
-          socket.assigns.secret
-        )
+    with_sudo(socket, fn user ->
+      if Accounts.SecondFactor.valid_totp?(socket.assigns.secret, code) do
+        {:ok, user} = Accounts.SecondFactor.enable_totp(user, socket.assigns.secret)
+
+        {:noreply,
+         socket
+         |> update_current_user(user)
+         |> put_flash(:info, "Zwei-Faktor aktiviert.")
+         |> assign_totp_state(user)}
+      else
+        {:noreply, assign(socket, :error, "Ungültiger Code. Bitte erneut versuchen.")}
+      end
+    end)
+  end
+
+  def handle_event("disable", params, socket) do
+    with_sudo(socket, fn user -> disable_totp(socket, user, params["code"] || "") end)
+  end
+
+  def handle_event("regenerate", _params, socket) do
+    {:noreply, assign_totp_state(socket, socket.assigns.current_scope.user)}
+  end
+
+  ## Passkeys ----------------------------------------------------------------
+
+  def handle_event("nickname_blank", _params, socket) do
+    # The client refused to open the authenticator because the name was empty.
+    {:noreply, assign(socket, :error, "Bitte einen Namen für den Passkey angeben.")}
+  end
+
+  def handle_event("register_credential", _params, %{assigns: %{challenge: nil}} = socket) do
+    # A credential was pushed without an in-flight challenge — ignore it rather
+    # than calling the ceremony with a nil challenge.
+    {:noreply, put_flash(socket, :error, "Passkey konnte nicht registriert werden.")}
+  end
+
+  def handle_event("register_credential", params, socket) do
+    with_sudo(socket, fn user ->
+      register_passkey(socket, user, params, String.trim(params["nickname"] || ""))
+    end)
+  end
+
+  def handle_event("delete", %{"id" => id}, socket) do
+    with_sudo(socket, fn user ->
+      _ = Passkeys.delete_passkey(user, id)
 
       {:noreply,
        socket
-       |> update_current_user(user)
-       |> put_flash(:info, "Zwei-Faktor aktiviert.")
-       |> assign_totp_state(user)}
+       |> assign(:passkeys, Passkeys.list_passkeys(user))
+       |> put_flash(:info, "Passkey entfernt.")}
+    end)
+  end
+
+  def handle_event("passkey_error", %{"message" => message}, socket) do
+    {:noreply,
+     socket
+     |> assign_registration_challenge()
+     |> put_flash(:error, "Passkey abgebrochen: #{message}")}
+  end
+
+  ## Modal -------------------------------------------------------------------
+
+  def handle_event("close", _params, socket) do
+    {:noreply, push_navigate(socket, to: ~p"/admin")}
+  end
+
+  ## Helpers -----------------------------------------------------------------
+
+  # `on_mount :require_sudo_mode` checks only when the page opens. A tab left open
+  # outlives that window, so every handler that changes a sign-in method, the email or
+  # an API credential checks again and sends a stale session back to the log-in.
+  defp with_sudo(socket, fun) do
+    user = socket.assigns.current_scope.user
+
+    if Accounts.sudo_mode?(user) do
+      fun.(user)
     else
-      {:noreply, assign(socket, :error, "Ungültiger Code. Bitte erneut versuchen.")}
+      {:noreply,
+       socket
+       |> put_flash(:error, "Bitte melden Sie sich erneut an, um diese Seite zu öffnen.")
+       |> redirect(to: ~p"/users/log-in")}
     end
   end
 
@@ -218,12 +281,9 @@ defmodule BbhWeb.Admin.SettingsLive do
   # hijacked session alone can't strip it. The code shares the login challenge's
   # per-account bucket, so the socket is no way around its guess limit. Sessions
   # elsewhere — possibly established with that factor — are ended.
-  def handle_event("disable", params, socket) do
-    user = socket.assigns.current_scope.user
-    true = Accounts.sudo_mode?(user)
-
+  defp disable_totp(socket, user, code) do
     with :ok <- BbhWeb.RateLimit.check("totp_user", user.id, 10, :timer.minutes(5)),
-         :ok <- Accounts.SecondFactor.use_user_totp(user, params["code"] || "") do
+         :ok <- Accounts.SecondFactor.use_user_totp(user, code) do
       {:ok, user} = Accounts.SecondFactor.disable_totp(user)
 
       if token = socket.assigns.session_token do
@@ -246,71 +306,25 @@ defmodule BbhWeb.Admin.SettingsLive do
     end
   end
 
-  def handle_event("regenerate", _params, socket) do
-    {:noreply, assign_totp_state(socket, socket.assigns.current_scope.user)}
-  end
+  defp register_passkey(socket, _user, _params, ""),
+    do: {:noreply, assign(socket, :error, "Bitte einen Namen für den Passkey angeben.")}
 
-  ## Passkeys ----------------------------------------------------------------
+  defp register_passkey(socket, user, params, nickname) do
+    case Passkeys.complete_registration(user, socket.assigns.challenge, params, nickname) do
+      {:ok, _passkey} ->
+        {:noreply,
+         socket
+         |> assign(passkeys: Passkeys.list_passkeys(user), error: nil)
+         |> assign_registration_challenge()
+         |> put_flash(:info, "Passkey hinzugefügt.")}
 
-  def handle_event("nickname_blank", _params, socket) do
-    # The client refused to open the authenticator because the name was empty.
-    {:noreply, assign(socket, :error, "Bitte einen Namen für den Passkey angeben.")}
-  end
-
-  def handle_event("register_credential", _params, %{assigns: %{challenge: nil}} = socket) do
-    # A credential was pushed without an in-flight challenge — ignore it rather
-    # than calling the ceremony with a nil challenge.
-    {:noreply, put_flash(socket, :error, "Passkey konnte nicht registriert werden.")}
-  end
-
-  def handle_event("register_credential", params, socket) do
-    user = socket.assigns.current_scope.user
-    nickname = String.trim(params["nickname"] || "")
-
-    if nickname == "" do
-      {:noreply, assign(socket, :error, "Bitte einen Namen für den Passkey angeben.")}
-    else
-      case Passkeys.complete_registration(user, socket.assigns.challenge, params, nickname) do
-        {:ok, _passkey} ->
-          {:noreply,
-           socket
-           |> assign(passkeys: Passkeys.list_passkeys(user), error: nil)
-           |> assign_registration_challenge()
-           |> put_flash(:info, "Passkey hinzugefügt.")}
-
-        {:error, _reason} ->
-          {:noreply,
-           socket
-           |> assign_registration_challenge()
-           |> put_flash(:error, "Passkey konnte nicht registriert werden.")}
-      end
+      {:error, _reason} ->
+        {:noreply,
+         socket
+         |> assign_registration_challenge()
+         |> put_flash(:error, "Passkey konnte nicht registriert werden.")}
     end
   end
-
-  def handle_event("delete", %{"id" => id}, socket) do
-    user = socket.assigns.current_scope.user
-    _ = Passkeys.delete_passkey(user, id)
-
-    {:noreply,
-     socket
-     |> assign(:passkeys, Passkeys.list_passkeys(user))
-     |> put_flash(:info, "Passkey entfernt.")}
-  end
-
-  def handle_event("passkey_error", %{"message" => message}, socket) do
-    {:noreply,
-     socket
-     |> assign_registration_challenge()
-     |> put_flash(:error, "Passkey abgebrochen: #{message}")}
-  end
-
-  ## Modal -------------------------------------------------------------------
-
-  def handle_event("close", _params, socket) do
-    {:noreply, push_navigate(socket, to: ~p"/admin")}
-  end
-
-  ## Helpers -----------------------------------------------------------------
 
   # "Nur Lesen" is the narrower grant; mcp:write implies mcp:read on the server, but the
   # token records both so the admin list shows what was actually granted.

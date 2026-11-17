@@ -326,6 +326,75 @@ defmodule BbhWeb.Admin.SettingsLiveTest do
     end
   end
 
+  # The on_mount check runs once; each sensitive handler checks again, so a tab left
+  # open past the sudo window can't change a sign-in method or mint a credential.
+  describe "a tab left open past the sudo window" do
+    setup :register_and_log_in_admin
+
+    test "can't add a passkey", %{conn: conn, user: user} do
+      {:ok, lv, html} = live(conn, ~p"/admin/einstellungen/passkeys")
+      {params, _keys} = Authenticator.register(challenge_from(html))
+      expire_sudo(lv)
+
+      assert {:error, {:redirect, %{to: "/users/log-in"}}} =
+               render_hook(lv, "register_credential", Map.put(params, "nickname", "Laptop"))
+
+      assert Passkeys.list_passkeys(user) == []
+    end
+
+    test "can't remove a passkey", %{conn: conn, user: user} do
+      passkey = passkey_fixture(user, nickname: "Alt")
+      {:ok, lv, _html} = live(conn, ~p"/admin/einstellungen/passkeys")
+      expire_sudo(lv)
+
+      assert {:error, {:redirect, %{to: "/users/log-in"}}} =
+               render_click(lv, "delete", %{"id" => passkey.id})
+
+      assert [_] = Passkeys.list_passkeys(user)
+    end
+
+    test "can't enable TOTP", %{conn: conn, user: user} do
+      {:ok, lv, html} = live(conn, ~p"/admin/einstellungen/2fa")
+      code = html |> extract_secret() |> NimbleTOTP.verification_code()
+      expire_sudo(lv)
+
+      assert {:error, {:redirect, %{to: "/users/log-in"}}} =
+               render_submit(lv, "enable", %{"code" => code})
+
+      refute User.totp_enabled?(Accounts.get_user!(user.id))
+    end
+
+    test "can't disable TOTP", %{conn: conn, user: user} do
+      secret = Accounts.SecondFactor.generate_totp_secret()
+      {:ok, _} = Accounts.SecondFactor.enable_totp(user, secret)
+      {:ok, lv, _html} = live(conn, ~p"/admin/einstellungen/2fa")
+      expire_sudo(lv)
+
+      assert {:error, {:redirect, %{to: "/users/log-in"}}} =
+               render_submit(lv, "disable", %{"code" => NimbleTOTP.verification_code(secret)})
+
+      assert User.totp_enabled?(Accounts.get_user!(user.id))
+    end
+
+    test "can't mint a token", %{conn: conn, user: user} do
+      {:ok, lv, _html} = live(conn, ~p"/admin/einstellungen/tokens")
+      expire_sudo(lv)
+
+      assert {:error, {:redirect, %{to: "/users/log-in"}}} =
+               render_submit(lv, "create_token", %{"name" => "iPhone", "access" => "rw"})
+
+      assert Bbh.ApiTokens.list_pats(user) == []
+    end
+
+    test "can't request an email change", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, ~p"/admin/einstellungen")
+      expire_sudo(lv)
+
+      assert {:error, {:redirect, %{to: "/users/log-in"}}} =
+               render_submit(lv, "update_email", %{"user" => %{"email" => unique_user_email()}})
+    end
+  end
+
   describe "section navigation" do
     setup :register_and_log_in_admin
 
@@ -586,6 +655,17 @@ defmodule BbhWeb.Admin.SettingsLiveTest do
   end
 
   # Pull the Base32-encoded secret out of the stable #totp-secret span.
+  # Time passing with the tab open: age the sign-in the mounted LiveView holds past the
+  # 20-minute window its handlers allow.
+  defp expire_sudo(lv) do
+    :sys.replace_state(lv.pid, fn %{socket: socket} = state ->
+      scope = socket.assigns.current_scope
+      stale = DateTime.add(DateTime.utc_now(:second), -21, :minute)
+      user = %{scope.user | authenticated_at: stale}
+      %{state | socket: Phoenix.Component.assign(socket, :current_scope, %{scope | user: user})}
+    end)
+  end
+
   defp extract_secret(html) do
     [_, encoded] = Regex.run(~r{id="totp-secret"[^>]*>([A-Z2-7]+)<}, html)
     Base.decode32!(encoded, padding: false)
