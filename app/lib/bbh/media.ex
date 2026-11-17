@@ -319,7 +319,7 @@ defmodule Bbh.Media do
   # The ids come from the browser (a tile's checkbox), and a non-UUID in an `in` query
   # raises instead of matching nothing.
   defp valid_uuids(ids) do
-    for id <- ids, {:ok, uuid} <- [cast_uuid(id)], do: uuid
+    for id <- ids, {:ok, uuid} <- [Bbh.Schema.cast_id(id)], do: uuid
   end
 
   @doc """
