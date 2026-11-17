@@ -208,4 +208,22 @@ defmodule Bbh.Tickets.InboundMailTest do
 
     assert {:ok, %{spam_score: 10.72, spam_flag?: true}} = InboundMail.parse(raw)
   end
+
+  test "the Message-ID is reduced to its <id@host>; the hash keeps the raw value" do
+    raw =
+      crlf("""
+      From: max@example.com
+      To: info@buterland-beckerhook.de
+      Subject: Frage
+      Message-ID: <abc@example.com> (Kommentar)
+      Content-Type: text/plain
+
+      Hallo
+      """)
+
+    assert {:ok, mail} = InboundMail.parse(raw)
+    assert mail.message_id == "<abc@example.com>"
+    # Unchanged from before the reduction, so an already imported mail is still known.
+    refute mail.message_id_hash == InboundMail.sha256("<abc@example.com>")
+  end
 end

@@ -127,6 +127,11 @@ config :logger, :default_formatter,
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 
+# Kept out of the request log (shown at LOG_LEVEL=debug): matched as substrings, so
+# "token" also covers refresh_token and magic-link tokens, "code" the TOTP and OAuth codes
+# and the PKCE code_verifier.
+config :phoenix, :filter_parameters, ~w(password token secret code)
+
 # Rate limiting (Hammer, ETS backend). Disabled in test.exs.
 config :bbh, BbhWeb.RateLimit, enabled: true
 

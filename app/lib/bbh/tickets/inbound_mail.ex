@@ -33,13 +33,16 @@ defmodule Bbh.Tickets.InboundMail do
     {type, subtype, headers, params, body} = raw |> encode_raw_utf8() |> :mimemail.decode()
     header = &header(headers, &1)
 
-    message_id = header.("Message-ID")
+    raw_message_id = header.("Message-ID")
 
     mail = %__MODULE__{
-      message_id: message_id,
+      # Only the bare `<id@host>`: it is echoed into our replies' In-Reply-To and
+      # References, where stray whitespace or line breaks from the sender don't belong.
+      message_id: raw_message_id |> message_ids() |> List.first(),
+      # Hashed as received, as it always was, so a mail imported before stays recognised.
       # The raw mail's hash stands in for a missing Message-ID, so the import stays
       # idempotent either way.
-      message_id_hash: sha256(message_id || raw),
+      message_id_hash: sha256(raw_message_id || raw),
       subject: header.("Subject") |> clean(),
       original_to: headers |> all(["X-Original-To"]) |> List.first() |> address(),
       delivered_to: headers |> all(["Delivered-To"]) |> Enum.map(&address/1),

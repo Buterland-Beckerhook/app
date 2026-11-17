@@ -27,7 +27,7 @@ defmodule BbhWeb.Admin.PushLive do
   @impl true
   def handle_event("send", %{"push" => params}, socket) do
     %{"category" => cat, "title" => title, "body" => body} = params
-    url = if params["url"] in [nil, ""], do: BbhWeb.Endpoint.url(), else: params["url"]
+    url = push_url(params["url"])
 
     cond do
       String.trim(title) == "" or String.trim(body) == "" ->
@@ -35,6 +35,10 @@ defmodule BbhWeb.Admin.PushLive do
 
       cat not in Enum.map(@categories, &elem(&1, 1)) ->
         {:noreply, put_flash(socket, :error, "Ungültige Kategorie.")}
+
+      is_nil(url) ->
+        {:noreply,
+         put_flash(socket, :error, "Der Link muss auf diese Website zeigen, z. B. /termine.")}
 
       true ->
         payload = %{title: title, body: body, url: url}
@@ -60,6 +64,28 @@ defmodule BbhWeb.Admin.PushLive do
     Notifications.delete_subscription(id)
     {:noreply, socket |> put_flash(:info, "Abo gelöscht.") |> load_subscriptions()}
   end
+
+  # A push arrives under the club's name and a tap opens its link, so it may only lead
+  # into this site: a path, or an absolute URL on our own origin. Anything else is nil.
+  defp push_url(url) when url in [nil, ""], do: BbhWeb.Endpoint.url()
+
+  defp push_url(url) when is_binary(url) do
+    site = URI.parse(BbhWeb.Endpoint.url())
+
+    case URI.parse(String.trim(url)) do
+      %URI{scheme: nil, host: nil, path: "/" <> _} = uri ->
+        URI.to_string(%{site | path: uri.path, query: uri.query, fragment: uri.fragment})
+
+      %URI{scheme: scheme, host: host, port: port} = uri
+      when scheme == site.scheme and host == site.host and port == site.port ->
+        URI.to_string(uri)
+
+      _ ->
+        nil
+    end
+  end
+
+  defp push_url(_url), do: nil
 
   defp default_send, do: %{"category" => "termine", "title" => "", "body" => "", "url" => ""}
 

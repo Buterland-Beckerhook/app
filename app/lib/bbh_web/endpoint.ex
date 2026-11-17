@@ -4,6 +4,9 @@ defmodule BbhWeb.Endpoint do
   # The session will be stored in the cookie and signed,
   # this means its contents can be read but not tampered with.
   # Set :encryption_salt if you would also like to encrypt it.
+  # No `secure: true` needed: Plug marks a cookie secure on an HTTPS connection, and in
+  # prod `force_ssl` (`rewrite_on: [:x_forwarded_proto]`) makes every request behind the
+  # proxy one. The remember-me cookie (`BbhWeb.UserAuth`) gets the same.
   @session_options [
     store: :cookie,
     key: "_bbh_key",
