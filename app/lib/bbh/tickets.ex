@@ -15,14 +15,23 @@ defmodule Bbh.Tickets do
   """
   import Ecto.Query
 
+  import Bbh.Tickets.Store,
+    only: [
+      authorize: 2,
+      authorize_view: 2,
+      broadcast: 1,
+      insert_message: 2,
+      tap_ok: 2,
+      update_and_log: 4
+    ]
+
   alias Bbh.Accounts.{Scope, User}
   alias Bbh.Repo
   alias Bbh.Tickets.{Attachment, Event, Grants, Message, Queue, Ticket}
-  alias Bbh.Tickets.ServerCopies
+  alias Bbh.Tickets.{ServerCopies, Store}
   alias Bbh.Vault
   alias Bbh.Authz
 
-  @topic "tickets"
   @page_size 50
   # A ticket opened again within this window is not logged as a second view.
   @view_throttle_minutes 10
@@ -31,10 +40,7 @@ defmodule Bbh.Tickets do
   def enabled?, do: Application.get_env(:bbh, :tickets_enabled, false) == true
 
   @doc "Subscribes the caller to ticket changes (`{:tickets_changed, ticket_id}`)."
-  def subscribe, do: Phoenix.PubSub.subscribe(Bbh.PubSub, @topic)
-
-  defp broadcast(%Ticket{id: id}),
-    do: Phoenix.PubSub.broadcast(Bbh.PubSub, @topic, {:tickets_changed, id})
+  def subscribe, do: Phoenix.PubSub.subscribe(Bbh.PubSub, Store.topic())
 
   ## Creating
 
@@ -148,13 +154,6 @@ defmodule Bbh.Tickets do
       },
       %{body: "Aufnahmeantrag über die Website.", from: data.email}
     )
-  end
-
-  defp insert_message(%Ticket{id: ticket_id}, attrs) do
-    %Message{}
-    |> Message.changeset(Map.put(attrs, :ticket_id, ticket_id))
-    |> Vault.encrypt_changes("ticket_messages", Message.encrypted_fields())
-    |> Repo.insert()
   end
 
   ## Reading
@@ -349,56 +348,6 @@ defmodule Bbh.Tickets do
 
   def related_tickets(_scope, _ticket), do: []
 
-  ## Requests for access and erasure (Art. 15 / 17 GDPR)
-
-  @doc """
-  Every ticket of an e-mail address — all queues, deleted ones too, until purged —
-  found by its blind index. Admins only; the lookup is logged without the address.
-  """
-  def requester_tickets(%Scope{user: user} = scope, email) do
-    if Authz.can_delete_ticket?(scope) do
-      tickets =
-        Repo.all(
-          from t in Ticket,
-            where: t.requester_email_hmac == ^Vault.blind_index(email),
-            order_by: [desc: t.inserted_at]
-        )
-        |> Enum.map(&Vault.decrypt_fields(&1, "tickets", Ticket.encrypted_fields()))
-
-      log_event(nil, user, "requester_lookup", %{count: length(tickets)})
-      {:ok, tickets}
-    else
-      {:error, :unauthorized}
-    end
-  end
-
-  @doc """
-  Deletes every ticket of an e-mail address: soft (`purge: false`, restorable for
-  `TICKET_PURGE_DAYS`) or for good right away (`purge: true`, server copies first).
-  Returns how many.
-  """
-  def delete_requester_tickets(%Scope{user: user} = scope, email, opts \\ []) do
-    with {:ok, tickets} <- requester_tickets(scope, email) do
-      count =
-        if opts[:purge] do
-          Enum.count(tickets, &Bbh.Tickets.Retention.purge_ticket/1)
-        else
-          tickets
-          |> Enum.filter(&is_nil(&1.deleted_at))
-          |> Enum.count(fn ticket ->
-            ticket
-            |> Ecto.Changeset.change(deleted_at: DateTime.utc_now(:second))
-            |> Repo.update!()
-            |> tap(&log_event(&1, user, "deleted", %{reason: "requester"}))
-            |> tap(&ServerCopies.release_deleted/1)
-            |> tap(&broadcast/1)
-          end)
-        end
-
-      {:ok, count}
-    end
-  end
-
   @doc "The users a ticket can be assigned to: those granted its queue, plus admins."
   def assignable_users(%Ticket{queue: queue}) do
     (Grants.list_users(queue) ++ Bbh.Accounts.list_admins())
@@ -495,117 +444,6 @@ defmodule Bbh.Tickets do
   end
 
   defp parse_date(_), do: nil
-
-  ## Replies
-
-  @doc "Whether replies can be sent from the Postfach (`Bbh.Tickets.Mailer` configured)."
-  def replies_enabled?, do: Bbh.Tickets.Mailer.enabled?()
-
-  @doc """
-  Answers the requester from the queue's address (`Bbh.Tickets.ReplyMail`). The reply
-  is stored, the ticket set to `status` (`waiting` by default, or `open`/`closed`) and
-  taken by the replier if nobody had it; the mail itself goes out in a job
-  (`Bbh.Workers.TicketReplySender`).
-  """
-  def reply(%Scope{user: user} = scope, %Ticket{} = ticket, body, status \\ "waiting") do
-    body = String.trim(body || "")
-
-    with :ok <- authorize(scope, ticket),
-         true <- replies_enabled?() || {:error, :replies_disabled},
-         true <- ticket.requester_email not in [nil, ""] || {:error, :no_recipient},
-         true <- ticket.status != "spam" || {:error, :spam},
-         true <- body != "" || {:error, :empty},
-         true <- status in ~w(open waiting closed) || {:error, :invalid_status} do
-      Repo.transact(fn ->
-        message_attrs = %{
-          direction: "out",
-          author_id: user.id,
-          from: Queue.reply_address(ticket.queue),
-          to: ticket.requester_email,
-          body: body,
-          message_id: "<#{Ecto.UUID.generate()}@buterland-beckerhook.de>"
-        }
-
-        with {:ok, message} <- insert_message(ticket, message_attrs),
-             {:ok, updated} <-
-               ticket
-               |> Ticket.status_changeset(status, nil)
-               |> Ecto.Changeset.put_change(:assignee_id, ticket.assignee_id || user.id)
-               |> Repo.update() do
-          log_event(updated, user, "replied", %{status: status})
-          ServerCopies.release_on_change(ticket, updated)
-          %{message_id: message.id} |> Bbh.Workers.TicketReplySender.new() |> Oban.insert!()
-          {:ok, updated}
-        end
-      end)
-      |> tap_ok(&broadcast/1)
-    end
-  end
-
-  @doc false
-  # Sends a stored reply (called by Bbh.Workers.TicketReplySender). `:ok` also when it
-  # already went out or is gone; `{:error, :delivery_failed}` to retry — the reason
-  # itself is logged by the mailer, not stored in the job (it may name the address).
-  def deliver_reply(message_id) do
-    with %Message{direction: "out", sent_at: nil} = message <- Repo.get(Message, message_id),
-         %Ticket{} = ticket <- Repo.get(Ticket, message.ticket_id) do
-      message = Vault.decrypt_fields(message, "ticket_messages", Message.encrypted_fields())
-      ticket = Vault.decrypt_fields(ticket, "tickets", Ticket.encrypted_fields())
-      email = Bbh.Tickets.ReplyMail.build(ticket, message, latest_inbound(ticket))
-
-      case Bbh.Mailer.deliver_logged(email, "ticket-reply",
-             redact: true,
-             mailer: Bbh.Tickets.Mailer
-           ) do
-        {:ok, _} ->
-          message |> Ecto.Changeset.change(sent_at: DateTime.utc_now(:second)) |> Repo.update!()
-          broadcast(ticket)
-          :ok
-
-        {:error, _reason} ->
-          {:error, :delivery_failed}
-      end
-    else
-      _ -> :ok
-    end
-  end
-
-  @doc false
-  # The last attempt failed: say so on the ticket.
-  def reply_failed(message_id) do
-    with %Message{} = message <- Repo.get(Message, message_id),
-         %Ticket{} = ticket <- Repo.get(Ticket, message.ticket_id) do
-      date =
-        message.inserted_at
-        |> DateTime.shift_zone!(Bbh.Time.time_zone())
-        |> Calendar.strftime("%d.%m.%Y, %H:%M Uhr")
-
-      {:ok, _} =
-        insert_message(ticket, %{
-          direction: "system",
-          body:
-            "Die Antwort vom #{date} konnte nicht gesendet werden. Bitte die Adresse " <>
-              "prüfen und erneut antworten."
-        })
-
-      broadcast(ticket)
-    end
-
-    :ok
-  end
-
-  defp latest_inbound(%Ticket{id: id}) do
-    from(m in Message,
-      where: m.ticket_id == ^id and m.direction == "in",
-      order_by: [desc: m.inserted_at],
-      limit: 1
-    )
-    |> Repo.one()
-    |> case do
-      nil -> nil
-      message -> Vault.decrypt_fields(message, "ticket_messages", Message.encrypted_fields())
-    end
-  end
 
   @doc """
   Adds an inbound mail to an existing ticket (the requester answered, see
@@ -770,41 +608,6 @@ defmodule Bbh.Tickets do
   end
 
   @doc """
-  Sets the Mitgliedsnummer on a membership ticket (stored encrypted in the payload; it
-  is also the SEPA mandate reference).
-  """
-  def set_member_number(%Scope{} = scope, %Ticket{kind: "membership"} = ticket, number) do
-    with :ok <- authorize(scope, ticket) do
-      payload = Map.put(ticket.payload || %{}, "member_number", String.trim(number || ""))
-
-      ticket
-      |> Ecto.Changeset.change(payload: payload)
-      |> Vault.encrypt_changes("tickets", Ticket.encrypted_fields())
-      |> update_and_log(scope, "member_number_set", %{})
-    end
-  end
-
-  def set_member_number(_scope, _ticket, _number), do: {:error, :not_membership}
-
-  @doc """
-  The membership application of a ticket as PDF (`Bbh.Tickets.Pdf`), logged as
-  `pdf_exported`. The PDF is returned, never stored.
-  """
-  def export_pdf(%Scope{user: user} = scope, %Ticket{kind: "membership"} = ticket) do
-    with :ok <- authorize_view(scope, ticket),
-         {:ok, pdf} <- Bbh.Tickets.Pdf.membership_application(ticket, user) do
-      log_event(ticket, user, "pdf_exported", %{})
-      {:ok, pdf}
-    end
-  end
-
-  def export_pdf(_scope, _ticket), do: {:error, :not_membership}
-
-  defp authorize_view(scope, ticket) do
-    if Authz.can_view_ticket?(scope, ticket), do: :ok, else: {:error, :unauthorized}
-  end
-
-  @doc """
   An attachment of a ticket the scope may see, decrypted, for download — logged as
   `attachment_downloaded`. `{:error, :not_found}` otherwise.
   """
@@ -860,22 +663,6 @@ defmodule Bbh.Tickets do
     Repo.insert!(%Event{user_id: user && user.id, action: action, meta: meta})
   end
 
-  defp authorize(scope, ticket) do
-    if Authz.can_handle_ticket?(scope, ticket) and is_nil(ticket.deleted_at),
-      do: :ok,
-      else: {:error, :unauthorized}
-  end
-
-  # Updates, logs and broadcasts; returns the ticket with its clear-text fields kept.
-  defp update_and_log(changeset, %Scope{user: user}, action, meta) do
-    with {:ok, updated} <- Repo.update(changeset) do
-      log_event(updated, user, action, meta)
-      broadcast(updated)
-      ServerCopies.release_on_change(changeset.data, updated)
-      {:ok, updated}
-    end
-  end
-
   # Someone else assigned it: tell the assignee (ids only in the job).
   defp notify_assignee(%Ticket{assignee_id: nil}, _by), do: :ok
   defp notify_assignee(%Ticket{assignee_id: id}, %User{id: id}), do: :ok
@@ -885,11 +672,4 @@ defmodule Bbh.Tickets do
     |> Bbh.Workers.TicketAssignedNotifier.new()
     |> Oban.insert!()
   end
-
-  defp tap_ok({:ok, value} = result, fun) do
-    fun.(value)
-    result
-  end
-
-  defp tap_ok(other, _fun), do: other
 end

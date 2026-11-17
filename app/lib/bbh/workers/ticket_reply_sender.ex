@@ -16,12 +16,12 @@ defmodule Bbh.Workers.TicketReplySender do
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"message_id" => message_id}, attempt: attempt, max_attempts: max}) do
-    case Tickets.deliver_reply(message_id) do
+    case Tickets.Replies.deliver_reply(message_id) do
       :ok ->
         :ok
 
       {:error, reason} ->
-        if attempt >= max, do: Tickets.reply_failed(message_id)
+        if attempt >= max, do: Tickets.Replies.reply_failed(message_id)
         {:error, reason}
     end
   end

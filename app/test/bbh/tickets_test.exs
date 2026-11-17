@@ -267,10 +267,12 @@ defmodule Bbh.TicketsTest do
           payload: %{"vorname" => "Max"}
         )
 
-      assert {:ok, _} = Tickets.set_member_number(scope, ticket, " 1234 ")
+      assert {:ok, _} = Tickets.Membership.set_member_number(scope, ticket, " 1234 ")
       {:ok, loaded} = Tickets.get_ticket(scope, ticket.number)
       assert loaded.payload == %{"vorname" => "Max", "member_number" => "1234"}
-      assert Tickets.set_member_number(scope, ticket_fixture(), "1") == {:error, :not_membership}
+
+      assert Tickets.Membership.set_member_number(scope, ticket_fixture(), "1") ==
+               {:error, :not_membership}
     end
 
     test "a spam marking can be taken back", %{scope: scope} do

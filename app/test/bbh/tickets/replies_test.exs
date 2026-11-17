@@ -51,7 +51,7 @@ defmodule Bbh.Tickets.RepliesTest do
     } do
       ticket = loaded(scope, ticket_fixture())
 
-      assert {:ok, updated} = Tickets.reply(scope, ticket, "  Am 12. Juli.  ")
+      assert {:ok, updated} = Tickets.Replies.reply(scope, ticket, "  Am 12. Juli.  ")
       assert updated.status == "waiting"
       assert updated.assignee_id == user.id
 
@@ -72,12 +72,12 @@ defmodule Bbh.Tickets.RepliesTest do
       ticket = loaded(scope, ticket_fixture())
 
       assert {:ok, %{status: "closed", closed_at: %DateTime{}}} =
-               Tickets.reply(scope, ticket, "Erledigt.", "closed")
+               Tickets.Replies.reply(scope, ticket, "Erledigt.", "closed")
 
-      assert Tickets.reply(scope, ticket, "  ") == {:error, :empty}
+      assert Tickets.Replies.reply(scope, ticket, "  ") == {:error, :empty}
 
       {:ok, spam} = Tickets.mark_spam(scope, ticket_fixture())
-      assert Tickets.reply(scope, loaded(scope, spam), "x") == {:error, :spam}
+      assert Tickets.Replies.reply(scope, loaded(scope, spam), "x") == {:error, :spam}
     end
 
     test "is refused while the reply mailbox is not configured", %{scope: scope} do
@@ -85,7 +85,7 @@ defmodule Bbh.Tickets.RepliesTest do
       Application.put_env(:bbh, Bbh.Tickets.Mailer, adapter: nil)
       on_exit(fn -> Application.put_env(:bbh, Bbh.Tickets.Mailer, previous) end)
 
-      assert Tickets.reply(scope, loaded(scope, ticket_fixture()), "x") ==
+      assert Tickets.Replies.reply(scope, loaded(scope, ticket_fixture()), "x") ==
                {:error, :replies_disabled}
     end
   end
@@ -93,7 +93,7 @@ defmodule Bbh.Tickets.RepliesTest do
   describe "sending" do
     test "goes out as the queue, threaded and with the request quoted", %{scope: scope} do
       ticket = loaded(scope, ticket_fixture(body: "Wann ist das Fest?"))
-      {:ok, _} = Tickets.reply(scope, ticket, "Am 12. Juli.")
+      {:ok, _} = Tickets.Replies.reply(scope, ticket, "Am 12. Juli.")
       [job] = all_enqueued(worker: TicketReplySender)
 
       assert :ok = perform_job(TicketReplySender, job.args)
@@ -128,7 +128,7 @@ defmodule Bbh.Tickets.RepliesTest do
           ticket_fixture(queue: "mitgliedschaft", kind: "membership", body: "IBAN DE89…")
         )
 
-      {:ok, _} = Tickets.reply(scope, ticket, "Willkommen!")
+      {:ok, _} = Tickets.Replies.reply(scope, ticket, "Willkommen!")
       [job] = all_enqueued(worker: TicketReplySender)
       :ok = perform_job(TicketReplySender, job.args)
       [email] = sent_emails()
@@ -190,7 +190,7 @@ defmodule Bbh.Tickets.RepliesTest do
       on_exit(fn -> Application.put_env(:bbh, Bbh.Tickets.Mailer, previous) end)
 
       ticket = loaded(scope, ticket_fixture())
-      {:ok, _} = Tickets.reply(scope, ticket, "Hallo")
+      {:ok, _} = Tickets.Replies.reply(scope, ticket, "Hallo")
       [job] = all_enqueued(worker: TicketReplySender)
 
       assert {:error, :delivery_failed} = perform_job(TicketReplySender, job.args, attempt: 1)
@@ -205,7 +205,7 @@ defmodule Bbh.Tickets.RepliesTest do
   describe "threading" do
     setup %{scope: scope} do
       ticket = loaded(scope, ticket_fixture())
-      {:ok, _} = Tickets.reply(scope, ticket, "Antwort")
+      {:ok, _} = Tickets.Replies.reply(scope, ticket, "Antwort")
       out = Repo.get_by!(Message, direction: "out")
       %{ticket: ticket, out: out}
     end
