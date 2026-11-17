@@ -39,13 +39,13 @@ defmodule Bbh.Tickets.Reminders do
   mail. `reason` is a German line without personal data.
   """
   def due(%SiteSettings{} = s, now \\ DateTime.utc_now(:second)) do
-    Ticket
-    |> overdue(s, now)
-    |> order_by([t], asc: t.number)
-    |> Repo.all()
+    tickets = Ticket |> overdue(s, now) |> order_by([t], asc: t.number) |> Repo.all()
+    queue_users = tickets |> Enum.map(& &1.queue) |> Grants.notify_user_ids()
+
+    tickets
     |> Enum.flat_map(fn ticket ->
       reason = reason(ticket, s, now)
-      for user_id <- recipients(ticket), do: {user_id, {ticket, reason}}
+      for user_id <- recipients(ticket, queue_users), do: {user_id, {ticket, reason}}
     end)
     |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
   end
@@ -63,11 +63,13 @@ defmodule Bbh.Tickets.Reminders do
     )
   end
 
-  defp recipients(%Ticket{status: "new", queue: queue}), do: queue_users(queue)
-  defp recipients(%Ticket{assignee_id: nil, queue: queue}), do: queue_users(queue)
-  defp recipients(%Ticket{assignee_id: id}), do: [id]
+  defp recipients(%Ticket{status: "new", queue: queue}, queue_users),
+    do: Map.fetch!(queue_users, queue)
 
-  defp queue_users(queue), do: queue |> Grants.notify_users() |> Enum.map(& &1.id)
+  defp recipients(%Ticket{assignee_id: nil, queue: queue}, queue_users),
+    do: Map.fetch!(queue_users, queue)
+
+  defp recipients(%Ticket{assignee_id: id}, _queue_users), do: [id]
 
   @doc false
   def reason(%Ticket{status: "new"}, s, _now),

@@ -51,6 +51,28 @@ defmodule Bbh.Tickets.Grants do
   end
 
   @doc """
+  `notify_users/1` for several queues at once, as ids: `%{queue_key => [user_id]}`. At
+  most two queries however many queues, for the workers that resolve a whole batch of
+  tickets.
+  """
+  def notify_user_ids([]), do: %{}
+
+  def notify_user_ids(queue_keys) do
+    keys = Enum.uniq(queue_keys)
+
+    granted =
+      Repo.all(from g in Grant, where: g.queue_key in ^keys, select: {g.queue_key, g.user_id})
+      |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
+
+    admins =
+      if Enum.all?(keys, &Map.has_key?(granted, &1)),
+        do: [],
+        else: Repo.all(from u in User, where: u.role == "admin", select: u.id)
+
+    Map.new(keys, &{&1, Map.get(granted, &1, admins)})
+  end
+
+  @doc """
   Replaces a user's grants with `keys`, in one transaction. `admin` is recorded as the
   granting user. Unknown keys are refused.
   """

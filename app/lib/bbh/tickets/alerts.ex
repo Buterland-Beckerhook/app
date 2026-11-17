@@ -43,9 +43,11 @@ defmodule Bbh.Tickets.Alerts do
 
   @doc "Queues the announcement of new tickets for everyone who works their queues."
   def enqueue_new(tickets) do
+    queue_users = tickets |> Enum.map(& &1.queue) |> Grants.notify_user_ids()
+
     tickets
     |> Enum.flat_map(fn ticket ->
-      for user <- Grants.notify_users(ticket.queue), do: row(user.id, ticket.id, "new")
+      for user_id <- Map.fetch!(queue_users, ticket.queue), do: row(user_id, ticket.id, "new")
     end)
     |> insert_rows()
   end
@@ -120,11 +122,7 @@ defmodule Bbh.Tickets.Alerts do
         |> Kernel.++(Enum.map(rows, & &1.user))
         |> Enum.uniq_by(& &1.id)
 
-      recipients =
-        rows
-        |> Enum.map(& &1.ticket.queue)
-        |> Enum.uniq()
-        |> Map.new(fn queue -> {queue, Enum.map(Grants.notify_users(queue), & &1.id)} end)
+      recipients = rows |> Enum.map(& &1.ticket.queue) |> Grants.notify_user_ids()
 
       by_user = Enum.group_by(rows, & &1.user_id)
 
