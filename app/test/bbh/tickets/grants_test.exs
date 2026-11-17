@@ -41,6 +41,20 @@ defmodule Bbh.Tickets.GrantsTest do
     assert Enum.sort(Grants.grants_by_user()[other.id]) == ["info", "vorstand"]
   end
 
+  test "notify_user_ids resolves several queues, falling back to the admins", %{
+    admin: admin,
+    user: user
+  } do
+    {:ok, _} = Grants.set_grants(admin, user, ["info"])
+
+    assert Grants.notify_user_ids(["info", "vorstand", "info"]) == %{
+             "info" => [user.id],
+             "vorstand" => [admin.id]
+           }
+
+    assert Grants.notify_user_ids([]) == %{}
+  end
+
   test "grants go with the user", %{admin: admin, user: user} do
     {:ok, _} = Grants.set_grants(admin, user, ["info"])
     Bbh.Accounts.delete_user(user)
