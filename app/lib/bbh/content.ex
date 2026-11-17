@@ -215,7 +215,7 @@ defmodule Bbh.Content do
   `Ecto.Query.CastError`.
   """
   def get_article(id) do
-    case cast_uuid(id) do
+    case Bbh.Schema.cast_id(id) do
       {:ok, uuid} -> Article |> Repo.get(uuid) |> Repo.preload(:image)
       :error -> nil
     end
@@ -331,7 +331,7 @@ defmodule Bbh.Content do
   carry a raw file id: the editor of one article must not reach another's gallery.
   """
   def get_gallery_file_in(gallery_ids, id) do
-    case cast_uuid(id) do
+    case Bbh.Schema.cast_id(id) do
       {:ok, id} ->
         Repo.one(
           from(f in Blocks.GalleryFile, where: f.id == ^id and f.gallery_id in ^gallery_ids)
@@ -414,7 +414,7 @@ defmodule Bbh.Content do
   MCP article tools would reach into page content through a guessed id.
   """
   def get_article_block(id) do
-    case cast_uuid(id) do
+    case Bbh.Schema.cast_id(id) do
       {:ok, uuid} -> Repo.get(ArticleBlock, uuid)
       :error -> nil
     end
@@ -430,9 +430,6 @@ defmodule Bbh.Content do
     |> preload_block(pb.block_type)
     |> Repo.get(pb.block_id)
   end
-
-  defp cast_uuid(id) when is_binary(id), do: Ecto.UUID.cast(id)
-  defp cast_uuid(_id), do: :error
 
   @doc "Update the concrete block referenced by a block-join row."
   def update_block(pb, attrs) do

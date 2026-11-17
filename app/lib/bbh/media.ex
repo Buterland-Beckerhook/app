@@ -178,14 +178,11 @@ defmodule Bbh.Media do
   `Ecto.Query.CastError` that would take the LiveView down.
   """
   def get_upload(id) do
-    case cast_uuid(id) do
+    case Bbh.Schema.cast_id(id) do
       {:ok, uuid} -> Repo.get(Upload, uuid)
       :error -> nil
     end
   end
-
-  defp cast_uuid(id) when is_binary(id), do: Ecto.UUID.cast(id)
-  defp cast_uuid(_id), do: :error
 
   def change_upload(%Upload{} = upload, attrs \\ %{}), do: Upload.update_changeset(upload, attrs)
 

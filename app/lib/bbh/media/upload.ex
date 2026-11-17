@@ -86,7 +86,7 @@ defmodule Bbh.Media.Upload do
   # the check belongs here rather than at one of the call sites.
   defp validate_folder_id(changeset) do
     validate_change(changeset, :folder_id, fn :folder_id, value ->
-      case Ecto.UUID.cast(value) do
+      case Bbh.Schema.cast_id(value) do
         {:ok, _uuid} -> []
         :error -> [folder_id: "ist kein gültiger Ordner"]
       end
