@@ -117,6 +117,28 @@ defmodule Bbh.TicketsTest do
       assert ticket.status == "open"
     end
 
+    test "release_inaccessible/2 hands back only the tickets in queues now out of sight", %{
+      user: user
+    } do
+      admin = admin_user_fixture()
+      admin_scope = Scope.for_user(admin)
+      {:ok, _} = Bbh.Tickets.Grants.set_grants(admin, user, ["info", "vorstand"])
+      scope = Scope.for_user(user)
+
+      {:ok, lost} = Tickets.take(scope, ticket_fixture(queue: "vorstand"))
+      {:ok, kept} = Tickets.take(scope, ticket_fixture(queue: "info"))
+
+      {:ok, _} = Bbh.Tickets.Grants.set_grants(admin, user, ["info"])
+      assert Tickets.release_inaccessible(admin_scope, user) == 1
+
+      lost = Repo.get!(Ticket, lost.id)
+      assert {lost.assignee_id, lost.status, lost.notified_at} == {nil, "new", nil}
+      assert Repo.get!(Ticket, kept.id).assignee_id == user.id
+
+      assert %{meta: %{"assignee_id" => nil}} =
+               Repo.get_by!(Event, ticket_id: lost.id, action: "assigned", user_id: admin.id)
+    end
+
     test "only users who can see the queue are assignable", %{scope: scope} do
       ticket = ticket_fixture()
       outsider = user_fixture()

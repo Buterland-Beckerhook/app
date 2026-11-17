@@ -230,6 +230,17 @@ defmodule BbhWeb.Admin.UserLiveTest do
       assert Bbh.Tickets.Grants.list_queue_keys(editor) == []
       refute has_element?(lv, "#queues-#{editor.id}")
     end
+
+    test "hands the user's tickets back to their queue", %{conn: conn} do
+      editor = user_fixture()
+      scope = Bbh.TicketsFixtures.granted_scope(editor, ["info"])
+      {:ok, ticket} = Bbh.Tickets.take(scope, Bbh.TicketsFixtures.ticket_fixture())
+      {:ok, lv, _html} = live(conn, ~p"/admin/benutzer")
+
+      render_hook(lv, "set_role", %{"user_id" => editor.id, "role" => "none"})
+
+      assert %{assignee_id: nil, status: "new"} = Bbh.Repo.get!(Bbh.Tickets.Ticket, ticket.id)
+    end
   end
 
   describe "scheduled deletion" do

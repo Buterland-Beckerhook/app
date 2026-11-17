@@ -12,6 +12,7 @@ defmodule BbhWeb.Admin.UserLive.Index do
   alias Bbh.Accounts.Passkeys
   alias Bbh.Accounts.User
   alias Bbh.Calendar.Event
+  alias Bbh.Tickets
   alias Bbh.Tickets.{Grants, Queue}
   alias BbhWeb.AdminList
 
@@ -76,6 +77,7 @@ defmodule BbhWeb.Admin.UserLive.Index do
       true ->
         with {:ok, user} <- id |> Accounts.get_user!() |> Accounts.update_user_role(role) do
           if role == "none", do: revoke_grants(socket, user)
+          Tickets.release_inaccessible(socket.assigns.current_scope, user)
           remount_sessions(user)
         end
 
@@ -96,6 +98,7 @@ defmodule BbhWeb.Admin.UserLive.Index do
     queues = Map.get(params, "queues", [])
     user = Accounts.get_user!(id)
     {:ok, _} = Grants.set_grants(socket.assigns.current_scope.user, user, queues)
+    Tickets.release_inaccessible(socket.assigns.current_scope, user)
     remount_sessions(user)
     {:noreply, load_users(socket)}
   end
