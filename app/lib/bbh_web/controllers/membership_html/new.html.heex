@@ -275,8 +275,8 @@
           <label class="flex items-start gap-2 text-sm">
             <input type="checkbox" name="sepa" value="true" class="mt-1" />
             <span>
-              {Bbh.Membership.mandate_text()}
-              <span class="mt-1 block text-muted">{Bbh.Membership.mandate_note()}</span>
+              {Bbh.Forms.Membership.mandate_text()}
+              <span class="mt-1 block text-muted">{Bbh.Forms.Membership.mandate_note()}</span>
             </span>
           </label>
           <p :if={error_for(@errors, :sepa)} class="mt-1 text-sm text-error">

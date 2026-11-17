@@ -1,4 +1,4 @@
-defmodule Bbh.Contact do
+defmodule Bbh.Forms.Contact do
   @moduledoc "Contact-form validation and delivery."
   import Swoosh.Email
   alias Bbh.Mailer

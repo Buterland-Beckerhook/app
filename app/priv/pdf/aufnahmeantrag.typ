@@ -3,7 +3,7 @@
 // by the app into a private temp dir and removed after the run. Never stored.
 //
 // Differences from the paper form, on purpose:
-//   - SEPA mandate and privacy text come from Bbh.Membership — the same text the
+//   - SEPA mandate and privacy text come from Bbh.Forms.Membership — the same text the
 //     online form shows (the mandate in the paper form's wording), so the record states
 //     what the applicant actually accepted.
 //   - No consent checkboxes: the online form asks for none (Art. 6(1)(b) GDPR).

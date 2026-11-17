@@ -1,9 +1,9 @@
-defmodule Bbh.ContactTest do
+defmodule Bbh.Forms.ContactTest do
   use ExUnit.Case, async: true
 
   import Swoosh.TestAssertions
 
-  alias Bbh.Contact
+  alias Bbh.Forms.Contact
 
   @valid %{
     "name" => "  Max Mustermann  ",

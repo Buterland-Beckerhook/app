@@ -20,7 +20,7 @@ defmodule BbhWeb.ContactController do
     # Validate first so a human with empty/invalid fields sees the real field
     # errors instead of a generic spam message; only fully valid submissions
     # are then subjected to the (silent) spam checks.
-    case Bbh.Contact.validate(params) do
+    case Bbh.Forms.Contact.validate(params) do
       {:error, errors} ->
         render_form(conn, params, errors)
 
@@ -70,7 +70,7 @@ defmodule BbhWeb.ContactController do
   end
 
   defp deliver(conn, data) do
-    case Bbh.Contact.deliver(data) do
+    case Bbh.Forms.Contact.deliver(data) do
       {:ok, _} ->
         conn
         |> put_flash(:info, "Vielen Dank! Ihre Nachricht wurde gesendet.")
@@ -92,7 +92,7 @@ defmodule BbhWeb.ContactController do
   # independent so any one tripping is enough to reject.
   defp check_spam(conn, params) do
     cond do
-      Bbh.Contact.honeypot_filled?(params) -> {:spam, "honeypot"}
+      Bbh.Forms.Contact.honeypot_filled?(params) -> {:spam, "honeypot"}
       not timing_ok?(conn, params) -> {:spam, "timing"}
       Bbh.Altcha.enabled?() and not Bbh.Altcha.verify(params["altcha"]) -> {:spam, "altcha"}
       rate_limited?(conn) -> :rate_limited
