@@ -133,6 +133,32 @@ function mount(hook) {
 
   const quill = new Quill(target, {
     theme: "snow",
+    // Only what the toolbar offers, plus inline code and indents, which the server's
+    // sanitizer keeps from older content. Without this list Quill accepts every
+    // registered format from pasted HTML. That includes video, formula and code-block,
+    // whose getSemanticHTML() export is unsafe in 2.0.3 (CVE-2025-15056, no fixed
+    // release yet). The server scrubs the HTML regardless; this keeps those blots out
+    // of the editor in the first place.
+    formats: [
+      "header",
+      "bold",
+      "italic",
+      "underline",
+      "strike",
+      "code",
+      "link",
+      "list",
+      "blockquote",
+      "align",
+      "indent",
+      "image",
+      "bbhWeight",
+      "bbhTextSize",
+      "bbhMuted",
+      "bbhImgSize",
+      "bbhImgFloat",
+      "bbhImgCaption",
+    ],
     modules: {
       toolbar: {
         container: [
