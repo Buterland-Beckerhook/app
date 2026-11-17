@@ -104,4 +104,21 @@ defmodule BbhWeb.Admin.PushLiveTest do
 
     assert html =~ "dürfen nicht leer sein"
   end
+
+  test "the link may only lead into this site", %{conn: conn} do
+    {:ok, lv, _html} = live(conn, ~p"/admin/push")
+
+    send = fn url ->
+      lv
+      |> form("#push-send-form", push: %{category: "tester", title: "T", body: "B", url: url})
+      |> render_submit()
+    end
+
+    for url <- ["https://evil.example.com/termine", "//evil.example.com/x", "javascript:alert(1)"] do
+      assert send.(url) =~ "muss auf diese Website zeigen"
+    end
+
+    assert send.("/termine") =~ "wird gesendet"
+    assert send.(BbhWeb.Endpoint.url() <> "/aktuell") =~ "wird gesendet"
+  end
 end

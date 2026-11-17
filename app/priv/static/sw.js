@@ -19,6 +19,11 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = (event.notification.data && event.notification.data.url) || "/";
+  // Only ever open this site: a payload pointing elsewhere opens the start page instead.
+  let url = "/";
+  try {
+    const target = new URL(event.notification.data.url, self.location.origin);
+    if (target.origin === self.location.origin) url = target.href;
+  } catch (_e) {}
   event.waitUntil(clients.openWindow(url));
 });
