@@ -30,5 +30,4 @@ defmodule BbhWeb.SearchController do
     do: put_private(conn, :bbh_search, %{term: q, hits: result.total})
 
   defp track_search(conn, _q, _page, _result), do: conn
-  end
 end
