@@ -2,6 +2,9 @@ defmodule Bbh.Calendar.Shares do
   @moduledoc """
   Calendar shares: revocable per-recipient links to one internal calendar's iCal feed.
   Only a hash of each token is stored; the plaintext exists once, in the share URL.
+
+  A share belongs to its calendar, not to whoever created it: it stays valid when that
+  user is deleted or loses the calendar. Revoking it is an admin's call.
   """
   import Ecto.Query
   alias Bbh.Repo

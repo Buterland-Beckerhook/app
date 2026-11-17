@@ -442,6 +442,33 @@ defmodule Bbh.Tickets do
     end
   end
 
+  @doc """
+  Takes `user`'s tickets back in every queue they can no longer see, after `scope`
+  changed their role or grants. Like `move_queue/3`, a ticket still in work goes back to
+  `new`, so its queue hears of it again; replies and reminders then go to the queue,
+  not to someone who lost access. Returns how many tickets were released.
+  """
+  def release_inaccessible(%Scope{} = scope, %User{} = user) do
+    visible = user |> Scope.for_user() |> Authz.visible_queues()
+
+    Repo.all(
+      from t in Ticket,
+        where: t.assignee_id == ^user.id and t.queue not in ^visible and is_nil(t.deleted_at)
+    )
+    |> Enum.count(fn ticket ->
+      in_work? = ticket.status in Ticket.active_statuses()
+
+      changeset =
+        Ecto.Changeset.change(ticket,
+          assignee_id: nil,
+          status: if(in_work?, do: "new", else: ticket.status),
+          notified_at: if(in_work?, do: nil, else: ticket.notified_at)
+        )
+
+      match?({:ok, _}, update_and_log(changeset, scope, "assigned", %{assignee_id: nil}))
+    end)
+  end
+
   defp check_assignee(_ticket, nil), do: :ok
 
   defp check_assignee(ticket, assignee_id) do
