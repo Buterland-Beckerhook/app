@@ -98,8 +98,12 @@ defmodule Bbh.Tickets.ReplyMail do
     "\nAm #{date} schrieben Sie:\n#{quoted}\n"
   end
 
-  defp thread_headers(email, %{header_message_id: id}) when is_binary(id) and id != "" do
-    email |> header("In-Reply-To", id) |> header("References", id)
+  # Rows imported before the Message-ID was reduced to its `<id@host>` may hold the raw
+  # header; only a well-formed id goes into ours.
+  defp thread_headers(email, %{header_message_id: id}) when is_binary(id) do
+    if id =~ ~r/\A<[^<>\s]+>\z/,
+      do: email |> header("In-Reply-To", id) |> header("References", id),
+      else: email
   end
 
   defp thread_headers(email, _inbound), do: email

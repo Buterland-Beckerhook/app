@@ -174,6 +174,12 @@ defmodule Bbh.Tickets.RepliesTest do
                "AW: Frage [#BB-2026-0007]"
 
       assert ReplyMail.subject(%{ticket | subject: "AW: Frage"}) == "AW: Frage [#BB-2026-0007]"
+
+      # A raw header stored before ids were reduced to `<id@host>` is left out.
+      inbound = %{inbound | header_message_id: "<orig@example.com>\nBcc: x@example.com"}
+      email = ReplyMail.build(ticket, message, inbound)
+      refute Map.has_key?(email.headers, "In-Reply-To")
+      refute Map.has_key?(email.headers, "References")
     end
 
     test "a reply that cannot be sent is marked on the ticket after the last attempt", %{
