@@ -113,10 +113,8 @@ defmodule BbhWeb.Admin.DashboardLive do
             Du hast im Verwaltungsbereich zurzeit keine Berechtigungen – zum Beispiel, weil
             dein Amt im Vorstand geendet hat.
           </p>
-          <p>
-            Wenn du Fragen hast oder meinst, dass das nicht stimmt, melde dich bitte über das
-            <.link href={~p"/kontakt"} class="link">Kontaktformular</.link>.
-          </p>
+          <p>Wenn du Fragen hast oder meinst, dass das nicht stimmt, melde dich bitte bei uns:</p>
+          <p><.link href={~p"/kontakt"} class="link">Zum Kontaktformular</.link></p>
         </div>
       </div>
 
