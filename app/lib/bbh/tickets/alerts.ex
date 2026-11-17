@@ -44,6 +44,38 @@ defmodule Bbh.Tickets.Alerts do
     to: Accounts.Postfach,
     as: :update_ticket_notifications
 
+  @doc """
+  Puts the new tickets that arrived before `cutoff` and were not announced yet into the
+  outbox of everyone working their queues, marking them announced. A ticket taken or
+  marked as spam meanwhile is no longer `new` and stays out. Returns how many.
+  """
+  def enqueue_due_new(%DateTime{} = cutoff) do
+    tickets =
+      Repo.all(
+        from t in Ticket,
+          where:
+            is_nil(t.notified_at) and is_nil(t.deleted_at) and t.status == "new" and
+              t.inserted_at <= ^cutoff,
+          order_by: t.number
+      )
+
+    # One transaction: a ticket marked as told is in the outbox, and only once.
+    {:ok, _} =
+      Repo.transact(fn ->
+        {_, _} =
+          Repo.update_all(
+            from(t in Ticket,
+              where: t.id in ^Enum.map(tickets, & &1.id) and is_nil(t.notified_at)
+            ),
+            set: [notified_at: DateTime.utc_now(:second)]
+          )
+
+        {:ok, enqueue_new(tickets)}
+      end)
+
+    length(tickets)
+  end
+
   @doc "Queues the announcement of new tickets for everyone who works their queues."
   def enqueue_new(tickets) do
     queue_users = tickets |> Enum.map(& &1.queue) |> Grants.notify_user_ids()
@@ -237,6 +269,21 @@ defmodule Bbh.Tickets.Alerts do
       body: "#{Ticket.reference(ticket)} wurde dir zugewiesen",
       url: ticket_url(ticket)
     })
+  end
+
+  @doc """
+  `assigned/3` by ids, for the job that sends it later: says nothing if the ticket was
+  reassigned or deleted meanwhile, or a user is gone.
+  """
+  def assigned_by_ids(ticket_id, assignee_id, by_id) do
+    with %Ticket{assignee_id: ^assignee_id, deleted_at: nil} = ticket <-
+           Repo.get(Ticket, ticket_id),
+         %User{} = assignee <- Accounts.get_user(assignee_id),
+         %User{} = by <- Accounts.get_user(by_id) do
+      assigned(assignee, ticket, by)
+    end
+
+    :ok
   end
 
   @doc "A trial push to all of the user's devices. Returns how many took it."

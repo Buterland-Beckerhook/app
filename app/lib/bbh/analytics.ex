@@ -31,7 +31,6 @@ defmodule Bbh.Analytics do
     IcalFetchCount
   }
 
-  alias Bbh.Content.Article
   alias Bbh.Repo
 
   @path_max 255
@@ -367,18 +366,11 @@ defmodule Bbh.Analytics do
   recorded under an earlier slug of an article are not attributed to it.
   """
   def top_articles(from, to, limit \\ 10) do
-    Repo.all(
-      from [p, a] in article_views_query(from, to),
-        group_by: [a.id, a.title, a.year, a.slug],
-        order_by: [desc: sum(p.views), asc: a.title],
-        limit: ^limit,
-        select: %{
-          id: a.id,
-          title: a.title,
-          path: fragment("'/aktuell/' || ? || '/' || ?", a.year, a.slug),
-          views: sum(p.views)
-        }
-    )
+    from
+    |> viewed_articles(to)
+    |> Enum.sort_by(fn {_path, article, views} -> {-views, article.title} end)
+    |> Enum.take(limit)
+    |> Enum.map(fn {path, article, views} -> Map.merge(article, %{path: path, views: views}) end)
   end
 
   @doc """
@@ -386,20 +378,51 @@ defmodule Bbh.Analytics do
   views are absent.
   """
   def article_views(from, to) do
-    from([p, a] in article_views_query(from, to),
-      group_by: a.id,
-      select: {a.id, sum(p.views)}
-    )
-    |> Repo.all()
-    |> Map.new()
+    from
+    |> viewed_articles(to)
+    |> Map.new(fn {_path, article, views} -> {article.id, views} end)
   end
 
-  defp article_views_query(from, to) do
-    from p in DailyPageView,
-      join: a in Article,
-      on: p.path == fragment("'/aktuell/' || ? || '/' || ?", a.year, a.slug),
-      where: p.day >= ^from and p.day <= ^to and like(p.path, "/aktuell/%")
+  # `{path, %{id:, title:}, views}` per article page viewed in the range. The views are
+  # summed per path here; which article a path names is `Bbh.Content`'s to say.
+  defp viewed_articles(from, to) do
+    views =
+      Repo.all(
+        from p in DailyPageView,
+          where: p.day >= ^from and p.day <= ^to and like(p.path, "/aktuell/%"),
+          group_by: p.path,
+          select: {p.path, sum(p.views)}
+      )
+      |> Enum.flat_map(fn {path, views} ->
+        case article_key(path) do
+          {:ok, key} -> [{key, {path, views}}]
+          :error -> []
+        end
+      end)
+      |> Map.new()
+
+    articles = views |> Map.keys() |> Bbh.Content.articles_by_year_slug()
+
+    for {key, article} <- articles do
+      {path, views} = Map.fetch!(views, key)
+      {path, article, views}
+    end
   end
+
+  # "/aktuell/2026/schuetzenfest" -> {2026, "schuetzenfest"}; anything else is no article.
+  # The year must be written canonically, as the URL is built: "/aktuell/02026/…" is a
+  # different path and must not add to the article's views.
+  defp article_key("/aktuell/" <> rest) do
+    with [year, slug] when slug != "" <- String.split(rest, "/"),
+         {number, ""} <- Integer.parse(year),
+         true <- Integer.to_string(number) == year do
+      {:ok, {number, slug}}
+    else
+      _ -> :error
+    end
+  end
+
+  defp article_key(_path), do: :error
 
   @doc """
   Most frequent site-search terms in `[from, to]` as

@@ -10,11 +10,8 @@ defmodule Bbh.Workers.TicketReminder do
   """
   use Oban.Worker, queue: :notifications, max_attempts: 3
 
-  import Ecto.Query
-
-  alias Bbh.Repo
   alias Bbh.Settings
-  alias Bbh.Tickets.{Notifier, Reminders, Ticket}
+  alias Bbh.Tickets.{Notifier, Reminders}
 
   @impl Oban.Worker
   def perform(_job) do
@@ -32,27 +29,15 @@ defmodule Bbh.Workers.TicketReminder do
   # Admins get no per-ticket mails for queues they don't work; this is their overview.
   # Skipped on a day without anything overdue or escalated.
   defp send_digest(settings) do
-    overdue = Ticket |> Reminders.overdue(settings) |> order_by([t], t.number) |> Repo.all()
+    overdue = Reminders.overdue_tickets(settings)
     escalations = Reminders.escalations(settings)
 
     if overdue != [] or escalations != [] do
-      digest = %{counts: counts(), overdue: overdue, escalations: escalations}
+      digest = %{counts: Reminders.active_counts(), overdue: overdue, escalations: escalations}
 
       for admin <- Bbh.Accounts.list_admins() do
         Notifier.digest(admin, digest)
       end
     end
-  end
-
-  defp counts do
-    Repo.all(
-      from t in Ticket,
-        where: is_nil(t.deleted_at) and t.status in ^Ticket.active_statuses(),
-        group_by: [t.queue, t.status],
-        select: {t.queue, t.status, count(t.id)}
-    )
-    |> Enum.reduce(%{}, fn {queue, status, n}, acc ->
-      Map.update(acc, queue, %{status => n}, &Map.put(&1, status, n))
-    end)
   end
 end

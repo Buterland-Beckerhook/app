@@ -111,7 +111,7 @@ defmodule Bbh.Accounts.User do
   end
 
   defp validate_calendars(changeset) do
-    valid = Bbh.Calendar.Event.calendars()
+    valid = Bbh.Calendar.calendars()
 
     validate_change(changeset, :calendars, fn :calendars, cals ->
       if Enum.all?(cals, &(&1 in valid)),

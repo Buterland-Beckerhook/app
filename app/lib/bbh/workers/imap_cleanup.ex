@@ -18,13 +18,12 @@ defmodule Bbh.Workers.ImapCleanup do
   require Logger
 
   alias Bbh.Tickets.Imap
-  alias Bbh.Repo
   alias Bbh.Tickets
   alias Bbh.Tickets.{Mailbox, Ticket}
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"ticket_id" => ticket_id, "action" => action}}) do
-    case Repo.get(Ticket, ticket_id) do
+    case Tickets.ServerCopies.get_ticket(ticket_id) do
       %Ticket{} = ticket -> clean_ticket(ticket, action)
       nil -> :ok
     end

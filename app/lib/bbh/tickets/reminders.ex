@@ -63,6 +63,27 @@ defmodule Bbh.Tickets.Reminders do
     )
   end
 
+  @doc "The overdue tickets, by number — for the admin digest."
+  def overdue_tickets(%SiteSettings{} = s, now \\ DateTime.utc_now(:second)) do
+    Ticket |> overdue(s, now) |> order_by([t], t.number) |> Repo.all()
+  end
+
+  @doc """
+  Tickets still in work per queue and status, `%{queue => %{status => count}}` — the
+  admin digest's overview.
+  """
+  def active_counts do
+    Repo.all(
+      from t in Ticket,
+        where: is_nil(t.deleted_at) and t.status in ^Ticket.active_statuses(),
+        group_by: [t.queue, t.status],
+        select: {t.queue, t.status, count(t.id)}
+    )
+    |> Enum.reduce(%{}, fn {queue, status, n}, acc ->
+      Map.update(acc, queue, %{status => n}, &Map.put(&1, status, n))
+    end)
+  end
+
   defp recipients(%Ticket{status: "new", queue: queue}, queue_users),
     do: Map.fetch!(queue_users, queue)
 

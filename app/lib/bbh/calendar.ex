@@ -272,6 +272,9 @@ defmodule Bbh.Calendar do
     |> Map.new()
   end
 
+  @doc "The calendar keys an event or a user's calendar grant may name."
+  defdelegate calendars(), to: Event
+
   @doc """
   An event by id without preloads, or `nil`. Tolerant of ids from form params: a
   malformed id is a miss, not an `Ecto.Query.CastError`.

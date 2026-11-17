@@ -12,6 +12,12 @@ defmodule Bbh.Tickets.ServerCopies do
   alias Bbh.Tickets.{Message, Ticket}
 
   @doc """
+  A ticket by id, deleted ones included, or `nil` — the one an `ImapCleanup` job
+  removes the server copies of. No scope: system use only.
+  """
+  def get_ticket(id), do: Repo.get(Ticket, id)
+
+  @doc """
   Where the import filed an inbound mail on the server, so the copy can be deleted or
   moved later. Returns the message's ticket, or nil.
   """
