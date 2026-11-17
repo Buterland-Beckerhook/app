@@ -139,6 +139,28 @@ defmodule Bbh.TicketsTest do
                Repo.get_by!(Event, ticket_id: lost.id, action: "assigned", user_id: admin.id)
     end
 
+    test "release_inaccessible/2 keeps closed and spam tickets so, and leaves deleted ones", %{
+      user: user
+    } do
+      admin = admin_user_fixture()
+      admin_scope = Scope.for_user(admin)
+      scope = granted_scope(user, ["vorstand"])
+
+      {:ok, closed} = Tickets.take(scope, ticket_fixture(queue: "vorstand"))
+      {:ok, closed} = Tickets.set_status(scope, closed, "closed")
+      {:ok, spam} = Tickets.take(scope, ticket_fixture(queue: "vorstand"))
+      {:ok, spam} = Tickets.mark_spam(scope, spam)
+      {:ok, deleted} = Tickets.take(scope, ticket_fixture(queue: "vorstand"))
+      {:ok, _} = Tickets.delete_ticket(admin_scope, deleted)
+
+      {:ok, _} = Bbh.Tickets.Grants.set_grants(admin, user, [])
+      assert Tickets.release_inaccessible(admin_scope, user) == 2
+
+      assert %{status: "closed", assignee_id: nil} = Repo.get!(Ticket, closed.id)
+      assert %{status: "spam", assignee_id: nil} = Repo.get!(Ticket, spam.id)
+      assert Repo.get!(Ticket, deleted.id).assignee_id == user.id
+    end
+
     test "only users who can see the queue are assignable", %{scope: scope} do
       ticket = ticket_fixture()
       outsider = user_fixture()
