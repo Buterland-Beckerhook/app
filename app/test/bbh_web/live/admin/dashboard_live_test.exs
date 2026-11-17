@@ -77,6 +77,21 @@ defmodule BbhWeb.Admin.DashboardLiveTest do
     render_async(lv, 2000)
   end
 
+  test "a range that is not on offer falls back to 30 days instead of crashing", %{conn: conn} do
+    {:ok, lv, _html} = live(conn, ~p"/admin")
+
+    render_click(lv, "set_range", %{"days" => "7"})
+    assert has_element?(lv, ~s(button.btn-active[phx-value-days="7"]))
+
+    for days <- ["kaputt", "365", ""] do
+      render_click(lv, "set_range", %{"days" => days})
+      assert has_element?(lv, ~s(button.btn-active[phx-value-days="30"]))
+    end
+
+    # Let the analytics reloads finish before teardown (see the test above).
+    render_async(lv, 2000)
+  end
+
   test "the account nav links to the settings modal for sign-in methods", %{conn: conn} do
     {:ok, lv, html} = live(conn, ~p"/admin")
 
