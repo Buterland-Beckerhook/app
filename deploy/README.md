@@ -29,9 +29,10 @@ as well as Basic-Auth + `noindex` (Beta) are all handled by the **central Traefi
 the host, driven by Docker labels on the `phoenix` service (see `compose.yml`).
 
 Prerequisites: the external Traefik network **`proxy`** already exists on the host, and
-Traefik knows the referenced file-provider building blocks `https-redirect@file`,
-`secure-tls@file` and the certresolver `le`. (Both are already the case in the existing
-setup.)
+Traefik knows the referenced file-provider building block `https-redirect@file` and the
+certresolver `le`. (Both are already the case in the existing setup.) The TLS minimum
+(TLS 1.2) is Traefik's `tls.options.default` in its file config, so the routers set no
+`tls.options` of their own.
 
 The `proxy` network **must have IPv6** (done 2026-10-29):
 
