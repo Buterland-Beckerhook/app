@@ -200,7 +200,6 @@ services:
       - traefik.http.routers.${TRAEFIK_NAME}-sec.entrypoints=https
       - traefik.http.routers.${TRAEFIK_NAME}-sec.rule=${TRAEFIK_RULE}
       - traefik.http.routers.${TRAEFIK_NAME}-sec.tls=true
-      - traefik.http.routers.${TRAEFIK_NAME}-sec.tls.options=secure-tls@file
       - traefik.http.routers.${TRAEFIK_NAME}-sec.tls.certresolver=le
       - traefik.http.routers.${TRAEFIK_NAME}-sec.middlewares=${TRAEFIK_MIDDLEWARES}
 
