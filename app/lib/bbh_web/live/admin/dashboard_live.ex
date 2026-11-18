@@ -36,7 +36,9 @@ defmodule BbhWeb.Admin.DashboardLive do
         full_analytics: full_analytics,
         range_days: @default_range,
         ranges: @ranges,
-        tickets: tickets
+        tickets: tickets,
+        # Admins only: image and commit are of no use to editors.
+        build_info: if(Bbh.Authz.admin?(scope), do: Bbh.BuildInfo.get())
       )
       # Off the connected mount, so the page shell renders without blocking on the DB.
       |> assign_async(:stats, fn -> {:ok, %{stats: Bbh.Dashboard.content_counts()}} end)
@@ -155,6 +157,8 @@ defmodule BbhWeb.Admin.DashboardLive do
           <.ical_clients :if={@full_analytics} rows={a.ical_clients} />
         </.async_result>
       </section>
+
+      <.build_info :if={@build_info} info={@build_info} />
     </Layouts.admin>
     """
   end

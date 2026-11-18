@@ -162,6 +162,22 @@ RUN mkdir -p /data && chown nobody:root /data
 
 USER nobody
 
+# Which build this is (Bbh.BuildInfo, shown in the admin area). Passed by build.yml;
+# empty in a local `docker build`. Kept last so a new commit only rebuilds this
+# metadata layer of the final stage, not the apt/pmtiles/typst layers above.
+ARG BBH_BUILD_VERSION=""
+ARG BBH_BUILD_COMMIT=""
+ARG BBH_BUILD_REF=""
+ARG BBH_BUILD_TAG=""
+ARG BBH_BUILD_TIME=""
+ARG BBH_BUILD_RUN_URL=""
+ENV BBH_BUILD_VERSION=${BBH_BUILD_VERSION} \
+    BBH_BUILD_COMMIT=${BBH_BUILD_COMMIT} \
+    BBH_BUILD_REF=${BBH_BUILD_REF} \
+    BBH_BUILD_TAG=${BBH_BUILD_TAG} \
+    BBH_BUILD_TIME=${BBH_BUILD_TIME} \
+    BBH_BUILD_RUN_URL=${BBH_BUILD_RUN_URL}
+
 # If using an environment that doesn't automatically reap zombie processes, it is
 # advised to add an init process such as tini via `apt-get install`
 # above and adding an entrypoint. See https://github.com/krallin/tini for details
