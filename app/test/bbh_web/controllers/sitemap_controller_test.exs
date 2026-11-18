@@ -34,6 +34,17 @@ defmodule BbhWeb.SitemapControllerTest do
     assert body =~ "/#{modified.slug}</loc><lastmod>2026-04-02</lastmod>"
   end
 
+  test "an archive article dated before 2000 is listed without lastmod", %{conn: conn} do
+    old = article_fixture(date_published: ~U[1936-07-19 19:00:00Z])
+    edge = article_fixture(date_published: ~U[2000-01-01 12:00:00Z])
+
+    body = conn |> get(~p"/sitemap.xml") |> response(200)
+
+    assert body =~ "/#{old.slug}</loc></url>"
+    refute body =~ "1936-"
+    assert body =~ "/#{edge.slug}</loc><lastmod>2000-01-01</lastmod>"
+  end
+
   test "lists indexable pages by placement and leaves out noindex/system pages", %{conn: conn} do
     page_fixture(slug: "chronik", placement: "menu")
     page_fixture(slug: "anfahrt", placement: "unlisted")

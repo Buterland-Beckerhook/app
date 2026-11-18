@@ -3,6 +3,12 @@ defmodule BbhWeb.SitemapController do
   alias Bbh.Content
 
   @static ~w(/ /aktuell /termine /thron /verein /kontakt)
+
+  # No <lastmod> before this. The archive goes back to 1936 (one article per throne),
+  # and an article's lastmod falls back to its publish date — but a page cannot have
+  # changed before the web existed, and Search Console rejects such dates as "invalid
+  # date". Leaving lastmod out is valid; the URL is still listed.
+  @lastmod_floor ~D[2000-01-01]
   @legal ~w(impressum datenschutz)
 
   # sobelow_skip ["XSS.SendResp"]
@@ -75,7 +81,13 @@ defmodule BbhWeb.SitemapController do
   defp url_element({loc, nil}), do: "  <url><loc>#{xml_escape(loc)}</loc></url>"
 
   defp url_element({loc, %DateTime{} = dt}) do
-    "  <url><loc>#{xml_escape(loc)}</loc><lastmod>#{DateTime.to_date(dt)}</lastmod></url>"
+    date = DateTime.to_date(dt)
+
+    if Date.before?(date, @lastmod_floor) do
+      url_element({loc, nil})
+    else
+      "  <url><loc>#{xml_escape(loc)}</loc><lastmod>#{date}</lastmod></url>"
+    end
   end
 
   defp xml_escape(text), do: text |> Plug.HTML.html_escape_to_iodata() |> IO.iodata_to_binary()
