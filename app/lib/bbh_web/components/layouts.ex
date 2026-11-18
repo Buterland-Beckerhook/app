@@ -534,10 +534,39 @@ defmodule BbhWeb.Layouts do
               <.link navigate={~p"/admin/einstellungen"} class="link link-hover">Einstellungen</.link>
               <.link href={~p"/users/log-out"} method="delete" class="link link-hover">Abmelden</.link>
             </div>
+            <.build_line info={Bbh.BuildInfo.get()} />
           </div>
         </aside>
       </div>
     </div>
+    """
+  end
+
+  # Which build runs, at the foot of the sidebar; the details are on the dashboard.
+  attr :info, Bbh.BuildInfo, required: true
+
+  defp build_line(assigns) do
+    info = assigns.info
+    built_at = Bbh.BuildInfo.built_at_local(info)
+
+    name =
+      cond do
+        not Bbh.BuildInfo.built?(info) -> "Entwicklung"
+        info.version -> "v" <> info.version
+        true -> Bbh.BuildInfo.short_commit(info)
+      end
+
+    label = if built_at, do: "#{name} · #{de_short_datetime(built_at)}", else: name
+    assigns = assign(assigns, :label, label)
+
+    ~H"""
+    <p
+      id="build-line"
+      class="mt-3 truncate font-mono text-xs text-base-content/50"
+      title={@info.image}
+    >
+      {@label}
+    </p>
     """
   end
 

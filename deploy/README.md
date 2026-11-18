@@ -165,6 +165,15 @@ Merging to `main` (including Renovate's auto-merges) builds a fresh image. From 
   a safety dump into `backups/pre-update-*.dump` (last 5 kept), rewrites `IMAGE` in
   `.env` and restarts. Migrations run on boot.
 
+Which build runs where: the admin sidebar shows the version and build time, the
+dashboard („System", admins only) the image, build tag, commit and workflow run.
+
+**Releases** (optional): pushing a tag `vX.Y.Z` builds images `:X.Y.Z`, `:X.Y` (and `:X`
+from 1.0.0 on); `./update.sh --tag X.Y.Z` pins one. Every build reports its version as
+`git describe` against these tags (`1.2.0-3-g<sha>` = three commits after 1.2.0). A
+release image is not rebuilt by the weekly security rebuild — that only refreshes main's
+build tags, so `--latest` stays the way to pick up Debian updates.
+
 Security fixes: Renovate assigns its vulnerability PRs, so GitHub notifies about each
 one. It still auto-merges a patch — the notification is the cue to deploy Prod.
 

@@ -93,6 +93,18 @@ config :bbh,
 
 config :bbh, :live_url, System.get_env("LIVE_URL", "https://buterland-beckerhook.de")
 
+# The running build (Bbh.BuildInfo): baked into the release image by build.yml, plus the
+# image reference the stack was started with (deploy/compose.yml passes IMAGE). All unset
+# in dev, where the admin area shows "Entwicklung" instead.
+config :bbh, :build_info,
+  version: System.get_env("BBH_BUILD_VERSION"),
+  commit: System.get_env("BBH_BUILD_COMMIT"),
+  ref: System.get_env("BBH_BUILD_REF"),
+  build_tag: System.get_env("BBH_BUILD_TAG"),
+  built_at: System.get_env("BBH_BUILD_TIME"),
+  run_url: System.get_env("BBH_BUILD_RUN_URL"),
+  image: System.get_env("BBH_IMAGE")
+
 if config_env() == :dev do
   # Reload browser tabs when matching files change.
   config :bbh, BbhWeb.Endpoint,

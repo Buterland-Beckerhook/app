@@ -444,6 +444,14 @@ Two GitHub Actions workflows (`.github/workflows/`):
   tag through `deploy/update.sh --latest`; Beta follows `:beta` via a systemd timer.
   Actions are pinned to commit SHAs; Renovate keeps them current.
 
+**Build identity** (`Bbh.BuildInfo`): build.yml's `prepare` job fixes version
+(`git describe` against `vX.Y.Z` tags), UTC build time and the immutable tag once; the
+image gets them as Dockerfile `ARG`s → `BBH_BUILD_*` env (the last layer of the final
+stage, so a new commit doesn't invalidate the layers above), and the merge job tags with
+the same values. `deploy/compose.yml` adds `BBH_IMAGE` from `IMAGE`. The admin sidebar
+shows version + build time, the dashboard's „System" card (admins) the rest. A pushed tag
+`vX.Y.Z` additionally produces `:X.Y.Z`/`:X.Y`/`:X` and does not move `:beta`.
+
 **Renovate** (`renovate.json`) opens dependency-update PRs weekly (Elixir/mix,
 GitHub Actions, Docker base images, docker-compose). Patch/minor/digest updates
 auto-merge once `ci.yml` is green; majors wait for manual review. The

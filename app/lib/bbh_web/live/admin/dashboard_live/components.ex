@@ -343,4 +343,74 @@ defmodule BbhWeb.Admin.DashboardLive.Components do
     </div>
     """
   end
+
+  attr :info, Bbh.BuildInfo, required: true
+
+  # The running build in full (admins only): what to name in a bug report or when
+  # comparing Beta with Prod. `Bbh.BuildInfo` says where each value comes from.
+  def build_info(assigns) do
+    info = assigns.info
+    runtime = Bbh.BuildInfo.runtime_versions()
+    built_at = Bbh.BuildInfo.built_at_local(info)
+
+    assigns =
+      assign(assigns,
+        built?: Bbh.BuildInfo.built?(info),
+        release_url: Bbh.BuildInfo.release_url(info),
+        version: info.version || "noch kein Release",
+        commit: Bbh.BuildInfo.short_commit(info),
+        commit_url: Bbh.BuildInfo.commit_url(info),
+        built_at: if(built_at, do: de_short_datetime(built_at), else: "–"),
+        started_at: de_short_datetime(Bbh.BuildInfo.started_at()),
+        runtime: "Elixir #{runtime.elixir} · OTP #{runtime.otp}"
+      )
+
+    ~H"""
+    <section id="build-info" class="mt-10">
+      <h2 class="text-lg font-semibold">System</h2>
+      <div class="mt-4 rounded-box border border-base-300 bg-base-200 p-4">
+        <p :if={!@built?} class="mb-3 text-sm text-base-content/70">
+          Entwicklungsumgebung – keine Build-Informationen.
+        </p>
+        <dl class="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1.5 text-sm">
+          <%= if @built? do %>
+            <dt class="text-base-content/60">Version</dt>
+            <dd id="build-version" class="break-all font-mono">
+              <a :if={@release_url} href={@release_url} class="link link-hover" target="_blank">
+                {@version}
+              </a>
+              <span :if={!@release_url}>{@version}</span>
+            </dd>
+
+            <dt class="text-base-content/60">Image</dt>
+            <dd id="build-image" class="break-all font-mono">{@info.image || "–"}</dd>
+
+            <dt class="text-base-content/60">Build-Tag</dt>
+            <dd id="build-tag" class="break-all font-mono">{@info.build_tag || "–"}</dd>
+
+            <dt class="text-base-content/60">Commit</dt>
+            <dd id="build-commit" class="break-all font-mono">
+              <a href={@commit_url} class="link link-hover" target="_blank">{@commit}</a>
+              <span :if={@info.ref} class="font-sans text-base-content/60">({@info.ref})</span>
+            </dd>
+
+            <dt class="text-base-content/60">Gebaut</dt>
+            <dd id="build-time">
+              {@built_at}
+              <a :if={@info.run_url} href={@info.run_url} class="link link-hover" target="_blank">
+                (Workflow-Lauf)
+              </a>
+            </dd>
+          <% end %>
+
+          <dt class="text-base-content/60">Gestartet</dt>
+          <dd id="build-started">{@started_at}</dd>
+
+          <dt class="text-base-content/60">Laufzeit</dt>
+          <dd class="font-mono">{@runtime}</dd>
+        </dl>
+      </div>
+    </section>
+    """
+  end
 end

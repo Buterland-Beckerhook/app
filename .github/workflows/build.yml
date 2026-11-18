@@ -10,12 +10,18 @@ name: Build & push image
 # into one multi-arch manifest. The legs run in parallel, so wall-clock is
 # roughly a single native build instead of the old emulated arm64 leg.
 #
-# Triggers on push to main and via "Run workflow" (workflow_dispatch) for ad-hoc
-# builds from a feature branch. Tags per build:
-#   :beta                    rolling, what the Beta stack runs
+# Triggers on push to main, on a release tag (vX.Y.Z) and via "Run workflow"
+# (workflow_dispatch) for ad-hoc builds from a feature branch. Tags per build:
+#   :beta                    rolling, what the Beta stack runs (not on release tags)
 #   :YYYYMMDD-HHMM-<sha>     immutable (UTC build time), what Prod pins — newest
 #                            one is what `deploy/update.sh --latest` picks
 #   :sha-XXXXXXX             newest build of that commit (moves on a rebuild)
+#   :X.Y.Z, :X.Y, :X         release tag vX.Y.Z only (:X from 1.0.0 on)
+#
+# The `prepare` job fixes the build's identity once — version (`git describe`
+# against the vX.Y.Z tags), UTC build time and the immutable tag — and both the
+# image (Dockerfile ARGs → BBH_BUILD_*, shown in the admin area by Bbh.BuildInfo)
+# and the manifest tags use exactly those values.
 #
 # A weekly scheduled rebuild of main picks up Debian security updates for the
 # runtime packages (openssl, ca-certificates, …): it rebuilds the final stage
@@ -23,6 +29,8 @@ name: Build & push image
 on:
   push:
     branches: [main]
+    # Release tags. Path filters are not evaluated for tag pushes.
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
     paths:
       - "app/**"
       - ".github/workflows/build.yml"
@@ -48,7 +56,46 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  prepare:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.info.outputs.version }}
+      build_time: ${{ steps.info.outputs.build_time }}
+      build_tag: ${{ steps.info.outputs.build_tag }}
+      image_tag: ${{ steps.info.outputs.image_tag }}
+    steps:
+      # Full history + tags (blobs on demand) — `git describe` needs both.
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          filter: blob:none
+
+      - name: Build identity
+        id: info
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          now="$(date -u +%s)"
+          build_tag="$(date -u -d "@$now" +%Y%m%d-%H%M)-${GITHUB_SHA::7}"
+          echo "build_time=$(date -u -d "@$now" +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+          echo "build_tag=$build_tag" >> "$GITHUB_OUTPUT"
+          # The immutable tag is only pushed for main (see the merge job), so only
+          # those images claim it.
+          if [[ "$GITHUB_REF" == "refs/heads/$DEFAULT_BRANCH" ]]; then
+            echo "image_tag=$build_tag" >> "$GITHUB_OUTPUT"
+          fi
+          # vX.Y.Z → X.Y.Z; three commits later → X.Y.Z-3-g<sha>; no release yet → empty.
+          version="$(git describe --tags --match 'v[0-9]*.[0-9]*.[0-9]*' 2>/dev/null || true)"
+          echo "version=${version#v}" >> "$GITHUB_OUTPUT"
+          echo "version: ${version:-(no release tag yet)}, tag: $build_tag"
+
   build:
+    needs: prepare
     # One native runner per architecture — no QEMU.
     strategy:
       fail-fast: false
@@ -102,6 +149,14 @@ jobs:
           file: ./app/Dockerfile
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
+          # Shown in the admin area (Bbh.BuildInfo) — see the prepare job.
+          build-args: |
+            BBH_BUILD_VERSION=${{ needs.prepare.outputs.version }}
+            BBH_BUILD_COMMIT=${{ github.sha }}
+            BBH_BUILD_REF=${{ github.ref_name }}
+            BBH_BUILD_TAG=${{ needs.prepare.outputs.image_tag }}
+            BBH_BUILD_TIME=${{ needs.prepare.outputs.build_time }}
+            BBH_BUILD_RUN_URL=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
           # push-by-digest turns a provenance attestation (on by default in v6)
           # into an extra unknown/unknown entry in the merged manifest — disable it.
@@ -128,7 +183,7 @@ jobs:
           retention-days: 1
 
   merge:
-    needs: build
+    needs: [prepare, build]
     runs-on: ubuntu-26.04
     timeout-minutes: 10
     permissions:
@@ -160,11 +215,19 @@ jobs:
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
           images: ${{ env.IMAGE }}
+          # No :latest — nothing pulls it, and it would only blur what runs where.
+          flavor: latest=false
           tags: |
-            type=raw,value=beta
+            # A release tag must not move Beta (it may point at an older commit).
+            type=raw,value=beta,enable=${{ github.ref_type != 'tag' }}
             # main only: `update.sh --latest` must never pick a feature-branch build.
-            type=raw,value={{date 'YYYYMMDD-HHmm'}}-{{sha}},enable={{is_default_branch}}
+            # Same value the image carries as BBH_BUILD_TAG (prepare job).
+            type=raw,value=${{ needs.prepare.outputs.build_tag }},enable={{is_default_branch}}
             type=sha,format=short
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            # A 0.x major is no compatibility promise, so no rolling :0.
+            type=semver,pattern={{major}},enable=${{ !startsWith(github.ref, 'refs/tags/v0.') }}
 
       - name: Create multi-arch manifest
         working-directory: ${{ runner.temp }}/digests

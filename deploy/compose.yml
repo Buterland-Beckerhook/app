@@ -131,6 +131,9 @@ services:
       PHX_SERVER: "true"
       # Beta marking + noindex (BbhWeb.Beta). On by itself for a beta.* PHX_HOST.
       BETA: ${BETA:-}
+      # The image this stack runs, shown in the admin area (Bbh.BuildInfo). Keep in
+      # step with `image:` above.
+      BBH_IMAGE: ${IMAGE:-ghcr.io/buterland-beckerhook/app:beta}
       UPLOADS_DIR: /data/uploads
       MEDIA_CACHE_DIR: /data/uploads_cache
       # libvips guardrails. VIPS_CONCURRENCY caps native threads PER operation to
