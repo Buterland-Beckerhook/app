@@ -323,3 +323,4 @@ tmp/
 # Raw Bundesbank BLZ source (large, Latin-1). Regenerate app/priv/data/blz.tsv
 # via `mix bbh.blz.strip`; only the stripped TSV is committed.
 blz-aktuell-csv-data.csv
+/temp
