@@ -99,9 +99,14 @@ defmodule Bbh.MixProject do
         compile: false,
         depth: 1
       },
-      # Above the GHSA-754j-98wh-57rf fix (1.26.3). A plain range: Renovate can't
-      # parse a compound one ("~> 1.26 and >= 1.26.3") and stops tracking the dep.
-      {:swoosh, "~> 1.29"},
+      # Above the GHSA-754j-98wh-57rf fix (1.26.3) and 1.30.0 for idna 8.x. A plain range:
+      # Renovate can't parse a compound one ("~> 1.26 and >= 1.26.3") and stops tracking
+      # the dep.
+      {:swoosh, "~> 1.30"},
+      # Transitive (via swoosh), listed for Renovate like ecto/plug: EEF-CVE-2026-117678
+      # (CPU exhaustion via over-long xn-- label) is fixed in 8.0.0; swoosh allows 8.x
+      # from 1.30.0 on.
+      {:idna, "~> 8.0"},
       {:gen_smtp, "~> 1.2"},
       {:image, "~> 0.72"},
       {:nimble_totp, "~> 1.0"},
