@@ -38,7 +38,7 @@ x-logging: &logging
 
 services:
   postgres:
-    image: postgres:18-alpine
+    image: postgres:18-alpine@sha256:0115267ab5a509022df9319c77be365cef335adb71556c75f60f5360ee247e71
     restart: unless-stopped
     logging: *logging
     networks:
@@ -65,7 +65,7 @@ services:
   # restore fails and Phoenix stays down instead of serving (and migrating) an
   # empty site. That is what an `up -d` before ./upgrade-postgres.sh looks like.
   restore:
-    image: postgres:18-alpine
+    image: postgres:18-alpine@sha256:0115267ab5a509022df9319c77be365cef335adb71556c75f60f5360ee247e71
     restart: "no"
     logging: *logging
     depends_on:
