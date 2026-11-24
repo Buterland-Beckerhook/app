@@ -441,7 +441,8 @@ Two GitHub Actions workflows (`.github/workflows/`):
 - **`build.yml`** — builds the Phoenix release image and pushes it to GHCR (see
   the deploy notes), on every push to `main` and weekly without cache for the
   runtime's Debian security updates. Prod pins the immutable `YYYYMMDD-HHMM-<sha>`
-  tag through `deploy/update.sh --latest`; Beta follows `:beta` via a systemd timer.
+  tag through `deploy/update.sh --latest`; Beta follows `:beta` via Komodo's
+  image polling (auto update).
   Actions are pinned to commit SHAs; Renovate keeps them current.
 
 **Build identity** (`Bbh.BuildInfo`): build.yml's `prepare` job fixes version
