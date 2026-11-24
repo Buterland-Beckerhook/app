@@ -141,9 +141,10 @@ docker compose --env-file .env up -d            # restore runs, then Phoenix res
   Intended for (re)seeding — not an "apply diff".
 - A failed restore keeps Phoenix down (rather than serving a half-restored DB); check
   `docker compose --env-file .env logs restore`.
-- The drop folder is `deploy/restore/` unless `RESTORE_DIR` in `.env` points elsewhere
-  (an absolute host path, e.g. `/opt/data/bbh-beta/restore` when a deploy tool owns
-  the checkout). `upgrade-postgres.sh` honours the same setting.
+- The drop folder is `deploy/restore/` unless `DATA_DIR` in `.env` points elsewhere
+  (an absolute host path per stack, e.g. `/opt/data/bbh-beta` → `…/restore`, when a
+  deploy tool owns the checkout). The scripts' safety dumps follow it into
+  `$DATA_DIR/backups/`.
 
 ## Update flow ("practice")
 

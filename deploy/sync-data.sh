@@ -14,7 +14,7 @@
 #   1. Safety checks (different stacks, target is Beta unless --allow-prod-target),
 #      then asks for confirmation (skip with --yes).
 #   2. pg_dump of the source DB (live; pg_dump reads one consistent snapshot).
-#   3. Safety dump of the target DB into <target>/backups/ (keeps the last 5).
+#   3. Safety dump of the target DB into <target DATA_DIR>/backups/ (keeps the last 5).
 #   4. Stops the target's phoenix, drops + recreates its DB, restores the dump
 #      in a single transaction.
 #   5. Sanitizes the target DB (see SANITIZE_SQL below): no push subscriptions,
@@ -101,7 +101,10 @@ cleanup() {
   fi
 }
 trap cleanup EXIT
-BACKUPS="$DST_DIR/backups"
+# Safety dump into the target's DATA_DIR/backups (relative paths are relative to its dir).
+DST_DATA="$(envval "$DST_DIR" DATA_DIR)"; DST_DATA="${DST_DATA:-.}"
+[[ "$DST_DATA" == /* ]] || DST_DATA="$DST_DIR/$DST_DATA"
+BACKUPS="$DST_DATA/backups"
 mkdir -p "$BACKUPS"
 
 echo "==> Dumping source database"
