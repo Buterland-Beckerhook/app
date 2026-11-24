@@ -54,6 +54,7 @@ envval() { sed -n "s/^$1=//p" .env | head -n1 | sed -e 's/^"//' -e 's/"$//'; }
 STACK="$(envval STACK_NAME)"; STACK="${STACK:-bbh}"
 DB_USER="$(envval DB_USER)"
 PHX_HOST="$(envval PHX_HOST)"
+RESTORE="$(envval RESTORE_DIR)"; RESTORE="${RESTORE:-restore}"
 [[ -n "$DB_USER" ]] || die "DB_USER missing in .env"
 
 DB=bbh
@@ -116,9 +117,9 @@ OLD_MAJOR="$(docker run --rm --network none -v "$LEGACY_VOL":/v:ro --entrypoint 
 OLD_IMAGE="postgres:${OLD_MAJOR}-alpine"
 
 shopt -s nullglob
-pending=(restore/*.dump)
+pending=("$RESTORE"/*.dump)
 shopt -u nullglob
-(( ${#pending[@]} == 0 )) || die "unconsumed dump(s) in restore/: ${pending[*]} — move them away first"
+(( ${#pending[@]} == 0 )) || die "unconsumed dump(s) in $RESTORE/: ${pending[*]} — move them away first"
 
 cat <<EOF
 Stack:    $PHX_HOST  (stack $STACK, $(pwd))
@@ -132,7 +133,7 @@ if [[ "$ASSUME_YES" -ne 1 ]]; then
 fi
 
 STAMP="$(date +%Y%m%d-%H%M%S)"
-mkdir -p backups restore
+mkdir -p backups "$RESTORE"
 
 # --- 2. Stop the stack --------------------------------------------------------
 echo "==> Stopping the stack"
@@ -169,7 +170,7 @@ tmp_sql "$COUNT_SQL" > "$WORK/old.counts"
 stop_tmp
 cp "$WORK/db.dump" "backups/pg${OLD_MAJOR}-final-$STAMP.dump"
 # Copied in as *.partial and renamed: the restore service only ever sees a whole *.dump.
-DUMP="restore/pg${OLD_MAJOR}-to-pg${NEW_MAJOR}-$STAMP.dump"
+DUMP="$RESTORE/pg${OLD_MAJOR}-to-pg${NEW_MAJOR}-$STAMP.dump"
 cp "$WORK/db.dump" "$DUMP.partial"
 mv "$DUMP.partial" "$DUMP"
 echo "    $(wc -l < "$WORK/old.counts") tables, dump $(du -h "$DUMP" | cut -f1)"
