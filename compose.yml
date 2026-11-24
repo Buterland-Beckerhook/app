@@ -49,7 +49,7 @@ services:
   # so the import talks the real protocol. `make mail-samples` drops sample mails into
   # INBOX; the poller (every two minutes) files them. Login: any user, USER_PASSWORD.
   dovecot:
-    image: dovecot/dovecot:2.4.5
+    image: dovecot/dovecot:2.4.5@sha256:a2e908c9a93698f3923104ea5be7f4beacde9586242aff5d8059599d0042c62a
     restart: unless-stopped
     environment:
       USER_PASSWORD: postfach
@@ -62,7 +62,7 @@ services:
       - dovecot_mail:/srv/vmail
 
   caddy:
-    image: caddy:2-alpine
+    image: caddy:2-alpine@sha256:003a97808e781aa9f7e75cc2f43d34d461099031faf5e20faefb9f61126836f0
     restart: unless-stopped
     depends_on:
       - phoenix
