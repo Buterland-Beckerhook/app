@@ -153,8 +153,8 @@ Merging to `main` (including Renovate's auto-merges) builds a fresh image. From 
   repo, `.env` values kept as the stack's Environment in Komodo). The stack has
   *Poll for Updates* and *Auto Update* on, so Komodo redeploys whenever `:beta` points
   to a new digest — Beta is still the first to run every build. Set
-  `RESTORE_DIR` to a path outside the checkout (see "Restoring a dump"), because Komodo
-  may re-clone it.
+  `DATA_DIR` to a path outside the checkout (`/opt/data/bbh-beta`, see "Restoring a
+  dump"), because Komodo may re-clone it.
 - **Prod is updated by hand**, once Beta looks fine:
   ```sh
   sudo ./update.sh --latest
