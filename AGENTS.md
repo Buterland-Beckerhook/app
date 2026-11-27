@@ -440,9 +440,10 @@ Two GitHub Actions workflows (`.github/workflows/`):
   Renovate's auto-merge.
 - **`build.yml`** — builds the Phoenix release image and pushes it to GHCR (see
   the deploy notes), on every push to `main` and weekly without cache for the
-  runtime's Debian security updates. Prod pins the immutable `YYYYMMDD-HHMM-<sha>`
-  tag through `deploy/update.sh --latest`; Beta follows `:beta` via Komodo's
-  image polling (auto update).
+  runtime's Debian security updates. Beta follows `:beta`, Prod follows `:1`, both
+  via Komodo's image polling (auto update). `:1` moves on a release: a hand-pushed
+  `vX.Y.Z` tag, or an automatic patch release when everything on `main` since the
+  last release is Renovate's (or the weekly rebuild) — see the header of `build.yml`.
   Actions are pinned to commit SHAs; Renovate keeps them current.
 
 **Build identity** (`Bbh.BuildInfo`): build.yml's `prepare` job fixes version

@@ -161,32 +161,46 @@ Merging to `main` (including Renovate's auto-merges) builds a fresh image. From 
   kept as `pre-deploy-*.dump`. A failed dump stops the deploy; a stopped Postgres
   (first deploy) is skipped. It runs inside the Periphery container, so `/opt/data`
   must be mounted there under the same path.
-- **Prod is updated by hand**, once Beta looks fine:
-  ```sh
-  sudo ./update.sh --latest
-  ```
-  It looks up the newest build tag on GHCR, shows the GitHub compare link, asks, takes
-  a safety dump into `backups/pre-update-*.dump` (last 5 kept), rewrites `IMAGE` in
-  `.env` and restarts. Migrations run on boot.
+- **Prod is deployed by Komodo from a release** (stack `bbh-prod`, `IMAGE=…/app:1`,
+  *Poll for Updates* + *Auto Update*, same *Pre Deploy* dump as Beta). It moves when
+  `:1` moves, i.e. on a release:
+  - **By hand**, once Beta looks fine: `git tag v1.4.0 && git push origin v1.4.0`.
+    Feature work is released like this (minor), and so is anything after it.
+  - **Automatically as a patch** (`build.yml`, "Automatic patch releases"): a build of
+    `main` whose commits since the last release are all Renovate's — or the weekly
+    security rebuild with nothing new — is tagged `vX.Y.(Z+1)` and pushed as
+    `:X.Y.Z`/`:X.Y`/`:X`. Renovate fixes and Debian updates thus reach Prod without a
+    hand-made tag. As soon as other unreleased commits are on `main`, nothing is
+    released automatically until the next manual tag.
+  - **A new major** (`v2.0.0`) is never picked up by `:1`: switch `IMAGE` to `:2` in
+    Komodo deliberately (e.g. for a Postgres major upgrade).
+
+  Migrations run on boot. A broken one is not undone by going back to the old image —
+  only by restoring the `pre-deploy-*.dump` (see "Restoring a dump").
+
+  Without Komodo, `sudo ./update.sh --latest` / `--tag X.Y.Z` still works: it looks
+  up the build tag on GHCR, takes a safety dump into `backups/pre-update-*.dump`,
+  rewrites `IMAGE` in `.env` and restarts.
 
 Which build runs where: the admin sidebar shows the version and build time, the
 dashboard („System", admins only) the image, build tag, commit and workflow run.
-
-**Releases** (optional): pushing a tag `vX.Y.Z` builds images `:X.Y.Z`, `:X.Y` (and `:X`
-from 1.0.0 on); `./update.sh --tag X.Y.Z` pins one. Every build reports its version as
-`git describe` against these tags (`1.2.0-3-g<sha>` = three commits after 1.2.0). A
-release image is not rebuilt by the weekly security rebuild — that only refreshes main's
-build tags, so `--latest` stays the way to pick up Debian updates.
+Every build reports its version as `git describe` against the `vX.Y.Z` tags
+(`1.2.0-3-g<sha>` = three commits after 1.2.0); an automatic release reports its new
+version.
 
 Security fixes: Renovate assigns its vulnerability PRs, so GitHub notifies about each
-one. It still auto-merges a patch — the notification is the cue to deploy Prod.
-
-Prod deliberately does not deploy itself: a migration runs unattended on boot, and a
-broken one is not undone by going back to the old image — only by restoring the dump.
+one. Auto-merged, they become a patch release on their own — unless unreleased work is
+on `main`; then the notification is the cue to check Beta and tag.
 
 ### Rollback
 
-`update.sh` prints the previous tag after every switch. Older build tags are listed on
+**Komodo:** set `IMAGE` in the stack's Environment to the previous release
+(`…/app:1.4.1`) and deploy; switch back to `:1` once a fixed release is out — while
+pinned, Prod picks up nothing. If the database was already migrated, put the
+`pre-deploy-*.dump` from `$DATA_DIR/backups/` into `$DATA_DIR/restore/` together
+with that (see [Restoring a dump](#restoring-a-dump)).
+
+**update.sh:** it prints the previous tag after every switch. Older build tags are listed on
 GHCR (or in the Actions log).
 ```sh
 sudo ./update.sh --tag 20261020-0417-abc1234
