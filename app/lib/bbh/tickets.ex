@@ -36,9 +36,6 @@ defmodule Bbh.Tickets do
   # A ticket opened again within this window is not logged as a second view.
   @view_throttle_minutes 10
 
-  @doc "Whether the Postfach replaces the old mail path (`TICKETS_ENABLED`)."
-  def enabled?, do: Application.get_env(:bbh, :tickets_enabled, false) == true
-
   @doc """
   Subscribes the caller to ticket changes (`{:tickets_changed, ticket_id}`) made by other
   processes — its own writes are not echoed back.

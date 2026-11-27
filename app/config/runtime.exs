@@ -28,16 +28,10 @@ if tz = System.get_env("TIME_ZONE") do
   config :bbh, :time_zone, tz
 end
 
-# Postfach (ticket system). Off until the switch-over (on in dev, see dev.exs); the old
-# mail path stays meanwhile. Only an explicitly set variable overrides the default.
-if enabled = System.get_env("TICKETS_ENABLED") do
-  config :bbh, :tickets_enabled, enabled in ~w(true 1)
-end
-
-# Beta: "beta." in front of every Postfach queue address (Bbh.Tickets.Queue), so it
-# receives and replies as the test aliases even with a copy of Prod's queue list.
-if prefix = System.get_env("TICKET_ADDRESS_PREFIX") do
-  config :bbh, :ticket_address_prefix, prefix
+# Beta: one address in place of every Postfach queue address (Bbh.Tickets.Queue), so it
+# receives and replies as beta.tickets@ even with a copy of Prod's queue list.
+if override = System.get_env("TICKET_ADDRESS_OVERRIDE") do
+  config :bbh, :ticket_address_override, String.trim(override)
 end
 
 # The Postfach's collector mailbox (Bbh.Tickets.Mailbox) — import only when set. Beta
@@ -69,7 +63,7 @@ for {env, key, parse} <- [
 end
 
 # Field encryption keys for the Postfach (Bbh.Vault). Set together; Beta gets its own,
-# never Prod's. Checked at boot when TICKETS_ENABLED is on.
+# never Prod's. Checked at boot.
 if keys = System.get_env("TICKET_KEYS") do
   config :bbh, Bbh.Vault,
     keys: keys,
@@ -228,14 +222,27 @@ if config_env() == :prod do
   #
   # Check `Plug.SSL` for all available options in `force_ssl`.
 
+  # The first of these variables that is set and not blank (compose passes unset ones
+  # as "").
+  first_env = fn names ->
+    Enum.find_value(names, fn name ->
+      case System.get_env(name) do
+        blank when blank in [nil, ""] -> nil
+        value -> value
+      end
+    end)
+  end
+
   # Media storage (mounted volume) + site settings.
   config :bbh,
     uploads_dir: System.get_env("UPLOADS_DIR") || "/data/uploads",
     media_cache_dir: System.get_env("MEDIA_CACHE_DIR") || "/data/uploads_cache",
     site_url: "https://#{host}",
-    contact_recipient: System.get_env("CONTACT_RECIPIENT") || "info@buterland-beckerhook.de",
-    contact_sender: System.get_env("CONTACT_SENDER") || "noreply@buterland-beckerhook.de",
-    contact_sender_name: System.get_env("CONTACT_SENDER_NAME") || "Buterland-Beckerhook.de",
+    # Sender of all system mail (Bbh.Mailer). CONTACT_SENDER(_NAME) are the former
+    # names, still read as a fallback until every .env has moved over.
+    mail_sender: first_env.(~w(MAIL_SENDER CONTACT_SENDER)) || "noreply@buterland-beckerhook.de",
+    mail_sender_name:
+      first_env.(~w(MAIL_SENDER_NAME CONTACT_SENDER_NAME)) || "Buterland-Beckerhook.de",
     altcha_hmac_key: System.get_env("ALTCHA_HMAC_KEY"),
     membership_min_age: String.to_integer(System.get_env("MEMBERSHIP_MIN_AGE") || "16"),
     membership_max_child_age:
@@ -247,7 +254,8 @@ if config_env() == :prod do
   # Uploaded BLZ table inside the data volume (see Bbh.Blz).
   config :bbh, Bbh.Blz, upload_file: System.get_env("BLZ_DATA_FILE") || "/data/blz.tsv"
 
-  # Contact form email via the club's own SMTP server.
+  # System mail (noreply@: login, notifications, the applicant's copy) via the club's
+  # own SMTP server.
   smtp_relay = System.get_env("SMTP_RELAY")
 
   smtp = [

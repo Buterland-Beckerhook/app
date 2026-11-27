@@ -33,9 +33,7 @@ defmodule BbhWeb.MembershipController do
       {:ok, data} ->
         case check_spam(conn, params) do
           :ok ->
-            if Bbh.Tickets.enabled?(),
-              do: create_ticket(conn, data, params),
-              else: deliver(conn, data, params)
+            create_ticket(conn, data, params)
 
           :rate_limited ->
             Logger.warning("Membership form rejected: rate limit")
@@ -54,7 +52,7 @@ defmodule BbhWeb.MembershipController do
     end
   end
 
-  # Postfach: the application becomes a ticket (with the submission record standing in
+  # The application becomes a Postfach ticket (with the submission record standing in
   # for date and signature); the applicant still gets their copy of the SEPA mandate.
   defp create_ticket(conn, data, params) do
     record = %{
@@ -87,28 +85,6 @@ defmodule BbhWeb.MembershipController do
     end
   end
 
-  defp deliver(conn, data, params) do
-    case Bbh.Forms.Membership.deliver(data) do
-      {:ok, _} ->
-        conn
-        |> put_flash(
-          :info,
-          "Vielen Dank! Ihr Aufnahmeantrag wurde gesendet. Eine Kopie geht an Ihre E-Mail-Adresse."
-        )
-        |> redirect(to: ~p"/verein/mitglied-werden")
-
-      {:error, reason} ->
-        Logger.error("Membership form delivery failed: #{inspect(reason)}")
-
-        conn
-        |> put_flash(
-          :error,
-          "Ihr Antrag konnte nicht gesendet werden. Bitte versuchen Sie es später erneut."
-        )
-        |> render_form(params, %{})
-    end
-  end
-
   # Honeypot, then submit-timing, then the Altcha proof of work. Each layer is
   # independent so any one tripping is enough to reject.
   defp check_spam(conn, params) do
@@ -121,8 +97,8 @@ defmodule BbhWeb.MembershipController do
     end
   end
 
-  # Last, so only submissions that passed every spam check count: each one sends mail
-  # or opens a ticket, and the proof of work alone is cheap for a script. A family may apply together from one address.
+  # Last, so only submissions that passed every spam check count: each one opens a
+  # ticket, and the proof of work alone is cheap for a script. A family may apply together from one address.
   defp rate_limited?(conn) do
     BbhWeb.RateLimit.check(
       "membership_submit",

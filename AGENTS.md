@@ -154,7 +154,7 @@ Every year's winners of the club's trophies live in `trophies` / `trophy_wins`
 ## Postfach (tickets)
 
 Contact form, membership form and mail to the club addresses become tickets in
-`/admin/postfach` (`Bbh.Tickets`), behind `TICKETS_ENABLED` (on in dev). See
+`/admin/postfach` (`Bbh.Tickets`) — there is no other mail path for them. See
 `docs/adr/0016-ticket-system.md` and the full plan in `docs/plans/ticket-system.md`.
 Rules that constrain changes:
 
@@ -188,8 +188,8 @@ Rules that constrain changes:
   `TICKET_EVENT_RETENTION_MONTHS`), because the Datenschutzerklärung states it;
   reminder thresholds are a site setting (tab „Postfach").
 - **Beta never sees Prod's mail or tickets:** own `TICKET_KEYS`, own mailbox
-  (`beta.tickets@`, and `TICKET_ADDRESS_PREFIX=beta.` so every queue address becomes
-  its `beta.` test alias), and
+  (`beta.tickets@`, and `TICKET_ADDRESS_OVERRIDE=beta.tickets@…` in place of every
+  queue address — inbound mail then always lands in `info`), and
   `deploy/sync-data.sh` truncates the ticket tables. `scripts/seed.sh` empties them
   (and the login log) after a restore, too — unless `KEEP_TICKETS=1`.
 - **Queues are data** (`ticket_queues`, admin at `/admin/postfaecher`), cached in

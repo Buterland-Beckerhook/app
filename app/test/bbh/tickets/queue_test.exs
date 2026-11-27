@@ -1,5 +1,5 @@
 defmodule Bbh.Tickets.QueueTest do
-  # Not async: one test sets the global address prefix.
+  # Not async: one test sets the global address override.
   use Bbh.DataCase, async: false
 
   import Bbh.AccountsFixtures
@@ -21,14 +21,18 @@ defmodule Bbh.Tickets.QueueTest do
     assert Queue.for_address("tickets@buterland-beckerhook.de") == nil
   end
 
-  test "TICKET_ADDRESS_PREFIX turns every address into its test alias" do
-    Application.put_env(:bbh, :ticket_address_prefix, "beta.")
-    on_exit(fn -> Application.delete_env(:bbh, :ticket_address_prefix) end)
+  test "TICKET_ADDRESS_OVERRIDE replaces every address" do
+    beta = "beta.tickets@buterland-beckerhook.de"
+    Application.put_env(:bbh, :ticket_address_override, beta)
+    on_exit(fn -> Application.delete_env(:bbh, :ticket_address_override) end)
 
-    assert Queue.inbound_address("info") == "beta.info@buterland-beckerhook.de"
-    assert Queue.reply_address("mitgliedschaft") == "beta.vorstand@buterland-beckerhook.de"
-    assert Queue.for_address("beta.vorstand@buterland-beckerhook.de") == "vorstand"
-    # The real address is no longer a queue address on Beta.
+    assert Queue.inbound_address("info") == beta
+    assert Queue.inbound_address("vorstand") == beta
+    assert Queue.reply_address("mitgliedschaft") == beta
+    # A queue without an inbound address still has none.
+    assert Queue.inbound_address("mitgliedschaft") == nil
+    # No address names a queue: everything falls back to info, the real ones included.
+    assert Queue.for_address(beta) == nil
     assert Queue.for_address("vorstand@buterland-beckerhook.de") == nil
   end
 

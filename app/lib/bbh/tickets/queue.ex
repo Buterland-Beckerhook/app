@@ -12,9 +12,9 @@ defmodule Bbh.Tickets.Queue do
   Served from a `:persistent_term` cache that every write through this module
   refreshes (off in tests).
 
-  On Beta, `TICKET_ADDRESS_PREFIX=beta.` turns every address into its test alias
-  (`vorstand@…` → `beta.vorstand@…`), so a copy of Prod's data never sends or routes
-  as the real addresses.
+  On Beta, `TICKET_ADDRESS_OVERRIDE=beta.tickets@…` replaces every address, inbound and
+  reply, so a copy of Prod's data never sends or routes as the real addresses. All
+  inbound mail then lands in `info`: one address cannot tell the queues apart.
   """
   use Ecto.Schema
   import Ecto.Changeset
@@ -90,26 +90,33 @@ defmodule Bbh.Tickets.Queue do
   def in_contact_form?(key), do: List.keymember?(contact_options(), key, 1)
 
   @doc "The address mail to this queue arrives at, or nil."
-  def inbound_address(key), do: key |> get() |> field_value(:inbound_address) |> prefixed()
+  def inbound_address(key), do: key |> get() |> field_value(:inbound_address) |> effective()
 
   @doc "The address replies from this queue are sent as (its inbound address by default)."
   def reply_address(key) do
     case get(key) do
       nil -> nil
-      q -> prefixed(q.reply_address || q.inbound_address)
+      q -> effective(q.reply_address || q.inbound_address)
     end
   end
 
   @doc "The line naming the queue under a reply and in the sender name; nil: the club only."
   def signature(key), do: key |> get() |> field_value(:signature)
 
-  @doc "The queue whose inbound address is `address` (case-insensitive), or nil."
+  @doc """
+  The queue whose inbound address is `address` (case-insensitive), or nil — always nil
+  under `TICKET_ADDRESS_OVERRIDE`.
+  """
   def for_address(address) when is_binary(address) do
     address = address |> String.trim() |> String.downcase()
 
-    Enum.find_value(all(), fn q ->
-      if (prefixed(q.inbound_address) || "") |> String.downcase() == address, do: q.key
-    end)
+    if override() do
+      nil
+    else
+      Enum.find_value(all(), fn q ->
+        if (q.inbound_address || "") |> String.downcase() == address, do: q.key
+      end)
+    end
   end
 
   def for_address(_), do: nil
@@ -117,13 +124,14 @@ defmodule Bbh.Tickets.Queue do
   defp field_value(nil, _field), do: nil
   defp field_value(queue, field), do: Map.get(queue, field)
 
-  # TICKET_ADDRESS_PREFIX ("beta.") in front of the local part.
-  defp prefixed(nil), do: nil
+  # TICKET_ADDRESS_OVERRIDE (Beta) in place of every address a queue has.
+  defp effective(nil), do: nil
+  defp effective(address), do: override() || address
 
-  defp prefixed(address) do
-    case Application.get_env(:bbh, :ticket_address_prefix) do
-      prefix when prefix in [nil, ""] -> address
-      prefix -> prefix <> address
+  defp override do
+    case Application.get_env(:bbh, :ticket_address_override) do
+      blank when blank in [nil, ""] -> nil
+      address -> address
     end
   end
 

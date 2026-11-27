@@ -248,7 +248,7 @@ resolve VAPID_SUBJECT "VAPID subject (mailto:)" "mailto:admin@buterland-beckerho
 # Contact form spam protection
 resolve_gen ALTCHA_HMAC_KEY gen_hmac
 
-# SMTP + contact addresses (optional; preserved if already set).
+# SMTP + system mail sender (optional; preserved if already set).
 # No relay host -> no outbound mail, so don't bother asking for port/user/password.
 resolve SMTP_RELAY "SMTP relay host (blank to skip)" ""; smtp_relay_val="$RESOLVED"
 KNOWN[SMTP_PORT]=1; KNOWN[SMTP_USERNAME]=1; KNOWN[SMTP_PASSWORD]=1
@@ -268,9 +268,16 @@ else
   OUT[SMTP_USERNAME]="${CUR[SMTP_USERNAME]:-}"
   OUT[SMTP_PASSWORD]="${CUR[SMTP_PASSWORD]:-}"
 fi
-resolve CONTACT_RECIPIENT   "Contact recipient"   "info@buterland-beckerhook.de"
-resolve CONTACT_SENDER      "Contact sender"      "noreply@buterland-beckerhook.de"
-resolve CONTACT_SENDER_NAME "Contact sender name" "Buterland-Beckerhook.de"
+# MAIL_SENDER(_NAME) were CONTACT_SENDER(_NAME): carry an old value over (verbatim,
+# already escaped) and drop the old key from the rewritten file.
+for k in SENDER SENDER_NAME; do
+  KNOWN["CONTACT_$k"]=1
+  if [[ -z "${CUR[MAIL_$k]:-}" && -n "${CUR[CONTACT_$k]:-}" ]]; then
+    CUR["MAIL_$k"]="${CUR[CONTACT_$k]}"
+  fi
+done
+resolve MAIL_SENDER      "Mail sender"      "noreply@buterland-beckerhook.de"
+resolve MAIL_SENDER_NAME "Mail sender name" "Buterland-Beckerhook.de"
 
 # Logging. Not prompted (info suits both modes); operators flip it to debug in
 # .env when diagnosing. Preserve an existing value verbatim (already escaped, like
@@ -316,8 +323,8 @@ ENV_TMP="$(mktemp "$ENV_FILE.XXXXXX")"
   echo "# --- Web Push (VAPID) ---"
   for k in VAPID_PUBLIC_KEY VAPID_PRIVATE_KEY VAPID_SUBJECT; do printf '%s=%s\n' "$k" "${OUT[$k]}"; done
   echo
-  echo "# --- Contact form (Altcha + SMTP) ---"
-  for k in ALTCHA_HMAC_KEY SMTP_RELAY SMTP_PORT SMTP_USERNAME SMTP_PASSWORD CONTACT_RECIPIENT CONTACT_SENDER CONTACT_SENDER_NAME; do
+  echo "# --- Form spam protection (Altcha) + system mail (SMTP) ---"
+  for k in ALTCHA_HMAC_KEY SMTP_RELAY SMTP_PORT SMTP_USERNAME SMTP_PASSWORD MAIL_SENDER MAIL_SENDER_NAME; do
     printf '%s=%s\n' "$k" "${OUT[$k]}"
   done
   echo
