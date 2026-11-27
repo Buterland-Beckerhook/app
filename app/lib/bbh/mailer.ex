@@ -7,17 +7,18 @@ defmodule Bbh.Mailer do
   @default_sender_name "Buterland-Beckerhook.de"
 
   @doc """
-  Sender email address for outbound mail (env `CONTACT_SENDER`).
+  Sender email address for system mail (env `MAIL_SENDER`, formerly `CONTACT_SENDER`).
 
-  Shared by the contact form and the account notifier so there is a single
-  authoritative "from" address.
+  Shared by login mail, notifications and the membership applicant's copy so there is
+  a single authoritative "from" address. Postfach replies use `Bbh.Tickets.Mailer`.
   """
-  def sender, do: Application.get_env(:bbh, :contact_sender, @default_sender_email)
+  def sender, do: Application.get_env(:bbh, :mail_sender, @default_sender_email)
 
   @doc """
-  Sender display name for outbound mail (env `CONTACT_SENDER_NAME`).
+  Sender display name for system mail (env `MAIL_SENDER_NAME`, formerly
+  `CONTACT_SENDER_NAME`).
   """
-  def sender_name, do: Application.get_env(:bbh, :contact_sender_name, @default_sender_name)
+  def sender_name, do: Application.get_env(:bbh, :mail_sender_name, @default_sender_name)
 
   @doc """
   Deliver an email with structured logging around the send.

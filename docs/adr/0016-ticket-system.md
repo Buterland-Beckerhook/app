@@ -56,12 +56,16 @@ admins read everything. Replies go out from the system, as the club address.
 
 ## Consequences
 
-- The old mail path stays until `TICKETS_ENABLED=true`; switching means creating
+- The old mail path stayed until `TICKETS_ENABLED=true`; switching meant creating
   `tickets@`, then pointing the queue aliases at it and removing the forwarding rules.
+  *Update 2026-11:* after some weeks in production the old path and the flag were
+  removed; the forms only file tickets.
 - Losing the keys loses every ticket; rotation is `TICKET_KEYS` + `TICKET_KEY_CURRENT`
   and `Bbh.Release.rekey_tickets/0`.
-- Beta must have its own keys, its own mailbox, `TICKET_ADDRESS_PREFIX=beta.` (Beta
-  gets Prod's queue list with every sync) and no ticket rows
+- Beta must have its own keys, its own mailbox, `TICKET_ADDRESS_OVERRIDE=beta.tickets@…`
+  (Beta gets Prod's queue list with every sync; the override replaces every queue
+  address, so all Beta inbound mail lands in `info` — it replaced the per-queue
+  `TICKET_ADDRESS_PREFIX` aliases in 2026-11) and no ticket rows
   (`deploy/sync-data.sh` truncates them): a Beta poller with Prod's credentials would
   take and delete real mail.
 - A database restored from another stack's snapshot carries tickets its keys cannot

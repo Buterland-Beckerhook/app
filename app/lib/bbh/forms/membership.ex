@@ -2,14 +2,15 @@ defmodule Bbh.Forms.Membership do
   @moduledoc """
   Membership-application ("Aufnahmeantrag") validation and delivery.
 
-  Mirrors `Bbh.Forms.Contact`: plain-function validation (no DB persistence) plus Swoosh
-  delivery. The form captures the applicant's personal data and an *electronic* SEPA
-  direct-debit mandate (valid without a hand-written signature). Two mails go out per
-  submission — one to the club inbox, one confirmation copy to the applicant.
+  Mirrors `Bbh.Forms.Contact`: plain-function validation. The form captures the
+  applicant's personal data and an *electronic* SEPA direct-debit mandate (valid without
+  a hand-written signature). A valid application becomes a Postfach ticket
+  (`Bbh.Tickets.create_from_membership/2`); the applicant gets a confirmation copy by
+  mail (`deliver_applicant_copy/1`).
 
   The Satzung's age thresholds (min age for members, max age for listed children) are
-  *soft*: they never reject a submission. The form shows a hint and the club mail flags
-  an out-of-range entry so the Vorstand can follow up. See `min_age/0` / `max_child_age/0`.
+  *soft*: they never reject a submission. The form shows a hint and the ticket carries
+  `flags/1` so the Vorstand can follow up. See `min_age/0` / `max_child_age/0`.
   """
   import Swoosh.Email
   alias Bbh.Mailer
@@ -170,14 +171,6 @@ defmodule Bbh.Forms.Membership do
       else: {:error, errors}
   end
 
-  @doc "Send the application to the club inbox and a confirmation copy to the applicant."
-  def deliver(data) do
-    with {:ok, _} <- deliver_to_club(data),
-         {:ok, _} = ok <- deliver_to_applicant(data) do
-      ok
-    end
-  end
-
   @doc "\"Vorname Nachname\", trimmed."
   def full_name(%{vorname: v, nachname: n}), do: String.trim("#{v} #{n}")
 
@@ -199,35 +192,17 @@ defmodule Bbh.Forms.Membership do
 
   defp derive_bank(fields), do: fields
 
-  defp deliver_to_club(%{email: email} = data) do
-    name = full_name(data)
-
-    new()
-    |> to(recipient())
-    |> from({"Website Aufnahmeantrag", Mailer.sender()})
-    |> reply_to({name, email})
-    |> subject("Aufnahmeantrag von #{name}")
-    |> text_body(club_body(data))
-    |> Mailer.deliver_logged("membership")
-  end
-
   @doc """
   The confirmation copy to the applicant — also their copy of the SEPA mandate. The IBAN
   is masked; the address is kept out of the log.
   """
-  def deliver_applicant_copy(data), do: deliver_to_applicant(data)
-
-  defp deliver_to_applicant(%{email: email} = data) do
+  def deliver_applicant_copy(%{email: email} = data) do
     new()
     |> to({full_name(data), email})
     |> from({Mailer.sender_name(), Mailer.sender()})
     |> subject("Ihr Aufnahmeantrag beim Schützenverein Buterland-Beckerhook e.V.")
     |> text_body(applicant_body(data))
     |> Mailer.deliver_logged("membership-copy", redact: true)
-  end
-
-  defp club_body(data) do
-    "Neuer Aufnahmeantrag über die Website:\n\n" <> summary(data) <> age_flags(data)
   end
 
   defp applicant_body(data) do
@@ -245,8 +220,8 @@ defmodule Bbh.Forms.Membership do
     """
   end
 
-  # The club copy carries the full IBAN; the applicant's copy passes a masked one.
-  defp summary(data, opts \\ []) do
+  # The applicant's copy passes a masked IBAN.
+  defp summary(data, opts) do
     """
     Aufnahmeantrag
     --------------
@@ -290,17 +265,6 @@ defmodule Bbh.Forms.Membership do
   def flags(data) do
     [applicant_age_flag(data) | Enum.map(data.children, &child_age_flag/1)]
     |> Enum.reject(&is_nil/1)
-  end
-
-  # Appended to the club mail only when something is off.
-  defp age_flags(data) do
-    case flags(data) do
-      [] ->
-        ""
-
-      lines ->
-        "\nHinweise (bitte prüfen)\n-----------------------\n" <> Enum.join(lines, "\n") <> "\n"
-    end
   end
 
   defp applicant_age_flag(data) do
@@ -421,7 +385,4 @@ defmodule Bbh.Forms.Membership do
 
   defp put_if(map, true, key, msg), do: Map.put(map, key, msg)
   defp put_if(map, false, _key, _msg), do: map
-
-  defp recipient,
-    do: Application.get_env(:bbh, :contact_recipient, "info@buterland-beckerhook.de")
 end

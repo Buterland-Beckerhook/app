@@ -27,9 +27,7 @@ defmodule BbhWeb.ContactController do
       {:ok, data} ->
         case check_spam(conn, params) do
           :ok ->
-            if Bbh.Tickets.enabled?(),
-              do: create_ticket(conn, data, params),
-              else: deliver(conn, data)
+            create_ticket(conn, data, params)
 
           :rate_limited ->
             Logger.warning("Contact form rejected: rate limit")
@@ -69,25 +67,6 @@ defmodule BbhWeb.ContactController do
     end
   end
 
-  defp deliver(conn, data) do
-    case Bbh.Forms.Contact.deliver(data) do
-      {:ok, _} ->
-        conn
-        |> put_flash(:info, "Vielen Dank! Ihre Nachricht wurde gesendet.")
-        |> redirect(to: ~p"/kontakt")
-
-      {:error, reason} ->
-        Logger.error("Contact form delivery failed: #{inspect(reason)}")
-
-        conn
-        |> put_flash(
-          :error,
-          "Ihre Nachricht konnte nicht gesendet werden. Bitte versuchen Sie es später erneut."
-        )
-        |> render_form(data_to_params(data), %{})
-    end
-  end
-
   # Honeypot, then submit-timing, then the Altcha proof of work. Each layer is
   # independent so any one tripping is enough to reject.
   defp check_spam(conn, params) do
@@ -100,8 +79,8 @@ defmodule BbhWeb.ContactController do
     end
   end
 
-  # Last, so only submissions that passed every spam check count: each one sends mail
-  # or opens a ticket, and the proof of work alone is cheap for a script. A person rarely writes more than a few messages an hour.
+  # Last, so only submissions that passed every spam check count: each one opens a
+  # ticket, and the proof of work alone is cheap for a script. A person rarely writes more than a few messages an hour.
   defp rate_limited?(conn) do
     BbhWeb.RateLimit.check("contact_submit", BbhWeb.RateLimit.client_ip(conn), 5, :timer.hours(1)) !=
       :ok
@@ -116,16 +95,12 @@ defmodule BbhWeb.ContactController do
     end
   end
 
-  defp data_to_params(%{name: name, email: email, message: message}) do
-    %{"name" => name, "email" => email, "message" => message}
-  end
-
   defp render_form(conn, params, errors) do
     render(conn, :new,
       page_title: "Kontakt",
       params: params,
       errors: errors,
-      recipients: if(Bbh.Tickets.enabled?(), do: Bbh.Tickets.Queue.contact_options(), else: []),
+      recipients: Bbh.Tickets.Queue.contact_options(),
       form_token: Phoenix.Token.sign(conn, @form_token_salt, System.os_time(:second)),
       altcha: Bbh.Altcha.enabled?() && Bbh.Altcha.challenge()
     )

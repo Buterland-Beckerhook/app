@@ -1,8 +1,6 @@
 defmodule Bbh.Forms.ContactTest do
   use ExUnit.Case, async: true
 
-  import Swoosh.TestAssertions
-
   alias Bbh.Forms.Contact
 
   @valid %{
@@ -40,20 +38,6 @@ defmodule Bbh.Forms.ContactTest do
       assert Map.has_key?(errors, :email)
       assert Map.has_key?(errors, :message)
       refute Map.has_key?(errors, :privacy)
-    end
-  end
-
-  describe "deliver/1" do
-    test "sends an email to the club inbox with the sender as reply-to" do
-      {:ok, data} = Contact.validate(@valid)
-      assert {:ok, _} = Contact.deliver(data)
-
-      assert_email_sent(fn email ->
-        assert email.from == {"Website Kontaktformular", "noreply@buterland-beckerhook.de"}
-        assert email.reply_to == {"Max Mustermann", "max@example.com"}
-        assert email.subject =~ "Max Mustermann"
-        assert email.text_body =~ "Hallo Welt"
-      end)
     end
   end
 end

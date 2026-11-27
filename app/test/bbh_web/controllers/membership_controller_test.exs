@@ -47,18 +47,6 @@ defmodule BbhWeb.MembershipControllerTest do
   end
 
   describe "POST /verein/mitglied-werden (altcha disabled)" do
-    test "sends both mails and redirects on valid input", %{conn: conn} do
-      conn = post(conn, ~p"/verein/mitglied-werden", human_params())
-
-      assert redirected_to(conn) == ~p"/verein/mitglied-werden"
-      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "gesendet"
-      assert_email_sent(fn email -> assert email.subject =~ "Erika Musterfrau" end)
-
-      assert_email_sent(fn email ->
-        assert email.to == [{"Erika Musterfrau", "erika@example.com"}]
-      end)
-    end
-
     test "re-renders with validation errors on invalid input", %{conn: conn} do
       html = conn |> post(~p"/verein/mitglied-werden", %{"nachname" => ""}) |> html_response(200)
       assert html =~ "Bitte geben Sie Ihren Namen an."
@@ -119,12 +107,7 @@ defmodule BbhWeb.MembershipControllerTest do
     end
   end
 
-  describe "with the Postfach (TICKETS_ENABLED)" do
-    setup do
-      Application.put_env(:bbh, :tickets_enabled, true)
-      on_exit(fn -> Application.delete_env(:bbh, :tickets_enabled) end)
-    end
-
+  describe "Postfach" do
     test "creates a membership ticket with the submission record", %{conn: conn} do
       conn =
         conn

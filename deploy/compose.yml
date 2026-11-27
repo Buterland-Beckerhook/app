@@ -152,11 +152,10 @@ services:
       TIME_ZONE: ${TIME_ZONE:-Europe/Berlin}
       TZ: ${TIME_ZONE:-Europe/Berlin}
       # Postfach (ticket system), see deploy/.env.example. Beta uses its own keys.
-      TICKETS_ENABLED: ${TICKETS_ENABLED:-false}
       TICKET_KEYS: ${TICKET_KEYS:-}
       TICKET_KEY_CURRENT: ${TICKET_KEY_CURRENT:-}
       TICKET_HMAC_KEY: ${TICKET_HMAC_KEY:-}
-      TICKET_ADDRESS_PREFIX: ${TICKET_ADDRESS_PREFIX:-}
+      TICKET_ADDRESS_OVERRIDE: ${TICKET_ADDRESS_OVERRIDE:-}
       TICKET_SMTP_USERNAME: ${TICKET_SMTP_USERNAME:-}
       TICKET_SMTP_PASSWORD: ${TICKET_SMTP_PASSWORD:-}
       TICKET_IMAP_HOST: ${TICKET_IMAP_HOST:-}
@@ -181,9 +180,12 @@ services:
       SMTP_PORT: ${SMTP_PORT}
       SMTP_USERNAME: ${SMTP_USERNAME}
       SMTP_PASSWORD: ${SMTP_PASSWORD}
-      CONTACT_RECIPIENT: ${CONTACT_RECIPIENT}
-      CONTACT_SENDER: ${CONTACT_SENDER}
-      CONTACT_SENDER_NAME: ${CONTACT_SENDER_NAME:-Buterland-Beckerhook.de}
+      # Sender of system mail; the app defaults to noreply@ / Buterland-Beckerhook.de.
+      MAIL_SENDER: ${MAIL_SENDER:-}
+      MAIL_SENDER_NAME: ${MAIL_SENDER_NAME:-}
+      # Former names of the two above, still read as a fallback — to be removed.
+      CONTACT_SENDER: ${CONTACT_SENDER:-}
+      CONTACT_SENDER_NAME: ${CONTACT_SENDER_NAME:-}
       # Log verbosity: any Elixir Logger level
       # (debug|info|notice|warning|error|critical|alert|emergency). Defaults to
       # info; set LOG_LEVEL=debug in .env to surface /health probe lines.

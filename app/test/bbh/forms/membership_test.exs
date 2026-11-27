@@ -144,40 +144,32 @@ defmodule Bbh.Forms.MembershipTest do
     end
   end
 
-  describe "deliver/1" do
-    test "sends the application to the club and a confirmation copy to the applicant" do
+  describe "deliver_applicant_copy/1" do
+    test "sends the applicant their copy with a masked IBAN" do
       {:ok, data} = Membership.validate(@valid)
-      assert {:ok, _} = Membership.deliver(data)
+      assert {:ok, _} = Membership.deliver_applicant_copy(data)
 
-      # First mail: to the club inbox, with the applicant as reply-to.
-      assert_email_sent(fn email ->
-        assert email.subject =~ "Max Mustermann"
-        assert email.reply_to == {"Max Mustermann", "max@example.com"}
-        refute email.text_body =~ "zugestimmt"
-        assert email.text_body =~ "DE89370400440532013000"
-        # Last: the callback's return value is what assert_email_sent checks, and a
-        # passing `refute` returns false.
-        assert email.text_body =~ "SEPA-Mandat erteilt: ja"
-      end)
-
-      # Second mail: the copy to the applicant.
       assert_email_sent(fn email ->
         assert email.to == [{"Max Mustermann", "max@example.com"}]
         refute email.text_body =~ "DE89370400440532013000"
+        assert email.text_body =~ "SEPA-Mandat erteilt: ja"
         assert email.text_body =~ "DE89 •••• •••• •••• ••30 00"
         assert email.text_body =~ "vielen Dank"
       end)
     end
+  end
 
-    test "the club mail flags an applicant below the minimum age" do
+  describe "flags/1" do
+    test "flags an applicant below the minimum age" do
       young = Date.utc_today() |> Date.add(-5 * 365) |> Date.to_iso8601()
       {:ok, data} = Membership.validate(%{@valid | "geburtsdatum" => young})
-      assert {:ok, _} = Membership.deliver(data)
+      assert [flag] = Membership.flags(data)
+      assert flag =~ "Mindestalter"
+    end
 
-      assert_email_sent(fn email ->
-        assert email.subject =~ "Max Mustermann"
-        assert email.text_body =~ "Mindestalter"
-      end)
+    test "is empty when nothing is off" do
+      {:ok, data} = Membership.validate(@valid)
+      assert Membership.flags(data) == []
     end
   end
 end

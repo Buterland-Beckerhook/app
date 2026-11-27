@@ -16,7 +16,7 @@ defmodule BbhWeb.ContactControllerTest do
   end
 
   # Valid params plus a plausibly-timed form token (the human-timing gate).
-  defp human_params(extra \\ %{}) do
+  defp human_params(extra) do
     @valid |> Map.put("form_ts", past_token()) |> Map.merge(extra)
   end
 
@@ -32,14 +32,6 @@ defmodule BbhWeb.ContactControllerTest do
   end
 
   describe "POST /kontakt (altcha disabled)" do
-    test "sends the message and redirects on valid input", %{conn: conn} do
-      conn = post(conn, ~p"/kontakt", human_params())
-
-      assert redirected_to(conn) == ~p"/kontakt"
-      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "gesendet"
-      assert_email_sent(fn email -> assert email.subject =~ "Erika Musterfrau" end)
-    end
-
     test "re-renders with validation errors on invalid input", %{conn: conn} do
       html = conn |> post(~p"/kontakt", %{"name" => ""}) |> html_response(200)
       # Must show the actual field errors, not merely re-render the page shell.
@@ -96,12 +88,7 @@ defmodule BbhWeb.ContactControllerTest do
     end
   end
 
-  describe "with the Postfach (TICKETS_ENABLED)" do
-    setup do
-      Application.put_env(:bbh, :tickets_enabled, true)
-      on_exit(fn -> Application.delete_env(:bbh, :tickets_enabled) end)
-    end
-
+  describe "Postfach" do
     test "offers the queues, preselected via ?an=", %{conn: conn} do
       html = conn |> get(~p"/kontakt?an=vorstand") |> html_response(200)
       assert html =~ ~s|<option value="vorstand" selected|
