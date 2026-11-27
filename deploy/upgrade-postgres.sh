@@ -54,7 +54,9 @@ envval() { sed -n "s/^$1=//p" .env | head -n1 | sed -e 's/^"//' -e 's/"$//'; }
 STACK="$(envval STACK_NAME)"; STACK="${STACK:-bbh}"
 DB_USER="$(envval DB_USER)"
 PHX_HOST="$(envval PHX_HOST)"
-RESTORE="$(envval RESTORE_DIR)"; RESTORE="${RESTORE:-restore}"
+DATA="$(envval DATA_DIR)"; DATA="${DATA:-.}"
+RESTORE="$DATA/restore"
+BACKUPS="$DATA/backups"
 [[ -n "$DB_USER" ]] || die "DB_USER missing in .env"
 
 DB=bbh
@@ -97,7 +99,7 @@ cleanup() {
       echo
       echo "upgrade-postgres: FAILED — the stack is left stopped (Phoenix down)."
       echo "  The legacy volume $LEGACY_VOL is untouched."
-      [[ -n "$DUMP" ]] && echo "  Dump of the old database: $DUMP (copy in backups/)"
+      [[ -n "$DUMP" ]] && echo "  Dump of the old database: $DUMP (copy in $BACKUPS/)"
       echo "  Back to the previous state: see README \"Postgres major upgrade\" → Rollback."
     } >&2
   fi
@@ -133,7 +135,7 @@ if [[ "$ASSUME_YES" -ne 1 ]]; then
 fi
 
 STAMP="$(date +%Y%m%d-%H%M%S)"
-mkdir -p backups "$RESTORE"
+mkdir -p "$BACKUPS" "$RESTORE"
 
 # --- 2. Stop the stack --------------------------------------------------------
 echo "==> Stopping the stack"
@@ -168,7 +170,7 @@ docker exec -i "$TMP" pg_restore -l < "$WORK/db.dump" > "$WORK/db.toc"
 grep -q ' TABLE ' "$WORK/db.toc" || die "the dump lists no tables — refusing to continue"
 tmp_sql "$COUNT_SQL" > "$WORK/old.counts"
 stop_tmp
-cp "$WORK/db.dump" "backups/pg${OLD_MAJOR}-final-$STAMP.dump"
+cp "$WORK/db.dump" "$BACKUPS/pg${OLD_MAJOR}-final-$STAMP.dump"
 # Copied in as *.partial and renamed: the restore service only ever sees a whole *.dump.
 DUMP="$RESTORE/pg${OLD_MAJOR}-to-pg${NEW_MAJOR}-$STAMP.dump"
 cp "$WORK/db.dump" "$DUMP.partial"

@@ -6,7 +6,7 @@
 #                          .env.example) from the default branch. Skipped with a
 #                          warning if deploy/ was copied standalone (no .git).
 #   2. (--latest / --tag only) pin IMAGE in .env to that tag, after a safety dump
-#                          of the database into ./backups/ (the last 5 are kept).
+#                          of the database into $DATA_DIR/backups/ (default ./backups/, last 5 kept).
 #   3. docker compose pull   — fetch the image for the pinned IMAGE tag.
 #   4. docker compose up -d  — recreate only what changed; Phoenix runs bin/migrate
 #                          on startup, so schema migrations apply automatically.
@@ -58,6 +58,8 @@ fi
 
 COMPOSE=(docker compose --env-file .env)
 dotenv() { sed -n "s/^$1=//p" .env | head -n1; }
+# Safety dumps go to $DATA_DIR/backups (DATA_DIR defaults to this directory).
+DATA="$(dotenv DATA_DIR | sed -e 's/^"//' -e 's/"$//')"; BACKUPS="${DATA:-.}/backups"
 die() { echo "ERROR: $*" >&2; exit 1; }
 
 # Build tags as written by build.yml: UTC date + time + short commit SHA. They sort
@@ -130,8 +132,8 @@ if [[ -n "$PIN" ]]; then
     # A failed migration is not undone by going back to the old image, only by
     # restoring the database — so take a dump before the new image can migrate.
     if [[ -n "$("${COMPOSE[@]}" ps -q postgres 2>/dev/null)" ]]; then
-      mkdir -p backups
-      DUMP="backups/pre-update-$(date +%Y%m%d-%H%M%S).dump"
+      mkdir -p "$BACKUPS"
+      DUMP="$BACKUPS/pre-update-$(date +%Y%m%d-%H%M%S).dump"
       echo "==> Safety dump -> $DUMP"
       # No -t on exec: a TTY mangles the binary dump.
       if ! "${COMPOSE[@]}" exec -T postgres pg_dump -U "$(dotenv DB_USER)" -Fc bbh > "$DUMP.tmp"; then
@@ -140,7 +142,7 @@ if [[ -n "$PIN" ]]; then
       fi
       mv "$DUMP.tmp" "$DUMP"
       # shellcheck disable=SC2012
-      ls -1t backups/pre-update-*.dump 2>/dev/null | tail -n +6 | xargs -r rm --
+      ls -1t "$BACKUPS"/pre-update-*.dump 2>/dev/null | tail -n +6 | xargs -r rm --
     else
       echo "==> Safety dump skipped (postgres is not running)"
       DUMP=""
