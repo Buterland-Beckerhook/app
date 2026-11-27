@@ -110,12 +110,15 @@ defmodule BbhWeb.Admin.TicketLive.ShowComponents do
       </p>
       <div class="flex flex-wrap items-end gap-2">
         <.input field={@form[:status]} type="select" options={@statuses} />
+        <%!-- No phx-disable-with: it replaces the button text, spinner included.
+              LiveView disables the button while the submit (and the mail) runs. --%>
         <.button
           class="btn btn-primary mb-2"
-          phx-disable-with="Sende…"
           data-confirm="Antwort jetzt an den Absender senden?"
         >
-          Antwort senden
+          <span class="loading loading-spinner loading-sm hidden phx-submit-loading:inline-block"></span>
+          <span class="phx-submit-loading:hidden">Antwort senden</span>
+          <span class="hidden phx-submit-loading:inline">Sende…</span>
         </.button>
       </div>
     </.form>

@@ -6,7 +6,7 @@
       <.blocks blocks={@intro_blocks} />
     </div>
 
-    <form method="post" action={~p"/verein/mitglied-werden"} class="space-y-8">
+    <form method="post" action={~p"/verein/mitglied-werden"} data-busy class="space-y-8">
       <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
       <input type="hidden" name="form_ts" value={@form_token} />
 
@@ -300,7 +300,8 @@
 
       <button
         type="submit"
-        class="rounded bg-primary px-4 py-2 font-medium text-primary-content hover:opacity-90"
+        data-busy-label="Wird gesendet…"
+        class="inline-flex items-center gap-2 rounded bg-primary px-4 py-2 font-medium text-primary-content hover:opacity-90 disabled:cursor-wait disabled:opacity-70"
       >
         Antrag absenden
       </button>

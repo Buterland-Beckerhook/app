@@ -37,6 +37,8 @@ import "./mail.js"
 
 // Grows the membership form's "Kinder unter 15 Jahren" rows on demand.
 import "./membership.js"
+// Spinner + disabled button while a public form waits for its mail to go out.
+import "./submit_busy.js"
 // Web Push: opt-in banner, footer link and settings dialog.
 import {PostfachPush, PushThisDevice} from "./push.js"
 // Gallery block in "Diashow" layout: index arithmetic for the controller further down.
