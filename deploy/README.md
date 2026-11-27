@@ -156,6 +156,11 @@ Merging to `main` (including Renovate's auto-merges) builds a fresh image. From 
   to a new digest — Beta is still the first to run every build. Set
   `DATA_DIR` to a path outside the checkout (`/opt/data/bbh-beta`, see "Restoring a
   dump"), because Komodo may re-clone it.
+  *Pre Deploy* runs `sh ./pre-deploy-dump.sh bbh-beta /opt/data/bbh-beta/backups`:
+  a `pg_dump` before every deploy (so before the new image migrates), the newest 5
+  kept as `pre-deploy-*.dump`. A failed dump stops the deploy; a stopped Postgres
+  (first deploy) is skipped. It runs inside the Periphery container, so `/opt/data`
+  must be mounted there under the same path.
 - **Prod is updated by hand**, once Beta looks fine:
   ```sh
   sudo ./update.sh --latest
