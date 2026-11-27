@@ -149,18 +149,12 @@ docker compose --env-file .env up -d            # restore runs, then Phoenix res
 
 Merging to `main` (including Renovate's auto-merges) builds a fresh image. From there:
 
-- **Beta updates itself** every hour through a systemd timer, so it is the first to run
-  every build — set it up once per host:
-  ```sh
-  sudo install -m 0644 systemd/bbh-update@.service systemd/bbh-update@.timer /etc/systemd/system/
-  sudo systemctl daemon-reload
-  BETA_DEPLOY=/opt/…/deploy   # absolute path of the Beta checkout's deploy/ dir
-  test -x "$BETA_DEPLOY/update.sh" || echo "wrong path: $BETA_DEPLOY"
-  sudo systemctl enable --now "bbh-update@$(systemd-escape -p "$BETA_DEPLOY").timer"
-  journalctl -u "bbh-update@*" --since today      # what it did
-  ```
-  Each run is a plain `./update.sh`: `git pull`, `compose pull`, `up -d` — a no-op when
-  nothing changed.
+- **Beta is deployed by Komodo** (stack `bbh-beta`, Run Directory `deploy/` of this
+  repo, `.env` values kept as the stack's Environment in Komodo). The stack has
+  *Poll for Updates* and *Auto Update* on, so Komodo redeploys whenever `:beta` points
+  to a new digest — Beta is still the first to run every build. Set
+  `DATA_DIR` to a path outside the checkout (`/opt/data/bbh-beta`, see "Restoring a
+  dump"), because Komodo may re-clone it.
 - **Prod is updated by hand**, once Beta looks fine:
   ```sh
   sudo ./update.sh --latest
