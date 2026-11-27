@@ -15,6 +15,7 @@ defmodule Bbh.MapFixtures do
 
   def pmtiles(opts \\ []) do
     {min_lon, min_lat, max_lon, max_lat} = Keyword.get(opts, :bbox, {6.9, 52.1, 7.2, 52.3})
+
     json =
       Keyword.get_lazy(opts, :metadata_json, fn ->
         Jason.encode!(%{"version" => Keyword.get(opts, :version, "4.15.2")})
