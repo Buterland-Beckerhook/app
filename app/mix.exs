@@ -72,6 +72,8 @@ defmodule Bbh.MixProject do
       # 1.20.0 and 1.20.1 are retired.
       {:plug, "~> 1.20.3"},
       {:postgrex, "~> 0.22"},
+      # Transitive (via ecto_sql / postgrex): < 2.10.3 is EEF-CVE-2026-133555.
+      {:db_connection, "~> 2.10.3"},
       {:phoenix_html, "~> 4.4"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:phoenix_live_view, "~> 1.2.0"},
