@@ -23,6 +23,14 @@ defmodule Bbh.MapTest do
       assert meta["version"] == "4.15.2"
     end
 
+    test "refuses metadata that inflates beyond the limit", %{dir: dir} do
+      # ~5 MiB of JSON, a few KB gzipped.
+      json = Jason.encode!(%{"version" => "4.15.2", "pad" => String.duplicate("a", 5_000_000)})
+      path = write_pmtiles(Path.join(dir, "bomb.pmtiles"), metadata_json: json)
+
+      assert {:error, :bad_metadata} = Bbh.Map.read_header(path)
+    end
+
     test "rejects anything that isn't a PMTiles v3 archive", %{dir: dir} do
       path = Path.join(dir, "junk.pmtiles")
       File.mkdir_p!(dir)

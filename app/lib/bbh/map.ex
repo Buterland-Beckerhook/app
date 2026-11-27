@@ -204,15 +204,42 @@ defmodule Bbh.Map do
     end
   end
 
+  # Metadata is a small JSON document (a few KB in the Protomaps builds). Inflate it
+  # in bounded steps instead of :zlib.gunzip/1, so a corrupt or hostile archive
+  # (MAP_TILES_FILE, a broken download) cannot expand into a multi-GB binary.
+  @max_metadata_bytes 4 * 1024 * 1024
+
   defp decompress(data, 1), do: {:ok, data}
 
   defp decompress(data, 2) do
-    {:ok, :zlib.gunzip(data)}
-  rescue
-    ErlangError -> {:error, :bad_metadata}
+    z = :zlib.open()
+
+    try do
+      # WindowBits 16 + 15: expect a gzip wrapper.
+      :ok = :zlib.inflateInit(z, 31)
+      inflate_bounded(z, :zlib.safeInflate(z, data), [], 0)
+    rescue
+      ErlangError -> {:error, :bad_metadata}
+    after
+      :zlib.close(z)
+    end
   end
 
   defp decompress(_data, _compression), do: {:error, :unsupported_compression}
+
+  defp inflate_bounded(z, {status, out}, acc, size) when status in [:continue, :finished] do
+    size = size + IO.iodata_length(out)
+
+    cond do
+      size > @max_metadata_bytes -> {:error, :bad_metadata}
+      status == :finished -> {:ok, IO.iodata_to_binary([acc | out])}
+      # No progress: truncated stream, which would otherwise loop forever.
+      IO.iodata_length(out) == 0 -> {:error, :bad_metadata}
+      true -> inflate_bounded(z, :zlib.safeInflate(z, []), [acc | out], size)
+    end
+  end
+
+  defp inflate_bounded(_z, _other, _acc, _size), do: {:error, :bad_metadata}
 
   @doc "Enqueue a refresh of the archive (deduplicated by the worker's uniqueness)."
   def enqueue_update do
