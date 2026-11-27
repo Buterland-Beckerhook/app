@@ -463,11 +463,13 @@ branch (`main`).
 
 **Renovate only sees deps declared in `mix.exs`.** A package that is only in
 `mix.lock` (a transitive dep) gets neither update nor vulnerability-alert PRs; it
-moves only with the weekly lock-file maintenance, which is a pure artifact update —
+moves only with the (daily) lock-file maintenance, which is a pure artifact update —
 if Renovate's `mix deps.update` fails, it never arrives. `mix hex.audit` in CI then
-turns every PR red on a new advisory (Nov 2026: `ecto`). That is why `ecto` and
-`plug` are listed in `mix.exs` although nothing requires them directly; add other
-security-relevant transitives there too. When Renovate goes quiet, check its log on
+turns every PR red on a new advisory (Nov 2026: `ecto`, `db_connection`) until the
+next lock-file maintenance PR is merged — which is why it runs daily and auto-merges.
+`ecto` and `plug` are additionally listed in `mix.exs` (nothing requires them
+directly) so their advisories get an immediate PR; that list is a speed-up, not the
+safety net. When Renovate goes quiet, check its log on
 developer.mend.io — an "Artifact update problem" comment on a PR is the visible sign.
 
 **Sobelow** false positives are suppressed with inline `# sobelow_skip [...]`

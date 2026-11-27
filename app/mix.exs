@@ -67,7 +67,7 @@ defmodule Bbh.MixProject do
       {:ecto_sql, "~> 3.13"},
       # Transitive (via ecto_sql / phoenix), listed on purpose: Renovate only sees deps
       # declared here, so a security advisory on a lock-only package gets no PR until the
-      # weekly lock-file maintenance. Keep security-relevant transitives in this list.
+      # daily lock-file maintenance. Keep security-relevant transitives in this list.
       {:ecto, "~> 3.14"},
       # 1.20.0 and 1.20.1 are retired.
       {:plug, "~> 1.20.3"},

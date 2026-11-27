@@ -23,7 +23,8 @@
   "prHourlyLimit": 2,
   "lockFileMaintenance": {
     "enabled": true,
-    "schedule": ["before 6am on monday"]
+    "description": "Daily, not weekly: fixes for lock-only (transitive) packages arrive only this way, and mix hex.audit fails every PR until they do",
+    "schedule": ["before 6am"]
   },
   "vulnerabilityAlerts": {
     "enabled": true,
