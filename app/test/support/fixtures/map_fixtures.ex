@@ -4,7 +4,8 @@ defmodule Bbh.MapFixtures do
   @doc """
   Write a PMTiles v3 archive to `path`: a real header and gzipped metadata, then
   `padding` filler bytes standing in for tile data. Options: `:bbox`
-  (`{min_lon, min_lat, max_lon, max_lat}`), `:version` (tile schema), `:padding`.
+  (`{min_lon, min_lat, max_lon, max_lat}`), `:version` (tile schema), `:padding`,
+  `:metadata_json` (raw JSON to gzip instead of the version document).
   """
   def write_pmtiles(path, opts \\ []) do
     File.mkdir_p!(Path.dirname(path))
@@ -14,7 +15,13 @@ defmodule Bbh.MapFixtures do
 
   def pmtiles(opts \\ []) do
     {min_lon, min_lat, max_lon, max_lat} = Keyword.get(opts, :bbox, {6.9, 52.1, 7.2, 52.3})
-    metadata = :zlib.gzip(Jason.encode!(%{"version" => Keyword.get(opts, :version, "4.15.2")}))
+
+    json =
+      Keyword.get_lazy(opts, :metadata_json, fn ->
+        Jason.encode!(%{"version" => Keyword.get(opts, :version, "4.15.2")})
+      end)
+
+    metadata = :zlib.gzip(json)
     padding = :binary.copy(<<0>>, Keyword.get(opts, :padding, 200_000))
     e7 = &round(&1 * 1.0e7)
 
